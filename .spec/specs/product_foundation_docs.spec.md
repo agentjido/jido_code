@@ -7,7 +7,7 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -18,17 +18,20 @@ decisions:
   - jido_code.live_vue_frontend_adoption
   - jido_code.jido_os_deprecation
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
+  - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - README.md
   - CONTRIBUTING.md
+  - AGENTS.md
   - .spec/README.md
   - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
   - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
+  - .spec/decisions/jido_code.source_code_graph_product_adoption.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.vsm_recursion_and_scope.md
   - tauri/README.md
@@ -150,6 +153,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
+  covers:
+    - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: .spec/decisions/jido_code.source_code_graph_product_adoption.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

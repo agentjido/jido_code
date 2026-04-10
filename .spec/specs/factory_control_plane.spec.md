@@ -7,7 +7,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis through canonical managed-repository surfaces, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis through canonical managed-repository surfaces while preserving explicit freshness, recovery, and provenance metadata when those findings rejoin governed product records, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization

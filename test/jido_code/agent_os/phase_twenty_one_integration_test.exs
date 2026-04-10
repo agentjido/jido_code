@@ -8,7 +8,7 @@ defmodule JidoCode.AgentOSPhaseTwentyOneIntegrationTest do
   # covers: architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
   # covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
   # covers: package.jido_code.version_controlled_quality_surfaces
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.SourceCodeGraph

@@ -10,7 +10,7 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Operations.{WorkItem, WorkSynthesis}
-  alias JidoCode.SourceCodeGraph.{Finding, Materialization}
+  alias JidoCode.SourceCodeGraph.{Finding, Materialization, ProductFeedback}
 
   @adoption_actor Actor.factory_system_actor(%{
                     "id" => "system:source-code-graph-governed-adoption",
@@ -58,7 +58,8 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
          evidence_input: evidence_input,
          review_metadata: %{
            "graph" => normalize_map(finding.graph),
-           "provenance" => normalize_map(finding.provenance)
+           "provenance" => normalize_map(finding.provenance),
+           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph))
          }
        }}
     end
@@ -87,6 +88,7 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
           "recommended_action" => finding.recommended_action,
           "adoption_action" => Atom.to_string(action),
           "graph" => normalize_map(finding.graph),
+          "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
           "provenance" => normalize_map(finding.provenance),
           "payload" => normalize_map(finding.payload)
         }

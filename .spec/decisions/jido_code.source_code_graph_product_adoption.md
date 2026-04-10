@@ -15,6 +15,7 @@ related:
 ---
 
 <!-- covers: package.jido_code.spec_led_workspace -->
+<!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 <!-- covers: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane -->
 <!-- covers: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions -->
 <!-- covers: architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections -->

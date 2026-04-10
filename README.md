@@ -1,5 +1,7 @@
 # Jido.Code
 
+<!-- covers: package.jido_code.version_controlled_quality_surfaces -->
+
 [![CI](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml)
 
 Jido.Code is the primary product and implementation repo in this workspace. It is a Phoenix + LiveView application built on Ash, Postgres, and the Jido runtime, with a separate Tauri desktop packaging path.
@@ -87,6 +89,10 @@ Use the semantic graph when you need cross-file semantic structure:
 - bounded impact tracing
 - runtime pattern lookups
 - repeated SPARQL-backed structural questions
+- explicit planning, review, and explanation flows that opt into bounded
+  semantic context
+- governed work or evidence adoption from semantic findings after an explicit
+  product action
 
 Prefer ordinary file/code tools when you need:
 
@@ -94,6 +100,15 @@ Prefer ordinary file/code tools when you need:
 - line-level editing context
 - one-off single-file reads
 - answers that should not depend on the current graph being analyzed or loaded
+
+Keep the semantic graph as a bounded enhancement, not a hidden dependency:
+
+- operator and workflow paths should remain legible when the graph is stale,
+  degraded, or unavailable
+- recovery stays product-owned and repo-scoped
+- semantic findings only influence product behavior after explicit governed
+  adoption into records like `Observation`, `Assessment`, `WorkItem`, or
+  `Evidence`
 
 <!-- covers: docs.product_foundation.readme_frontend_stack_orientation_present -->
 ## Frontend Stack
@@ -113,6 +128,7 @@ mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
 mix source_graph.verify # run the repo-owned semantic graph verification suite
+mix semantic.verify     # run the full product-facing semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
 mix test                # create/migrate the test DB and run tests

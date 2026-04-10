@@ -11,7 +11,7 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
   """
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.SourceCodeGraph.ProductService
+  alias JidoCode.SourceCodeGraph.{ProductFeedback, ProductService}
 
   @type workflow_kind :: :plan | :review | :explain
   @type workflow_result :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
@@ -40,6 +40,12 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
          {:ok, raw_result} <-
            invoke_workspace(workflow, managed_repo_id, work_item_id, instruction, workspace_opts) do
       {:ok, shape_result(workflow, managed_repo_id, work_item_id, raw_result, semantic_input)}
+    else
+      {:error, reason, detail} ->
+        {:error, reason, workflow_error(workflow, managed_repo_id, work_item_id, reason, detail)}
+
+      {:error, reason} ->
+        {:error, reason, workflow_error(workflow, managed_repo_id, work_item_id, reason, nil)}
     end
   end
 
@@ -68,6 +74,7 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
        %{
          workflow: workflow,
          graph: status_projection.graph,
+         freshness: ProductFeedback.for_graph(status_projection.graph, status_projection.error),
          results: result_projections
        }, runtime_semantic_opts}
     end
@@ -237,6 +244,34 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
       instruction: Map.get(raw_result, :instruction),
       explanation: Map.get(raw_result, :explanation),
       semantic_input: semantic_input
+    }
+  end
+
+  defp workflow_error(workflow, managed_repo_id, work_item_id, reason, detail) do
+    {graph, error} =
+      case detail do
+        %{graph: graph, error: error} -> {graph, error}
+        %{graph: graph} -> {graph, nil}
+        _other -> {ProductFeedback.fallback_graph(reason), nil}
+      end
+
+    feedback =
+      case {detail, error} do
+        {%{feedback: feedback}, _error} when is_map(feedback) -> feedback
+        _other -> ProductFeedback.for_graph(graph, error)
+      end
+
+    %{
+      workflow: workflow,
+      managed_repo_id: managed_repo_id,
+      work_item_id: work_item_id,
+      graph: ProductFeedback.normalize_graph(graph, reason),
+      feedback: feedback,
+      error: %{
+        type: reason,
+        detail: feedback.detail,
+        remediation: feedback.remediation
+      }
     }
   end
 end

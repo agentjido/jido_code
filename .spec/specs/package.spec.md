@@ -124,6 +124,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-27-semantic-product-hardening-and-contributor-convergence.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -249,7 +254,17 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/phase_twenty_seven_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_twenty_seven_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
@@ -275,6 +290,27 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/components/live_vue_components.ex
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: mix.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+    - package.jido_code.mix_first_cli_surface
+
+- kind: source_file
+  target: README.md
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: CONTRIBUTING.md
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: AGENTS.md
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

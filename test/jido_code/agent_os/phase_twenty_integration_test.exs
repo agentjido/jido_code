@@ -6,7 +6,7 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
   # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
   # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
   # covers: package.jido_code.version_controlled_quality_surfaces
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace

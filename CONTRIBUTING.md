@@ -1,5 +1,7 @@
 # Contributing to JidoCode
 
+<!-- covers: package.jido_code.version_controlled_quality_surfaces -->
+
 Thank you for your interest in contributing to JidoCode! This document provides guidelines for contributing.
 
 ## Development Setup
@@ -39,6 +41,7 @@ For day-to-day development:
 - `mix assets.build` builds the current browser bundle and SSR output
 - `mix frontend.verify` runs the repo-owned browser pipeline verification
 - `mix source_graph.verify` runs the repo-owned semantic source-code graph verification suite
+- `mix semantic.verify` runs the full product-facing semantic graph verification suite
 - `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
@@ -55,12 +58,24 @@ The repository-scoped semantic graph stack uses `elixir_ontologies`,
 - Normal workflow is explicit: analyze, load or refresh, then query.
 - If you touch the semantic graph boundary, actions, pod agents, or repository
   workspace entrypoints, run `mix source_graph.verify`.
+- If you touch product-facing semantic services, semantic operator UI, semantic
+  workflow entrypoints, or governed semantic-finding adoption, run
+  `mix semantic.verify`.
 
 Reach for the semantic graph when you need repository-wide semantic structure
 such as module discovery, function discovery, impact tracing, runtime-pattern
 lookups, or repeated SPARQL-backed questions. Prefer normal file/code tools when
 you need exact latest source text, line-level editing context, or trivial
 single-file inspection.
+
+Treat the semantic graph as a bounded enhancement rather than a required
+product dependency:
+
+- keep semantic freshness, stale state, and recovery visible in operator-facing
+  behavior
+- let planning, review, and explanation opt into semantic context explicitly
+- route semantic findings back into governed records before they change product
+  behavior
 
 ## Code Quality
 
@@ -86,6 +101,7 @@ mix quality
 This extends `mix q` with:
 - `mix frontend.verify` - LiveVue/Vite/SSR pipeline verification
 - `mix source_graph.verify` - repository-scoped semantic graph verification
+- `mix semantic.verify` - product-facing semantic workflow and UI verification
 - `mix doctor --raise` - Documentation coverage check
 - `mix dialyzer` - Broader static type analysis
 

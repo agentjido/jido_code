@@ -39,6 +39,7 @@ surface:
   - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
   - test/jido_code_web/live/phase_twenty_five_integration_test.exs
+  - test/jido_code_web/live/phase_twenty_seven_integration_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
 ```
 
@@ -252,6 +253,12 @@ surface:
   target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
   covers:
     - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_twenty_seven_integration_test.exs
+  covers:
     - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
     - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
 

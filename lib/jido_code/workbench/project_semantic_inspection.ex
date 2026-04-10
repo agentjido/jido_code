@@ -13,7 +13,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
   """
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.SourceCodeGraph.ProductService
+  alias JidoCode.SourceCodeGraph.{ProductFeedback, ProductService}
 
   @default_graph %{
     graph_name: "source_code",
@@ -120,7 +120,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
           impact: impact,
           notice: semantic_notice(status),
           notice_kind: semantic_notice_kind(graph),
-          recovery: recovery(graph)
+          recovery: ProductFeedback.recovery(graph)
         }
 
       {:error, notice} ->
@@ -138,10 +138,10 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
         %{
           managed_repo_id: managed_repo_id,
           state: Map.get(graph, :state, :unavailable),
-          label: graph_state_label(graph),
+          label: ProductFeedback.state_label(graph),
           detail: hint_detail(status),
           remediation: hint_remediation(graph),
-          recovery: recovery(graph)
+          recovery: ProductFeedback.recovery(graph)
         }
 
       {:error, _notice} ->
@@ -277,7 +277,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
       impact: empty_lookup(:impact, "unavailable", @default_graph),
       notice: notice,
       notice_kind: @default_notice_kind,
-      recovery: recovery(@default_graph)
+      recovery: ProductFeedback.recovery(@default_graph)
     }
   end
 
@@ -292,90 +292,23 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
   defp semantic_notice(%{graph: %{state: :ready}}), do: nil
 
   defp semantic_notice(%{graph: graph, error: error}) do
-    error_type =
-      error_type(error) ||
-        graph
-        |> Map.get(:latest_failure)
-        |> map_get(:kind, "kind")
-        |> normalize_optional_string() ||
-        graph_error_type(graph)
+    feedback = ProductFeedback.for_graph(graph, error)
 
     %{
-      error_type: error_type,
-      detail: semantic_detail(graph, error),
-      remediation: hint_remediation(graph)
+      error_type: feedback.error_type,
+      detail: feedback.detail,
+      remediation: feedback.remediation
     }
   end
 
   defp semantic_notice(_status), do: nil
 
-  defp semantic_notice_kind(%{state: :failed}), do: :error
-  defp semantic_notice_kind(_graph), do: @default_notice_kind
+  defp semantic_notice_kind(graph), do: ProductFeedback.notice_kind(graph)
 
-  defp hint_detail(%{graph: graph, error: error}), do: semantic_detail(graph, error)
+  defp hint_detail(%{graph: graph, error: error}), do: ProductFeedback.for_graph(graph, error).detail
   defp hint_detail(_status), do: "Semantic repository state is unavailable."
 
-  defp semantic_detail(%{state: :stale}, %{detail: detail}) when is_binary(detail), do: detail
-  defp semantic_detail(%{state: :ready}, _error), do: "Semantic source-code graph is ready for inspection."
-
-  defp semantic_detail(%{state: :failed, latest_failure: %{message: message}}, _error) when is_binary(message),
-    do: message
-
-  defp semantic_detail(%{state: :disabled}, _error),
-    do: "Semantic source-code graph capability is disabled for this repository."
-
-  defp semantic_detail(%{state: :not_ready}, _error), do: "Semantic source-code graph data has not been loaded yet."
-
-  defp semantic_detail(%{state: :stale}, _error),
-    do: "Semantic source-code graph data is stale and should be refreshed."
-
-  defp semantic_detail(%{state: :degraded}, _error),
-    do: "Semantic source-code graph data is available in degraded mode while the repository revision is stale."
-
-  defp semantic_detail(%{state: :failed}, _error), do: "Semantic source-code graph refresh failed and needs recovery."
-
-  defp semantic_detail(%{state: :unavailable}, _error),
-    do: "Semantic inspection is unavailable for this managed repository."
-
-  defp semantic_detail(_graph, %{detail: detail}) when is_binary(detail), do: detail
-  defp semantic_detail(_graph, _error), do: "Semantic repository state is unavailable."
-
-  defp hint_remediation(%{recovery_action: :none}), do: nil
-  defp hint_remediation(%{recovery_action: :load}), do: "Open repo detail to load semantic graph data."
-  defp hint_remediation(%{recovery_action: :refresh}), do: "Open repo detail to refresh semantic graph data."
-  defp hint_remediation(%{recovery_action: :recover}), do: "Open repo detail to recover semantic graph state."
-  defp hint_remediation(_graph), do: nil
-
-  defp recovery(graph) do
-    action = Map.get(graph, :recovery_action, :none)
-
-    %{
-      action: action,
-      available?: action != :none,
-      label: recovery_label(action)
-    }
-  end
-
-  defp graph_state_label(%{state: :ready}), do: "Semantic graph ready"
-  defp graph_state_label(%{state: :not_ready}), do: "Semantic graph not loaded"
-  defp graph_state_label(%{state: :stale}), do: "Semantic graph stale"
-  defp graph_state_label(%{state: :degraded}), do: "Semantic graph degraded"
-  defp graph_state_label(%{state: :failed}), do: "Semantic graph failed"
-  defp graph_state_label(%{state: :disabled}), do: "Semantic graph disabled"
-  defp graph_state_label(_graph), do: "Semantic graph unavailable"
-
-  defp recovery_label(:load), do: "Load semantic graph"
-  defp recovery_label(:refresh), do: "Refresh semantic graph"
-  defp recovery_label(:recover), do: "Recover semantic graph"
-  defp recovery_label(:none), do: nil
-  defp recovery_label(_action), do: "Recover semantic graph"
-
-  defp graph_error_type(%{state: :disabled}), do: "source_code_graph_disabled"
-  defp graph_error_type(%{state: :not_ready}), do: "source_code_graph_not_ready"
-  defp graph_error_type(%{state: :stale}), do: "source_code_graph_stale"
-  defp graph_error_type(%{state: :degraded}), do: "source_code_graph_degraded"
-  defp graph_error_type(%{state: :failed}), do: "source_code_graph_failed"
-  defp graph_error_type(_graph), do: "source_code_graph_unavailable"
+  defp hint_remediation(graph), do: ProductFeedback.for_graph(graph).remediation
 
   defp recovery_feedback(%{status: :source_code_graph_recovery_not_needed}) do
     %{
@@ -388,7 +321,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
   defp recovery_feedback(%{recovery_action: action}) do
     %{
       error_type: "semantic_graph_recovered",
-      detail: "#{recovery_label(action)} completed successfully.",
+      detail: "#{ProductFeedback.recovery_label(action)} completed successfully.",
       remediation: nil
     }
   end
@@ -418,10 +351,6 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
   defp recovery_error_detail(reason, _diagnostics) do
     "Semantic source-code graph recovery failed (#{reason})."
   end
-
-  defp error_type(%{type: type}), do: normalize_optional_string(type)
-  defp error_type(%{"type" => type}), do: normalize_optional_string(type)
-  defp error_type(_error), do: nil
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

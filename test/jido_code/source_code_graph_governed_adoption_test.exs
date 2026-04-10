@@ -56,6 +56,7 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
     assert adoption.work_item.assessment_id == adoption.assessment.id
     assert adoption.work_item.work_metadata["semantic_finding"]["digest"] == adoption.finding.digest
     assert adoption.work_item.work_metadata["semantic_finding"]["graph"]["imported_revision"] == "rev-26-work"
+    assert adoption.work_item.work_metadata["semantic_finding"]["freshness"]["state"] == "ready"
     assert adoption.work_item.work_metadata["semantic_finding"]["provenance"]["projection_kind"] == "impact"
 
     assert {:ok, [persisted_work_item]} =
@@ -102,7 +103,9 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
              )
 
     assert review_support.evidence_input.evidence_details["graph"]["imported_revision"] == "rev-26-evidence"
+    assert review_support.evidence_input.evidence_details["freshness"]["state"] == "ready"
     assert review_support.review_metadata["provenance"]["projection_kind"] == "functions"
+    assert review_support.review_metadata["freshness"]["state"] == "ready"
 
     assert {:ok, %{run: run}} =
              RunBridge.launch_work_item(adoption.work_item, %{
@@ -120,6 +123,7 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
     assert evidence.run_id == run.id
     assert evidence.work_item_id == adoption.work_item.id
     assert evidence.evidence_details["graph"]["imported_revision"] == "rev-26-evidence"
+    assert evidence.evidence_details["freshness"]["state"] == "ready"
     assert evidence.evidence_details["provenance"]["projection_kind"] == "functions"
 
     assert {:ok, [persisted_evidence]} =

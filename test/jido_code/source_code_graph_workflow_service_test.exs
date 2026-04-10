@@ -64,6 +64,8 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
     assert result.semantic_input.workflow == :plan
     assert result.semantic_input.graph.state == :ready
     assert result.semantic_input.graph.imported_revision == "rev-26-plan"
+    assert result.semantic_input.freshness.state == :ready
+    assert result.semantic_input.freshness.label == "Semantic graph ready"
     assert result.semantic_input.results.modules.kind == :modules
     assert result.semantic_input.results.impact.kind == :impact
     refute Map.has_key?(result.semantic_input.results.modules, :bindings)
@@ -115,7 +117,7 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
     assert explain_result.explanation =~ "deterministic explainer response"
     assert explain_result.semantic_input.results.impact.kind == :impact
 
-    assert {:error, :unsupported_raw_semantic_query} =
+    assert {:error, :unsupported_raw_semantic_query, raw_query_error} =
              WorkflowService.explain(
                managed_repo_id,
                "work-#{System.unique_integer([:positive])}",
@@ -126,6 +128,38 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
                  query: "SELECT * WHERE { ?s ?p ?o }"
                ]
              )
+
+    assert raw_query_error.workflow == :explain
+    assert raw_query_error.error.type == :unsupported_raw_semantic_query
+    assert raw_query_error.feedback.state == :unavailable
+    assert raw_query_error.feedback.label == "Semantic graph unavailable"
+  end
+
+  test "workflow semantic requests fail safely with explicit freshness and recovery feedback", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+
+    assert {:error, :source_code_graph_not_ready, error} =
+             WorkflowService.explain(
+               managed_repo_id,
+               work_item_id,
+               "Explain without prepared semantic context",
+               workspace_path: workspace_path,
+               semantic: [
+                 workspace_path: workspace_path,
+                 prepare: :none,
+                 impact: [module_name: "ExampleWorkspace"]
+               ]
+             )
+
+    assert error.workflow == :explain
+    assert error.work_item_id == work_item_id
+    assert error.graph.state == :not_ready
+    assert error.feedback.state == :not_ready
+    assert error.feedback.recovery.action == :load
+    assert error.error.remediation == "Open repo detail to load semantic graph data."
   end
 
   defp create_workspace_path! do

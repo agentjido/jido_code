@@ -8,7 +8,7 @@ defmodule JidoCode.SourceCodeGraph.Materialization do
   alias JidoCode.Control.Actor
   alias JidoCode.Governance.Evidence
   alias JidoCode.Operations.{Assessment, Event, Observation}
-  alias JidoCode.SourceCodeGraph.Finding
+  alias JidoCode.SourceCodeGraph.{Finding, ProductFeedback}
 
   @materialization_actor Actor.factory_system_actor(%{
                            "id" => "system:source-code-graph-materialization",
@@ -50,6 +50,7 @@ defmodule JidoCode.SourceCodeGraph.Materialization do
            "source" => "source_code_graph",
            "finding_digest" => finding.digest,
            "graph" => normalize_map(finding.graph),
+           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
            "provenance" => normalize_map(finding.provenance),
            "payload" => normalize_map(finding.payload)
          }
@@ -73,6 +74,7 @@ defmodule JidoCode.SourceCodeGraph.Materialization do
          evidence_details: %{
            "finding_digest" => finding.digest,
            "graph" => normalize_map(finding.graph),
+           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
            "provenance" => normalize_map(finding.provenance),
            "payload" => normalize_map(finding.payload)
          },

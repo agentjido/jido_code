@@ -34,6 +34,7 @@ surface:
   - test/jido_code/memory_graph_test.exs
   - test/jido_code/memory_graph_actions_test.exs
   - test/jido_code/memory_graph_workspace_test.exs
+  - test/jido_code/agent_os/phase_twenty_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -254,6 +255,18 @@ surface:
 - kind: source_file
   target: test/jido_code/memory_graph_workspace_test.exs
   covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_eight_integration_test.exs
+  covers:
+    - architecture.memory_graph.repo_scoped_memory_graph_pod
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
+    - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
     - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
     - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
     - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints

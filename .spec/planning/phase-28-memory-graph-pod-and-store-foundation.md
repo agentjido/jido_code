@@ -24,7 +24,7 @@ Back to index: [README](./README.md)
 - The memory graph must reuse the repository-local semantic store rather than create a separate cross-repository memory service.
 - Stable source-code IRIs remain the canonical anchors for memory and provenance links.
 
-[ ] 28 Phase 28 - Memory Graph Pod And Store Foundation
+[x] 28 Phase 28 - Memory Graph Pod And Store Foundation
   Establish the repository-scoped runtime, storage, ontology, and workspace boundaries needed before workflow provenance and durable memories can be inserted safely.
 
   [x] 28.1 Section - Memory Graph Runtime And Store Boundary
@@ -61,19 +61,19 @@ Back to index: [README](./README.md)
       [x] 28.2.2.2 Subtask - Preserve explicit repo, workspace, actor, and revision context in workspace-owned contracts.
       [x] 28.2.2.3 Subtask - Keep memory graph readiness, stale state, and recovery typed at the workspace boundary.
 
-  [ ] 28.3 Section - Phase 28 Integration Tests
+  [x] 28.3 Section - Phase 28 Integration Tests
     Verify the new runtime and store foundation is repository-scoped, bounded, and coherent before workflow provenance capture begins.
 
-    [ ] 28.3.1 Task - Pod and store foundation scenarios
+    [x] 28.3.1 Task - Pod and store foundation scenarios
       Prove the new memory graph capability is isolated per repository and aligned to the shared semantic store contract.
 
-      [ ] 28.3.1.1 Subtask - Add coverage proving one MemoryGraphPod exists per enabled managed repository kernel.
-      [ ] 28.3.1.2 Subtask - Add coverage proving `memory` and `workflow_provenance` are explicit named graphs in the repository-local quad store.
-      [ ] 28.3.1.3 Subtask - Add coverage proving stable code-graph anchors remain available for later cross-graph links.
+      [x] 28.3.1.1 Subtask - Add coverage proving one MemoryGraphPod exists per enabled managed repository kernel.
+      [x] 28.3.1.2 Subtask - Add coverage proving `memory` and `workflow_provenance` are explicit named graphs in the repository-local quad store.
+      [x] 28.3.1.3 Subtask - Add coverage proving stable code-graph anchors remain available for later cross-graph links.
 
-    [ ] 28.3.2 Task - Action and workspace boundary scenarios
+    [x] 28.3.2 Task - Action and workspace boundary scenarios
       Prove callers can prepare and inspect memory capability only through bounded action and workspace contracts.
 
-      [ ] 28.3.2.1 Subtask - Add coverage proving record/query/validate/invalidate/refresh route through explicit actions.
-      [ ] 28.3.2.2 Subtask - Add coverage proving AgentWorkspace exposes typed bounded status and recovery behavior.
-      [ ] 28.3.2.3 Subtask - Verify the spec workspace remains coherent after the memory graph runtime foundation lands.
+      [x] 28.3.2.1 Subtask - Add coverage proving record/query/validate/invalidate/refresh route through explicit actions.
+      [x] 28.3.2.2 Subtask - Add coverage proving AgentWorkspace exposes typed bounded status and recovery behavior.
+      [x] 28.3.2.3 Subtask - Verify the spec workspace remains coherent after the memory graph runtime foundation lands.

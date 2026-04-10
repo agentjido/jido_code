@@ -465,6 +465,12 @@ surface:
     - architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
 
 - kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_eight_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+
+- kind: source_file
   target: lib/jido_code/agent_os.ex
   covers:
     - architecture.agent_os_integration.kernel_per_managed_repo

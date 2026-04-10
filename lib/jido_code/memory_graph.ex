@@ -24,6 +24,7 @@ defmodule JidoCode.MemoryGraph do
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
   @type revision_metadata :: map()
+  @type graph_name :: String.t()
 
   @spec pod_id() :: String.t()
   def pod_id, do: @pod_id
@@ -50,6 +51,31 @@ defmodule JidoCode.MemoryGraph do
       workflow_provenance: @workflow_provenance_named_graph_iri
     }
   end
+
+  @spec normalize_graph_name(graph_name() | atom() | nil) :: {:ok, graph_name()} | {:error, atom()}
+  def normalize_graph_name(nil), do: {:ok, @memory_graph_name}
+  def normalize_graph_name(:memory), do: {:ok, @memory_graph_name}
+  def normalize_graph_name(:workflow_provenance), do: {:ok, @workflow_provenance_graph_name}
+  def normalize_graph_name(@memory_graph_name), do: {:ok, @memory_graph_name}
+  def normalize_graph_name(@workflow_provenance_graph_name), do: {:ok, @workflow_provenance_graph_name}
+  def normalize_graph_name(_value), do: {:error, :invalid_memory_graph_name}
+
+  @spec named_graph_iri(graph_name() | atom()) :: String.t()
+  def named_graph_iri(graph_name) do
+    case normalize_graph_name(graph_name) do
+      {:ok, @memory_graph_name} -> @memory_named_graph_iri
+      {:ok, @workflow_provenance_graph_name} -> @workflow_provenance_named_graph_iri
+    end
+  end
+
+  @spec named_graph_resource(graph_name() | atom()) :: RDF.IRI.t()
+  def named_graph_resource(graph_name), do: RDF.iri(named_graph_iri(graph_name))
+
+  @spec memory_named_graph_resource() :: RDF.IRI.t()
+  def memory_named_graph_resource, do: named_graph_resource(@memory_graph_name)
+
+  @spec workflow_provenance_named_graph_resource() :: RDF.IRI.t()
+  def workflow_provenance_named_graph_resource, do: named_graph_resource(@workflow_provenance_graph_name)
 
   @spec capability_enabled?(keyword()) :: boolean()
   def capability_enabled?(opts \\ []) do

@@ -44,22 +44,22 @@ Back to index: [README](./README.md)
       [x] 28.1.2.2 Subtask - Define eager context metadata for graph names, revision state, latest validation status, and latest failure.
       [x] 28.1.2.3 Subtask - Define lazy recorder, querier, and validator specialist roles without yet introducing direct caller access to pod internals.
 
-  [ ] 28.2 Section - Explicit Action And Workspace Surface
+  [x] 28.2 Section - Explicit Action And Workspace Surface
     Create the explicit action surface and bounded workspace entrypoints that will later back the memory capture plane.
 
-    [ ] 28.2.1 Task - Introduce memory graph actions
+    [x] 28.2.1 Task - Introduce memory graph actions
       Define explicit actions for record, query, validate, invalidate, refresh, and status behavior rather than allowing direct graph writes or raw store access.
 
-      [ ] 28.2.1.1 Subtask - Add explicit Jido actions for memory recording, recall, validation, invalidation, and refresh.
-      [ ] 28.2.1.2 Subtask - Keep typed bounded outcomes for stale, degraded, disabled, and failure states.
-      [ ] 28.2.1.3 Subtask - Ensure action contracts stay graph-aware but not UI-aware.
+      [x] 28.2.1.1 Subtask - Add explicit Jido actions for memory recording, recall, validation, invalidation, and refresh.
+      [x] 28.2.1.2 Subtask - Keep typed bounded outcomes for stale, degraded, disabled, and failure states.
+      [x] 28.2.1.3 Subtask - Ensure action contracts stay graph-aware but not UI-aware.
 
-    [ ] 28.2.2 Task - Add AgentWorkspace entrypoints for memory capability
+    [x] 28.2.2 Task - Add AgentWorkspace entrypoints for memory capability
       Expose repository-scoped workspace entrypoints so product and workflow callers can prepare and inspect memory capability without learning pod topology.
 
-      [ ] 28.2.2.1 Subtask - Add workspace entrypoints for ensuring the pod, retrieving status, and invoking bounded memory graph actions.
-      [ ] 28.2.2.2 Subtask - Preserve explicit repo, workspace, actor, and revision context in workspace-owned contracts.
-      [ ] 28.2.2.3 Subtask - Keep memory graph readiness, stale state, and recovery typed at the workspace boundary.
+      [x] 28.2.2.1 Subtask - Add workspace entrypoints for ensuring the pod, retrieving status, and invoking bounded memory graph actions.
+      [x] 28.2.2.2 Subtask - Preserve explicit repo, workspace, actor, and revision context in workspace-owned contracts.
+      [x] 28.2.2.3 Subtask - Keep memory graph readiness, stale state, and recovery typed at the workspace boundary.
 
   [ ] 28.3 Section - Phase 28 Integration Tests
     Verify the new runtime and store foundation is repository-scoped, bounded, and coherent before workflow provenance capture begins.

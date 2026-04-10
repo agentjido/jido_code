@@ -25,12 +25,15 @@ surface:
   - .spec/specs/memory_ontology.spec.md
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/memory_graph.ex
+  - lib/jido_code/memory_graph/
   - lib/jido_code/source_code_graph.ex
   - lib/jido_code/pods/
   - lib/jido_code/actions/
   - lib/jido_code/agents/
   - test/jido_code/agent_os/
   - test/jido_code/memory_graph_test.exs
+  - test/jido_code/memory_graph_actions_test.exs
+  - test/jido_code/memory_graph_workspace_test.exs
 ```
 
 ## Requirements
@@ -173,9 +176,66 @@ surface:
     - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
 
 - kind: source_file
+  target: lib/jido_code/memory_graph/store.ex
+  covers:
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/query.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: lib/jido_code/actions/get_memory_graph_status.ex
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+
+- kind: source_file
+  target: lib/jido_code/actions/refresh_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+
+- kind: source_file
+  target: lib/jido_code/actions/validate_memory_graph.ex
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+
+- kind: source_file
+  target: lib/jido_code/actions/query_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/actions/invalidate_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/actions/record_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
   target: lib/jido_code/pods/memory_graph_pod.ex
   covers:
     - architecture.memory_graph.repo_scoped_memory_graph_pod
+
+- kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
 
 - kind: source_file
   target: test/jido_code/memory_graph_test.exs
@@ -184,4 +244,17 @@ surface:
     - architecture.memory_graph.memory_named_graph_is_canonical_target
     - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
     - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: test/jido_code/memory_graph_actions_test.exs
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: test/jido_code/memory_graph_workspace_test.exs
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
 ```

@@ -227,6 +227,16 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/memory_graph_actions_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/memory_graph_workspace_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code/agent_os/pods_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

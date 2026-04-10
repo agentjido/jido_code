@@ -9,7 +9,7 @@ durable coding memories into the repository semantic store over time.
 id: architecture.memory_capture_plane
 kind: feature
 status: proposed
-summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, updates freshness and invalidation metadata when revision or test evidence changes, and requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion.
+summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now establishes preparatory record/query/validate/invalidate/refresh workspace entrypoints so callers stop assuming direct store writes before capture insertion lands, updates freshness and invalidation metadata when revision or test evidence changes, and requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -156,4 +156,11 @@ surface:
     - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
     - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
     - architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
+
+- kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
+    - architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+    - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
 ```

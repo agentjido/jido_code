@@ -411,6 +411,7 @@ surface:
     - architecture.agent_os_integration.signal_routing_within_pod
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+    - architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
     - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
     - architecture.agent_os_integration.repository_work_queue_is_bounded
     - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
@@ -457,6 +458,11 @@ surface:
     - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
+
+- kind: source_file
+  target: test/jido_code/memory_graph_workspace_test.exs
+  covers:
+    - architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
 
 - kind: source_file
   target: lib/jido_code/agent_os.ex

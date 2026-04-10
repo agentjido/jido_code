@@ -16,6 +16,7 @@ defmodule JidoCode.Actions.GetMemoryGraphStatus do
     ]
 
   alias JidoCode.Actions.MemoryGraphSupport
+  alias JidoCode.MemoryGraph.ProductFeedback
 
   @impl true
   def run(params, context) do
@@ -28,23 +29,33 @@ defmodule JidoCode.Actions.GetMemoryGraphStatus do
           graph_context.revision_metadata
         )
 
+      graph =
+        %{
+          graph_name: graph_context.selected_graph_name,
+          named_graph_iri: graph_context.selected_named_graph_iri,
+          ready?: MemoryGraphSupport.ready?(latest_validation_status),
+          stale?: stale_status.stale?,
+          degraded?: false,
+          stale_reason: stale_status.stale_reason,
+          queryable_when_stale?: stale_status.queryable_when_stale?,
+          requested_revision: graph_context.revision_metadata.requested_revision,
+          current_revision: graph_context.revision_metadata.current_revision,
+          validated_revision: Map.get(latest_validation_status, :validated_revision),
+          latest_record_status: graph_context.latest_record_status,
+          latest_query_status: graph_context.latest_query_status,
+          latest_validation_status: latest_validation_status,
+          latest_failure: graph_context.latest_failure,
+          dataset: graph_context.dataset_metadata
+        }
+
+      normalized_graph = ProductFeedback.normalize_graph(graph)
+
       {:ok,
-       %{
-         graph_name: graph_context.selected_graph_name,
-         named_graph_iri: graph_context.selected_named_graph_iri,
-         ready?: MemoryGraphSupport.ready?(latest_validation_status),
-         stale?: stale_status.stale?,
-         stale_reason: stale_status.stale_reason,
-         queryable_when_stale?: stale_status.queryable_when_stale?,
-         requested_revision: graph_context.revision_metadata.requested_revision,
-         current_revision: graph_context.revision_metadata.current_revision,
-         validated_revision: Map.get(latest_validation_status, :validated_revision),
-         latest_record_status: graph_context.latest_record_status,
-         latest_query_status: graph_context.latest_query_status,
-         latest_validation_status: latest_validation_status,
-         latest_failure: graph_context.latest_failure,
-         dataset: graph_context.dataset_metadata
-       }}
+       Map.merge(graph, %{
+         state: normalized_graph.state,
+         recovery_action: normalized_graph.recovery_action,
+         feedback: ProductFeedback.for_graph(normalized_graph)
+       })}
     end
   end
 end

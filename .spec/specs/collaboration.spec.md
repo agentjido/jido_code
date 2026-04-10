@@ -6,7 +6,7 @@ This subject defines the repository collaboration and local work-management cont
 id: collaboration.workflow
 kind: policy
 status: active
-summary: jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary, product-oriented frontend fallback wording, repository-scoped semantic source graph usage guidance, and the `mix semantic.verify` contributor expectation for product-facing semantic changes.
+summary: jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary, product-oriented frontend fallback wording, repository-scoped semantic source graph and memory graph usage guidance, and the `mix memory.verify` plus `mix semantic.verify` contributor expectations for semantic changes.
 surface:
   - AGENTS.md
 ```

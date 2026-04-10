@@ -138,11 +138,15 @@ defmodule JidoCode.SourceCodeGraph.MemoryCapture do
       {:ok, %{ready?: true, stale?: false}} ->
         :ok
 
-      _other ->
-        case AgentWorkspace.refresh_memory_graph(managed_repo_id, workspace_path, [revision: revision] ++ opts) do
-          {:ok, _result} -> :ok
+      {:ok, _status} ->
+        case AgentWorkspace.recover_memory_graph(managed_repo_id, workspace_path, [revision: revision] ++ opts) do
+          {:ok, %{graph_status: %{ready?: true, stale?: false}}} -> :ok
+          {:ok, _result} -> {:error, :memory_graph_not_ready}
           _other -> {:error, :memory_graph_not_ready}
         end
+
+      _other ->
+        {:error, :memory_graph_not_ready}
     end
   end
 

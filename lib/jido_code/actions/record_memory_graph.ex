@@ -30,6 +30,7 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
   alias JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope
   alias JidoCode.MemoryGraph.DurableMemoryUpdateWriter
   alias JidoCode.MemoryGraph.DurableMemoryWriter
+  alias JidoCode.MemoryGraph.ProductFeedback
 
   @impl true
   def run(params, context) do
@@ -44,14 +45,51 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
           graph_context.revision_metadata
         )
 
+      graph =
+        %{
+          graph_name: graph_context.selected_graph_name,
+          named_graph_iri: graph_context.selected_named_graph_iri,
+          ready?: MemoryGraphSupport.ready?(graph_context.latest_validation_status),
+          stale?: stale_status.stale?,
+          degraded?: false,
+          stale_reason: stale_status.stale_reason,
+          queryable_when_stale?: stale_status.queryable_when_stale?,
+          requested_revision: graph_context.revision_metadata.requested_revision,
+          current_revision: graph_context.revision_metadata.current_revision,
+          validated_revision: Map.get(graph_context.latest_validation_status, :validated_revision),
+          latest_validation_status: graph_context.latest_validation_status,
+          latest_record_status: graph_context.latest_record_status,
+          latest_query_status: graph_context.latest_query_status,
+          latest_failure: graph_context.latest_failure,
+          dataset: graph_context.dataset_metadata
+        }
+
+      normalized_graph = ProductFeedback.normalize_graph(graph)
+
       cond do
         not MemoryGraphSupport.ready?(graph_context.latest_validation_status) ->
           {:error, :memory_graph_not_ready,
-           "The memory graph foundation must be refreshed and validated before capture requests can be accepted."}
+           %{
+             graph: normalized_graph,
+             feedback: ProductFeedback.for_graph(normalized_graph, %{type: :memory_graph_not_ready}),
+             error: %{
+               type: :memory_graph_not_ready,
+               detail:
+                 "The memory graph foundation must be refreshed and validated before capture requests can be accepted."
+             }
+           }}
 
         stale_status.stale? and not memory_update_kind?(capture) ->
           {:error, :memory_graph_stale,
-           "The memory graph must be revalidated for the requested revision before capture requests can be accepted."}
+           %{
+             graph: normalized_graph,
+             feedback: ProductFeedback.for_graph(normalized_graph, %{type: :memory_graph_stale}),
+             error: %{
+               type: :memory_graph_stale,
+               detail:
+                 "The memory graph must be revalidated for the requested revision before capture requests can be accepted."
+             }
+           }}
 
         memory_update_kind?(capture) ->
           DurableMemoryUpdateWriter.write(graph_context, capture)

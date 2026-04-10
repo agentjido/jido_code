@@ -85,18 +85,22 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       assert status_result.stale? == false
       assert status_result.validated_revision == "abc123"
       assert status_result.latest_failure == nil
+      assert status_result.feedback.state == :ready
+      assert status_result.cross_graph.consistency.explainable? == true
     end
 
     test "returns typed not-ready error for query before refresh" do
       managed_repo_id = "repo-#{System.unique_integer()}"
       workspace_path = create_workspace_path!()
 
-      assert {:error, :memory_graph_not_ready, _message} =
+      assert {:error, :memory_graph_not_ready, diagnostics} =
                AgentWorkspace.query_memory_graph(
                  managed_repo_id,
                  workspace_path,
                  "SELECT * WHERE { ?s ?p ?o }"
                )
+
+      assert diagnostics.feedback.recovery.action == :refresh
     end
 
     test "returns structured query results after refresh" do
@@ -123,6 +127,7 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       assert query_result.engine == :sparql
       assert query_result.graph_name == "workflow_provenance"
       assert query_result.row_count == 1
+      assert query_result.feedback.state == :ready
     end
 
     test "surfaces stale repository state after workspace changes and allows explicit stale queries" do
@@ -146,6 +151,7 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       assert status_result.stale_reason == :workspace_revision_changed
       assert status_result.queryable_when_stale? == true
       assert status_result.current_revision != refresh_result.latest_validation_status.validated_revision
+      assert status_result.feedback.recovery.action == :validate
 
       assert {:ok, query_result} =
                AgentWorkspace.query_memory_graph(
@@ -157,6 +163,7 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
 
       assert query_result.degraded? == true
       assert query_result.stale_graph? == true
+      assert query_result.feedback.recovery.action == :validate
     end
 
     test "persists latest failure state for blocked refresh" do
@@ -178,6 +185,7 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       assert failed_status.latest_failure.kind == :memory_graph_refresh_failed
       assert failed_status.latest_failure.operation == :refresh
       assert failed_status.latest_failure.stage == :prepare_store_parent
+      assert failed_status.feedback.recovery.action == :recover
     end
 
     test "routes record and invalidate through bounded workspace entrypoints" do
@@ -226,12 +234,80 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
                )
 
       assert invalidate_result.status == :memory_graph_invalidated
+      assert invalidate_result.feedback.recovery.action == :validate
 
       assert {:ok, invalidated_status} =
                AgentWorkspace.memory_graph_status(managed_repo_id, workspace_path)
 
       assert invalidated_status.latest_validation_status.state == :invalidated
       assert invalidated_status.latest_validation_status.ready? == false
+      assert invalidated_status.feedback.state == :invalidated
+    end
+
+    test "recovers invalidated graph state through a repository-scoped recovery action" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, _refresh_result} =
+               AgentWorkspace.refresh_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "recoverable-revision"
+               )
+
+      assert {:ok, _invalidate_result} =
+               AgentWorkspace.invalidate_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 reason: :manual_invalidation,
+                 revision: "recoverable-revision"
+               )
+
+      assert {:ok, recovery_result} =
+               AgentWorkspace.recover_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "recoverable-revision"
+               )
+
+      assert recovery_result.status == :memory_graph_recovered
+      assert recovery_result.recovery_action == :validate
+      assert recovery_result.graph_status.ready? == true
+      assert recovery_result.graph_status.stale? == false
+    end
+
+    test "explains cross-graph consistency when linked source graph is stale" do
+      previous_source = Application.get_env(:jido_code, :source_code_graph_enabled, false)
+      Application.put_env(:jido_code, :source_code_graph_enabled, true)
+      on_exit(fn -> Application.put_env(:jido_code, :source_code_graph_enabled, previous_source) end)
+
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, _source_graph} =
+               AgentWorkspace.load_source_code_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "graph-aligned"
+               )
+
+      assert {:ok, _memory_graph} =
+               AgentWorkspace.refresh_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "graph-aligned"
+               )
+
+      assert {:ok, status_result} =
+               AgentWorkspace.memory_graph_status(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "graph-stale"
+               )
+
+      assert status_result.cross_graph.source_code.state == :stale
+      assert status_result.cross_graph.consistency.state == :source_code_stale
+      assert status_result.feedback.cross_graph.consistency.state == :source_code_stale
     end
   end
 

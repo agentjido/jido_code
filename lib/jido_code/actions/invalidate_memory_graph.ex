@@ -17,6 +17,7 @@ defmodule JidoCode.Actions.InvalidateMemoryGraph do
     ]
 
   alias JidoCode.Actions.MemoryGraphSupport
+  alias JidoCode.MemoryGraph.ProductFeedback
 
   @impl true
   def run(params, context) do
@@ -35,6 +36,26 @@ defmodule JidoCode.Actions.InvalidateMemoryGraph do
         |> Map.put(:invalidated_at, invalidated_at)
         |> Map.put(:failure, nil)
 
+      graph =
+        %{
+          graph_name: graph_context.selected_graph_name,
+          named_graph_iri: graph_context.selected_named_graph_iri,
+          ready?: false,
+          stale?: true,
+          degraded?: false,
+          stale_reason: params.reason,
+          queryable_when_stale?: false,
+          current_revision: current_revision,
+          validated_revision: Map.get(latest_validation_status, :validated_revision),
+          latest_validation_status: latest_validation_status,
+          latest_record_status: graph_context.latest_record_status,
+          latest_query_status: graph_context.latest_query_status,
+          latest_failure: graph_context.latest_failure,
+          dataset: graph_context.dataset_metadata
+        }
+
+      normalized_graph = ProductFeedback.normalize_graph(graph)
+
       {:ok,
        %{
          status: :memory_graph_invalidated,
@@ -44,7 +65,10 @@ defmodule JidoCode.Actions.InvalidateMemoryGraph do
          latest_validation_status: latest_validation_status,
          stale?: true,
          stale_reason: params.reason,
-         dataset: Map.put(graph_context.dataset_metadata, :revision, current_revision)
+         dataset: Map.put(graph_context.dataset_metadata, :revision, current_revision),
+         state: normalized_graph.state,
+         recovery_action: normalized_graph.recovery_action,
+         feedback: ProductFeedback.for_graph(normalized_graph)
        }}
     end
   end

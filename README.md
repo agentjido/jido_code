@@ -128,6 +128,7 @@ mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
 mix source_graph.verify # run the repo-owned semantic graph verification suite
+mix memory.verify       # run the repo-owned memory graph and capture-plane verification suite
 mix semantic.verify     # run the full product-facing semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
@@ -176,6 +177,29 @@ The durable architecture and product-shaping decisions live in [`.spec/decisions
 - [`.spec/decisions/jido_code.runic_execution_model.md`](.spec/decisions/jido_code.runic_execution_model.md)
 - [`.spec/decisions/jido_code.vsm_recursion_and_scope.md`](.spec/decisions/jido_code.vsm_recursion_and_scope.md)
 - [`.spec/decisions/jido_code.local_developer_workflow.md`](.spec/decisions/jido_code.local_developer_workflow.md)
+
+## Semantic Memory
+
+The repository semantic stack is now three linked named graphs in one
+repository-local store:
+
+- `source_code` for repository structure and semantic code entities
+- `workflow_provenance` for bounded work sessions, agent runs, tool use, plans,
+  patches, and reviews
+- `memory` for durable adopted facts, decisions, conventions, issues, lessons,
+  and patterns
+
+The write seam is explicit:
+
+- workflow provenance is inserted at `AgentWorkspace` and product workflow
+  boundaries through typed capture envelopes
+- durable memory is inserted only after explicit classification or governed
+  adoption
+- raw runtime or model output is not durable memory on its own
+
+When touching the memory graph boundary, capture envelopes, memory actions,
+memory workspace entrypoints, or provenance or durable-memory adoption flows,
+run `mix memory.verify`.
 
 ## Repo Shape
 

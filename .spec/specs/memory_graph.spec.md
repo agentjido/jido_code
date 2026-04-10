@@ -10,7 +10,7 @@ workflow provenance.
 id: architecture.memory_graph
 kind: feature
 status: proposed
-summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, latest-failure, and durable-memory validation or invalidation state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
+summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -32,6 +32,7 @@ surface:
   - lib/jido_code/memory_graph/durable_memory_writer.ex
   - lib/jido_code/memory_graph/durable_memory_update_envelope.ex
   - lib/jido_code/memory_graph/durable_memory_update_writer.ex
+  - lib/jido_code/memory_graph/product_feedback.ex
   - lib/jido_code/source_code_graph.ex
   - lib/jido_code/pods/
   - lib/jido_code/actions/
@@ -41,6 +42,7 @@ surface:
   - test/jido_code/memory_graph_actions_test.exs
   - test/jido_code/memory_graph_workspace_test.exs
   - test/jido_code/agent_os/phase_twenty_eight_integration_test.exs
+  - test/jido_code/phase_thirty_one_integration_test.exs
 ```
 
 ## Requirements
@@ -77,7 +79,7 @@ surface:
   stability: proposed
 
 - id: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
-  statement: Repository-scoped memory-graph status shall surface current workspace revision, latest validated revision, stale state, bounded failure metadata, and validation freshness so callers can reason safely about whether a memory still applies.
+  statement: Repository-scoped memory-graph status shall surface current workspace revision, latest validated revision, stale or invalidated state, bounded failure metadata, validation freshness, and repository-scoped recovery guidance so callers can reason safely about whether a memory still applies.
   priority: must
   stability: proposed
 
@@ -88,6 +90,11 @@ surface:
 
 - id: architecture.memory_graph.memory_graph_supports_cross_graph_provenance
   statement: Memory and workflow provenance records shall preserve explicit links among work sessions, agent activity, tool use, code entities, revisions, and evidence artifacts so coding memories remain explainable over time.
+  priority: should
+  stability: proposed
+
+- id: architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
+  statement: Memory-graph status shall expose bounded cross-graph consistency and repository isolation context for `source_code` and `workflow_provenance` so callers can distinguish aligned, stale-dependency, and unavailable-dependency states safely.
   priority: should
   stability: proposed
 ```
@@ -144,6 +151,20 @@ surface:
   then:
     - The memory graph exposes explicit stale or invalidated state.
     - Callers can invalidate or refresh that memory through bounded explicit actions.
+
+- id: architecture.memory_graph.scenario_cross_graph_consistency_and_repo_isolation_remain_explainable
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+  given:
+    - Multiple repositories use the semantic stack, and one repository memory graph depends on linked `source_code` and `workflow_provenance` state.
+  when:
+    - Status, recovery, or query behavior runs under stale dependency, restart, or multi-repository conditions.
+  then:
+    - The memory graph exposes bounded cross-graph consistency and recovery context instead of hiding dependency state.
+    - Memory and workflow provenance links remain coherent after repository-scoped recovery.
+    - Repository-local memory state remains isolated from other repositories.
 
 - id: architecture.memory_graph.scenario_memory_findings_support_but_do_not_replace_control_plane_truth
   covers:
@@ -253,6 +274,13 @@ surface:
     - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
 
 - kind: source_file
+  target: lib/jido_code/memory_graph/product_feedback.ex
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+    - architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
+
+- kind: source_file
   target: lib/jido_code/pods/memory_graph_pod.ex
   covers:
     - architecture.memory_graph.repo_scoped_memory_graph_pod
@@ -290,6 +318,13 @@ surface:
   covers:
     - architecture.memory_graph.repo_scoped_memory_graph_pod
     - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_one_integration_test.exs
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+    - architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
     - architecture.memory_graph.memory_named_graph_is_canonical_target
     - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
     - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri

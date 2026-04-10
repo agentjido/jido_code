@@ -63,13 +63,20 @@ defmodule JidoCode.MemoryGraphActionsTest do
       assert status_result.ready? == false
       assert status_result.stale? == false
       assert status_result.latest_validation_status.state == :not_validated
+      assert status_result.state == :not_ready
+      assert status_result.recovery_action == :refresh
+      assert status_result.feedback.recovery.action == :refresh
     end
   end
 
   describe "QueryMemoryGraph" do
     test "returns typed not-ready error before validation", %{context: context} do
-      assert {:error, :memory_graph_not_ready, _message} =
+      assert {:error, :memory_graph_not_ready, diagnostics} =
                QueryMemoryGraph.run(%{sparql: "SELECT * WHERE { ?s ?p ?o }"}, context)
+
+      assert diagnostics.graph.state == :not_ready
+      assert diagnostics.feedback.state == :not_ready
+      assert diagnostics.feedback.recovery.action == :refresh
     end
 
     test "returns structured SPARQL results for the memory graph after refresh", %{context: context} do
@@ -106,6 +113,7 @@ defmodule JidoCode.MemoryGraphActionsTest do
 
       assert result.degraded? == false
       assert result.stale_graph? == false
+      assert result.feedback.state == :ready
     end
 
     test "allows bounded degraded queries when the workspace revision moved", %{context: context} do
@@ -126,6 +134,7 @@ defmodule JidoCode.MemoryGraphActionsTest do
       assert result.stale_graph? == true
       assert result.stale_reason == :workspace_revision_changed
       assert result.current_revision != result.validated_revision
+      assert result.feedback.recovery.action == :validate
     end
   end
 
@@ -626,6 +635,8 @@ defmodule JidoCode.MemoryGraphActionsTest do
       assert result.stale_reason == :manual_invalidation
       assert result.latest_validation_status.state == :invalidated
       assert result.latest_validation_status.ready? == false
+      assert result.feedback.state == :invalidated
+      assert result.feedback.recovery.action == :validate
     end
   end
 

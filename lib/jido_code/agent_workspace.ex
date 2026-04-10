@@ -50,6 +50,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph.CaptureEnvelope
+  alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
   alias JidoCode.Pods.{CodingPod, RepoPod}
 
   alias JidoCode.Actions.{
@@ -849,7 +850,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
          {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts),
          {:ok, result} <- GetMemoryGraphStatus.run(memory_graph_params(opts), action_context) do
-      {:ok, result}
+      {:ok, normalize_memory_graph_status(managed_repo_id, workspace_path, result, opts)}
     end
   end
 
@@ -992,6 +993,50 @@ defmodule JidoCode.AgentWorkspace do
 
         other ->
           other
+      end
+    end
+  end
+
+  @doc """
+  Recovers repository-scoped memory graph state after stale, invalidated, or failed memory behavior.
+  """
+  @spec recover_memory_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def recover_memory_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, status} <- memory_graph_status(managed_repo_id, workspace_path, opts) do
+      recovery_action = memory_graph_recovery_action(status, opts)
+
+      case recovery_action do
+        :none ->
+          {:ok,
+           %{
+             status: :memory_graph_recovery_not_needed,
+             recovery_action: :none,
+             graph_status: status
+           }}
+
+        action ->
+          case run_memory_graph_recovery(managed_repo_id, workspace_path, action, opts) do
+            {:ok, result} ->
+              {:ok,
+               %{
+                 status: :memory_graph_recovered,
+                 recovery_action: action,
+                 graph_status: normalize_memory_graph_recovery_result(
+                   managed_repo_id,
+                   workspace_path,
+                   result,
+                   opts
+                 ),
+                 result: result
+               }}
+
+            {:error, _reason} = error ->
+              error
+
+            {:error, _reason, _diagnostics} = error ->
+              error
+          end
       end
     end
   end
@@ -2027,12 +2072,12 @@ defmodule JidoCode.AgentWorkspace do
           persist_source_code_graph_state(managed_repo_id, %{latest_failure: nil})
           {:ok, result}
 
-        {:error, reason, diagnostics} = error ->
+        {:error, reason, diagnostics} ->
           if reason == :source_code_graph_query_failed and is_map(diagnostics) do
             persist_source_code_graph_failure(managed_repo_id, :query, reason, diagnostics)
           end
 
-          error
+          {:error, reason, diagnostics}
 
         other ->
           other
@@ -2046,26 +2091,43 @@ defmodule JidoCode.AgentWorkspace do
          {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts) do
       case action_module.run(params, action_context) do
         {:ok, result} ->
+          normalized_result =
+            normalize_memory_graph_query_result(
+              managed_repo_id,
+              workspace_path,
+              result,
+              opts
+            )
+
           with {:ok, _pod_entry} <-
                  persist_memory_graph_state(managed_repo_id, %{
-                   latest_query_status: success_query_status(result),
+                   latest_query_status: success_query_status(normalized_result),
                    latest_failure: nil
                  }) do
-            {:ok, result}
+            {:ok, normalized_result}
           end
 
-        {:error, reason, diagnostics} = error ->
-          if reason == :memory_graph_query_failed and is_map(diagnostics) do
+        {:error, reason, diagnostics} ->
+          normalized_diagnostics =
+            normalize_memory_graph_error_diagnostics(
+              managed_repo_id,
+              workspace_path,
+              reason,
+              diagnostics,
+              opts
+            )
+
+          if reason == :memory_graph_query_failed and is_map(normalized_diagnostics) do
             persist_memory_graph_failure(
               managed_repo_id,
               :query,
               reason,
-              diagnostics,
-              %{latest_query_status: failure_query_status(action_context, diagnostics)}
+              extract_memory_graph_failure_diagnostics(normalized_diagnostics),
+              %{latest_query_status: failure_query_status(action_context, normalized_diagnostics)}
             )
           end
 
-          error
+          {:error, reason, normalized_diagnostics}
 
         other ->
           other
@@ -2173,6 +2235,28 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp memory_graph_recovery_action(status, opts) do
+    case Keyword.get(opts, :mode, :auto) do
+      :auto ->
+        cond do
+          status.latest_failure ->
+            :recover
+
+          Map.get(status, :state) == :invalidated or status.stale? ->
+            :validate
+
+          not status.ready? ->
+            :refresh
+
+          true ->
+            :none
+        end
+
+      mode ->
+        mode
+    end
+  end
+
   defp run_source_code_graph_recovery(managed_repo_id, workspace_path, :analyze, opts) do
     analyze_source_code_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
   end
@@ -2187,6 +2271,22 @@ defmodule JidoCode.AgentWorkspace do
 
   defp run_source_code_graph_recovery(managed_repo_id, workspace_path, :status, opts) do
     source_code_graph_status(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_memory_graph_recovery(managed_repo_id, workspace_path, :recover, opts) do
+    refresh_memory_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_memory_graph_recovery(managed_repo_id, workspace_path, :refresh, opts) do
+    refresh_memory_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_memory_graph_recovery(managed_repo_id, workspace_path, :validate, opts) do
+    validate_memory_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_memory_graph_recovery(managed_repo_id, workspace_path, :status, opts) do
+    memory_graph_status(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
   end
 
   defp query_failure_requires_refresh?(status) do
@@ -2254,9 +2354,203 @@ defmodule JidoCode.AgentWorkspace do
       ready?: false,
       graph_name: action_context[:graph_name] || MemoryGraph.memory_graph_name(),
       queried_at: DateTime.utc_now(),
-      failure: diagnostics
+      failure: extract_memory_graph_failure_diagnostics(diagnostics)
     }
   end
+
+  defp normalize_memory_graph_status(managed_repo_id, workspace_path, status, opts) when is_map(status) do
+    cross_graph = memory_graph_cross_graph_summary(managed_repo_id, workspace_path, status, opts)
+
+    status
+    |> Map.put(:cross_graph, cross_graph)
+    |> MemoryGraphProductFeedback.normalize_graph()
+    |> then(fn normalized ->
+      status
+      |> Map.merge(%{
+        state: normalized.state,
+        recovery_action: normalized.recovery_action,
+        cross_graph: normalized.cross_graph,
+        feedback: MemoryGraphProductFeedback.for_graph(normalized)
+      })
+    end)
+  end
+
+  defp normalize_memory_graph_query_result(managed_repo_id, workspace_path, result, opts)
+       when is_map(result) do
+    status =
+      %{
+        graph_name: Map.get(result, :graph_name, MemoryGraph.memory_graph_name()),
+        ready?: true,
+        stale?: Map.get(result, :stale_graph?, false),
+        degraded?: Map.get(result, :degraded?, false),
+        queryable_when_stale?: Map.get(result, :degraded?, false),
+        current_revision: Map.get(result, :current_revision),
+        validated_revision: Map.get(result, :validated_revision),
+        latest_failure: nil
+      }
+
+    cross_graph = memory_graph_cross_graph_summary(managed_repo_id, workspace_path, status, opts)
+    normalized = status |> Map.put(:cross_graph, cross_graph) |> MemoryGraphProductFeedback.normalize_graph()
+
+    Map.merge(result, %{
+      state: normalized.state,
+      recovery_action: normalized.recovery_action,
+      cross_graph: normalized.cross_graph,
+      feedback: MemoryGraphProductFeedback.for_graph(normalized)
+    })
+  end
+
+  defp normalize_memory_graph_error_diagnostics(managed_repo_id, workspace_path, reason, diagnostics, opts) do
+    status =
+      case memory_graph_status(managed_repo_id, workspace_path, opts) do
+        {:ok, status} ->
+          status
+
+        _other ->
+          MemoryGraphProductFeedback.fallback_graph(reason)
+      end
+
+    normalized_graph =
+      status
+      |> Map.put(:latest_failure, extract_memory_graph_failure_diagnostics(diagnostics))
+      |> Map.put(:state, Map.get(status, :state, nil))
+      |> MemoryGraphProductFeedback.normalize_graph(reason)
+
+    detail =
+      diagnostics_detail(diagnostics) ||
+        MemoryGraphProductFeedback.for_graph(normalized_graph, %{type: reason}).detail
+
+    %{
+      stage: diagnostics_stage(diagnostics),
+      reason: diagnostics_reason(diagnostics),
+      graph: normalized_graph,
+      feedback: MemoryGraphProductFeedback.for_graph(normalized_graph, %{type: reason}),
+      error: %{type: reason, detail: detail},
+      diagnostics: diagnostics
+    }
+  end
+
+  defp memory_graph_cross_graph_summary(managed_repo_id, workspace_path, status, opts) do
+    source_code =
+      if SourceCodeGraph.capability_enabled?(opts) do
+        case source_code_graph_status(
+               managed_repo_id,
+               workspace_path,
+               Keyword.take(opts, [:revision, :enabled?, :allow_stale?])
+             ) do
+          {:ok, source_status} ->
+            %{
+              graph_name: SourceCodeGraph.graph_name(),
+              ready?: source_status.ready?,
+              stale?: source_status.stale?,
+              state: source_code_dependency_state(source_status),
+              imported_revision: Map.get(source_status, :imported_revision),
+              recovery_action: Map.get(source_status, :recovery_action)
+            }
+
+          {:error, reason} ->
+            %{graph_name: SourceCodeGraph.graph_name(), ready?: false, stale?: false, state: fallback_source_state(reason)}
+
+          {:error, reason, _detail} ->
+            %{graph_name: SourceCodeGraph.graph_name(), ready?: false, stale?: false, state: fallback_source_state(reason)}
+        end
+      else
+        %{graph_name: SourceCodeGraph.graph_name(), ready?: false, stale?: false, state: :disabled}
+      end
+
+    workflow_provenance = %{
+      graph_name: MemoryGraph.workflow_provenance_graph_name(),
+      named_graph_iri: MemoryGraph.workflow_provenance_named_graph_iri(),
+      ready?: Map.get(status, :ready?, false),
+      stale?: Map.get(status, :stale?, false),
+      current_revision: Map.get(status, :current_revision),
+      validated_revision: Map.get(status, :validated_revision)
+    }
+
+    %{
+      source_code: source_code,
+      workflow_provenance: workflow_provenance,
+      consistency: %{
+        state: memory_graph_consistency_state(status, source_code),
+        explainable?: true
+      }
+    }
+  end
+
+  defp memory_graph_consistency_state(_status, %{state: :disabled}), do: :source_code_disabled
+  defp memory_graph_consistency_state(_status, %{state: state}) when state in [:not_ready, :unavailable], do: :source_code_unavailable
+  defp memory_graph_consistency_state(_status, %{stale?: true}), do: :source_code_stale
+
+  defp memory_graph_consistency_state(status, %{imported_revision: imported_revision})
+       when is_binary(imported_revision) do
+    case Map.get(status, :validated_revision) do
+      ^imported_revision -> :aligned
+      nil -> :source_code_unavailable
+      _other -> :revision_mismatch
+    end
+  end
+
+  defp memory_graph_consistency_state(_status, _source_code), do: :aligned
+
+  defp fallback_source_state(:source_code_graph_disabled), do: :disabled
+  defp fallback_source_state(:source_code_graph_not_ready), do: :not_ready
+  defp fallback_source_state(_reason), do: :unavailable
+
+  defp source_code_dependency_state(source_status) when is_map(source_status) do
+    cond do
+      latest_failure = Map.get(source_status, :latest_failure) ->
+        if latest_failure, do: :failed, else: :unavailable
+
+      Map.get(source_status, :stale?, false) ->
+        :stale
+
+      Map.get(source_status, :ready?, false) ->
+        :ready
+
+      true ->
+        :not_ready
+    end
+  end
+
+  defp normalize_memory_graph_recovery_result(managed_repo_id, workspace_path, result, opts)
+       when is_map(result) do
+    case result do
+      %{graph_status: %{} = graph_status} ->
+        normalize_memory_graph_status(managed_repo_id, workspace_path, graph_status, opts)
+
+      %{graph_name: _graph_name} ->
+        normalize_memory_graph_status(managed_repo_id, workspace_path, result, opts)
+
+      _other ->
+        case memory_graph_status(managed_repo_id, workspace_path, opts) do
+          {:ok, status} -> status
+          _other -> MemoryGraphProductFeedback.fallback_graph(:memory_graph_not_ready)
+        end
+    end
+  end
+
+  defp extract_memory_graph_failure_diagnostics(%{diagnostics: diagnostics}) when is_map(diagnostics),
+    do: diagnostics
+
+  defp extract_memory_graph_failure_diagnostics(%{error: %{detail: detail}} = diagnostics) when is_map(diagnostics) do
+    Map.merge(Map.drop(diagnostics, [:graph, :feedback, :error, :diagnostics]), %{reason: detail})
+  end
+
+  defp extract_memory_graph_failure_diagnostics(diagnostics) when is_map(diagnostics), do: diagnostics
+  defp extract_memory_graph_failure_diagnostics(_diagnostics), do: %{}
+
+  defp diagnostics_detail(%{error: %{detail: detail}}) when is_binary(detail), do: detail
+  defp diagnostics_detail(%{detail: detail}) when is_binary(detail), do: detail
+  defp diagnostics_detail(%{reason: reason}) when is_binary(reason), do: reason
+  defp diagnostics_detail(_diagnostics), do: nil
+
+  defp diagnostics_stage(%{stage: stage}) when not is_nil(stage), do: stage
+  defp diagnostics_stage(%{diagnostics: %{stage: stage}}) when not is_nil(stage), do: stage
+  defp diagnostics_stage(_diagnostics), do: nil
+
+  defp diagnostics_reason(%{reason: reason}) when is_binary(reason), do: reason
+  defp diagnostics_reason(%{diagnostics: %{reason: reason}}) when is_binary(reason), do: reason
+  defp diagnostics_reason(_diagnostics), do: nil
 
   defp source_code_graph_runtime_opts(opts) do
     Keyword.take(opts, [:revision, :enabled?, :allow_stale?])

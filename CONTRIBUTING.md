@@ -41,6 +41,7 @@ For day-to-day development:
 - `mix assets.build` builds the current browser bundle and SSR output
 - `mix frontend.verify` runs the repo-owned browser pipeline verification
 - `mix source_graph.verify` runs the repo-owned semantic source-code graph verification suite
+- `mix memory.verify` runs the repo-owned memory graph and capture-plane verification suite
 - `mix semantic.verify` runs the full product-facing semantic graph verification suite
 - `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
 - `mix test` provisions the test database and runs the test suite
@@ -58,6 +59,9 @@ The repository-scoped semantic graph stack uses `elixir_ontologies`,
 - Normal workflow is explicit: analyze, load or refresh, then query.
 - If you touch the semantic graph boundary, actions, pod agents, or repository
   workspace entrypoints, run `mix source_graph.verify`.
+- If you touch memory graph boundaries, capture envelopes, memory actions,
+  memory workspace entrypoints, workflow provenance capture, or durable-memory
+  adoption flows, run `mix memory.verify`.
 - If you touch product-facing semantic services, semantic operator UI, semantic
   workflow entrypoints, or governed semantic-finding adoption, run
   `mix semantic.verify`.
@@ -76,6 +80,14 @@ product dependency:
 - let planning, review, and explanation opt into semantic context explicitly
 - route semantic findings back into governed records before they change product
   behavior
+
+The memory graph follows the same bounded rule:
+
+- provenance enters through explicit typed envelopes at `AgentWorkspace` and
+  product workflow seams
+- durable memory enters only after explicit classification or governed adoption
+- raw runtime output, prompt text, or agent output is not durable memory unless
+  a bounded product path adopts it
 
 ## Code Quality
 
@@ -101,6 +113,7 @@ mix quality
 This extends `mix q` with:
 - `mix frontend.verify` - LiveVue/Vite/SSR pipeline verification
 - `mix source_graph.verify` - repository-scoped semantic graph verification
+- `mix memory.verify` - repository-scoped memory graph and capture-plane verification
 - `mix semantic.verify` - product-facing semantic workflow and UI verification
 - `mix doctor --raise` - Documentation coverage check
 - `mix dialyzer` - Broader static type analysis

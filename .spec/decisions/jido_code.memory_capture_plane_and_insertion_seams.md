@@ -118,6 +118,16 @@ The next implementation slice extends the same plane to durable coding memory:
 The following slice extends the same write seam again for explainable memory
 evolution over time:
 
+- repository-scoped memory status should expose stale, invalidated, failure, and
+  cross-graph consistency state through product-shaped feedback rather than raw
+  store diagnostics
+- recovery actions stay product-owned and repository-scoped, with callers using
+  bounded workspace recovery entrypoints instead of reaching into TripleStore
+  or pod internals directly
+- contributor verification should include repo-owned `mix memory.verify` so the
+  capture plane, ontology, and durable-memory behavior stay discoverable in the
+  normal workflow
+
 - typed durable-memory update envelopes for validation, invalidation, and
   decision supersession
 - a canonical durable-memory update writer that preserves freshness,

@@ -7,7 +7,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis through canonical managed-repository surfaces, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -29,6 +29,7 @@ surface:
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/workbench/inventory.ex
+  - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code/workbench/project_detail.ex
   - lib/jido_code/workbench/run_outcomes.ex
   - lib/jido_code/governance.ex
@@ -78,6 +79,7 @@ surface:
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs
+  - test/jido_code_web/live/phase_twenty_five_integration_test.exs
 ```
 
 ## Requirements
@@ -218,6 +220,12 @@ surface:
     - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 
 - kind: source_file
+  target: lib/jido_code/workbench/project_semantic_inspection.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
@@ -242,6 +250,12 @@ surface:
   target: test/jido_code_web/live/phase_eleven_integration_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

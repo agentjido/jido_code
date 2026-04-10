@@ -1,6 +1,8 @@
 defmodule JidoCodeWeb.WorkbenchLive do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -373,6 +375,32 @@ defmodule JidoCodeWeb.WorkbenchLive do
                   {project.github_full_name}
                 </p>
                 <p class="text-xs text-base-content/60">{project.name}</p>
+                <div
+                  :if={semantic_graph_hint(project)}
+                  id={"workbench-project-semantic-hint-#{project.id}"}
+                  class="space-y-1 pt-2"
+                >
+                  <span
+                    id={"workbench-project-semantic-hint-badge-#{project.id}"}
+                    class={semantic_graph_hint_badge_class(semantic_graph_hint(project))}
+                  >
+                    {semantic_graph_hint(project).label}
+                  </span>
+                  <p
+                    id={"workbench-project-semantic-hint-detail-#{project.id}"}
+                    class="text-[11px] text-base-content/65"
+                  >
+                    {semantic_graph_hint(project).detail}
+                  </p>
+                  <.link
+                    :if={semantic_graph_hint_recovery_path(project, @filter_values)}
+                    id={"workbench-project-semantic-hint-recovery-#{project.id}"}
+                    class="link link-primary text-[11px]"
+                    href={semantic_graph_hint_recovery_path(project, @filter_values)}
+                  >
+                    {semantic_graph_hint(project).remediation}
+                  </.link>
+                </div>
               </td>
               <td id={"workbench-project-open-issues-#{project.id}"}>{project.open_issue_count}</td>
               <td id={"workbench-project-open-prs-#{project.id}"}>{project.open_pr_count}</td>
@@ -1367,6 +1395,30 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp recent_run_outcome(_outcomes, _project_id), do: nil
+
+  defp semantic_graph_hint(project) when is_map(project) do
+    case Map.get(project, :semantic_graph_hint) do
+      %{} = hint -> hint
+      _other -> nil
+    end
+  end
+
+  defp semantic_graph_hint(_project), do: nil
+
+  defp semantic_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
+  defp semantic_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
+  defp semantic_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
+  defp semantic_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
+  defp semantic_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
+  defp semantic_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
+
+  defp semantic_graph_hint_recovery_path(project, filter_values) do
+    hint = semantic_graph_hint(project)
+
+    if hint && get_in(hint, [:recovery, :available?]) do
+      project_detail_path(project, filter_values)
+    end
+  end
 
   attr(:outcome, :map, default: nil)
   attr(:dom_prefix, :string, required: true)

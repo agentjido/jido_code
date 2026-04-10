@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Projects.Project
 
@@ -15,6 +16,12 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     original_issue_triage_workflow_launcher =
       Application.get_env(:jido_code, :workbench_issue_triage_workflow_launcher, :__missing__)
 
+    original_frontend_override =
+      Application.get_env(:jido_code, :frontend_assets_override, :__missing__)
+
+    original_source_code_graph_enabled =
+      Application.get_env(:jido_code, :source_code_graph_enabled, false)
+
     on_exit(fn ->
       restore_env(:workbench_fix_workflow_launcher, original_fix_workflow_launcher)
 
@@ -22,6 +29,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         :workbench_issue_triage_workflow_launcher,
         original_issue_triage_workflow_launcher
       )
+
+      restore_env(:frontend_assets_override, original_frontend_override)
+      Application.put_env(:jido_code, :source_code_graph_enabled, original_source_code_graph_enabled)
     end)
 
     :ok
@@ -262,6 +272,176 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute render(view) =~ "Start conversation"
   end
 
+  test "hosts bounded semantic inspection inside the managed repo detail route", %{conn: _conn} do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+
+    register_owner("semantic-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("semantic-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("ProjectDetailSemantic.Alpha")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-semantic-ui",
+        github_full_name: "owner/repo-semantic-ui",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    assert {:ok, _load_result} =
+             AgentWorkspace.load_source_code_graph(
+               managed_repo_id,
+               workspace_path,
+               revision: "phase-25-ready"
+             )
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-semantic-inspection")
+    refute has_element?(view, "#project-detail-semantic-notice")
+
+    vue =
+      assert_vue_component(
+        view,
+        "ProjectDetailSemanticExplorerWidget",
+        id: "project-detail-semantic-explorer-widget"
+      )
+
+    assert vue.props["managedRepoId"] == managed_repo_id
+    assert vue.props["graph"]["state"] == "ready"
+    assert Enum.any?(vue.props["summaryCards"], &(&1["id"] == "modules"))
+    assert Enum.any?(vue.props["modules"], &(&1["moduleName"] == "ProjectDetailSemantic.Alpha"))
+
+    assert_vue_handler(
+      view,
+      "requestRecovery",
+      "recover_semantic_graph",
+      id: "project-detail-semantic-explorer-widget"
+    )
+  end
+
+  test "shows stale semantic status and lets operators recover from repo detail", %{conn: _conn} do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+
+    register_owner("semantic-stale-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("semantic-stale-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("ProjectDetailSemantic.Stale")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-semantic-stale",
+        github_full_name: "owner/repo-semantic-stale",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
+
+    rewrite_semantic_workspace_module!(workspace_path, "ProjectDetailSemantic.Refreshed")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-semantic-notice")
+    assert has_element?(view, "#project-detail-semantic-notice-type", "source_code_graph_stale")
+    assert has_element?(view, "#project-detail-semantic-recover", "Refresh semantic graph")
+
+    view
+    |> element("#project-detail-semantic-recover")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-semantic-feedback-type", "semantic_graph_recovered")
+    refute has_element?(view, "#project-detail-semantic-notice")
+
+    vue =
+      assert_vue_component(
+        view,
+        "ProjectDetailSemanticExplorerWidget",
+        id: "project-detail-semantic-explorer-widget"
+      )
+
+    assert vue.props["graph"]["state"] == "ready"
+  end
+
+  test "falls back to server-rendered semantic inspection when richer delivery degrades", %{conn: _conn} do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+
+    register_owner("semantic-fallback-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("semantic-fallback-owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :frontend_assets_override, %{
+      mode: :fallback,
+      reason: :asset_manifest_unavailable
+    })
+
+    workspace_path = create_semantic_workspace_path!("ProjectDetailSemantic.Fallback")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-semantic-fallback",
+        github_full_name: "owner/repo-semantic-fallback",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    assert {:ok, _load_result} =
+             AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(
+             view,
+             "#project-detail-semantic-explorer-widget-fallback",
+             "Interactive semantic explorer temporarily unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#project-detail-semantic-explorer-widget-fallback",
+             "server-rendered semantic summary"
+           )
+
+    assert has_element?(view, "#project-detail-semantic-fallback")
+    assert has_element?(view, "#project-detail-semantic-fallback-modules")
+    assert has_element?(view, "#project-detail-semantic-fallback-impact-list")
+  end
+
   defp create_workspace_path! do
     workspace_path =
       Path.join(
@@ -279,5 +459,49 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       ManagedRepo.get_by_legacy_project_id(legacy_project_id, actor: Actor.operator_actor())
 
     managed_repo.id
+  end
+
+  defp create_semantic_workspace_path!(module_name) do
+    workspace_path = create_workspace_path!()
+    File.mkdir_p!(Path.join(workspace_path, "lib"))
+
+    File.write!(
+      Path.join(workspace_path, "mix.exs"),
+      """
+      defmodule ProjectDetailSemantic.MixProject do
+        use Mix.Project
+
+        def project do
+          [app: :project_detail_semantic, version: "0.1.0", elixir: "~> 1.18", deps: []]
+        end
+      end
+      """
+    )
+
+    rewrite_semantic_workspace_module!(workspace_path, module_name)
+    workspace_path
+  end
+
+  defp rewrite_semantic_workspace_module!(workspace_path, module_name) do
+    module_basename =
+      module_name
+      |> String.split(".")
+      |> List.last()
+      |> Macro.underscore()
+
+    File.write!(
+      Path.join(workspace_path, "lib/#{module_basename}.ex"),
+      """
+      defmodule #{module_name} do
+        def greet(name) when is_binary(name), do: "hello " <> name
+      end
+      """
+    )
+
+    workspace_path
+    |> Path.join("lib/*.ex")
+    |> Path.wildcard()
+    |> Enum.reject(&String.ends_with?(&1, "#{module_basename}.ex"))
+    |> Enum.each(&File.rm!/1)
   end
 end

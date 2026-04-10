@@ -22,8 +22,11 @@ surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web.ex
   - lib/jido_code/mix/frontend_start.ex
+  - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code_web/components/live_vue_components.ex
   - lib/jido_code_web/components/operator_state_components.ex
+  - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
   - lib/mix/tasks/frontend.start.ex
@@ -35,6 +38,7 @@ surface:
   - test/jido_code_web/components/
   - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
+  - test/jido_code_web/live/phase_twenty_five_integration_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
 ```
 
@@ -225,6 +229,14 @@ surface:
     - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
 
 - kind: source_file
+  target: lib/jido_code_web/live/project_detail_live.ex
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+
+- kind: source_file
   target: .spec/specs/frontend_architecture.spec.md
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
@@ -235,6 +247,13 @@ surface:
     - architecture.frontend_stack.react_is_not_parallel_product_frontend_stack
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
+  covers:
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
 
 - kind: source_file
   target: lib/jido_code_web/components/live_vue_components.ex

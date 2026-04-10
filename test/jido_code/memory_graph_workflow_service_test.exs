@@ -9,7 +9,7 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, WorkflowService}
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, OperatorService, ProductService, WorkflowService}
 
   setup do
     previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
@@ -119,8 +119,8 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
                "Explain with disabled memory context",
                workspace_path: workspace_path,
                memory: [
-                  workspace_path: workspace_path,
-                  prepare: :none,
+                 workspace_path: workspace_path,
+                 prepare: :none,
                  memories: [content_contains: "Repository decisions"]
                ]
              )
@@ -149,6 +149,115 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert raw_query_error.error.type == :unsupported_raw_memory_query
     assert raw_query_error.feedback.state == :unavailable
     assert raw_query_error.feedback.label == "Memory graph unavailable"
+  end
+
+  test "review uses explicit retrieval policy and records selected durable memory in workflow provenance", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+    revision = "rev-33-memory-policy"
+
+    %{memory_resource_iri: memory_resource_iri} =
+      seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+    assert {:ok, result} =
+             WorkflowService.review(
+               managed_repo_id,
+               work_item_id,
+               "Review with explicit memory policy",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision,
+                 policy: [
+                   intent: :review_risks,
+                   memory_kinds: [:decision],
+                   provenance_kinds: [:plan],
+                   freshness: :ready_only,
+                   follow_up_intent: :review_support,
+                   limit: 5
+                 ]
+               ]
+             )
+
+    assert result.memory_input.policy.intent == :review_risks
+    assert result.memory_input.policy.follow_up_intent == :review_support
+    assert result.memory_input.selection.state == :selected
+    assert memory_resource_iri in result.memory_input.selection.memory_resources
+    assert result.follow_up_context["retrieval_policy"]["intent"] == "review_risks"
+    assert memory_resource_iri in result.follow_up_context["memory_resources"]
+
+    assert {:ok, provenance_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               """
+               SELECT ?session ?review
+               WHERE {
+                 ?session a jido:WorkSession ;
+                   jido:sessionId "#{result.workflow_provenance.session_id}" ;
+                   jido:hasReview ?review .
+                 ?review jido:relatedTo <#{memory_resource_iri}> .
+               }
+               """,
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               allow_stale?: true
+             )
+
+    assert provenance_query.row_count >= 1
+  end
+
+  test "ready-only retrieval filters invalidated durable memory from workflow context", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+    revision = "rev-33-memory-filter"
+
+    %{memory_resource_iri: memory_resource_iri} =
+      seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+    assert {:ok, projection} =
+             ProductService.memories(
+               managed_repo_id,
+               workspace_path,
+               content_contains: "Repository decisions should keep ExampleMemoryWorkflow.greet/1 stable.",
+               revision: revision
+             )
+
+    assert {:ok, _invalidated} =
+             OperatorService.invalidate(
+               projection,
+               memory_resource_iri,
+               workspace_path: workspace_path,
+               revision: revision,
+               stale_reason: "workflow_memory_invalidated"
+             )
+
+    assert {:ok, result} =
+             WorkflowService.plan(
+               managed_repo_id,
+               work_item_id,
+               "Plan with invalidated memory filtered out",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision,
+                 policy: [
+                   intent: :planning_constraints,
+                   memory_kinds: [:decision],
+                   freshness: :ready_only,
+                   provenance_kinds: [:plan],
+                   follow_up_intent: :work_item
+                 ]
+               ]
+             )
+
+    assert result.memory_input.selection.memory_count == 0
+    refute memory_resource_iri in result.memory_input.selection.memory_resources
   end
 
   defp seed_memory_graph!(managed_repo_id, workspace_path, revision) do

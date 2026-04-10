@@ -276,16 +276,18 @@ defmodule JidoCode.AgentWorkspace do
              opts
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
+         {:ok, memory_context} <- workflow_memory_context(:plan, opts),
          {:ok, planner_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :planner),
          {:ok, response} <-
            run_specialist(
              Planner,
              planner_pid,
-             agent_instruction(:plan, instruction, semantic_context),
+             agent_instruction(:plan, instruction, semantic_context, memory_context),
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
+             memory_context,
              provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
@@ -293,6 +295,7 @@ defmodule JidoCode.AgentWorkspace do
         plan: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
+        memory_context: memory_context,
         workflow_provenance: provenance_summary(provenance_context)
       }
 
@@ -335,16 +338,18 @@ defmodule JidoCode.AgentWorkspace do
              opts
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :execute, opts),
+         {:ok, memory_context} <- workflow_memory_context(:execute, opts),
          {:ok, coder_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :coder),
          {:ok, response} <-
            run_specialist(
              Coder,
              coder_pid,
-             agent_instruction(:execute, instruction, semantic_context),
+             agent_instruction(:execute, instruction, semantic_context, memory_context),
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
+             memory_context,
              provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
@@ -352,6 +357,7 @@ defmodule JidoCode.AgentWorkspace do
         changes: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
+        memory_context: memory_context,
         workflow_provenance: provenance_summary(provenance_context)
       }
 
@@ -394,16 +400,18 @@ defmodule JidoCode.AgentWorkspace do
              opts
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
+         {:ok, memory_context} <- workflow_memory_context(:review, opts),
          {:ok, reviewer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :reviewer),
          {:ok, response} <-
            run_specialist(
              Reviewer,
              reviewer_pid,
-             agent_instruction(:review, instruction, semantic_context),
+             agent_instruction(:review, instruction, semantic_context, memory_context),
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
+             memory_context,
              provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
@@ -411,6 +419,7 @@ defmodule JidoCode.AgentWorkspace do
         feedback: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
+        memory_context: memory_context,
         workflow_provenance: provenance_summary(provenance_context)
       }
 
@@ -444,16 +453,18 @@ defmodule JidoCode.AgentWorkspace do
              opts
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
+         {:ok, memory_context} <- workflow_memory_context(:explain, opts),
          {:ok, explainer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :explainer),
          {:ok, response} <-
            run_specialist(
              Explainer,
              explainer_pid,
-             agent_instruction(:explain, instruction, semantic_context),
+             agent_instruction(:explain, instruction, semantic_context, memory_context),
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
+             memory_context,
              provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
@@ -461,6 +472,7 @@ defmodule JidoCode.AgentWorkspace do
         explanation: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
+        memory_context: memory_context,
         workflow_provenance: provenance_summary(provenance_context)
       }
 
@@ -1022,12 +1034,13 @@ defmodule JidoCode.AgentWorkspace do
                %{
                  status: :memory_graph_recovered,
                  recovery_action: action,
-                 graph_status: normalize_memory_graph_recovery_result(
-                   managed_repo_id,
-                   workspace_path,
-                   result,
-                   opts
-                 ),
+                 graph_status:
+                   normalize_memory_graph_recovery_result(
+                     managed_repo_id,
+                     workspace_path,
+                     result,
+                     opts
+                   ),
                  result: result
                }}
 
@@ -1289,12 +1302,16 @@ defmodule JidoCode.AgentWorkspace do
          work_item_id,
          workspace_path,
          semantic_context,
+         memory_context,
          provenance_context,
          opts
        ) do
     stage = specialist_stage(agent_module)
     started_at = DateTime.utc_now() |> DateTime.truncate(:second)
-    tool_context = specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts)
+
+    tool_context =
+      specialist_tool_context(managed_repo_id, workspace_path, semantic_context, memory_context, opts)
+
     agent_run_id = specialist_agent_run_id(stage, work_item_id)
 
     with {:ok, task_context} <- start_task_board_stage(managed_repo_id, work_item_id, stage, instruction),
@@ -1308,26 +1325,29 @@ defmodule JidoCode.AgentWorkspace do
            ),
          :ok <- complete_task_board_stage(managed_repo_id, work_item_id, stage, task_context, response) do
       ended_at = DateTime.utc_now() |> DateTime.truncate(:second)
-      _ = capture_specialist_success(
-        managed_repo_id,
-        workspace_path,
-        provenance_context,
-        stage,
-        agent_module,
-        agent_run_id,
-        instruction,
-        response,
-        tool_context,
-        started_at,
-        ended_at,
-        opts
-      )
+
+      _ =
+        capture_specialist_success(
+          managed_repo_id,
+          workspace_path,
+          provenance_context,
+          stage,
+          agent_module,
+          agent_run_id,
+          instruction,
+          response,
+          tool_context,
+          started_at,
+          ended_at,
+          opts
+        )
 
       {:ok, response}
     else
       {:error, reason} = error ->
         _ = fail_task_board_stage(managed_repo_id, work_item_id, stage, instruction, reason)
         ended_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
         _ =
           capture_specialist_failure(
             managed_repo_id,
@@ -1525,42 +1545,167 @@ defmodule JidoCode.AgentWorkspace do
   defp stringify_artifact_content(content) when is_binary(content), do: content
   defp stringify_artifact_content(content), do: inspect(content, pretty: true, limit: :infinity)
 
-  defp specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts) do
+  defp specialist_tool_context(managed_repo_id, workspace_path, semantic_context, memory_context, opts) do
     base = %{
       managed_repo_id: managed_repo_id,
       workspace_path: workspace_path
     }
 
-    case Keyword.get(opts, :source_code_graph) do
+    base =
+      case Keyword.get(opts, :source_code_graph) do
+        nil ->
+          base
+
+        _graph_opts ->
+          case source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+            {:ok, graph_context} ->
+              base
+              |> Map.put(:latest_import_status, graph_context.latest_import_status)
+              |> Map.put(:latest_analysis_status, graph_context.latest_analysis_status)
+              |> Map.put(:latest_failure, graph_context.latest_failure)
+              |> Map.put(:graph, %{revision: get_in(semantic_context, [:graph_status, :current_revision])})
+
+            {:error, _reason} ->
+              base
+          end
+      end
+
+    case normalize_workflow_memory_context(memory_context) do
       nil ->
         base
 
-      _graph_opts ->
-        case source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
-          {:ok, graph_context} ->
-            base
-            |> Map.put(:latest_import_status, graph_context.latest_import_status)
-            |> Map.put(:latest_analysis_status, graph_context.latest_analysis_status)
-            |> Map.put(:latest_failure, graph_context.latest_failure)
-            |> Map.put(:graph, %{revision: get_in(semantic_context, [:graph_status, :current_revision])})
-
-          {:error, _reason} ->
-            base
-        end
+      workflow_memory ->
+        Map.put(base, :memory_graph, workflow_memory)
     end
   end
 
-  defp agent_instruction(_workflow, instruction, semantic_context) when semantic_context == %{}, do: instruction
+  defp agent_instruction(_workflow, instruction, semantic_context, memory_context)
+       when semantic_context == %{} and (memory_context == %{} or is_nil(memory_context)),
+       do: instruction
 
-  defp agent_instruction(workflow, instruction, semantic_context) do
+  defp agent_instruction(workflow, instruction, semantic_context, memory_context) do
+    sections =
+      []
+      |> maybe_add_instruction_section("Semantic context", semantic_context)
+      |> maybe_add_instruction_section("Memory context", normalize_workflow_memory_context(memory_context))
+
     """
     Workflow: #{workflow}
     Instruction: #{instruction}
 
-    Semantic context:
-    #{inspect(semantic_context, pretty: true, limit: :infinity)}
+    #{Enum.join(sections, "\n\n")}
     """
   end
+
+  defp maybe_add_instruction_section(sections, _label, nil), do: sections
+  defp maybe_add_instruction_section(sections, _label, %{} = context) when map_size(context) == 0, do: sections
+
+  defp maybe_add_instruction_section(sections, label, context) do
+    sections ++ ["#{label}:\n#{inspect(context, pretty: true, limit: :infinity)}"]
+  end
+
+  defp workflow_memory_context(_workflow, opts) when opts == [] do
+    {:ok, %{}}
+  end
+
+  defp workflow_memory_context(_workflow, opts) when is_list(opts) do
+    {:ok, normalize_workflow_memory_context(Keyword.get(opts, :memory_graph)) || %{}}
+  end
+
+  defp normalize_workflow_memory_context(nil), do: nil
+
+  defp normalize_workflow_memory_context(%{} = memory_context) do
+    %{
+      workflow: Map.get(memory_context, :workflow),
+      graph: normalize_nested_memory_map(Map.get(memory_context, :graph, %{})),
+      freshness: normalize_nested_memory_map(Map.get(memory_context, :freshness, %{})),
+      policy: normalize_nested_memory_map(Map.get(memory_context, :policy, %{})),
+      selection: normalize_nested_memory_map(Map.get(memory_context, :selection, %{}))
+    }
+    |> Enum.reject(fn
+      {_key, %{} = value} -> map_size(value) == 0
+      {_key, nil} -> true
+      _other -> false
+    end)
+    |> Map.new()
+  end
+
+  defp normalize_workflow_memory_context(_memory_context), do: nil
+
+  defp normalize_nested_memory_map(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      normalized_value =
+        cond do
+          is_boolean(nested_value) or is_nil(nested_value) -> nested_value
+          match?(%DateTime{}, nested_value) -> DateTime.to_iso8601(nested_value)
+          is_map(nested_value) -> normalize_nested_memory_map(nested_value)
+          is_list(nested_value) -> Enum.map(nested_value, &normalize_nested_memory_value/1)
+          is_atom(nested_value) -> Atom.to_string(nested_value)
+          true -> nested_value
+        end
+
+      Map.put(acc, normalized_key, normalized_value)
+    end)
+  end
+
+  defp normalize_nested_memory_map(_value), do: %{}
+
+  defp normalize_nested_memory_value(value) when is_boolean(value) or is_nil(value), do: value
+  defp normalize_nested_memory_value(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  defp normalize_nested_memory_value(value) when is_map(value), do: normalize_nested_memory_map(value)
+  defp normalize_nested_memory_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_memory_value/1)
+  defp normalize_nested_memory_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp normalize_nested_memory_value(value), do: value
+
+  defp provenance_related_resources(opts) do
+    opts
+    |> Keyword.get(:provenance, [])
+    |> Keyword.get(:related_resources, [])
+    |> List.wrap()
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp provenance_memory_policy(opts) do
+    opts
+    |> Keyword.get(:provenance, [])
+    |> Keyword.get(:memory_policy)
+    |> normalize_nested_memory_map()
+    |> case do
+      %{} = policy when map_size(policy) > 0 -> policy
+      _other -> nil
+    end
+  end
+
+  defp provenance_follow_up_intent(opts) do
+    opts
+    |> Keyword.get(:provenance, [])
+    |> Keyword.get(:follow_up_intent)
+    |> case do
+      nil -> nil
+      value when is_atom(value) -> Atom.to_string(value)
+      value when is_binary(value) -> String.trim(value)
+      _other -> nil
+    end
+  end
+
+  defp provenance_metadata(provenance_context) do
+    %{}
+    |> maybe_put_map_value(:memory_policy, Map.get(provenance_context, :memory_policy))
+    |> maybe_put_map_value(:follow_up_intent, Map.get(provenance_context, :follow_up_intent))
+  end
+
+  defp maybe_put_map_value(map, _key, nil), do: map
+  defp maybe_put_map_value(map, key, value), do: Map.put(map, key, value)
 
   defp normalize_specialist_result(%{summary: summary}) when is_binary(summary), do: summary
   defp normalize_specialist_result(%{result: result}), do: result
@@ -1585,7 +1730,10 @@ defmodule JidoCode.AgentWorkspace do
       workflow: workflow,
       work_item_id: work_item_id,
       instruction: instruction,
-      workspace_path: workspace_path
+      workspace_path: workspace_path,
+      related_resources: provenance_related_resources(opts),
+      memory_policy: provenance_memory_policy(opts),
+      follow_up_intent: provenance_follow_up_intent(opts)
     }
 
     _ = capture_session_start(managed_repo_id, context, opts)
@@ -1603,7 +1751,9 @@ defmodule JidoCode.AgentWorkspace do
         work_item_id: provenance_context.work_item_id,
         goal: provenance_context.instruction,
         outcome: "started",
-        revision: provenance_context.revision
+        revision: provenance_context.revision,
+        related_resources: provenance_context.related_resources,
+        metadata: provenance_metadata(provenance_context)
       )
 
     prompt_capture =
@@ -1613,7 +1763,9 @@ defmodule JidoCode.AgentWorkspace do
         workflow: provenance_context.workflow,
         work_item_id: provenance_context.work_item_id,
         content: provenance_context.instruction,
-        revision: provenance_context.revision
+        revision: provenance_context.revision,
+        related_resources: provenance_context.related_resources,
+        metadata: provenance_metadata(provenance_context)
       )
 
     capture_workflow_provenance_safe(managed_repo_id, provenance_context.workspace_path, session_capture, opts)
@@ -1661,7 +1813,8 @@ defmodule JidoCode.AgentWorkspace do
         content: "#{instruction}\n\nOutcome: success",
         started_at: started_at,
         ended_at: ended_at,
-        revision: provenance_context.revision
+        revision: provenance_context.revision,
+        related_resources: provenance_context.related_resources
       )
 
     tool_capture =
@@ -1675,7 +1828,8 @@ defmodule JidoCode.AgentWorkspace do
         content: inspect(%{agent: agent_name(agent_module), keys: Map.keys(tool_context)}, pretty: true),
         started_at: started_at,
         ended_at: ended_at,
-        revision: provenance_context.revision
+        revision: provenance_context.revision,
+        related_resources: provenance_context.related_resources
       )
 
     artifact_capture =
@@ -1738,7 +1892,11 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
-        metadata: %{stage: stage, failure: inspect(reason)}
+        related_resources: provenance_context.related_resources,
+        metadata:
+          provenance_metadata(provenance_context)
+          |> Map.put(:stage, stage)
+          |> Map.put(:failure, inspect(reason))
       )
 
     capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)
@@ -1754,7 +1912,9 @@ defmodule JidoCode.AgentWorkspace do
       content: stringify_artifact_content(content),
       started_at: started_at,
       ended_at: ended_at,
-      revision: provenance_context.revision
+      revision: provenance_context.revision,
+      related_resources: provenance_context.related_resources,
+      metadata: provenance_metadata(provenance_context)
     )
   end
 
@@ -1768,7 +1928,9 @@ defmodule JidoCode.AgentWorkspace do
       content: stringify_artifact_content(content),
       started_at: started_at,
       ended_at: ended_at,
-      revision: provenance_context.revision
+      revision: provenance_context.revision,
+      related_resources: provenance_context.related_resources,
+      metadata: provenance_metadata(provenance_context)
     )
   end
 
@@ -1782,7 +1944,9 @@ defmodule JidoCode.AgentWorkspace do
       content: stringify_artifact_content(content),
       started_at: started_at,
       ended_at: ended_at,
-      revision: provenance_context.revision
+      revision: provenance_context.revision,
+      related_resources: provenance_context.related_resources,
+      metadata: provenance_metadata(provenance_context)
     )
   end
 
@@ -1843,7 +2007,10 @@ defmodule JidoCode.AgentWorkspace do
       session_id: provenance_context.session_id,
       actor_id: provenance_context.actor_id,
       revision: provenance_context.revision,
-      workflow: provenance_context.workflow
+      workflow: provenance_context.workflow,
+      related_resources: Map.get(provenance_context, :related_resources, []),
+      memory_policy: Map.get(provenance_context, :memory_policy),
+      follow_up_intent: Map.get(provenance_context, :follow_up_intent)
     }
   end
 
@@ -1857,7 +2024,10 @@ defmodule JidoCode.AgentWorkspace do
     provenance_opts = Keyword.get(opts, :provenance, [])
 
     provenance_opts
-    |> Keyword.get(:actor_id, actor_id_from_option(Keyword.get(opts, :actor)) || actor_id_from_option(@workflow_provenance_actor))
+    |> Keyword.get(
+      :actor_id,
+      actor_id_from_option(Keyword.get(opts, :actor)) || actor_id_from_option(@workflow_provenance_actor)
+    )
   end
 
   defp provenance_revision(workspace_path, opts) do
@@ -2449,10 +2619,20 @@ defmodule JidoCode.AgentWorkspace do
             }
 
           {:error, reason} ->
-            %{graph_name: SourceCodeGraph.graph_name(), ready?: false, stale?: false, state: fallback_source_state(reason)}
+            %{
+              graph_name: SourceCodeGraph.graph_name(),
+              ready?: false,
+              stale?: false,
+              state: fallback_source_state(reason)
+            }
 
           {:error, reason, _detail} ->
-            %{graph_name: SourceCodeGraph.graph_name(), ready?: false, stale?: false, state: fallback_source_state(reason)}
+            %{
+              graph_name: SourceCodeGraph.graph_name(),
+              ready?: false,
+              stale?: false,
+              state: fallback_source_state(reason)
+            }
         end
       else
         %{graph_name: SourceCodeGraph.graph_name(), ready?: false, stale?: false, state: :disabled}
@@ -2478,7 +2658,10 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp memory_graph_consistency_state(_status, %{state: :disabled}), do: :source_code_disabled
-  defp memory_graph_consistency_state(_status, %{state: state}) when state in [:not_ready, :unavailable], do: :source_code_unavailable
+
+  defp memory_graph_consistency_state(_status, %{state: state}) when state in [:not_ready, :unavailable],
+    do: :source_code_unavailable
+
   defp memory_graph_consistency_state(_status, %{stale?: true}), do: :source_code_stale
 
   defp memory_graph_consistency_state(status, %{imported_revision: imported_revision})

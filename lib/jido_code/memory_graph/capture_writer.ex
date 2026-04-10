@@ -94,6 +94,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
       |> maybe_add_model(envelope)
       |> maybe_add_toolchain(envelope)
       |> add_anchors(session, envelope.source_code_anchors)
+      |> add_related_resources(session, related_session_resources(envelope))
 
     resource_triples =
       case envelope.kind do
@@ -181,6 +182,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
       end
       |> add_anchors(resource, envelope.source_code_anchors)
       |> add_artifacts(resource, envelope.governed_artifacts, jido("supportedBy"))
+      |> add_related_resources(resource, related_resource_targets(envelope))
 
     (common_actor_and_revision ++ session_stub ++ resource_triples)
     |> List.flatten()
@@ -244,6 +246,18 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
 
   defp maybe_triple(_subject, _predicate, nil), do: nil
   defp maybe_triple(subject, predicate, object), do: {subject, predicate, object}
+
+  defp add_related_resources(triples, _subject, []), do: triples
+
+  defp add_related_resources(triples, subject, related_resources) do
+    triples ++ Enum.map(related_resources, &{subject, jido("relatedTo"), &1})
+  end
+
+  defp related_session_resources(%{kind: :work_session, related_resources: resources}), do: resources
+  defp related_session_resources(_envelope), do: []
+
+  defp related_resource_targets(%{kind: :work_session}), do: []
+  defp related_resource_targets(%{related_resources: resources}), do: resources
 
   defp literal_or_nil(nil), do: nil
   defp literal_or_nil(value), do: RDF.literal(value)

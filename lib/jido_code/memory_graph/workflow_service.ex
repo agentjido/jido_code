@@ -15,7 +15,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, ProductFeedback, ProductService}
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, ProductFeedback, ProductService, RetrievalPolicy}
 
   @type workflow_kind :: :plan | :review | :explain
   @type workflow_result :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
@@ -39,6 +39,10 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     run_workflow(:explain, managed_repo_id, work_item_id, instruction, opts)
   end
 
+  @spec follow_up_context(map()) :: map() | nil
+  def follow_up_context(%{follow_up_context: %{} = context}), do: context
+  def follow_up_context(_result), do: nil
+
   defp run_workflow(workflow, managed_repo_id, work_item_id, instruction, opts)
        when workflow in [:plan, :review, :explain] and is_list(opts) do
     with {:ok, memory_opts} <- normalize_memory_opts(Keyword.get(opts, :memory)),
@@ -51,16 +55,26 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
              opts,
              memory_opts
            ),
-         {:ok, memory_input} <- prepare_memory_input(workflow, managed_repo_id, opts, memory_opts),
+         {:ok, memory_input, runtime_memory_opts} <-
+           prepare_memory_input(workflow, managed_repo_id, opts, memory_opts),
          {:ok, raw_result} <-
            invoke_workspace(
              workflow,
              managed_repo_id,
              work_item_id,
              instruction,
-             workspace_opts(opts, workflow_provenance)
+             workspace_opts(opts, workflow_provenance, memory_input, runtime_memory_opts)
            ) do
-      {:ok, shape_result(workflow, managed_repo_id, work_item_id, instruction, raw_result, memory_input, workflow_provenance)}
+      {:ok,
+       shape_result(
+         workflow,
+         managed_repo_id,
+         work_item_id,
+         instruction,
+         raw_result,
+         memory_input,
+         workflow_provenance
+       )}
     else
       {:error, reason, detail} ->
         {:error, reason, workflow_error(workflow, managed_repo_id, work_item_id, reason, detail)}
@@ -79,7 +93,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   defp invoke_workspace(:explain, managed_repo_id, work_item_id, instruction, opts),
     do: AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction, opts)
 
-  defp prepare_memory_input(_workflow, _managed_repo_id, _opts, nil), do: {:ok, nil}
+  defp prepare_memory_input(_workflow, _managed_repo_id, _opts, nil), do: {:ok, nil, nil}
 
   defp prepare_memory_input(workflow, managed_repo_id, opts, memory_opts) when is_list(memory_opts) do
     with {:ok, workspace_path} <-
@@ -87,17 +101,23 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
              Keyword.get(memory_opts, :workspace_path) || Keyword.get(opts, :workspace_path)
            ),
          :ok <- ensure_supported_memory_requests(memory_opts),
+         {:ok, retrieval_policy} <- retrieval_policy(workflow, memory_opts),
+         runtime_memory_opts = RetrievalPolicy.apply_defaults(memory_opts, retrieval_policy),
          {:ok, status_projection, runtime_memory_opts} <-
-           prepare_graph(workflow, managed_repo_id, workspace_path, memory_opts),
+           prepare_graph(workflow, managed_repo_id, workspace_path, runtime_memory_opts),
          {:ok, result_projections} <-
            memory_result_projections(managed_repo_id, workspace_path, runtime_memory_opts) do
+      selection = RetrievalPolicy.selection(retrieval_policy, result_projections)
+
       {:ok,
        %{
          workflow: workflow,
          graph: status_projection.graph,
          freshness: ProductFeedback.for_graph(status_projection.graph, status_projection.error),
-         results: result_projections
-       }}
+         policy: RetrievalPolicy.summary(retrieval_policy),
+         results: result_projections,
+         selection: selection
+       }, runtime_memory_opts}
     end
   end
 
@@ -112,9 +132,14 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
 
         :refresh ->
           case AgentWorkspace.refresh_memory_graph(managed_repo_id, workspace_path, runtime_opts) do
-            {:ok, result} -> {:ok, ProductService.status(managed_repo_id, workspace_path, product_lookup_opts(memory_opts)), result}
-            {:error, reason, detail} -> {:error, reason, detail}
-            {:error, reason} -> {:error, reason}
+            {:ok, result} ->
+              {:ok, ProductService.status(managed_repo_id, workspace_path, product_lookup_opts(memory_opts)), result}
+
+            {:error, reason, detail} ->
+              {:error, reason, detail}
+
+            {:error, reason} ->
+              {:error, reason}
           end
 
         :validate ->
@@ -131,7 +156,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
           end
 
         :recover_if_needed ->
-          with {:ok, status_projection} <- ProductService.status(managed_repo_id, workspace_path, product_lookup_opts(memory_opts)) do
+          with {:ok, status_projection} <-
+                 ProductService.status(managed_repo_id, workspace_path, product_lookup_opts(memory_opts)) do
             maybe_recover(workflow, managed_repo_id, workspace_path, status_projection, memory_opts)
           end
 
@@ -238,17 +264,32 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     end
   end
 
-  defp workspace_opts(opts, nil), do: Keyword.delete(opts, :memory)
+  defp retrieval_policy(workflow, memory_opts) do
+    RetrievalPolicy.normalize(workflow, Keyword.get(memory_opts, :policy))
+  end
 
-  defp workspace_opts(opts, workflow_provenance) do
+  defp workspace_opts(opts, nil, nil, _runtime_memory_opts), do: Keyword.delete(opts, :memory)
+
+  defp workspace_opts(opts, workflow_provenance, memory_input, runtime_memory_opts) do
+    related_resources =
+      memory_input
+      |> memory_related_resources()
+      |> Enum.uniq()
+
+    provenance =
+      [
+        session_id: workflow_provenance.session_id,
+        actor_id: workflow_provenance.actor_id,
+        revision: workflow_provenance.revision,
+        related_resources: related_resources
+      ]
+      |> maybe_put_provenance_value(:memory_policy, memory_policy(memory_input))
+      |> maybe_put_provenance_value(:follow_up_intent, memory_follow_up_intent(memory_input))
+
     opts
     |> Keyword.delete(:memory)
-    |> Keyword.put(
-      :provenance,
-      session_id: workflow_provenance.session_id,
-      actor_id: workflow_provenance.actor_id,
-      revision: workflow_provenance.revision
-    )
+    |> Keyword.put(:memory_graph, memory_workspace_context(memory_input, runtime_memory_opts))
+    |> Keyword.put(:provenance, provenance)
   end
 
   defp merge_lookup_opts(memory_opts, request_opts) do
@@ -259,6 +300,39 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     Keyword.take(memory_opts, [:revision, :allow_stale?, :graph_name])
   end
 
+  defp memory_workspace_context(nil, _runtime_memory_opts), do: %{}
+
+  defp memory_workspace_context(memory_input, _runtime_memory_opts) do
+    %{
+      workflow: memory_input.workflow,
+      graph: memory_input.graph,
+      freshness: memory_input.freshness,
+      policy: memory_input.policy,
+      selection: memory_input.selection
+    }
+  end
+
+  defp memory_policy(nil), do: nil
+  defp memory_policy(memory_input), do: Map.get(memory_input, :policy)
+
+  defp memory_follow_up_intent(nil), do: nil
+
+  defp memory_follow_up_intent(memory_input) do
+    get_in(memory_input, [:policy, :follow_up_intent])
+  end
+
+  defp memory_related_resources(nil), do: []
+
+  defp memory_related_resources(memory_input) do
+    memory_input
+    |> get_in([:selection, :related_resources])
+    |> List.wrap()
+    |> Enum.filter(&is_binary/1)
+  end
+
+  defp maybe_put_provenance_value(keyword, _key, nil), do: keyword
+  defp maybe_put_provenance_value(keyword, key, value), do: Keyword.put(keyword, key, value)
+
   defp shape_result(:plan, managed_repo_id, work_item_id, instruction, raw_result, memory_input, workflow_provenance) do
     %{
       workflow: :plan,
@@ -267,7 +341,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       instruction: instruction,
       plan: Map.get(raw_result, :plan),
       memory_input: memory_input,
-      workflow_provenance: provenance_summary(workflow_provenance)
+      workflow_provenance: provenance_summary(workflow_provenance),
+      follow_up_context: follow_up_context(:plan, memory_input, workflow_provenance)
     }
   end
 
@@ -279,7 +354,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       instruction: instruction,
       feedback: Map.get(raw_result, :feedback),
       memory_input: memory_input,
-      workflow_provenance: provenance_summary(workflow_provenance)
+      workflow_provenance: provenance_summary(workflow_provenance),
+      follow_up_context: follow_up_context(:review, memory_input, workflow_provenance)
     }
   end
 
@@ -291,8 +367,40 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       instruction: instruction,
       explanation: Map.get(raw_result, :explanation),
       memory_input: memory_input,
-      workflow_provenance: provenance_summary(workflow_provenance)
+      workflow_provenance: provenance_summary(workflow_provenance),
+      follow_up_context: follow_up_context(:explain, memory_input, workflow_provenance)
     }
+  end
+
+  defp follow_up_context(_workflow, nil, _workflow_provenance), do: nil
+
+  defp follow_up_context(workflow, memory_input, workflow_provenance) do
+    related_resources = get_in(memory_input, [:selection, :related_resources]) || []
+
+    memory_resources =
+      case get_in(memory_input, [:selection, :memory_resources]) || [] do
+        [] -> Enum.filter(related_resources, &String.contains?(&1, "/memory#"))
+        values -> values
+      end
+
+    provenance_resources =
+      case get_in(memory_input, [:selection, :provenance_resources]) || [] do
+        [] -> Enum.filter(related_resources, &String.contains?(&1, "/workflow_provenance#"))
+        values -> values
+      end
+
+    normalize_map(%{
+      workflow: workflow,
+      session_id: workflow_provenance && workflow_provenance.session_id,
+      revision: workflow_provenance && workflow_provenance.revision,
+      retrieval_policy: Map.get(memory_input, :policy),
+      freshness: normalize_map(Map.get(memory_input, :freshness, %{})),
+      graph: normalize_map(Map.get(memory_input, :graph, %{})),
+      selection: normalize_map(Map.get(memory_input, :selection, %{})),
+      memory_resources: memory_resources,
+      provenance_resources: provenance_resources,
+      related_resources: related_resources
+    })
   end
 
   defp workflow_provenance_context(_workflow, _managed_repo_id, _work_item_id, _instruction, _opts, nil),
@@ -441,7 +549,9 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       session_id: provenance.session_id,
       actor_id: provenance.actor_id,
       revision: provenance.revision,
-      workflow: provenance.workflow
+      workflow: provenance.workflow,
+      related_resources: Map.get(provenance, :related_resources, []),
+      memory_policy: Map.get(provenance, :memory_policy)
     }
   end
 
@@ -484,4 +594,36 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     do: value |> Atom.to_string() |> normalize_optional_string()
 
   defp normalize_optional_string(_value), do: nil
+
+  defp normalize_map(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      normalized_value =
+        cond do
+          is_boolean(nested_value) or is_nil(nested_value) -> nested_value
+          match?(%DateTime{}, nested_value) -> DateTime.to_iso8601(nested_value)
+          is_map(nested_value) -> normalize_map(nested_value)
+          is_list(nested_value) -> Enum.map(nested_value, &normalize_nested_value/1)
+          is_atom(nested_value) -> Atom.to_string(nested_value)
+          true -> nested_value
+        end
+
+      Map.put(acc, normalized_key, normalized_value)
+    end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
+  defp normalize_nested_value(value) when is_boolean(value) or is_nil(value), do: value
+  defp normalize_nested_value(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
+  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+  defp normalize_nested_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp normalize_nested_value(value), do: value
 end

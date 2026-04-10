@@ -100,6 +100,7 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
 
       source_code_anchors = source_code_anchors(capture, managed_repo_id)
       governed_artifacts = governed_artifacts(capture, managed_repo_id)
+      related_resources = related_resources(capture)
 
       {:ok,
        %{
@@ -142,7 +143,8 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
          toolchain_name: toolchain_name,
          label: label(kind, workflow, agent_name, tool_name),
          source_code_anchors: source_code_anchors,
-         governed_artifacts: governed_artifacts
+         governed_artifacts: governed_artifacts,
+         related_resources: related_resources
        }}
     end
   end
@@ -297,6 +299,19 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
           end
       end
     end)
+  end
+
+  defp related_resources(capture) do
+    capture
+    |> Map.get(:related_resources, Map.get(capture, "related_resources"))
+    |> List.wrap()
+    |> Enum.map(fn
+      %{iri: iri} -> optional_iri(iri)
+      %{"iri" => iri} -> optional_iri(iri)
+      value -> optional_iri(value)
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
   end
 
   defp optional_iri(nil), do: nil

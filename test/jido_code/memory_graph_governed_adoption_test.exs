@@ -10,7 +10,15 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Governance.Evidence
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, GovernedAdoption, ProductService}
+
+  alias JidoCode.MemoryGraph.{
+    CaptureEnvelope,
+    DurableMemoryEnvelope,
+    GovernedAdoption,
+    ProductService,
+    WorkflowService
+  }
+
   alias JidoCode.Orchestration.RunBridge
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Projects.Project
@@ -172,6 +180,76 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
              )
 
     assert provenance_query.row_count >= 1
+  end
+
+  test "governed follow-up preserves workflow memory context and related durable memory links", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo = create_managed_repo!()
+    revision = "rev-33-memory-follow-up"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+
+    %{memory_resource_iri: memory_resource_iri} =
+      seed_memory_graph!(managed_repo.id, workspace_path, revision)
+
+    assert {:ok, workflow_result} =
+             WorkflowService.review(
+               managed_repo.id,
+               work_item_id,
+               "Review with durable memory context before governed follow-up",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision,
+                 memories: [content_contains: "Greeting contract changes require governed review."],
+                 provenance: [label_contains: "review artifact"],
+                 policy: [
+                   intent: :review_risks,
+                   memory_kinds: [:known_issue],
+                   provenance_kinds: [:review],
+                   freshness: :ready_only,
+                   follow_up_intent: :work_item
+                 ]
+               ]
+             )
+
+    assert {:ok, projection} =
+             ProductService.memories(
+               managed_repo.id,
+               workspace_path,
+               content_contains: "Greeting contract changes require governed review.",
+               revision: revision
+             )
+
+    assert {:ok, adoption} =
+             GovernedAdoption.adopt_work_item(
+               projection,
+               query: %{resource_iri: memory_resource_iri},
+               workspace_path: workspace_path,
+               workflow_context: WorkflowService.follow_up_context(workflow_result)
+             )
+
+    assert adoption.work_item.work_metadata["workflow_memory"]["retrieval_policy"]["intent"] == "review_risks"
+
+    assert {:ok, provenance_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo.id,
+               workspace_path,
+               """
+               SELECT ?session ?plan
+               WHERE {
+                 ?session a jido:WorkSession ;
+                   jido:sessionId "#{governed_session_id(:plan, adoption.finding.digest, adoption.work_item.id)}" ;
+                   jido:hasPlan ?plan .
+                 ?plan jido:relatedTo <#{memory_resource_iri}> .
+               }
+               """,
+               graph_name: "workflow_provenance",
+               allow_stale?: true
+             )
+
+    assert provenance_query.row_count == 1
   end
 
   defp governed_session_id(:plan, digest, work_item_id), do: "memory-governed-plan-#{digest}-#{work_item_id}"

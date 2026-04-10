@@ -166,6 +166,7 @@ The canonical repo-facing guides now live here:
 
 - [`.spec/README.md`](.spec/README.md) for the repo-local Spec Led Development workflow
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) for contributor setup and quality expectations
+- [`memory_ontology_guide.md`](memory_ontology_guide.md) for the developer-facing explanation of the coding memory ontology
 - [`tauri/README.md`](tauri/README.md) for the separate desktop packaging/runtime path
 - [`CHANGELOG.md`](CHANGELOG.md) for release history
 - [`AGENTS.md`](AGENTS.md) for local agent operating guidance in this repo

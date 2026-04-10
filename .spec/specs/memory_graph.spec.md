@@ -296,4 +296,11 @@ surface:
     - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
     - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
     - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_integration_test.exs
+  covers:
+    - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
 ```

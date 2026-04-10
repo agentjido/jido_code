@@ -23,7 +23,7 @@ Back to index: [README](./README.md)
 - Durable memories should only be inserted after explicit classification or governed adoption.
 - Freshness, validation, and invalidation must evolve with revision movement and test evidence.
 
-[ ] 30 Phase 30 - Durable Coding Memory Adoption And Validation
+[x] 30 Phase 30 - Durable Coding Memory Adoption And Validation
   Add the durable memory insertion and update behavior that turns selected findings, decisions, conventions, issues, and lessons into reusable coding memory over time.
 
   [x] 30.1 Section - Durable Memory Classification And Adoption
@@ -60,19 +60,19 @@ Back to index: [README](./README.md)
       [x] 30.2.2.2 Subtask - Support decision supersession through `supersedes` and `decisionStatus`.
       [x] 30.2.2.3 Subtask - Ensure queries can distinguish durable but invalidated memory from still-valid memory.
 
-  [ ] 30.3 Section - Phase 30 Integration Tests
+  [x] 30.3 Section - Phase 30 Integration Tests
     Verify durable memory is inserted only through explicit adoption paths and remains explainable under later validation and invalidation.
 
-    [ ] 30.3.1 Task - Durable memory adoption scenarios
+    [x] 30.3.1 Task - Durable memory adoption scenarios
       Prove classified findings can become durable memory only through bounded product or governed seams.
 
-      [ ] 30.3.1.1 Subtask - Add coverage proving classified findings can become durable memory instances of the intended ontology classes.
-      [ ] 30.3.1.2 Subtask - Add coverage proving unadopted transient model output does not become durable memory.
-      [ ] 30.3.1.3 Subtask - Add coverage proving durable memory links back to source-code entities and workflow provenance where available.
+      [x] 30.3.1.1 Subtask - Add coverage proving classified findings can become durable memory instances of the intended ontology classes.
+      [x] 30.3.1.2 Subtask - Add coverage proving unadopted transient model output does not become durable memory.
+      [x] 30.3.1.3 Subtask - Add coverage proving durable memory links back to source-code entities and workflow provenance where available.
 
-    [ ] 30.3.2 Task - Freshness and invalidation scenarios
+    [x] 30.3.2 Task - Freshness and invalidation scenarios
       Prove durable memory remains queryable and explainable as repository state changes.
 
-      [ ] 30.3.2.1 Subtask - Add coverage proving revision and test evidence update validation metadata.
-      [ ] 30.3.2.2 Subtask - Add coverage proving invalidated or superseded memory remains explicit rather than silently disappearing.
-      [ ] 30.3.2.3 Subtask - Verify the spec workspace remains coherent after durable memory adoption and validation land.
+      [x] 30.3.2.1 Subtask - Add coverage proving revision and test evidence update validation metadata.
+      [x] 30.3.2.2 Subtask - Add coverage proving invalidated or superseded memory remains explicit rather than silently disappearing.
+      [x] 30.3.2.3 Subtask - Verify the spec workspace remains coherent after durable memory adoption and validation land.

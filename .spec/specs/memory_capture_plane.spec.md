@@ -248,4 +248,11 @@ surface:
     - architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
     - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
     - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_integration_test.exs
+  covers:
+    - architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption
+    - architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
+    - architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
 ```

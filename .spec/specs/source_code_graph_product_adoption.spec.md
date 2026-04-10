@@ -249,6 +249,11 @@ surface:
     - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
 
 - kind: source_file
+  target: test/jido_code/phase_thirty_integration_test.exs
+  covers:
+    - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
+
+- kind: source_file
   target: test/jido_code_web/live/phase_twenty_seven_integration_test.exs
   covers:
     - architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery

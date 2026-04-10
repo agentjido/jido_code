@@ -272,6 +272,11 @@ surface:
   target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
     - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 
 - kind: source_file

@@ -307,6 +307,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/phase_thirty_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

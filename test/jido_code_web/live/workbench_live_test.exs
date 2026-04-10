@@ -7,6 +7,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
   alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
   alias JidoCode.Projects.Project
 
@@ -28,6 +30,9 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     original_source_code_graph_enabled =
       Application.get_env(:jido_code, :source_code_graph_enabled, false)
+
+    original_memory_graph_enabled =
+      Application.get_env(:jido_code, :memory_graph_enabled, false)
 
     Application.put_env(:jido_code, :system_config_loader, fn ->
       {:ok,
@@ -56,6 +61,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
       restore_env(:system_config_loader, original_system_config_loader)
       Application.put_env(:jido_code, :source_code_graph_enabled, original_source_code_graph_enabled)
+      Application.put_env(:jido_code, :memory_graph_enabled, original_memory_graph_enabled)
     end)
 
     :ok
@@ -164,6 +170,95 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
              view,
              "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}']",
              "Open repo detail to refresh semantic graph data."
+           )
+  end
+
+  test "shows repo-scoped memory readiness hints on managed repo rows", %{conn: _conn} do
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    register_owner("workbench-memory-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workbench-memory-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("WorkbenchMemory.Ready")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-ready",
+        github_full_name: "owner/repo-memory-ready",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    route_id = managed_repo_route_id!(project.id)
+    seed_memory_graph!(route_id, workspace_path, "phase-32-workbench-ready")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert has_element?(view, "#workbench-project-memory-hint-#{route_id}")
+  end
+
+  test "surfaces stale memory hints on workbench rows and routes recovery back to repo detail", %{
+    conn: _conn
+  } do
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    register_owner("workbench-memory-stale-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workbench-memory-stale-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("WorkbenchMemory.Stale")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-stale",
+        github_full_name: "owner/repo-memory-stale",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    route_id = managed_repo_route_id!(project.id)
+    seed_memory_graph!(route_id, workspace_path, "phase-32-workbench-stale")
+    rewrite_semantic_workspace_module!(workspace_path, "WorkbenchMemory.Refreshed")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert has_element?(view, "#workbench-project-memory-hint-#{route_id}")
+
+    assert has_element?(
+             view,
+             "#workbench-project-memory-hint-badge-#{route_id}",
+             "Memory graph stale"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-memory-hint-detail-#{route_id}",
+             "stale"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}']",
+             "Open repo detail to validate memory graph"
            )
   end
 
@@ -1647,6 +1742,48 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     |> Path.wildcard()
     |> Enum.reject(&String.ends_with?(&1, "#{module_basename}.ex"))
     |> Enum.each(&File.rm!/1)
+  end
+
+  defp seed_memory_graph!(managed_repo_id, workspace_path, revision) do
+    assert {:ok, _refresh_result} =
+             AgentWorkspace.refresh_memory_graph(managed_repo_id, workspace_path, revision: revision)
+
+    session_id = "workbench-session-#{System.unique_integer([:positive])}"
+
+    assert {:ok, _session_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.work_session(
+                 session_id: session_id,
+                 actor_id: "system:workbench-memory",
+                 workflow: :plan,
+                 work_item_id: "work-32",
+                 goal: "Seed workbench memory inspection"
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
+    assert {:ok, _memory_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               DurableMemoryEnvelope.known_issue(
+                 session_id: session_id,
+                 actor_id: "system:workbench-memory",
+                 workflow: :review,
+                 work_item_id: "work-32",
+                 content: "Repository memory should stay visible from workbench.",
+                 revision: revision,
+                 anchors: %{module_name: "ExampleWorkspace"},
+                 classification: %{
+                   source: "workbench_test",
+                   reason: "Workbench memory hints need a durable repository issue."
+                 }
+               ),
+               revision: revision
+             )
   end
 
   defp assert_eventually(assertion_fun, attempts \\ 20)

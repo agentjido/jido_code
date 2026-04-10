@@ -11,6 +11,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
+  alias JidoCode.MemoryGraph.GovernedSurfaceContext
   alias JidoCode.Orchestration.{Run, RunPubSub}
 
   @run_events_for_refresh MapSet.new([
@@ -338,6 +339,150 @@ defmodule JidoCodeWeb.RunDetailLive do
                   </li>
                 </ol>
               <% end %>
+            </section>
+
+            <section
+              :if={@memory_context}
+              id="run-detail-memory-context"
+              class="space-y-3 rounded border border-base-300/70 bg-base-200/20 p-3"
+            >
+              <div class="space-y-1">
+                <p class="text-sm font-medium">Repository memory context</p>
+                <p id="run-detail-memory-context-state" class="text-xs text-base-content/70">
+                  Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
+                </p>
+                <p
+                  :if={@memory_context.notice}
+                  id="run-detail-memory-context-notice"
+                  class="text-xs text-base-content/80"
+                >
+                  {@memory_context.notice.detail}
+                </p>
+              </div>
+
+              <div
+                :if={@memory_context.governed_history.evidence != [] or @memory_context.governed_history.decisions != []}
+                id="run-detail-memory-history"
+                class="grid gap-3 md:grid-cols-2"
+              >
+                <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Evidence history
+                  </p>
+                  <ol id="run-detail-memory-evidence-history" class="space-y-2">
+                    <li
+                      :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.evidence, 1)}
+                      id={"run-detail-memory-evidence-history-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{entry.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                      </p>
+                    </li>
+                  </ol>
+                </section>
+
+                <section :if={@memory_context.governed_history.decisions != []} class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Decision history
+                  </p>
+                  <ol id="run-detail-memory-decision-history" class="space-y-2">
+                    <li
+                      :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.decisions, 1)}
+                      id={"run-detail-memory-decision-history-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{entry.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                      </p>
+                    </li>
+                  </ol>
+                </section>
+              </div>
+
+              <section id="run-detail-memory-items" class="space-y-2">
+                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  Durable memories
+                </p>
+
+                <%= if @memory_context.memories.items == [] do %>
+                  <p id="run-detail-memory-empty" class="text-xs text-base-content/70">
+                    No durable memories currently point at this governed history.
+                  </p>
+                <% else %>
+                  <ol id="run-detail-memory-list" class="space-y-2">
+                    <li
+                      :for={{item, index} <- Enum.with_index(@memory_context.memories.items, 1)}
+                      id={"run-detail-memory-item-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                    >
+                      <p class="text-sm font-medium">
+                        {item.memory_kind}: {item.content}
+                      </p>
+                      <p class="text-xs text-base-content/70">
+                        Freshness: {item.freshness_score || "unknown"} | Decision status: {item.decision_status || "n/a"}
+                      </p>
+                      <div
+                        :if={item.navigation.governed_records != []}
+                        id={"run-detail-memory-links-#{index}"}
+                        class="flex flex-wrap gap-2"
+                      >
+                        <a
+                          :for={link <- item.navigation.governed_records}
+                          :if={link.route}
+                          href={link.route}
+                          class="link link-primary text-xs"
+                        >
+                          {link.label}
+                        </a>
+                      </div>
+                    </li>
+                  </ol>
+                <% end %>
+              </section>
+
+              <section id="run-detail-memory-provenance" class="space-y-2">
+                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  Workflow provenance
+                </p>
+
+                <%= if @memory_context.provenance.items == [] do %>
+                  <p id="run-detail-memory-provenance-empty" class="text-xs text-base-content/70">
+                    No workflow provenance currently points at this governed history.
+                  </p>
+                <% else %>
+                  <ol id="run-detail-memory-provenance-list" class="space-y-2">
+                    <li
+                      :for={{item, index} <- Enum.with_index(@memory_context.provenance.items, 1)}
+                      id={"run-detail-memory-provenance-item-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                    >
+                      <p class="text-sm font-medium">
+                        {item.provenance_kind}: {item.label || item.content || "bounded provenance"}
+                      </p>
+                      <p class="text-xs text-base-content/70">
+                        Revision: {item.revision_iri || "unknown"}
+                      </p>
+                      <div
+                        :if={item.navigation.governed_records != []}
+                        id={"run-detail-memory-provenance-links-#{index}"}
+                        class="flex flex-wrap gap-2"
+                      >
+                        <a
+                          :for={link <- item.navigation.governed_records}
+                          :if={link.route}
+                          href={link.route}
+                          class="link link-primary text-xs"
+                        >
+                          {link.label}
+                        </a>
+                      </div>
+                    </li>
+                  </ol>
+                <% end %>
+              </section>
             </section>
           </section>
 
@@ -784,6 +929,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:approval_context, nil)
     |> assign(:approval_context_blocker, nil)
     |> assign(:runtime_evidence_summary, nil)
+    |> assign(:memory_context, nil)
     |> assign(:step_retry_state, step_retry_state(nil))
     |> assign(:approval_action_error, nil)
     |> assign(:retry_action_error, nil)
@@ -804,7 +950,8 @@ defmodule JidoCodeWeb.RunDetailLive do
            evidence_records: evidence_records,
            change_request: change_request,
            decisions: decisions,
-           repo_posture: repo_posture
+           repo_posture: repo_posture,
+           memory_context: memory_context
          }
        ) do
     socket
@@ -813,6 +960,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
     |> assign(:runtime_evidence_summary, runtime_evidence_summary(run, evidence_records, repo_posture))
+    |> assign(:memory_context, memory_context)
     |> assign(:timeline_entries, timeline_entries(run))
     |> assign(:retry_lineage_entries, retry_lineage_entries(run))
     |> assign(:artifact_categories, artifact_categories(run))
@@ -833,13 +981,17 @@ defmodule JidoCodeWeb.RunDetailLive do
   defp load_run_state(project_id, run_id) do
     with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
          {:ok, run} <- load_governed_run(project_scope, run_id) do
+      evidence_records = load_evidence_records(run)
+      decisions = load_decisions(run)
+
       {:ok,
        %{
          run: run,
-         evidence_records: load_evidence_records(run),
+         evidence_records: evidence_records,
          change_request: load_change_request(run),
-         decisions: load_decisions(run),
-         repo_posture: load_repo_posture(run)
+         decisions: decisions,
+         repo_posture: load_repo_posture(run),
+         memory_context: GovernedSurfaceContext.load_run_detail(project_scope, run, evidence_records, decisions)
        }}
     else
       {:error, :governed_run_not_found} ->

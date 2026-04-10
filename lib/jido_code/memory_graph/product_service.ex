@@ -28,7 +28,8 @@ defmodule JidoCode.MemoryGraph.ProductService do
         {:error, reason, ViewModel.error(:memory_graph_status, managed_repo_id, reason, error_detail(reason), nil)}
 
       {:error, reason, detail} ->
-        {:error, reason, ViewModel.error(:memory_graph_status, managed_repo_id, reason, error_detail(reason, detail), nil)}
+        {:error, reason,
+         ViewModel.error(:memory_graph_status, managed_repo_id, reason, error_detail(reason, detail), nil)}
     end
   end
 
@@ -45,7 +46,8 @@ defmodule JidoCode.MemoryGraph.ProductService do
         {:error, reason, ViewModel.error(:memory_graph_recovery, managed_repo_id, reason, error_detail(reason), nil)}
 
       {:error, reason, detail} ->
-        {:error, reason, ViewModel.error(:memory_graph_recovery, managed_repo_id, reason, error_detail(reason, detail), nil)}
+        {:error, reason,
+         ViewModel.error(:memory_graph_recovery, managed_repo_id, reason, error_detail(reason, detail), nil)}
     end
   end
 
@@ -79,7 +81,8 @@ defmodule JidoCode.MemoryGraph.ProductService do
         {:error, reason, ViewModel.error(:memory_graph_summary, managed_repo_id, reason, error_detail(reason), nil)}
 
       {:error, reason, detail} ->
-        {:error, reason, ViewModel.error(:memory_graph_summary, managed_repo_id, reason, error_detail(reason, detail), nil)}
+        {:error, reason,
+         ViewModel.error(:memory_graph_summary, managed_repo_id, reason, error_detail(reason, detail), nil)}
     end
   end
 
@@ -87,6 +90,17 @@ defmodule JidoCode.MemoryGraph.ProductService do
   def memories(managed_repo_id, workspace_path, opts \\ []) do
     memory_lookup(managed_repo_id, workspace_path, opts, :memories, MemoryGraph.memory_graph_name(), fn ->
       HelperQueries.memories(managed_repo_id, Map.new(opts))
+    end)
+  end
+
+  @spec memories_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, atom(), map()}
+  def memories_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
+      when is_list(artifact_paths) do
+    lookup_opts = Keyword.put(opts, :artifact_paths, artifact_paths)
+
+    memory_lookup(managed_repo_id, workspace_path, lookup_opts, :memories, MemoryGraph.memory_graph_name(), fn ->
+      HelperQueries.memories(managed_repo_id, Map.new(lookup_opts))
     end)
   end
 
@@ -104,6 +118,24 @@ defmodule JidoCode.MemoryGraph.ProductService do
     )
   end
 
+  @spec provenance_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, atom(), map()}
+  def provenance_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
+      when is_list(artifact_paths) do
+    lookup_opts = Keyword.put(opts, :artifact_paths, artifact_paths)
+
+    memory_lookup(
+      managed_repo_id,
+      workspace_path,
+      lookup_opts,
+      :provenance,
+      MemoryGraph.workflow_provenance_graph_name(),
+      fn ->
+        HelperQueries.provenance(managed_repo_id, Map.new(lookup_opts))
+      end
+    )
+  end
+
   @spec cross_links(managed_repo_id(), workspace_path(), String.t(), keyword()) ::
           {:ok, map()} | {:error, atom(), map()}
   def cross_links(managed_repo_id, workspace_path, resource_iri, opts \\ []) when is_binary(resource_iri) do
@@ -112,8 +144,16 @@ defmodule JidoCode.MemoryGraph.ProductService do
     with {:ok, graph_name} <- graph_name_for_resource(managed_repo_id, resource_iri),
          {:ok, status_result} <-
            AgentWorkspace.memory_graph_status(managed_repo_id, workspace_path, status_opts ++ [graph_name: graph_name]),
-         true <- preview_available?(status_result, opts) or
-                   {:error, graph_reason(status_result), ViewModel.error(:cross_links, managed_repo_id, graph_reason(status_result), error_detail(graph_reason(status_result)), status_result)},
+         true <-
+           preview_available?(status_result, opts) or
+             {:error, graph_reason(status_result),
+              ViewModel.error(
+                :cross_links,
+                managed_repo_id,
+                graph_reason(status_result),
+                error_detail(graph_reason(status_result)),
+                status_result
+              )},
          {:ok, query_result} <-
            AgentWorkspace.query_memory_graph(
              managed_repo_id,
@@ -223,10 +263,18 @@ defmodule JidoCode.MemoryGraph.ProductService do
 
   defp error_detail(:memory_graph_disabled), do: "Repository memory is disabled for this managed repository."
   defp error_detail(:memory_graph_not_ready), do: "Repository memory has not been prepared yet."
-  defp error_detail(:memory_graph_stale), do: "Repository memory is stale and should be validated before bounded recall."
-  defp error_detail(:memory_graph_invalidated), do: "Repository memory was invalidated and should be revalidated before bounded recall."
+
+  defp error_detail(:memory_graph_stale),
+    do: "Repository memory is stale and should be validated before bounded recall."
+
+  defp error_detail(:memory_graph_invalidated),
+    do: "Repository memory was invalidated and should be revalidated before bounded recall."
+
   defp error_detail(:memory_graph_failed), do: "Repository memory recovery is required before bounded recall."
-  defp error_detail(:memory_graph_cross_link_not_found), do: "Cross-graph navigation is unavailable for the requested resource."
+
+  defp error_detail(:memory_graph_cross_link_not_found),
+    do: "Cross-graph navigation is unavailable for the requested resource."
+
   defp error_detail(reason), do: "Repository memory is unavailable (#{reason})."
 
   defp error_detail(_reason, detail) when is_binary(detail), do: detail

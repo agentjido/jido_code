@@ -76,6 +76,8 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
           """
       end
 
+    artifact_filter = artifact_filter(managed_repo_id, params[:artifact_paths], "memory")
+
     """
     SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject
     WHERE {
@@ -91,6 +93,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?memory jido:aboutModule ?module . }
       OPTIONAL { ?memory jido:aboutFunction ?function . }
       OPTIONAL { ?memory jido:affectsSymbol ?subject . }
+    #{artifact_filter}
       FILTER(STRSTARTS(STR(?memory), "#{base_iri}"))
     #{content_filter}
     #{anchor_filter}
@@ -136,6 +139,8 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
           """
       end
 
+    artifact_filter = artifact_filter(managed_repo_id, params[:artifact_paths], "resource")
+
     """
     SELECT ?resource ?kind ?label ?content ?startedAt ?endedAt ?session ?module ?function ?subject ?revision
     WHERE {
@@ -150,6 +155,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?resource jido:aboutFunction ?function . }
       OPTIONAL { ?resource jido:affectsSymbol ?subject . }
       OPTIONAL { ?resource jido:validForRevision ?revision . }
+    #{artifact_filter}
       FILTER(STRSTARTS(STR(?resource), "#{base_iri}"))
     #{label_filter}
     }
@@ -231,6 +237,31 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
   end
 
   defp normalized_string(_value), do: nil
+
+  defp artifact_filter(_managed_repo_id, nil, _resource_var), do: ""
+
+  defp artifact_filter(managed_repo_id, artifact_paths, resource_var) do
+    values =
+      artifact_paths
+      |> List.wrap()
+      |> Enum.map(&normalized_string/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&MemoryGraph.artifact_iri(managed_repo_id, &1))
+      |> Enum.map(&to_string/1)
+
+    case values do
+      [] ->
+        ""
+
+      values ->
+        """
+          VALUES ?artifact {
+            #{Enum.map_join(values, "\n        ", &"<#{escape_string(&1)}>")}
+          }
+          ?#{resource_var} jido:supportedBy ?artifact .
+        """
+    end
+  end
 
   defp positive_limit(nil, default), do: default
   defp positive_limit(value, _default) when is_integer(value) and value > 0, do: value

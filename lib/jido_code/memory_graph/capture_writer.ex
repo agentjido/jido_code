@@ -17,8 +17,9 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
   @spec write(graph_context(), map()) :: {:ok, map()} | {:error, atom(), map()}
   def write(graph_context, capture) when is_map(graph_context) and is_map(capture) do
     with {:ok, envelope} <- CaptureEnvelope.normalize(capture, graph_context),
-         true <- graph_context.selected_graph_name == MemoryGraph.workflow_provenance_graph_name() or
-                   {:error, :memory_capture_plane_not_ready, wrong_graph_diagnostics(graph_context, capture)},
+         true <-
+           graph_context.selected_graph_name == MemoryGraph.workflow_provenance_graph_name() or
+             {:error, :memory_capture_plane_not_ready, wrong_graph_diagnostics(graph_context, capture)},
          {:ok, store} <- open_store(graph_context.graph_store_path) do
       try do
         graph = RDF.Graph.new(triples(envelope))
@@ -179,6 +180,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
           ]
       end
       |> add_anchors(resource, envelope.source_code_anchors)
+      |> add_artifacts(resource, envelope.governed_artifacts, jido("supportedBy"))
 
     (common_actor_and_revision ++ session_stub ++ resource_triples)
     |> List.flatten()
@@ -203,9 +205,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
 
   defp maybe_add_toolchain(triples, %{toolchain_name: toolchain_name, managed_repo_id: managed_repo_id}) do
     toolchain =
-      RDF.iri(
-        "#{MemoryGraph.workflow_provenance_base_iri(managed_repo_id)}toolchain/#{URI.encode(toolchain_name)}"
-      )
+      RDF.iri("#{MemoryGraph.workflow_provenance_base_iri(managed_repo_id)}toolchain/#{URI.encode(toolchain_name)}")
 
     triples ++
       [
@@ -226,6 +226,19 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
         {:about_test, iri} -> {subject, jido("aboutTest"), iri}
         {:about_config, iri} -> {subject, jido("aboutConfig"), iri}
         {:affects_symbol, iri} -> {subject, jido("affectsSymbol"), iri}
+      end)
+  end
+
+  defp add_artifacts(triples, _subject, [], _predicate), do: triples
+
+  defp add_artifacts(triples, subject, artifacts, predicate) when is_list(artifacts) do
+    triples ++
+      Enum.flat_map(artifacts, fn
+        %{iri: iri} when not is_nil(iri) ->
+          [{subject, predicate, iri}]
+
+        _other ->
+          []
       end)
   end
 

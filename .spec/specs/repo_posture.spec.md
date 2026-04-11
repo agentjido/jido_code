@@ -9,7 +9,7 @@ records for managed repositories.
 id: architecture.repo_posture
 kind: feature
 status: active
-summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded run-detail memory context, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
+summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation

@@ -8,7 +8,7 @@ This subject defines the governed run projection model for `Jido.Code`.
 id: architecture.run_governance
 kind: policy
 status: active
-summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, allows bounded memory and provenance context to appear on canonical run-detail surfaces without displacing governed execution truth, and lets those records inform posture without replacing the run-governance model itself.
+summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, allows bounded memory and provenance context plus canonical memory follow-up staging to appear on canonical run-detail surfaces without displacing governed execution truth, and lets those records inform posture without replacing the run-governance model itself.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization

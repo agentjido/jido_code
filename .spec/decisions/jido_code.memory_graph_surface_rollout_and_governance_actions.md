@@ -59,6 +59,16 @@ The next step is therefore not another graph primitive. The next step is
 rolling the existing memory capability out across the remaining canonical
 operator and governed surfaces.
 
+The implemented rollout now centers three concrete product behaviors:
+
+- dashboard summaries expose bounded memory freshness, recovery, and
+  action-needed signals that route back to canonical managed-repository views
+- governed run detail hosts canonical evidence and decision memory affordances
+  for validate, invalidate, supersede, and promote actions without leaving the
+  run surface
+- cross-graph follow-up preview and navigation stay product-shaped through
+  bounded projections instead of exposing graph-first routes or raw RDF joins
+
 ## Decision
 
 `Jido.Code` shall expand memory-graph product adoption into dashboard summaries
@@ -94,5 +104,8 @@ The product-facing shape is:
   to flow through the same product-owned mutation and capture-plane boundaries.
 - Cross-graph navigation becomes a shared product concern rather than a
   surface-specific convenience.
+- Follow-up previews and governed action affordances can be staged directly on
+  canonical run and repository surfaces without creating a parallel memory
+  browser workflow.
 - Governed records remain canonical because memory-backed insights and actions
   still matter to the factory only after they rejoin governed product state.

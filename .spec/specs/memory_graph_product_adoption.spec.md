@@ -10,7 +10,7 @@ workflow entrypoints.
 id: architecture.memory_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers.
+summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, while keeping dashboard summaries, managed-repository detail, and governed run detail on the same bounded navigation and follow-up-preview contract.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -231,4 +231,5 @@ surface:
     - architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
     - architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
     - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
+
 ```

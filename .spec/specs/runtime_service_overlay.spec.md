@@ -8,7 +8,7 @@ product control-plane ownership.
 id: architecture.runtime_service_overlay
 kind: policy
 status: deprecated
-summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context alongside runtime posture language, and Ash-backed product truth remains canonical.
+summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context, cross-graph follow-up preview, and runtime posture language without collapsing those concerns into one semantic lane, and Ash-backed product truth remains canonical.
 superseded_by: architecture.agent_os_integration
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay

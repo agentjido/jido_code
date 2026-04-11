@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository surfaces may now expose bounded semantic repository inspection, repository memory inspection, and recovery once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system

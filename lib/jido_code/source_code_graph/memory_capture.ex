@@ -8,7 +8,7 @@ defmodule JidoCode.SourceCodeGraph.MemoryCapture do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, GovernedReference}
   alias JidoCode.SourceCodeGraph.Finding
 
   @spec record(map(), keyword()) :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
@@ -208,7 +208,7 @@ defmodule JidoCode.SourceCodeGraph.MemoryCapture do
         reason: classification_reason,
         label: Keyword.get(opts, :classification_label, "semantic durable memory")
       },
-      governed_context: governed_context(opts),
+      governed_references: governed_references(opts),
       related_memory_ids: Keyword.get(opts, :related_memory_ids, []),
       alternative_considered_ids: Keyword.get(opts, :alternative_considered_ids, []),
       consequence_memory_ids: Keyword.get(opts, :consequence_memory_ids, []),
@@ -266,10 +266,19 @@ defmodule JidoCode.SourceCodeGraph.MemoryCapture do
     end
   end
 
-  defp governed_context(opts) do
-    opts
-    |> Keyword.take([:observation_id, :assessment_id, :work_item_id, :evidence_id, :decision_id, :run_id])
-    |> Enum.into(%{})
+  defp governed_references(opts) do
+    explicit =
+      opts
+      |> Keyword.take([:observation_id, :assessment_id, :work_item_id, :evidence_id, :decision_id, :run_id])
+      |> GovernedReference.explicit_many()
+
+    inherited =
+      opts
+      |> Keyword.get(:governed_references)
+      |> GovernedReference.explicit_many()
+
+    (explicit ++ inherited)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
   end
 
   defp supported_by(finding, opts) do

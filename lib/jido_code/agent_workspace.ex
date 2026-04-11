@@ -52,7 +52,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.AgentOS.Manager
   alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
   alias JidoCode.Control.Actor
-  alias JidoCode.MemoryGraph.CaptureEnvelope
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
   alias JidoCode.Pods.{CodingPod, RepoPod}
 
@@ -1678,6 +1678,29 @@ defmodule JidoCode.AgentWorkspace do
     |> Enum.uniq()
   end
 
+  defp provenance_governed_references(work_item_id, opts) do
+    explicit =
+      [
+        work_item_id && %{kind: :work_item, id: work_item_id}
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    inherited =
+      opts
+      |> Keyword.get(:provenance, [])
+      |> Keyword.get(:governed_references)
+      |> GovernedReference.explicit_many()
+
+    legacy =
+      opts
+      |> Keyword.get(:provenance, [])
+      |> Keyword.get(:governed_context)
+      |> GovernedReference.explicit_many()
+
+    (explicit ++ inherited ++ legacy)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
+  end
+
   defp provenance_memory_policy(opts) do
     opts
     |> Keyword.get(:provenance, [])
@@ -1735,6 +1758,7 @@ defmodule JidoCode.AgentWorkspace do
       instruction: instruction,
       workspace_path: workspace_path,
       related_resources: provenance_related_resources(opts),
+      governed_references: provenance_governed_references(work_item_id, opts),
       memory_policy: provenance_memory_policy(opts),
       follow_up_intent: provenance_follow_up_intent(opts)
     }
@@ -1756,6 +1780,7 @@ defmodule JidoCode.AgentWorkspace do
         outcome: "started",
         revision: provenance_context.revision,
         related_resources: provenance_context.related_resources,
+        governed_references: provenance_context.governed_references,
         metadata: provenance_metadata(provenance_context)
       )
 
@@ -1768,6 +1793,7 @@ defmodule JidoCode.AgentWorkspace do
         content: provenance_context.instruction,
         revision: provenance_context.revision,
         related_resources: provenance_context.related_resources,
+        governed_references: provenance_context.governed_references,
         metadata: provenance_metadata(provenance_context)
       )
 
@@ -1817,6 +1843,7 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
+        governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources
       )
 
@@ -1832,6 +1859,7 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
+        governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources
       )
 
@@ -1895,6 +1923,7 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
+        governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources,
         metadata:
           provenance_metadata(provenance_context)
@@ -1916,6 +1945,7 @@ defmodule JidoCode.AgentWorkspace do
       started_at: started_at,
       ended_at: ended_at,
       revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
       metadata: provenance_metadata(provenance_context)
     )
@@ -1932,6 +1962,7 @@ defmodule JidoCode.AgentWorkspace do
       started_at: started_at,
       ended_at: ended_at,
       revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
       metadata: provenance_metadata(provenance_context)
     )
@@ -1948,6 +1979,7 @@ defmodule JidoCode.AgentWorkspace do
       started_at: started_at,
       ended_at: ended_at,
       revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
       metadata: provenance_metadata(provenance_context)
     )

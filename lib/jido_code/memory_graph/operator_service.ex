@@ -13,7 +13,7 @@ defmodule JidoCode.MemoryGraph.OperatorService do
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{DurableMemoryEnvelope, DurableMemoryUpdateEnvelope, GovernedAdoption}
+  alias JidoCode.MemoryGraph.{DurableMemoryEnvelope, DurableMemoryUpdateEnvelope, GovernedAdoption, GovernedReference}
 
   @operator_actor Actor.operator_actor(%{
                     "id" => "system:memory-graph-operator",
@@ -39,7 +39,7 @@ defmodule JidoCode.MemoryGraph.OperatorService do
                session_id: operator_session_id(:validate, memory_iri, context.revision),
                revision: context.revision,
                freshness_score: Keyword.get(opts, :freshness_score, 1.0),
-               governed_context: context.governed_context
+               governed_references: context.governed_references
              ),
              revision: context.revision
            ) do
@@ -71,7 +71,7 @@ defmodule JidoCode.MemoryGraph.OperatorService do
                session_id: operator_session_id(:invalidate, memory_iri, context.revision),
                revision: context.revision,
                stale_reason: stale_reason,
-               governed_context: context.governed_context
+               governed_references: context.governed_references
              ),
              revision: context.revision
            ) do
@@ -115,7 +115,7 @@ defmodule JidoCode.MemoryGraph.OperatorService do
                actor_id: context.actor_id,
                session_id: operator_session_id(:supersede, memory_iri, context.revision),
                revision: context.revision,
-               governed_context: Map.put(context.governed_context, :decision_id, decision_id)
+               governed_references: context.governed_references ++ [%{kind: :decision, id: decision_id}]
              ),
              revision: context.revision
            ) do
@@ -202,7 +202,7 @@ defmodule JidoCode.MemoryGraph.OperatorService do
          revision: revision,
          actor: actor,
          actor_id: actor_id(actor, opts),
-         governed_context: governed_context(item, opts)
+         governed_references: governed_references(item, opts)
        }}
     end
   end
@@ -243,9 +243,9 @@ defmodule JidoCode.MemoryGraph.OperatorService do
          module_name: Map.get(item, :module_name),
          subject_iri: Map.get(item, :subject_iri)
        },
-       governed_context:
-         context.governed_context
-         |> Map.put_new(:decision_id, decision_id),
+       governed_references:
+         (context.governed_references ++ [%{kind: :decision, id: decision_id}])
+         |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end),
        classification: %{
          source: "memory_graph_operator_service",
          reason: "Operator superseded a durable decision memory with the current governed decision."
@@ -261,25 +261,29 @@ defmodule JidoCode.MemoryGraph.OperatorService do
     |> maybe_put(:function_name, Map.get(item, :function_name))
   end
 
-  defp governed_context(item, opts) do
+  defp governed_references(item, opts) do
     explicit =
       opts
       |> Keyword.take([:run_id, :work_item_id, :evidence_id, :decision_id, :observation_id, :assessment_id])
-      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-      |> Map.new()
+      |> GovernedReference.explicit_many()
 
-    item
-    |> Map.get(:navigation, %{})
-    |> Map.get(:governed_records, [])
-    |> Enum.reduce(explicit, fn link, acc ->
-      case {Map.get(link, :kind), normalize_optional_string(Map.get(link, :id))} do
-        {kind, id} when kind in [:run, :work_item, :evidence, :decision] and is_binary(id) ->
-          Map.put_new(acc, String.to_atom("#{kind}_id"), id)
+    inherited =
+      item
+      |> Map.get(:navigation, %{})
+      |> Map.get(:governed_records, [])
+      |> Enum.flat_map(fn link ->
+        case {Map.get(link, :kind), normalize_optional_string(Map.get(link, :id))} do
+          {kind, id}
+          when kind in [:run, :work_item, :evidence, :decision, :observation, :assessment] and is_binary(id) ->
+            [%{kind: kind, id: id}]
 
-        _other ->
-          acc
-      end
-    end)
+          _other ->
+            []
+        end
+      end)
+
+    (explicit ++ inherited)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
   end
 
   defp stale_reason(opts) do

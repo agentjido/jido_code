@@ -6,6 +6,7 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
   @moduledoc false
 
   alias JidoCode.{MemoryGraph, SourceCodeGraph}
+  alias JidoCode.MemoryGraph.GovernedReference
 
   @workflow_provenance_kinds ~w(work_session agent_run tool_invocation prompt_turn plan patch review)a
 
@@ -97,55 +98,58 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
       branch_name = normalize_optional_string(Map.get(capture, :branch_name) || Map.get(capture, "branch_name"))
       model_name = normalize_optional_string(Map.get(capture, :model) || Map.get(capture, "model"))
       toolchain_name = normalize_optional_string(Map.get(capture, :toolchain) || Map.get(capture, "toolchain"))
-
       source_code_anchors = source_code_anchors(capture, managed_repo_id)
-      governed_artifacts = governed_artifacts(capture, managed_repo_id)
-      related_resources = related_resources(capture)
 
-      {:ok,
-       %{
-         kind: kind,
-         graph_name: MemoryGraph.workflow_provenance_graph_name(),
-         named_graph_iri: MemoryGraph.workflow_provenance_named_graph_iri(),
-         managed_repo_id: managed_repo_id,
-         workspace_path: workspace_path,
-         revision: revision,
-         actor_id: actor_id,
-         workflow: workflow,
-         work_item_id: work_item_id,
-         goal: goal,
-         outcome: outcome,
-         content: content,
-         metadata: metadata,
-         started_at: started_at,
-         ended_at: ended_at,
-         resource_id: id,
-         resource_iri: resource_iri(kind, graph_context, id),
-         resource_class_iri: resource_class_iri(kind),
-         session_id: session_id,
-         session_iri: resource_iri(:work_session, graph_context, session_id),
-         actor_iri: actor_iri(graph_context, actor_id),
-         revision_iri: revision_iri(graph_context, revision),
-         parent_agent_run_iri:
-           optional_related_resource_iri(
-             :agent_run,
-             Map.get(capture, :agent_run_id) || Map.get(capture, "agent_run_id"),
-             graph_context
-           ),
-         patch_iri:
-           optional_related_resource_iri(
-             :patch,
-             Map.get(capture, :patch_id) || Map.get(capture, "patch_id"),
-             graph_context
-           ),
-         branch_name: branch_name,
-         model_name: model_name,
-         toolchain_name: toolchain_name,
-         label: label(kind, workflow, agent_name, tool_name),
-         source_code_anchors: source_code_anchors,
-         governed_artifacts: governed_artifacts,
-         related_resources: related_resources
-       }}
+      with {:ok, governed_references} <- governed_references(capture, managed_repo_id) do
+        governed_artifacts = governed_artifacts(governed_references)
+        related_resources = related_resources(capture)
+
+        {:ok,
+         %{
+           kind: kind,
+           graph_name: MemoryGraph.workflow_provenance_graph_name(),
+           named_graph_iri: MemoryGraph.workflow_provenance_named_graph_iri(),
+           managed_repo_id: managed_repo_id,
+           workspace_path: workspace_path,
+           revision: revision,
+           actor_id: actor_id,
+           workflow: workflow,
+           work_item_id: work_item_id,
+           goal: goal,
+           outcome: outcome,
+           content: content,
+           metadata: metadata,
+           started_at: started_at,
+           ended_at: ended_at,
+           resource_id: id,
+           resource_iri: resource_iri(kind, graph_context, id),
+           resource_class_iri: resource_class_iri(kind),
+           session_id: session_id,
+           session_iri: resource_iri(:work_session, graph_context, session_id),
+           actor_iri: actor_iri(graph_context, actor_id),
+           revision_iri: revision_iri(graph_context, revision),
+           parent_agent_run_iri:
+             optional_related_resource_iri(
+               :agent_run,
+               Map.get(capture, :agent_run_id) || Map.get(capture, "agent_run_id"),
+               graph_context
+             ),
+           patch_iri:
+             optional_related_resource_iri(
+               :patch,
+               Map.get(capture, :patch_id) || Map.get(capture, "patch_id"),
+               graph_context
+             ),
+           branch_name: branch_name,
+           model_name: model_name,
+           toolchain_name: toolchain_name,
+           label: label(kind, workflow, agent_name, tool_name),
+           source_code_anchors: source_code_anchors,
+           governed_references: governed_references,
+           governed_artifacts: governed_artifacts,
+           related_resources: related_resources
+         }}
+      end
     end
   end
 
@@ -283,21 +287,18 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
 
-  defp governed_artifacts(capture, managed_repo_id) do
-    capture
-    |> Map.get(:governed_context, Map.get(capture, "governed_context"))
-    |> normalize_map()
-    |> Enum.flat_map(fn {key, value} ->
-      case normalize_optional_string(value) do
-        nil ->
-          []
+  defp governed_references(capture, managed_repo_id) do
+    GovernedReference.normalize_context(managed_repo_id, governed_reference_input(capture))
+  end
 
-        id ->
-          case MemoryGraph.artifact_path(key, id) do
-            nil -> []
-            path -> [artifact(path, "#{String.replace(to_string(key), "_", " ")} #{id}", managed_repo_id)]
-          end
-      end
+  defp governed_artifacts(governed_references) when is_list(governed_references) do
+    Enum.map(governed_references, fn reference ->
+      %{
+        kind: reference.kind,
+        id: reference.id,
+        iri: RDF.iri(reference.iri),
+        label: reference.label
+      }
     end)
   end
 
@@ -351,11 +352,11 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
     RDF.iri("https://jido.run/ontology/memory##{Map.fetch!(@kind_class_names, kind)}")
   end
 
-  defp artifact(path, label, managed_repo_id) do
-    %{
-      iri: MemoryGraph.artifact_iri(managed_repo_id, path),
-      label: label
-    }
+  defp governed_reference_input(capture) do
+    Map.get(capture, :governed_references) ||
+      Map.get(capture, "governed_references") ||
+      Map.get(capture, :governed_context) ||
+      Map.get(capture, "governed_context")
   end
 
   defp label(kind, workflow, agent_name, tool_name) do

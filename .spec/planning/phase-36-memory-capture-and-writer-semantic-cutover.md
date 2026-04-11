@@ -40,22 +40,22 @@ Back to index: [README](./README.md)
 [ ] 36 Phase 36 - Memory Capture And Writer Semantic Cutover
   Cut the capture plane and graph writers over to typed governed references so durable memory, workflow provenance, and memory updates all emit stronger governed semantics instead of generic artifact links.
 
-  [ ] 36.1 Section - Envelope And Capture Request Cutover
+  [x] 36.1 Section - Envelope And Capture Request Cutover
     Replace the generic governed context shapes used by capture callers with typed governed-reference contracts across memory, provenance, and update flows.
 
-    [ ] 36.1.1 Task - Replace generic governed-artifact normalization in capture envelopes
+    [x] 36.1.1 Task - Replace generic governed-artifact normalization in capture envelopes
       Update the envelope layer so typed governed references become the canonical capture input and later phases no longer have to reverse-engineer semantics from artifact paths.
 
-      [ ] 36.1.1.1 Subtask - Replace generic governed-artifact parsing in `CaptureEnvelope`, `DurableMemoryEnvelope`, and `DurableMemoryUpdateEnvelope` with typed governed-reference normalization.
-      [ ] 36.1.1.2 Subtask - Distinguish governed product references from true evidence or support artifacts so the envelope output preserves semantic intent.
-      [ ] 36.1.1.3 Subtask - Remove plan-level reliance on `artifact_paths` or generic id-map fallbacks as the preferred write contract.
+      [x] 36.1.1.1 Subtask - Replace generic governed-artifact parsing in `CaptureEnvelope`, `DurableMemoryEnvelope`, and `DurableMemoryUpdateEnvelope` with typed governed-reference normalization.
+      [x] 36.1.1.2 Subtask - Distinguish governed product references from true evidence or support artifacts so the envelope output preserves semantic intent.
+      [x] 36.1.1.3 Subtask - Remove plan-level reliance on `artifact_paths` or generic id-map fallbacks as the preferred write contract.
 
-    [ ] 36.1.2 Task - Align existing runtime and product callers to the typed capture contract
+    [x] 36.1.2 Task - Align existing runtime and product callers to the typed capture contract
       Update the current write seams so they emit the stronger semantic references rather than leaving the writers to guess intent.
 
-      [ ] 36.1.2.1 Subtask - Update `AgentWorkspace`, source-code-graph memory capture, and governed-adoption paths to emit typed governed references in capture requests.
-      [ ] 36.1.2.2 Subtask - Update materialization and follow-up helpers so created `Observation`, `Assessment`, `WorkItem`, `Evidence`, and `Decision` links are emitted as typed references immediately.
-      [ ] 36.1.2.3 Subtask - Keep all callers on the canonical capture plane rather than introducing side-channel semantic writes during the cutover.
+      [x] 36.1.2.1 Subtask - Update `AgentWorkspace`, source-code-graph memory capture, and governed-adoption paths to emit typed governed references in capture requests.
+      [x] 36.1.2.2 Subtask - Update materialization and follow-up helpers so created `Observation`, `Assessment`, `WorkItem`, `Evidence`, and `Decision` links are emitted as typed references immediately.
+      [x] 36.1.2.3 Subtask - Keep all callers on the canonical capture plane rather than introducing side-channel semantic writes during the cutover.
 
   [ ] 36.2 Section - Writer Semantic Cutover
     Change the graph writers so the stored triples reflect typed governed relationships directly and preserve evidence semantics only where they truly apply.

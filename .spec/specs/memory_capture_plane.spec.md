@@ -9,7 +9,7 @@ durable coding memories into the repository semantic store over time.
 id: architecture.memory_capture_plane
 kind: feature
 status: proposed
-summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to future operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and now defines a canonical typed governed-reference contract that later capture and writer phases can reuse instead of generic artifact-path semantics.
+summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to future operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and now defines a canonical typed governed-reference contract that callers emit as `governed_references` while any artifact-style compatibility data stays internal to the cutover.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -31,6 +31,7 @@ surface:
   - lib/jido_code/memory_graph/durable_memory_writer.ex
   - lib/jido_code/memory_graph/durable_memory_update_envelope.ex
   - lib/jido_code/memory_graph/durable_memory_update_writer.ex
+  - lib/jido_code/memory_graph/governed_reference.ex
   - lib/jido_code/actions/record_memory_graph.ex
   - lib/jido_code/source_code_graph/workflow_service.ex
   - lib/jido_code/source_code_graph/governed_adoption.ex
@@ -214,6 +215,13 @@ surface:
   covers:
     - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
     - architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical
+
+- kind: source_file
+  target: test/jido_code/memory_graph_capture_envelope_test.exs
+  covers:
+    - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+    - architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical
+    - architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context
 
 - kind: source_file
   target: lib/jido_code/memory_graph/capture_writer.ex

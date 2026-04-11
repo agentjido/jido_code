@@ -9,6 +9,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
   @moduledoc false
 
   alias JidoCode.{MemoryGraph, SourceCodeGraph}
+  alias JidoCode.MemoryGraph.GovernedReference
 
   @memory_kinds ~w(fact decision lesson_learned invariant convention known_issue open_question pattern anti_pattern)a
 
@@ -110,49 +111,53 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
       workflow = normalize_optional_string(Map.get(capture, :workflow) || Map.get(capture, "workflow"))
       work_item_id = normalize_optional_string(Map.get(capture, :work_item_id) || Map.get(capture, "work_item_id"))
       source_code_anchors = source_code_anchors(capture, managed_repo_id)
-      governed_artifacts = governed_artifacts(capture, managed_repo_id)
-      supported_by_artifacts = supported_by_artifacts(capture, managed_repo_id)
-      confidence_source = confidence_source_artifact(capture, managed_repo_id)
-      evidence_artifacts = evidence_artifacts(capture, managed_repo_id)
 
-      {:ok,
-       %{
-         kind: kind,
-         graph_name: MemoryGraph.memory_graph_name(),
-         named_graph_iri: MemoryGraph.memory_named_graph_iri(),
-         managed_repo_id: managed_repo_id,
-         workspace_path: workspace_path,
-         revision: revision,
-         actor_id: actor_id,
-         resource_id: resource_id,
-         resource_iri: resource_iri(kind, graph_context, resource_id),
-         resource_class_iri: resource_class_iri(kind),
-         session_id: session_id,
-         session_iri: session_iri(graph_context, session_id),
-         actor_iri: actor_iri(graph_context, actor_id),
-         revision_iri: revision_iri(graph_context, revision),
-         workflow: workflow,
-         work_item_id: work_item_id,
-         content: content,
-         timestamp: timestamp,
-         confidence: confidence,
-         rationale: rationale,
-         lesson_context: lesson_context,
-         classification: classification,
-         source_code_anchors: source_code_anchors,
-         tags: tags,
-         related_memory_iris: Enum.map(related_memory_ids, &existing_memory_iri(graph_context, &1)),
-         alternative_considered_iris: Enum.map(alternative_considered_ids, &existing_memory_iri(graph_context, &1)),
-         consequence_memory_iris: Enum.map(consequence_memory_ids, &existing_memory_iri(graph_context, &1)),
-         supersedes_iri: supersedes_memory_id && existing_memory_iri(graph_context, supersedes_memory_id),
-         decision_status_iri: decision_status && decision_status_iri(decision_status),
-         observed_at_revision_iri: revision_iri(graph_context, revision),
-         valid_for_revision_iri: revision_iri(graph_context, revision),
-         governed_artifacts: governed_artifacts,
-         supported_by_artifacts: supported_by_artifacts,
-         confidence_source: confidence_source,
-         evidence_artifacts: evidence_artifacts
-       }}
+      with {:ok, governed_references} <- governed_references(capture, managed_repo_id) do
+        governed_artifacts = governed_artifacts(governed_references)
+        supported_by_artifacts = supported_by_artifacts(capture, managed_repo_id)
+        confidence_source = confidence_source_artifact(capture, managed_repo_id)
+        evidence_artifacts = evidence_artifacts(capture, managed_repo_id)
+
+        {:ok,
+         %{
+           kind: kind,
+           graph_name: MemoryGraph.memory_graph_name(),
+           named_graph_iri: MemoryGraph.memory_named_graph_iri(),
+           managed_repo_id: managed_repo_id,
+           workspace_path: workspace_path,
+           revision: revision,
+           actor_id: actor_id,
+           resource_id: resource_id,
+           resource_iri: resource_iri(kind, graph_context, resource_id),
+           resource_class_iri: resource_class_iri(kind),
+           session_id: session_id,
+           session_iri: session_iri(graph_context, session_id),
+           actor_iri: actor_iri(graph_context, actor_id),
+           revision_iri: revision_iri(graph_context, revision),
+           workflow: workflow,
+           work_item_id: work_item_id,
+           content: content,
+           timestamp: timestamp,
+           confidence: confidence,
+           rationale: rationale,
+           lesson_context: lesson_context,
+           classification: classification,
+           source_code_anchors: source_code_anchors,
+           tags: tags,
+           related_memory_iris: Enum.map(related_memory_ids, &existing_memory_iri(graph_context, &1)),
+           alternative_considered_iris: Enum.map(alternative_considered_ids, &existing_memory_iri(graph_context, &1)),
+           consequence_memory_iris: Enum.map(consequence_memory_ids, &existing_memory_iri(graph_context, &1)),
+           supersedes_iri: supersedes_memory_id && existing_memory_iri(graph_context, supersedes_memory_id),
+           decision_status_iri: decision_status && decision_status_iri(decision_status),
+           observed_at_revision_iri: revision_iri(graph_context, revision),
+           valid_for_revision_iri: revision_iri(graph_context, revision),
+           governed_references: governed_references,
+           governed_artifacts: governed_artifacts,
+           supported_by_artifacts: supported_by_artifacts,
+           confidence_source: confidence_source,
+           evidence_artifacts: evidence_artifacts
+         }}
+      end
     end
   end
 
@@ -325,15 +330,18 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
 
-  defp governed_artifacts(capture, managed_repo_id) do
-    capture
-    |> Map.get(:governed_context, Map.get(capture, "governed_context"))
-    |> normalize_map()
-    |> Enum.flat_map(fn {key, value} ->
-      case normalize_optional_string(value) do
-        nil -> []
-        id -> [artifact("#{key}/#{id}", "#{String.replace(key, "_", " ")} #{id}", managed_repo_id)]
-      end
+  defp governed_references(capture, managed_repo_id) do
+    GovernedReference.normalize_context(managed_repo_id, governed_reference_input(capture))
+  end
+
+  defp governed_artifacts(governed_references) when is_list(governed_references) do
+    Enum.map(governed_references, fn reference ->
+      %{
+        kind: reference.kind,
+        id: reference.id,
+        iri: RDF.iri(reference.iri),
+        label: reference.label
+      }
     end)
   end
 
@@ -387,6 +395,13 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
   end
 
   defp normalize_artifact(_value, _managed_repo_id, _prefix), do: nil
+
+  defp governed_reference_input(capture) do
+    Map.get(capture, :governed_references) ||
+      Map.get(capture, "governed_references") ||
+      Map.get(capture, :governed_context) ||
+      Map.get(capture, "governed_context")
+  end
 
   defp artifact(path, label, managed_repo_id) do
     %{

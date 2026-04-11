@@ -13,7 +13,7 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, Finding, Materialization, ProductFeedback}
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, Finding, GovernedReference, Materialization, ProductFeedback}
   alias JidoCode.Operations.{WorkItem, WorkSynthesis}
 
   @adoption_actor Actor.factory_system_actor(%{
@@ -44,6 +44,8 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
           :plan,
           finding,
           %{
+            observation_id: observation.id,
+            assessment_id: assessment.id,
             work_item_id: adopted_work_item && adopted_work_item.id,
             content: finding.summary,
             outcome: Atom.to_string(action)
@@ -72,7 +74,12 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
         capture_governed_adoption_provenance(
           :review,
           finding,
-          %{work_item_id: Keyword.get(opts, :work_item_id), content: finding.summary, outcome: "review_support"},
+          %{
+            work_item_id: Keyword.get(opts, :work_item_id),
+            run_id: Keyword.get(opts, :run_id),
+            content: finding.summary,
+            outcome: "review_support"
+          },
           opts
         )
 
@@ -104,6 +111,7 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
           %{
             work_item_id: evidence.work_item_id,
             run_id: evidence.run_id,
+            evidence_id: evidence.id,
             content: finding.summary,
             outcome: "evidence_adopted"
           },
@@ -158,6 +166,7 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
       content: details.content,
       outcome: details.outcome,
       revision: revision,
+      governed_references: governed_references(details, opts),
       anchors: anchors,
       related_resources: related_resources,
       metadata: workflow_context_metadata(workflow_context)
@@ -257,6 +266,36 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
     anchors = if is_binary(module_name), do: Map.put(anchors, :module_name, module_name), else: anchors
     anchors = if is_binary(function_name), do: Map.put(anchors, :function_name, function_name), else: anchors
     if is_binary(subject_iri), do: Map.put(anchors, :subject_iri, subject_iri), else: anchors
+  end
+
+  defp governed_references(details, opts) do
+    observation_id = Map.get(details, :observation_id)
+    assessment_id = Map.get(details, :assessment_id)
+    work_item_id = Map.get(details, :work_item_id)
+    run_id = Map.get(details, :run_id)
+    evidence_id = Map.get(details, :evidence_id)
+
+    explicit =
+      [
+        observation_id && %{kind: :observation, id: observation_id},
+        assessment_id && %{kind: :assessment, id: assessment_id},
+        work_item_id && %{kind: :work_item, id: work_item_id},
+        run_id && %{kind: :run, id: run_id},
+        evidence_id && %{kind: :evidence, id: evidence_id},
+        Keyword.get(opts, :observation_id) && %{kind: :observation, id: Keyword.get(opts, :observation_id)},
+        Keyword.get(opts, :assessment_id) && %{kind: :assessment, id: Keyword.get(opts, :assessment_id)},
+        Keyword.get(opts, :evidence_id) && %{kind: :evidence, id: Keyword.get(opts, :evidence_id)},
+        Keyword.get(opts, :decision_id) && %{kind: :decision, id: Keyword.get(opts, :decision_id)}
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    inherited =
+      opts
+      |> Keyword.get(:governed_references)
+      |> GovernedReference.explicit_many()
+
+    (explicit ++ inherited)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
   end
 
   defp preserve_work_item_metadata(nil, _finding, _action, _opts), do: {:ok, nil}

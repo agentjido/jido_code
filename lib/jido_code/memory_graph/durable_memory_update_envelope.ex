@@ -11,6 +11,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
   @moduledoc false
 
   alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.GovernedReference
 
   @update_kinds ~w(memory_validation memory_invalidation decision_supersession)a
 
@@ -73,9 +74,10 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
          {:ok, decision_status} <- decision_status(kind, capture),
          {:ok, superseded_status} <- superseded_status(kind, capture),
          {:ok, superseded_memory_iri} <- superseded_memory_iri(kind, capture, graph_context),
-         {:ok, freshness_score} <- freshness_score(kind, capture) do
+         {:ok, freshness_score} <- freshness_score(kind, capture),
+         {:ok, governed_references} <- governed_references(capture, managed_repo_id) do
       test_run = test_run(capture, managed_repo_id)
-      governed_artifacts = governed_artifacts(capture, managed_repo_id)
+      governed_artifacts = governed_artifacts(governed_references)
       supported_by_artifacts = supported_by_artifacts(capture, managed_repo_id)
       evidence_artifacts = evidence_artifacts(capture, managed_repo_id)
       confidence_source = confidence_source_artifact(capture, managed_repo_id)
@@ -115,6 +117,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
          decision_status_iri: decision_status && decision_status_iri(decision_status),
          superseded_status_iri: superseded_status && decision_status_iri(superseded_status),
          test_run: test_run,
+         governed_references: governed_references,
          governed_artifacts: governed_artifacts,
          supported_by_artifacts: supported_by_artifacts,
          evidence_artifacts: evidence_artifacts,
@@ -327,15 +330,18 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
     end
   end
 
-  defp governed_artifacts(capture, managed_repo_id) do
-    capture
-    |> Map.get(:governed_context, Map.get(capture, "governed_context"))
-    |> normalize_map()
-    |> Enum.flat_map(fn {key, value} ->
-      case normalize_optional_string(value) do
-        nil -> []
-        id -> [artifact("#{key}/#{id}", "#{String.replace(key, "_", " ")} #{id}", managed_repo_id, :memory)]
-      end
+  defp governed_references(capture, managed_repo_id) do
+    GovernedReference.normalize_context(managed_repo_id, governed_reference_input(capture))
+  end
+
+  defp governed_artifacts(governed_references) when is_list(governed_references) do
+    Enum.map(governed_references, fn reference ->
+      %{
+        kind: reference.kind,
+        id: reference.id,
+        iri: RDF.iri(reference.iri),
+        label: reference.label
+      }
     end)
   end
 
@@ -389,6 +395,13 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
   end
 
   defp normalize_artifact(_value, _managed_repo_id, _prefix, _space), do: nil
+
+  defp governed_reference_input(capture) do
+    Map.get(capture, :governed_references) ||
+      Map.get(capture, "governed_references") ||
+      Map.get(capture, :governed_context) ||
+      Map.get(capture, "governed_context")
+  end
 
   defp artifact(path, label, managed_repo_id, :memory) do
     %{

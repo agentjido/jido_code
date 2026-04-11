@@ -220,11 +220,17 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
                memory_kind: :convention,
                classification_reason: "The semantic workflow intentionally adopted this reusable module convention.",
                actor_id: "system:workflow-memory",
-               query: %{module_name: "ExampleWorkspace"}
+               query: %{module_name: "ExampleWorkspace"},
+               run_id: "run-36",
+               evidence_id: "evidence-36"
              )
 
     assert memory_result.memory_kind == :convention
     assert memory_result.record.status == :durable_memory_recorded
+
+    assert memory_result.capture.governed_references
+           |> Enum.map(& &1.kind)
+           |> Enum.sort() == [:evidence, :run]
 
     assert {:ok, memory_query} =
              AgentWorkspace.query_memory_graph(

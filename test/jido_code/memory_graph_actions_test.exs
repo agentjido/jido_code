@@ -279,6 +279,231 @@ defmodule JidoCode.MemoryGraphActionsTest do
       assert query_result.row_count == 1
     end
 
+    test "writes typed governed references for provenance, durable memory, and memory updates", %{context: context} do
+      assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
+      revision = refresh_result.latest_validation_status.current_revision
+
+      record_work_session!(
+        context,
+        refresh_result.latest_validation_status,
+        revision,
+        "memory-governed-session"
+      )
+
+      assert {:ok, provenance_result} =
+               RecordMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   capture:
+                     JidoCode.MemoryGraph.CaptureEnvelope.plan(
+                       id: "plan-governed-1",
+                       session_id: "memory-governed-session",
+                       actor_id: "system:test",
+                       workflow: :memory_capture,
+                       work_item_id: "work-36",
+                       revision: revision,
+                       content: "Plan artifact with governed context.",
+                       governed_references: [
+                         %{kind: :run, id: "run-36"},
+                         %{kind: :work_item, id: "work-36"}
+                       ]
+                     )
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert {:ok, memory_result} =
+               RecordMemoryGraph.run(
+                 %{
+                   capture:
+                     JidoCode.MemoryGraph.DurableMemoryEnvelope.fact(
+                       id: "memory-governed-1",
+                       session_id: "memory-governed-session",
+                       actor_id: "system:test",
+                       revision: revision,
+                       content: "Durable memory with governed context.",
+                       confidence: 0.9,
+                       classification: %{
+                         source: "memory_graph_actions_test",
+                         reason: "The operator adopted durable memory with typed governed context."
+                       },
+                       governed_references: [
+                         %{kind: :run, id: "run-36"},
+                         %{kind: :evidence, id: "evidence-36"}
+                       ]
+                     )
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert {:ok, update_result} =
+               RecordMemoryGraph.run(
+                 %{
+                   capture:
+                     JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope.memory_validation(
+                       memory_iri: memory_result.capture.resource_iri,
+                       actor_id: "system:test",
+                       session_id: "memory-governed-session",
+                       revision: revision,
+                       freshness_score: 0.96,
+                       governed_references: [
+                         %{kind: :run, id: "run-36"},
+                         %{kind: :decision, id: "decision-36"}
+                       ]
+                     )
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert {:ok, provenance_query} =
+               QueryMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   sparql: """
+                   SELECT ?run ?workItem
+                   WHERE {
+                     <#{provenance_result.capture.resource_iri}> jido:aboutRun ?run ;
+                       jido:aboutWorkItem ?workItem .
+                     ?run a <https://jido.run/ontology/control-plane#Run> .
+                     ?workItem a <https://jido.run/ontology/control-plane#WorkItem> .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert provenance_query.row_count == 1
+
+      assert {:ok, provenance_not_artifact_query} =
+               QueryMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   sparql: """
+                   SELECT ?run
+                   WHERE {
+                     <#{provenance_result.capture.resource_iri}> jido:aboutRun ?run .
+                     ?run a jido:EvidenceArtifact .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert provenance_not_artifact_query.row_count == 0
+
+      assert {:ok, memory_query} =
+               QueryMemoryGraph.run(
+                 %{
+                   sparql: """
+                   SELECT ?run ?evidence
+                   WHERE {
+                     <#{memory_result.capture.resource_iri}> jido:aboutRun ?run ;
+                       jido:aboutEvidence ?evidence .
+                     ?run a <https://jido.run/ontology/control-plane#Run> .
+                     ?evidence a <https://jido.run/ontology/control-plane#Evidence> .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert memory_query.row_count == 1
+
+      assert {:ok, memory_not_artifact_query} =
+               QueryMemoryGraph.run(
+                 %{
+                   sparql: """
+                   SELECT ?evidence
+                   WHERE {
+                     <#{memory_result.capture.resource_iri}> jido:aboutEvidence ?evidence .
+                     ?evidence a jido:EvidenceArtifact .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert memory_not_artifact_query.row_count == 0
+
+      assert {:ok, update_query} =
+               QueryMemoryGraph.run(
+                 %{
+                   sparql: """
+                   SELECT ?run ?decision
+                   WHERE {
+                     <#{update_result.capture.update_iri}> jido:aboutRun ?run ;
+                       jido:aboutDecision ?decision .
+                     ?decision a <https://jido.run/ontology/control-plane#Decision> .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert update_query.row_count == 1
+
+      assert {:ok, update_not_artifact_query} =
+               QueryMemoryGraph.run(
+                 %{
+                   sparql: """
+                   SELECT ?decision
+                   WHERE {
+                     <#{update_result.capture.update_iri}> jido:aboutDecision ?decision .
+                     ?decision a jido:EvidenceArtifact .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert update_not_artifact_query.row_count == 0
+    end
+
     test "returns typed durable validation errors when evidence cannot be applied safely", %{context: context} do
       assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
       revision = refresh_result.latest_validation_status.current_revision

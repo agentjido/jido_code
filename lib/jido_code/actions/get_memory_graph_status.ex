@@ -45,7 +45,8 @@ defmodule JidoCode.Actions.GetMemoryGraphStatus do
           latest_query_status: graph_context.latest_query_status,
           latest_validation_status: latest_validation_status,
           latest_failure: graph_context.latest_failure,
-          dataset: graph_context.dataset_metadata
+          dataset: graph_context.dataset_metadata,
+          semantic_model: Map.get(latest_validation_status, :semantic_model)
         }
 
       normalized_graph = ProductFeedback.normalize_graph(graph)

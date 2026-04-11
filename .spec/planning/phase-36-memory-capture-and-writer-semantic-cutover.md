@@ -57,22 +57,22 @@ Back to index: [README](./README.md)
       [x] 36.1.2.2 Subtask - Update materialization and follow-up helpers so created `Observation`, `Assessment`, `WorkItem`, `Evidence`, and `Decision` links are emitted as typed references immediately.
       [x] 36.1.2.3 Subtask - Keep all callers on the canonical capture plane rather than introducing side-channel semantic writes during the cutover.
 
-  [ ] 36.2 Section - Writer Semantic Cutover
+  [x] 36.2 Section - Writer Semantic Cutover
     Change the graph writers so the stored triples reflect typed governed relationships directly and preserve evidence semantics only where they truly apply.
 
-    [ ] 36.2.1 Task - Emit typed governed triples from memory and provenance writers
+    [x] 36.2.1 Task - Emit typed governed triples from memory and provenance writers
       Replace generic support links with explicit governed-context relationships and keep memory mutation lineage intact.
 
-      [ ] 36.2.1.1 Subtask - Update the provenance writer to emit typed governed relations for runs, work items, evidence, decisions, observations, assessments, and change requests.
-      [ ] 36.2.1.2 Subtask - Update the durable-memory writer so governed product records stop being typed as generic `EvidenceArtifact` entities.
-      [ ] 36.2.1.3 Subtask - Update the durable-memory update writer so validate, invalidate, and supersede operations preserve typed governed references along with freshness and mutation lineage.
+      [x] 36.2.1.1 Subtask - Update the provenance writer to emit typed governed relations for runs, work items, evidence, decisions, observations, assessments, and change requests.
+      [x] 36.2.1.2 Subtask - Update the durable-memory writer so governed product records stop being typed as generic `EvidenceArtifact` entities.
+      [x] 36.2.1.3 Subtask - Update the durable-memory update writer so validate, invalidate, and supersede operations preserve typed governed references along with freshness and mutation lineage.
 
-    [ ] 36.2.2 Task - Keep graph-store status and rebuild behavior coherent during the cutover
+    [x] 36.2.2 Task - Keep graph-store status and rebuild behavior coherent during the cutover
       Preserve the existing named-graph layout while making the semantic cutover explicit enough that repositories can rebuild or revalidate cleanly.
 
-      [ ] 36.2.2.1 Subtask - Preserve the existing `memory` and `workflow_provenance` named graphs while updating the triples written into them.
-      [ ] 36.2.2.2 Subtask - Add bounded invalidation, rebuild, or revalidation behavior for repositories whose stored graph data still reflects the older generic-artifact semantics.
-      [ ] 36.2.2.3 Subtask - Surface typed-cutover readiness and recovery state through the existing memory-graph status path instead of hidden migration assumptions.
+      [x] 36.2.2.1 Subtask - Preserve the existing `memory` and `workflow_provenance` named graphs while updating the triples written into them.
+      [x] 36.2.2.2 Subtask - Add bounded invalidation, rebuild, or revalidation behavior for repositories whose stored graph data still reflects the older generic-artifact semantics.
+      [x] 36.2.2.3 Subtask - Surface typed-cutover readiness and recovery state through the existing memory-graph status path instead of hidden migration assumptions.
 
   [ ] 36.3 Section - Phase 36 Integration Tests
     Verify the capture plane, writers, and store-status paths all emit the stronger governed semantics consistently before query and product services depend on them.

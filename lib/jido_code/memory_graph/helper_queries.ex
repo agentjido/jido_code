@@ -4,6 +4,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
   @moduledoc false
 
   alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.GovernedReference
 
   @memory_kind_classes %{
     fact: "Fact",
@@ -76,7 +77,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
           """
       end
 
-    artifact_filter = artifact_filter(managed_repo_id, params[:artifact_paths], "memory")
+    governed_filter = governed_filter(managed_repo_id, params[:artifact_paths], "memory")
 
     """
     SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject
@@ -93,7 +94,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?memory jido:aboutModule ?module . }
       OPTIONAL { ?memory jido:aboutFunction ?function . }
       OPTIONAL { ?memory jido:affectsSymbol ?subject . }
-    #{artifact_filter}
+    #{governed_filter}
       FILTER(STRSTARTS(STR(?memory), "#{base_iri}"))
     #{content_filter}
     #{anchor_filter}
@@ -139,7 +140,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
           """
       end
 
-    artifact_filter = artifact_filter(managed_repo_id, params[:artifact_paths], "resource")
+    governed_filter = governed_filter(managed_repo_id, params[:artifact_paths], "resource")
 
     """
     SELECT ?resource ?kind ?label ?content ?startedAt ?endedAt ?session ?module ?function ?subject ?revision
@@ -155,7 +156,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?resource jido:aboutFunction ?function . }
       OPTIONAL { ?resource jido:affectsSymbol ?subject . }
       OPTIONAL { ?resource jido:validForRevision ?revision . }
-    #{artifact_filter}
+    #{governed_filter}
       FILTER(STRSTARTS(STR(?resource), "#{base_iri}"))
     #{label_filter}
     }
@@ -170,7 +171,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
     workflow_base_iri = MemoryGraph.workflow_provenance_base_iri(managed_repo_id)
 
     """
-    SELECT ?repository ?file ?module ?function ?test ?config ?subject ?artifact ?artifactLabel ?related
+    SELECT ?repository ?file ?module ?function ?test ?config ?subject ?governedRecord ?governedKind ?governedLabel ?artifact ?artifactLabel ?related
     WHERE {
       BIND(<#{escape_string(resource_iri)}> AS ?resource)
       OPTIONAL { ?resource jido:aboutRepository ?repository . }
@@ -180,6 +181,20 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?resource jido:aboutTest ?test . }
       OPTIONAL { ?resource jido:aboutConfig ?config . }
       OPTIONAL { ?resource jido:affectsSymbol ?subject . }
+      OPTIONAL {
+        VALUES (?governedPredicate ?governedKind) {
+          (jido:aboutManagedRepo "managed_repo")
+          (jido:aboutObservation "observation")
+          (jido:aboutAssessment "assessment")
+          (jido:aboutWorkItem "work_item")
+          (jido:aboutRun "run")
+          (jido:aboutEvidence "evidence")
+          (jido:aboutChangeRequest "change_request")
+          (jido:aboutDecision "decision")
+        }
+        ?resource ?governedPredicate ?governedRecord .
+        OPTIONAL { ?governedRecord rdfs:label ?governedLabel . }
+      }
       OPTIONAL {
         ?resource jido:supportedBy ?artifact .
         OPTIONAL { ?artifact rdfs:label ?artifactLabel . }
@@ -238,28 +253,88 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
 
   defp normalized_string(_value), do: nil
 
-  defp artifact_filter(_managed_repo_id, nil, _resource_var), do: ""
+  defp governed_filter(_managed_repo_id, nil, _resource_var), do: ""
 
-  defp artifact_filter(managed_repo_id, artifact_paths, resource_var) do
-    values =
+  defp governed_filter(managed_repo_id, artifact_paths, resource_var) do
+    normalized_paths =
       artifact_paths
       |> List.wrap()
       |> Enum.map(&normalized_string/1)
       |> Enum.reject(&is_nil/1)
+
+    typed_values =
+      normalized_paths
+      |> Enum.flat_map(fn path ->
+        case GovernedReference.from_artifact_path(managed_repo_id, path) do
+          {:ok, reference} ->
+            [
+              {predicate_local(reference.kind), escape_string(reference.iri)}
+            ]
+
+          _other ->
+            []
+        end
+      end)
+
+    legacy_values =
+      normalized_paths
       |> Enum.map(&MemoryGraph.artifact_iri(managed_repo_id, &1))
       |> Enum.map(&to_string/1)
 
-    case values do
-      [] ->
-        ""
+    clauses =
+      []
+      |> maybe_add_typed_filter(resource_var, typed_values)
+      |> maybe_add_legacy_filter(resource_var, legacy_values)
 
-      values ->
+    case clauses do
+      [] -> ""
+      clauses -> Enum.map_join(clauses, "\n        UNION\n", &("        " <> &1))
+    end
+  end
+
+  defp maybe_add_typed_filter(clauses, _resource_var, []), do: clauses
+
+  defp maybe_add_typed_filter(clauses, resource_var, typed_values) do
+    clauses ++
+      [
         """
+        {
+          VALUES (?governedPredicate ?governedRecord) {
+            #{Enum.map_join(typed_values, "\n            ", fn {predicate, iri} -> "(jido:#{predicate} <#{iri}>)" end)}
+          }
+          ?#{resource_var} ?governedPredicate ?governedRecord .
+        }
+        """
+      ]
+  end
+
+  defp maybe_add_legacy_filter(clauses, _resource_var, []), do: clauses
+
+  defp maybe_add_legacy_filter(clauses, resource_var, legacy_values) do
+    clauses ++
+      [
+        """
+        {
           VALUES ?artifact {
-            #{Enum.map_join(values, "\n        ", &"<#{escape_string(&1)}>")}
+            #{Enum.map_join(legacy_values, "\n            ", &"<#{escape_string(&1)}>")}
           }
           ?#{resource_var} jido:supportedBy ?artifact .
+        }
         """
+      ]
+  end
+
+  defp predicate_local(kind) do
+    case kind do
+      :managed_repo -> "aboutManagedRepo"
+      :event -> "aboutEvent"
+      :observation -> "aboutObservation"
+      :assessment -> "aboutAssessment"
+      :work_item -> "aboutWorkItem"
+      :run -> "aboutRun"
+      :evidence -> "aboutEvidence"
+      :change_request -> "aboutChangeRequest"
+      :decision -> "aboutDecision"
     end
   end
 

@@ -40,6 +40,9 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
     decision: "decision"
   }
 
+  @memory_ns "https://jido.run/ontology/memory#"
+  @control_plane_ns "https://jido.run/ontology/control-plane#"
+
   @kind_labels %{
     managed_repo: "Managed repo",
     event: "Event",
@@ -73,6 +76,54 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
     {"decision_id", :decision}
   ]
 
+  @legacy_artifact_segments %{
+    "managed_repo_id" => :managed_repo,
+    "event_id" => :event,
+    "observation_id" => :observation,
+    "assessment_id" => :assessment,
+    "work_item_id" => :work_item,
+    "run_id" => :run,
+    "evidence_id" => :evidence,
+    "change_request_id" => :change_request,
+    "decision_id" => :decision
+  }
+
+  @kind_predicates %{
+    managed_repo: "aboutManagedRepo",
+    event: "aboutEvent",
+    observation: "aboutObservation",
+    assessment: "aboutAssessment",
+    work_item: "aboutWorkItem",
+    run: "aboutRun",
+    evidence: "aboutEvidence",
+    change_request: "aboutChangeRequest",
+    decision: "aboutDecision"
+  }
+
+  @kind_classes %{
+    managed_repo: "ManagedRepo",
+    event: "Event",
+    observation: "Observation",
+    assessment: "Assessment",
+    work_item: "WorkItem",
+    run: "Run",
+    evidence: "Evidence",
+    change_request: "ChangeRequest",
+    decision: "Decision"
+  }
+
+  @kind_id_predicates %{
+    managed_repo: "managedRepoId",
+    event: "eventId",
+    observation: "observationId",
+    assessment: "assessmentId",
+    work_item: "workItemId",
+    run: "runId",
+    evidence: "evidenceId",
+    change_request: "changeRequestId",
+    decision: "decisionId"
+  }
+
   @spec kinds() :: [kind()]
   def kinds, do: Map.keys(@kind_path)
 
@@ -91,6 +142,24 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
 
   @spec label(kind(), String.t()) :: String.t()
   def label(kind, id) when is_binary(id), do: "#{kind_label(kind)} #{id}"
+
+  @spec predicate_iri(kind()) :: RDF.IRI.t()
+  def predicate_iri(kind), do: RDF.iri(@memory_ns <> Map.fetch!(@kind_predicates, kind))
+
+  @spec class_iri(kind()) :: RDF.IRI.t()
+  def class_iri(kind), do: RDF.iri(@control_plane_ns <> Map.fetch!(@kind_classes, kind))
+
+  @spec governed_record_class_iri() :: RDF.IRI.t()
+  def governed_record_class_iri, do: RDF.iri(@control_plane_ns <> "GovernedRecord")
+
+  @spec id_predicate_iri(kind()) :: RDF.IRI.t()
+  def id_predicate_iri(kind), do: RDF.iri(@control_plane_ns <> Map.fetch!(@kind_id_predicates, kind))
+
+  @spec record_label_predicate_iri() :: RDF.IRI.t()
+  def record_label_predicate_iri, do: RDF.iri(@control_plane_ns <> "recordLabel")
+
+  @spec for_managed_repo_predicate_iri() :: RDF.IRI.t()
+  def for_managed_repo_predicate_iri, do: RDF.iri(@control_plane_ns <> "forManagedRepo")
 
   @spec normalize(managed_repo_id(), map() | keyword() | {kind(), String.t()}) ::
           {:ok, normalized_reference()} | {:error, atom()}
@@ -115,6 +184,55 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
   end
 
   def normalize(_managed_repo_id, _reference), do: {:error, :invalid_governed_reference}
+
+  @spec parse_iri(managed_repo_id(), String.t()) :: {:ok, normalized_reference()} | {:error, atom()}
+  def parse_iri(managed_repo_id, iri) when is_binary(managed_repo_id) and is_binary(iri) do
+    prefix = base_iri(managed_repo_id)
+
+    if String.starts_with?(iri, prefix) do
+      iri
+      |> String.trim_leading(prefix)
+      |> String.split("/", parts: 2)
+      |> case do
+        [kind_segment, encoded_id] ->
+          with {:ok, kind} <- kind_from_segment(kind_segment),
+               id when is_binary(id) <- URI.decode(encoded_id) do
+            normalize(managed_repo_id, %{kind: kind, id: id, iri: iri})
+          else
+            _other -> {:error, :invalid_governed_reference}
+          end
+
+        _other ->
+          {:error, :invalid_governed_reference}
+      end
+    else
+      {:error, :invalid_governed_reference}
+    end
+  end
+
+  def parse_iri(_managed_repo_id, _iri), do: {:error, :invalid_governed_reference}
+
+  @spec from_artifact_path(managed_repo_id(), String.t()) :: {:ok, normalized_reference()} | {:error, atom()}
+  def from_artifact_path(managed_repo_id, path) when is_binary(managed_repo_id) and is_binary(path) do
+    path
+    |> String.trim()
+    |> URI.decode()
+    |> String.split("/", parts: 2)
+    |> case do
+      [segment, id] ->
+        with {:ok, kind} <- legacy_kind_from_segment(segment),
+             true <- present?(id) or {:error, :invalid_governed_reference} do
+          normalize(managed_repo_id, %{kind: kind, id: id})
+        else
+          _other -> {:error, :invalid_governed_reference}
+        end
+
+      _other ->
+        {:error, :invalid_governed_reference}
+    end
+  end
+
+  def from_artifact_path(_managed_repo_id, _path), do: {:error, :invalid_governed_reference}
 
   @spec normalize_many(managed_repo_id(), [map() | keyword() | {kind(), String.t()}]) ::
           {:ok, [normalized_reference()]} | {:error, atom()}
@@ -258,6 +376,20 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
 
   defp kind_segment(kind), do: Map.fetch!(@kind_path, kind)
   defp kind_label(kind), do: Map.fetch!(@kind_labels, kind)
+
+  defp kind_from_segment(segment) when is_binary(segment) do
+    case Enum.find(@kind_path, fn {_kind, value} -> value == segment end) do
+      {kind, _value} -> {:ok, kind}
+      nil -> {:error, :invalid_governed_reference_kind}
+    end
+  end
+
+  defp legacy_kind_from_segment(segment) when is_binary(segment) do
+    case Map.fetch(@legacy_artifact_segments, segment) do
+      {:ok, kind} -> {:ok, kind}
+      :error -> {:error, :invalid_governed_reference_kind}
+    end
+  end
 
   defp normalize_kind(kind) when is_atom(kind) do
     if Map.has_key?(@kind_path, kind) do

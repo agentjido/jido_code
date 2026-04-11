@@ -7,7 +7,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, governed history, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -18,6 +18,7 @@ decisions:
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_graph_product_adoption
+  - jido_code.memory_graph_surface_rollout_and_governance_actions
   - jido_code.memory_graph_workflow_and_operator_expansion
   - jido_code.source_code_graph_product_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption

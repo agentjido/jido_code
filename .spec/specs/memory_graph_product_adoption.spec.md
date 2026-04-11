@@ -10,11 +10,12 @@ workflow entrypoints.
 id: architecture.memory_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers.
+summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_product_adoption
+  - jido_code.memory_graph_surface_rollout_and_governance_actions
   - jido_code.memory_graph_workflow_and_operator_expansion
   - jido_code.source_code_graph_product_adoption
 surface:

@@ -192,6 +192,20 @@
         "affects": [
           "architecture.factory_control_plane",
           "architecture.frontend_stack",
+          "architecture.memory_graph_product_adoption",
+          "architecture.memory_graph_surface_rollout_and_governance_actions",
+          "package.jido_code"
+        ],
+        "date": "2026-04-11",
+        "file": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "id": "jido_code.memory_graph_surface_rollout_and_governance_actions",
+        "status": "accepted",
+        "title": "Memory Graph Surface Rollout And Governance Actions"
+      },
+      {
+        "affects": [
+          "architecture.factory_control_plane",
+          "architecture.frontend_stack",
           "architecture.memory_graph",
           "architecture.memory_capture_plane",
           "architecture.memory_graph_product_adoption",
@@ -1068,6 +1082,54 @@
         "stability": "proposed",
         "statement": "Product code shall consume memory-graph capability through bounded product-owned service, feedback, and view-model boundaries over AgentWorkspace rather than by issuing raw SPARQL, reading pod internals, or opening TripleStore directly from UI-owned code.",
         "subject_id": "architecture.memory_graph_product_adoption"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Dashboard, managed-repository, run, work-item, evidence, and decision routes shall remain the canonical product-owned surfaces for memory-backed operator behavior, and the architecture shall not introduce a separate graph-first route family as the main operator contract.",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Cross-graph navigation among memory, workflow provenance, source-code anchors, runs, work items, evidence, and decisions shall remain repository-scoped and product-shaped across dashboard, managed-repository, and governed surfaces instead of varying by surface-specific graph contracts.",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Dashboard summaries plus canonical work-item, evidence, and decision surfaces may host bounded memory and workflow-provenance context when that context explains governed state, freshness, review pressure, or follow-up needs, but they shall remain product and governed surfaces rather than graph-only views.",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Dashboard memory and provenance summaries shall present bounded freshness, stale, invalidated, recovery, and follow-up signals that help operators choose action without exposing raw graph queries, low-level RDF details, or route-breaking graph browser state.",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Memory-aware workflow preparation, operator follow-up, and governed action suggestions shown on product surfaces shall consume bounded product projections, summaries, or view models instead of raw graph responses or direct pod interactions.",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Product-owned validate, invalidate, supersede, and promote memory actions shall be available from canonical governed and operator surfaces that already host bounded memory context instead of being confined to special-case semantic views.",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions"
       },
       {
         "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
@@ -3779,6 +3841,85 @@
       },
       {
         "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "given": [
+          "A memory, provenance record, or governed record links to related source code and other governed history."
+        ],
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.scenario_cross_graph_navigation_is_consistent",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "then": [
+          "Navigation remains repository-scoped and bounded.",
+          "The product presents stable cross-graph movement without exposing graph-specific route contracts."
+        ],
+        "when": [
+          "An operator follows those relationships from different canonical surfaces."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "given": [
+          "A managed repository has fresh, stale, invalidated, or recovery-required memory state plus recent governed follow-up pressure."
+        ],
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.scenario_dashboard_summarizes_memory_state",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "then": [
+          "The dashboard shows bounded memory status and action-needed signals.",
+          "The operator can navigate into canonical product routes for deeper governed context.",
+          "The dashboard does not become a raw graph inspection surface."
+        ],
+        "when": [
+          "An operator opens dashboard or an adjacent summary surface."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "given": [
+          "A work-item, evidence, or decision surface hosts bounded durable memory context."
+        ],
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.scenario_governed_surfaces_offer_memory_actions",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "then": [
+          "The action flows through product-owned services and capture-plane updates.",
+          "The surface remains a canonical governed view instead of mutating the graph directly."
+        ],
+        "when": [
+          "An operator validates, invalidates, supersedes, or promotes one of those memories."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "given": [
+          "A governed or workflow surface wants to suggest, stage, or perform follow-up work informed by durable memory."
+        ],
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions.scenario_memory_aware_follow_up_stays_product_shaped",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "then": [
+          "The surface uses bounded product projections and view models.",
+          "The resulting follow-up continues to re-enter canonical governed records."
+        ],
+        "when": [
+          "The product prepares that action or suggestion."
+        ]
+      },
+      {
+        "covers": [
           "architecture.memory_graph_workflow_and_operator_expansion.operator_memory_actions_use_product_owned_boundaries",
           "architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up"
         ],
@@ -5654,6 +5795,7 @@
             "jido_code.memory_capture_plane_and_insertion_seams",
             "jido_code.memory_graph_and_coding_memory_ontology_adoption",
             "jido_code.memory_graph_product_adoption",
+            "jido_code.memory_graph_surface_rollout_and_governance_actions",
             "jido_code.memory_graph_workflow_and_operator_expansion",
             "jido_code.source_code_graph_product_adoption",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption"
@@ -5661,7 +5803,7 @@
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, governed history, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -5739,13 +5881,14 @@
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.live_vue_frontend_adoption",
             "jido_code.memory_graph_product_adoption",
+            "jido_code.memory_graph_surface_rollout_and_governance_actions",
             "jido_code.memory_graph_workflow_and_operator_expansion",
             "jido_code.source_code_graph_product_adoption"
           ],
           "id": "architecture.frontend_stack",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, governed-run, and other canonical product surfaces.",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces.",
           "surface": [
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/specs/frontend_architecture.spec.md",
@@ -5926,13 +6069,14 @@
             "jido_code.memory_graph_and_coding_memory_ontology_adoption",
             "jido_code.memory_capture_plane_and_insertion_seams",
             "jido_code.memory_graph_product_adoption",
+            "jido_code.memory_graph_surface_rollout_and_governance_actions",
             "jido_code.memory_graph_workflow_and_operator_expansion",
             "jido_code.source_code_graph_product_adoption"
           ],
           "id": "architecture.memory_graph_product_adoption",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers.",
+          "summary": "Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers.",
           "surface": [
             ".spec/decisions/jido_code.memory_graph_product_adoption.md",
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
@@ -5964,6 +6108,36 @@
           "verification_minimum_strength": null
         },
         "title": "Memory Graph Product Adoption"
+      },
+      {
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "meta": {
+          "decisions": [
+            "jido_code.memory_graph_product_adoption",
+            "jido_code.memory_graph_workflow_and_operator_expansion",
+            "jido_code.memory_graph_surface_rollout_and_governance_actions"
+          ],
+          "id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+          "kind": "feature",
+          "status": "proposed",
+          "summary": "Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses.",
+          "surface": [
+            ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+            ".spec/specs/memory_graph_product_adoption.spec.md",
+            ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
+            ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+            "lib/jido_code/memory_graph/",
+            "lib/jido_code/workbench/",
+            "lib/jido_code/governance/",
+            "lib/jido_code_web/live/",
+            "lib/jido_code_web/components/",
+            "test/jido_code/",
+            "test/jido_code_web/live/"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Memory Graph Surface Rollout And Governance Actions"
       },
       {
         "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
@@ -6070,6 +6244,7 @@
             "jido_code.memory_capture_plane_and_insertion_seams",
             "jido_code.memory_graph_and_coding_memory_ontology_adoption",
             "jido_code.memory_graph_product_adoption",
+            "jido_code.memory_graph_surface_rollout_and_governance_actions",
             "jido_code.memory_graph_workflow_and_operator_expansion",
             "jido_code.source_code_graph_pod_and_named_graph_ingestion",
             "jido_code.source_code_graph_product_adoption",
@@ -6079,7 +6254,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, and product-owned semantic memory-adoption helpers under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, cross-graph navigation, governed-surface memory context, and operator memory-action expansion as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, and product-owned semantic memory-adoption helpers under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, and operator memory-action expansion as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -8526,6 +8701,48 @@
         "kind": "source_file",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_thirty_two_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md"
+      },
+      {
+        "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md"
+      },
+      {
+        "covers": [
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+          "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
+        ],
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md"
       },
       {
         "covers": [
@@ -12508,13 +12725,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 21,
+    "decisions": 22,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 305,
-    "scenarios": 140,
-    "subjects": 41,
-    "verifications": 570
+    "requirements": 311,
+    "scenarios": 144,
+    "subjects": 42,
+    "verifications": 573
   },
   "verification": {
     "claims": [
@@ -17412,6 +17629,204 @@
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_thirty_two_integration_test.exs",
         "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces",
+        "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
+        "target": ".spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md",
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history",
@@ -25515,12 +25930,12 @@
     "strength_summary": {
       "claimed": 59,
       "executed": 0,
-      "linked": 1122
+      "linked": 1140
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 21,
-    "spec_count": 41
+    "decision_count": 22,
+    "spec_count": 42
   }
 }

@@ -38,22 +38,22 @@ Back to index: [README](./README.md)
 [ ] 35 Phase 35 - Governed Control-Plane Ontology And Typed Reference Foundation
   Establish the companion control-plane ontology and canonical typed governed-reference contract so memory and provenance can link to governed product records semantically instead of through generic artifact identifiers.
 
-  [ ] 35.1 Section - Companion Control-Plane Ontology
+  [x] 35.1 Section - Companion Control-Plane Ontology
     Introduce the ontology asset and semantic vocabulary that let governed product records participate in the stronger semantic model without collapsing memory and control-plane concepts into one file.
 
-    [ ] 35.1.1 Task - Add the companion control-plane ontology asset and namespace
+    [x] 35.1.1 Task - Add the companion control-plane ontology asset and namespace
       Create the ontology file, namespace, and conceptual split that keep coding memory and governed product records distinct but linkable.
 
-      [ ] 35.1.1.1 Subtask - Add a companion ontology file under `priv/ontologies/` for governed product records and their canonical namespace.
-      [ ] 35.1.1.2 Subtask - Keep `jido-memory.ttl` focused on memory and workflow provenance, with cross-ontology references into the governed control-plane ontology rather than duplicate class definitions.
-      [ ] 35.1.1.3 Subtask - Preserve the distinction between memory `Decision` and governed `Decision` through ontology namespace and documentation rather than by relying on ambiguous labels.
+      [x] 35.1.1.1 Subtask - Add a companion ontology file under `priv/ontologies/` for governed product records and their canonical namespace.
+      [x] 35.1.1.2 Subtask - Keep `jido-memory.ttl` focused on memory and workflow provenance, with cross-ontology references into the governed control-plane ontology rather than duplicate class definitions.
+      [x] 35.1.1.3 Subtask - Preserve the distinction between memory `Decision` and governed `Decision` through ontology namespace and documentation rather than by relying on ambiguous labels.
 
-    [ ] 35.1.2 Task - Model governed product records and their canonical relations
+    [x] 35.1.2 Task - Model governed product records and their canonical relations
       Encode the product records that already exist in `jido_code` as first-class ontology concepts and relationships so semantic links match product truth.
 
-      [ ] 35.1.2.1 Subtask - Model `ManagedRepo`, `Event`, `Observation`, `Assessment`, `WorkItem`, `Run`, `Evidence`, `ChangeRequest`, and governed `Decision` as first-class classes.
-      [ ] 35.1.2.2 Subtask - Model the canonical control-plane relationships among those records, including demand interpretation, work synthesis, run governance, and review history.
-      [ ] 35.1.2.3 Subtask - Define stable repository-scoped IRIs and labels for governed product records so later memory and provenance links do not rely on generic artifact paths.
+      [x] 35.1.2.1 Subtask - Model `ManagedRepo`, `Event`, `Observation`, `Assessment`, `WorkItem`, `Run`, `Evidence`, `ChangeRequest`, and governed `Decision` as first-class classes.
+      [x] 35.1.2.2 Subtask - Model the canonical control-plane relationships among those records, including demand interpretation, work synthesis, run governance, and review history.
+      [x] 35.1.2.3 Subtask - Define stable repository-scoped IRIs and labels for governed product records so later memory and provenance links do not rely on generic artifact paths.
 
   [ ] 35.2 Section - Typed Governed Reference Contract
     Define the code-level contract that turns product record ids and generic artifact paths into one typed governed-reference model reused across capture, query, navigation, and UI shaping.

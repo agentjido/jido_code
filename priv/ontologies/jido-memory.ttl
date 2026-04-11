@@ -8,6 +8,7 @@
 # covers: architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
 
 @prefix jido: <https://jido.run/ontology/memory#> .
+@prefix jcp: <https://jido.run/ontology/control-plane#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -17,6 +18,7 @@
 jido: a owl:Ontology ;
     rdfs:label "Jido Coding Memory Ontology" ;
     rdfs:comment "A coding-memory and workflow-provenance ontology for durable facts, decisions, lessons, conventions, issues, patterns, and semantic workflow context linked to repository code entities over time." ;
+    owl:imports <https://jido.run/ontology/control-plane#> ;
     owl:versionInfo "2026-04-10" .
 
 ### Classes
@@ -48,6 +50,7 @@ jido:Fact a owl:Class ;
 
 jido:Decision a owl:Class ;
     rdfs:label "Decision" ;
+    rdfs:comment "A durable coding-memory decision, distinct from the governed control-plane jcp:Decision record." ;
     rdfs:subClassOf jido:Memory ,
         [ a owl:Restriction ;
             owl:onProperty jido:rationale ;
@@ -237,6 +240,46 @@ jido:affectsSymbol a owl:ObjectProperty ;
     rdfs:label "affects symbol" ;
     rdfs:comment "Links a memory or workflow node to any stable source-code symbol IRI." ;
     rdfs:range rdfs:Resource .
+
+jido:aboutManagedRepo a owl:ObjectProperty ;
+    rdfs:label "about managed repo" ;
+    rdfs:comment "Links a memory or workflow node to a first-class governed managed repository entity." ;
+    rdfs:range jcp:ManagedRepo .
+
+jido:aboutObservation a owl:ObjectProperty ;
+    rdfs:label "about observation" ;
+    rdfs:comment "Links a memory or workflow node to a governed observation record." ;
+    rdfs:range jcp:Observation .
+
+jido:aboutAssessment a owl:ObjectProperty ;
+    rdfs:label "about assessment" ;
+    rdfs:comment "Links a memory or workflow node to a governed assessment record." ;
+    rdfs:range jcp:Assessment .
+
+jido:aboutWorkItem a owl:ObjectProperty ;
+    rdfs:label "about work item" ;
+    rdfs:comment "Links a memory or workflow node to a governed work item record." ;
+    rdfs:range jcp:WorkItem .
+
+jido:aboutRun a owl:ObjectProperty ;
+    rdfs:label "about run" ;
+    rdfs:comment "Links a memory or workflow node to a governed run record." ;
+    rdfs:range jcp:Run .
+
+jido:aboutEvidence a owl:ObjectProperty ;
+    rdfs:label "about evidence" ;
+    rdfs:comment "Links a memory or workflow node to a governed evidence record." ;
+    rdfs:range jcp:Evidence .
+
+jido:aboutChangeRequest a owl:ObjectProperty ;
+    rdfs:label "about change request" ;
+    rdfs:comment "Links a memory or workflow node to a governed change request record." ;
+    rdfs:range jcp:ChangeRequest .
+
+jido:aboutDecision a owl:ObjectProperty ;
+    rdfs:label "about governed decision" ;
+    rdfs:comment "Links a memory or workflow node to a governed control-plane decision record, not a memory:Decision instance." ;
+    rdfs:range jcp:Decision .
 
 jido:introducedInCommit a owl:ObjectProperty ;
     rdfs:label "introduced in commit" ;

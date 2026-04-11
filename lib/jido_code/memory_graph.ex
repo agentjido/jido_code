@@ -20,7 +20,8 @@ defmodule JidoCode.MemoryGraph do
   @workflow_provenance_graph_name "workflow_provenance"
   @memory_named_graph_iri "https://jido.run/graphs/memory"
   @workflow_provenance_named_graph_iri "https://jido.run/graphs/workflow_provenance"
-  @ontology_filename "jido-memory.ttl"
+  @memory_ontology_filename "jido-memory.ttl"
+  @control_plane_ontology_filename "jido-control-plane.ttl"
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -117,7 +118,12 @@ defmodule JidoCode.MemoryGraph do
 
   @spec ontology_path() :: String.t()
   def ontology_path do
-    Application.app_dir(:jido_code, Path.join("priv/ontologies", @ontology_filename))
+    Application.app_dir(:jido_code, Path.join("priv/ontologies", @memory_ontology_filename))
+  end
+
+  @spec control_plane_ontology_path() :: String.t()
+  def control_plane_ontology_path do
+    Application.app_dir(:jido_code, Path.join("priv/ontologies", @control_plane_ontology_filename))
   end
 
   @spec ontology_artifacts() :: [map()]
@@ -125,9 +131,15 @@ defmodule JidoCode.MemoryGraph do
     [
       %{
         kind: :ontology_schema,
-        filename: @ontology_filename,
+        filename: @memory_ontology_filename,
         format: :turtle,
         path: ontology_path()
+      },
+      %{
+        kind: :ontology_schema,
+        filename: @control_plane_ontology_filename,
+        format: :turtle,
+        path: control_plane_ontology_path()
       }
     ]
   end

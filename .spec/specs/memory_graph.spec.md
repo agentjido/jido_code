@@ -10,20 +10,23 @@ workflow provenance.
 id: architecture.memory_graph
 kind: feature
 status: proposed
-summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, now establishes bounded product-facing memory-service and memory-view adoption over those workspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
+summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, now establishes bounded product-facing memory-service and memory-view adoption over those workspace entrypoints, prepares governed workflow surfaces and operator memory actions to consume the same bounded memory stack, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_graph_product_adoption
+  - jido_code.memory_graph_workflow_and_operator_expansion
 surface:
   - .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   - .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
   - .spec/decisions/jido_code.memory_graph_product_adoption.md
+  - .spec/decisions/jido_code.memory_graph_workflow_and_operator_expansion.md
   - .spec/specs/agent_os_integration.spec.md
   - .spec/specs/memory_capture_plane.spec.md
   - .spec/specs/memory_graph_product_adoption.spec.md
+  - .spec/specs/memory_graph_workflow_and_operator_expansion.spec.md
   - .spec/specs/source_code_graph_pod.spec.md
   - .spec/specs/memory_ontology.spec.md
   - lib/jido_code/agent_workspace.ex

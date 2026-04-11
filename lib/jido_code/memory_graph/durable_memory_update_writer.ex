@@ -7,6 +7,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
   # covers: architecture.memory_ontology.change_and_revision_provenance_is_explicit
   # covers: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
   # covers: architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+  # covers: architecture.memory_ontology.memory_updates_preserve_mutation_lineage
   @moduledoc false
 
   alias JidoCode.MemoryGraph
@@ -168,6 +169,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
 
   defp artifact_links(subject, envelope) do
     []
+    |> add_artifacts(subject, envelope.governed_artifacts, jido("supportedBy"))
     |> add_artifacts(subject, envelope.supported_by_artifacts, jido("supportedBy"))
     |> add_artifacts(subject, envelope.evidence_artifacts, jido("evidenceArtifact"))
     |> maybe_add_confidence_source(subject, envelope.confidence_source)

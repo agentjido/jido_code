@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, repository-scoped memory-graph enablement and validation gating, stale-revision gating, bounded degraded-query admission, typed capture-plane-not-ready outcomes, repository-scoped memory and source-graph recovery entrypoints, explainable cross-graph consistency feedback, bounded repository-scoped AgentWorkspace queue admission, real AgentWorkspace-to-pod routing through product-owned runtime entrypoints, explicit repository and work-item context seeding into eager collaboration agents before specialist execution, bounded workflow-provenance capture at AgentWorkspace and semantic workflow boundaries under the same runtime capability policy, explicit durable-memory adoption only through bounded workflow or governed capture helpers, persisted-kernel source-graph restoration that still respects the same typed runtime policy outcomes, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, repository-scoped memory-graph enablement and validation gating, stale-revision gating, bounded degraded-query admission, typed capture-plane-not-ready outcomes, repository-scoped memory and source-graph recovery entrypoints, explainable cross-graph consistency feedback, bounded repository-scoped AgentWorkspace queue admission, real AgentWorkspace-to-pod routing through product-owned runtime entrypoints, explicit repository and work-item context seeding into eager collaboration agents before specialist execution, bounded workflow-provenance capture at AgentWorkspace and semantic workflow boundaries under the same runtime capability policy, explicit durable-memory adoption only through bounded workflow or governed capture helpers, operator-facing governed-surface memory actions that stay actor-bound and product-owned rather than becoming direct graph mutations, persisted-kernel source-graph restoration that still respects the same typed runtime policy outcomes, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -106,6 +106,11 @@ surface:
 
 - id: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
   statement: Product-owned runtime entrypoints shall seed explicit repository, workspace, and work-item context into eager collaboration agents before specialist execution so runtime work remains explainable, resumable, and actor-bound.
+  priority: should
+  stability: evolving
+
+- id: architecture.policy_layers.memory_operator_actions_remain_policy_bound
+  statement: Governed-surface memory validation, invalidation, supersession, promotion, and workflow-memory follow-up shall remain actor-bound product actions over repository-scoped services instead of bypassing repository governance, Ash policy, or runtime admission through direct semantic mutation from UI-owned code.
   priority: should
   stability: evolving
 
@@ -232,6 +237,7 @@ surface:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_capacity_limits_fail_closed
     - architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
+    - architecture.policy_layers.memory_operator_actions_remain_policy_bound
 
 - kind: source_file
   target: lib/jido_code/source_code_graph/workflow_service.ex
@@ -251,6 +257,7 @@ surface:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_capacity_limits_fail_closed
     - architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
+    - architecture.policy_layers.memory_operator_actions_remain_policy_bound
 
 - kind: source_file
   target: test/jido_code/source_code_graph_workflow_service_test.exs

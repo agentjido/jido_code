@@ -71,8 +71,9 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
   @spec normalize(map(), graph_context()) :: {:ok, normalized_envelope()} | {:error, atom(), map()}
   def normalize(capture, graph_context) when is_map(capture) and is_map(graph_context) do
     with {:ok, kind} <- normalize_kind(Map.get(capture, :kind) || Map.get(capture, "kind")),
-         true <- kind in @workflow_provenance_kinds or
-                   {:error, :memory_capture_plane_not_ready, unsupported_capture_diagnostics(capture, graph_context)},
+         true <-
+           kind in @workflow_provenance_kinds or
+             {:error, :memory_capture_plane_not_ready, unsupported_capture_diagnostics(capture, graph_context)},
          {:ok, managed_repo_id} <- required_string(graph_context.managed_repo_id, :managed_repo_id),
          {:ok, workspace_path} <- required_string(graph_context.workspace_path, :workspace_path),
          {:ok, actor_id} <- actor_id(capture),
@@ -98,6 +99,8 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
       toolchain_name = normalize_optional_string(Map.get(capture, :toolchain) || Map.get(capture, "toolchain"))
 
       source_code_anchors = source_code_anchors(capture, managed_repo_id)
+      governed_artifacts = governed_artifacts(capture, managed_repo_id)
+      related_resources = related_resources(capture)
 
       {:ok,
        %{
@@ -139,7 +142,9 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
          model_name: model_name,
          toolchain_name: toolchain_name,
          label: label(kind, workflow, agent_name, tool_name),
-         source_code_anchors: source_code_anchors
+         source_code_anchors: source_code_anchors,
+         governed_artifacts: governed_artifacts,
+         related_resources: related_resources
        }}
     end
   end
@@ -278,6 +283,37 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
 
+  defp governed_artifacts(capture, managed_repo_id) do
+    capture
+    |> Map.get(:governed_context, Map.get(capture, "governed_context"))
+    |> normalize_map()
+    |> Enum.flat_map(fn {key, value} ->
+      case normalize_optional_string(value) do
+        nil ->
+          []
+
+        id ->
+          case MemoryGraph.artifact_path(key, id) do
+            nil -> []
+            path -> [artifact(path, "#{String.replace(to_string(key), "_", " ")} #{id}", managed_repo_id)]
+          end
+      end
+    end)
+  end
+
+  defp related_resources(capture) do
+    capture
+    |> Map.get(:related_resources, Map.get(capture, "related_resources"))
+    |> List.wrap()
+    |> Enum.map(fn
+      %{iri: iri} -> optional_iri(iri)
+      %{"iri" => iri} -> optional_iri(iri)
+      value -> optional_iri(value)
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
   defp optional_iri(nil), do: nil
 
   defp optional_iri(value) when is_binary(value) do
@@ -302,9 +338,7 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
   end
 
   defp actor_iri(graph_context, actor_id) do
-    RDF.iri(
-      "#{MemoryGraph.workflow_provenance_base_iri(graph_context.managed_repo_id)}actor/#{uri_encode(actor_id)}"
-    )
+    RDF.iri("#{MemoryGraph.workflow_provenance_base_iri(graph_context.managed_repo_id)}actor/#{uri_encode(actor_id)}")
   end
 
   defp revision_iri(graph_context, revision) do
@@ -315,6 +349,13 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
 
   defp resource_class_iri(kind) do
     RDF.iri("https://jido.run/ontology/memory##{Map.fetch!(@kind_class_names, kind)}")
+  end
+
+  defp artifact(path, label, managed_repo_id) do
+    %{
+      iri: MemoryGraph.artifact_iri(managed_repo_id, path),
+      label: label
+    }
   end
 
   defp label(kind, workflow, agent_name, tool_name) do

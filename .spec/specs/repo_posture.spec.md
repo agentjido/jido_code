@@ -9,7 +9,7 @@ records for managed repositories.
 id: architecture.repo_posture
 kind: feature
 status: active
-summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
+summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded run-detail memory context, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -76,6 +76,11 @@ surface:
 
 - id: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   statement: Operator-facing dashboard and run-detail surfaces shall expose governed evidence, review, and decision state through canonical governed-run feeds so repo posture and escalation drivers remain explainable without workflow-history fallback loaders.
+  priority: should
+  stability: evolving
+
+- id: architecture.repo_posture.governed_run_memory_context_does_not_displace_posture_state
+  statement: When run-detail surfaces co-host bounded memory and provenance context, posture and escalation narratives shall remain grounded in governed run, evidence, and decision records rather than being replaced by graph-local memory state.
   priority: should
   stability: evolving
 
@@ -234,6 +239,7 @@ surface:
   target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+    - architecture.repo_posture.governed_run_memory_context_does_not_displace_posture_state
 
 - kind: source_file
   target: test/jido_code/governance/runtime_evidence_feed_test.exs
@@ -290,5 +296,6 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+    - architecture.repo_posture.governed_run_memory_context_does_not_displace_posture_state
 
 ```

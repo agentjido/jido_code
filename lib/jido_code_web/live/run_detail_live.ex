@@ -4,14 +4,21 @@ defmodule JidoCodeWeb.RunDetailLive do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.repo_posture.governed_run_memory_context_does_not_displace_posture_state
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+  # covers: architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
   # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+  # covers: architecture.run_governance.run_detail_can_host_bounded_memory_context
+  # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
+  # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
+  alias JidoCode.MemoryGraph.{GovernedSurfaceContext, OperatorService}
   alias JidoCode.Orchestration.{Run, RunPubSub}
+  alias JidoCode.Projects.Project
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -42,6 +49,7 @@ defmodule JidoCodeWeb.RunDetailLive do
           |> assign(:project_id, project_id)
           |> assign(:run_id, run_id)
           |> assign_run_state(run_state)
+          |> assign(:memory_action_feedback, nil)
           |> assign(:approval_action_error, nil)
           |> assign(:retry_action_error, nil)
 
@@ -170,6 +178,111 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   @impl true
   def handle_event("retry_step", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "validate_memory",
+        %{"memory_iri" => memory_iri},
+        %{assigns: %{memory_context: %{memories: projection}, run: %Run{} = run}} = socket
+      ) do
+    case OperatorService.validate(projection, memory_iri, memory_operator_opts(socket, run)) do
+      {:ok, _result} ->
+        {:noreply,
+         socket
+         |> refresh_run_assigns()
+         |> assign(:memory_action_feedback, %{
+           type: :info,
+           detail: "Durable memory validation was recorded through the bounded capture plane."
+         })}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("validate_memory", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "invalidate_memory",
+        %{"memory_iri" => memory_iri},
+        %{assigns: %{memory_context: %{memories: projection}, run: %Run{} = run}} = socket
+      ) do
+    case OperatorService.invalidate(projection, memory_iri, memory_operator_opts(socket, run)) do
+      {:ok, _result} ->
+        {:noreply,
+         socket
+         |> refresh_run_assigns()
+         |> assign(:memory_action_feedback, %{
+           type: :info,
+           detail: "Durable memory invalidation was recorded and the governed history stays canonical."
+         })}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("invalidate_memory", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "promote_memory_follow_up",
+        %{"memory_iri" => memory_iri},
+        %{assigns: %{memory_context: %{memories: projection}, run: %Run{} = run}} = socket
+      ) do
+    case OperatorService.promote_follow_up(projection, memory_iri, memory_operator_opts(socket, run)) do
+      {:ok, %{result: %{work_item: work_item}, target: :work_item}} ->
+        {:noreply,
+         socket
+         |> refresh_run_assigns()
+         |> assign(:memory_action_feedback, %{
+           type: :info,
+           detail: "Created governed follow-up work item #{work_item.id} from durable memory."
+         })}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("promote_memory_follow_up", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "supersede_memory",
+        %{"memory_iri" => memory_iri, "decision_id" => decision_id},
+        %{assigns: %{memory_context: %{memories: projection}, decisions: decisions, run: %Run{} = run}} = socket
+      ) do
+    with %{} = decision <- Enum.find(decisions, &(normalize_optional_string(map_get(&1, :id, "id")) == decision_id)),
+         {:ok, _result} <-
+           OperatorService.supersede_with_governed_decision(
+             projection,
+             memory_iri,
+             decision,
+             memory_operator_opts(socket, run, decision_id: decision_id)
+           ) do
+      {:noreply,
+       socket
+       |> refresh_run_assigns()
+       |> assign(:memory_action_feedback, %{
+         type: :info,
+         detail: "Durable decision memory was superseded using the latest governed decision."
+       })}
+    else
+      nil ->
+        {:noreply, assign_memory_action_error(socket, :governed_decision_not_found)}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("supersede_memory", _params, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
@@ -338,6 +451,192 @@ defmodule JidoCodeWeb.RunDetailLive do
                   </li>
                 </ol>
               <% end %>
+            </section>
+
+            <section
+              :if={@memory_context}
+              id="run-detail-memory-context"
+              class="space-y-3 rounded border border-base-300/70 bg-base-200/20 p-3"
+            >
+              <div class="space-y-1">
+                <p class="text-sm font-medium">Repository memory context</p>
+                <p id="run-detail-memory-context-state" class="text-xs text-base-content/70">
+                  Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
+                </p>
+                <p
+                  :if={@memory_action_feedback}
+                  id="run-detail-memory-action-feedback"
+                  class={[
+                    "text-xs",
+                    if(Map.get(@memory_action_feedback, :type) == :error,
+                      do: "text-error",
+                      else: "text-success"
+                    )
+                  ]}
+                >
+                  {@memory_action_feedback.detail}
+                </p>
+                <p
+                  :if={@memory_context.notice}
+                  id="run-detail-memory-context-notice"
+                  class="text-xs text-base-content/80"
+                >
+                  {@memory_context.notice.detail}
+                </p>
+              </div>
+
+              <div
+                :if={@memory_context.governed_history.evidence != [] or @memory_context.governed_history.decisions != []}
+                id="run-detail-memory-history"
+                class="grid gap-3 md:grid-cols-2"
+              >
+                <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Evidence history
+                  </p>
+                  <ol id="run-detail-memory-evidence-history" class="space-y-2">
+                    <li
+                      :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.evidence, 1)}
+                      id={"run-detail-memory-evidence-history-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{entry.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                      </p>
+                    </li>
+                  </ol>
+                </section>
+
+                <section :if={@memory_context.governed_history.decisions != []} class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Decision history
+                  </p>
+                  <ol id="run-detail-memory-decision-history" class="space-y-2">
+                    <li
+                      :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.decisions, 1)}
+                      id={"run-detail-memory-decision-history-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{entry.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                      </p>
+                    </li>
+                  </ol>
+                </section>
+              </div>
+
+              <section id="run-detail-memory-items" class="space-y-2">
+                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  Durable memories
+                </p>
+
+                <%= if @memory_context.memories.items == [] do %>
+                  <p id="run-detail-memory-empty" class="text-xs text-base-content/70">
+                    No durable memories currently point at this governed history.
+                  </p>
+                <% else %>
+                  <ol id="run-detail-memory-list" class="space-y-2">
+                    <li
+                      :for={{item, index} <- Enum.with_index(@memory_context.memories.items, 1)}
+                      id={"run-detail-memory-item-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                    >
+                      <p class="text-sm font-medium">
+                        {item.memory_kind}: {item.content}
+                      </p>
+                      <p class="text-xs text-base-content/70">
+                        Freshness: {item.freshness_score || "unknown"} | Decision status: {item.decision_status || "n/a"}
+                      </p>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          id={"run-detail-memory-validate-#{index}"}
+                          phx-click="validate_memory"
+                          phx-value-memory_iri={item.memory_iri}
+                          class="btn btn-xs btn-outline"
+                        >
+                          Validate
+                        </button>
+                        <button
+                          type="button"
+                          id={"run-detail-memory-invalidate-#{index}"}
+                          phx-click="invalidate_memory"
+                          phx-value-memory_iri={item.memory_iri}
+                          class="btn btn-xs btn-outline btn-warning"
+                        >
+                          Invalidate
+                        </button>
+                        <button
+                          type="button"
+                          id={"run-detail-memory-promote-#{index}"}
+                          phx-click="promote_memory_follow_up"
+                          phx-value-memory_iri={item.memory_iri}
+                          class="btn btn-xs btn-primary"
+                        >
+                          Create follow-up
+                        </button>
+                      </div>
+                      <div
+                        :if={item.navigation.governed_records != []}
+                        id={"run-detail-memory-links-#{index}"}
+                        class="flex flex-wrap gap-2"
+                      >
+                        <a
+                          :for={link <- item.navigation.governed_records}
+                          :if={link.route}
+                          href={link.route}
+                          class="link link-primary text-xs"
+                        >
+                          {link.label}
+                        </a>
+                      </div>
+                    </li>
+                  </ol>
+                <% end %>
+              </section>
+
+              <section id="run-detail-memory-provenance" class="space-y-2">
+                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  Workflow provenance
+                </p>
+
+                <%= if @memory_context.provenance.items == [] do %>
+                  <p id="run-detail-memory-provenance-empty" class="text-xs text-base-content/70">
+                    No workflow provenance currently points at this governed history.
+                  </p>
+                <% else %>
+                  <ol id="run-detail-memory-provenance-list" class="space-y-2">
+                    <li
+                      :for={{item, index} <- Enum.with_index(@memory_context.provenance.items, 1)}
+                      id={"run-detail-memory-provenance-item-#{index}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                    >
+                      <p class="text-sm font-medium">
+                        {item.provenance_kind}: {item.label || item.content || "bounded provenance"}
+                      </p>
+                      <p class="text-xs text-base-content/70">
+                        Revision: {item.revision_iri || "unknown"}
+                      </p>
+                      <div
+                        :if={item.navigation.governed_records != []}
+                        id={"run-detail-memory-provenance-links-#{index}"}
+                        class="flex flex-wrap gap-2"
+                      >
+                        <a
+                          :for={link <- item.navigation.governed_records}
+                          :if={link.route}
+                          href={link.route}
+                          class="link link-primary text-xs"
+                        >
+                          {link.label}
+                        </a>
+                      </div>
+                    </li>
+                  </ol>
+                <% end %>
+              </section>
             </section>
           </section>
 
@@ -784,7 +1083,9 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:approval_context, nil)
     |> assign(:approval_context_blocker, nil)
     |> assign(:runtime_evidence_summary, nil)
+    |> assign(:memory_context, nil)
     |> assign(:step_retry_state, step_retry_state(nil))
+    |> assign(:memory_action_feedback, nil)
     |> assign(:approval_action_error, nil)
     |> assign(:retry_action_error, nil)
   end
@@ -804,7 +1105,8 @@ defmodule JidoCodeWeb.RunDetailLive do
            evidence_records: evidence_records,
            change_request: change_request,
            decisions: decisions,
-           repo_posture: repo_posture
+           repo_posture: repo_posture,
+           memory_context: memory_context
          }
        ) do
     socket
@@ -813,6 +1115,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
     |> assign(:runtime_evidence_summary, runtime_evidence_summary(run, evidence_records, repo_posture))
+    |> assign(:memory_context, memory_context)
     |> assign(:timeline_entries, timeline_entries(run))
     |> assign(:retry_lineage_entries, retry_lineage_entries(run))
     |> assign(:artifact_categories, artifact_categories(run))
@@ -830,16 +1133,37 @@ defmodule JidoCodeWeb.RunDetailLive do
     end
   end
 
+  defp assign_memory_action_error(socket, reason) do
+    socket
+    |> refresh_run_assigns()
+    |> assign(:memory_action_feedback, %{
+      type: :error,
+      detail: normalize_memory_action_failure(reason)
+    })
+  end
+
   defp load_run_state(project_id, run_id) do
     with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
          {:ok, run} <- load_governed_run(project_scope, run_id) do
+      evidence_records = load_evidence_records(run)
+      decisions = load_decisions(run)
+
       {:ok,
        %{
          run: run,
-         evidence_records: load_evidence_records(run),
+         evidence_records: evidence_records,
          change_request: load_change_request(run),
-         decisions: load_decisions(run),
-         repo_posture: load_repo_posture(run)
+         decisions: decisions,
+         repo_posture: load_repo_posture(run),
+         memory_context:
+           GovernedSurfaceContext.load_run_detail(
+             project_scope,
+             run,
+             evidence_records,
+             decisions,
+             managed_repo_id: memory_context_managed_repo_id(project_scope, run),
+             workspace_path: load_project_workspace_path(project_id)
+           )
        }}
     else
       {:error, :governed_run_not_found} ->
@@ -924,6 +1248,28 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_repo_posture(_run), do: nil
+
+  defp load_project_workspace_path(project_id) do
+    with {:ok, [project]} <-
+           Project.read(query: [filter: [id: project_id], limit: 1], actor: Actor.operator_actor()) do
+      project
+      |> map_get(:settings, "settings", %{})
+      |> map_get(:workspace, "workspace", %{})
+      |> map_get(:workspace_path, "workspace_path")
+      |> normalize_optional_string()
+    else
+      _other -> nil
+    end
+  end
+
+  defp memory_context_managed_repo_id(project_scope, %Run{} = run) do
+    normalize_optional_string(map_get(run, :managed_repo_id, "managed_repo_id")) ||
+      normalize_optional_string(map_get(project_scope, :managed_repo_id, "managed_repo_id")) ||
+      project_scope
+      |> map_get(:managed_repo, "managed_repo", %{})
+      |> map_get(:id, "id")
+      |> normalize_optional_string()
+  end
 
   defp run_governance_widget_props(assigns) do
     %{
@@ -1894,6 +2240,33 @@ defmodule JidoCodeWeb.RunDetailLive do
     }
   end
 
+  defp normalize_memory_action_failure(reason) when is_atom(reason) do
+    case reason do
+      :memory_item_not_found ->
+        "The selected durable memory could not be found on this governed surface."
+
+      :governed_decision_not_found ->
+        "The latest governed decision was unavailable for durable supersession."
+
+      :memory_supersession_requires_decision ->
+        "Only durable decision memories can be superseded from the governed run surface."
+
+      :unsupported_memory_promotion_target ->
+        "The requested memory promotion target is not available on this governed surface."
+
+      _other ->
+        "The memory action could not be completed through the bounded product service."
+    end
+  end
+
+  defp normalize_memory_action_failure({:missing_memory_operator_context, field}) do
+    "Memory action context is incomplete: #{field}."
+  end
+
+  defp normalize_memory_action_failure(_reason) do
+    "The memory action could not be completed through the bounded product service."
+  end
+
   defp status_label(status) do
     status
     |> normalize_optional_string()
@@ -2027,6 +2400,31 @@ defmodule JidoCodeWeb.RunDetailLive do
       _other ->
         Actor.operator_actor(%{"id" => "unknown", "email" => nil})
     end
+  end
+
+  defp memory_operator_opts(socket, %Run{} = run, extra_opts \\ []) do
+    actor = approving_actor(socket)
+
+    [
+      actor: actor,
+      workspace_path: memory_operator_workspace_path(socket),
+      revision: memory_operator_revision(socket),
+      run_id: map_get(run, :run_id, "run_id"),
+      work_item_id: map_get(run, :work_item_id, "work_item_id")
+    ] ++ extra_opts
+  end
+
+  defp memory_operator_workspace_path(socket) do
+    socket.assigns
+    |> Map.get(:memory_context, %{})
+    |> Map.get(:workspace_path)
+  end
+
+  defp memory_operator_revision(socket) do
+    socket.assigns
+    |> Map.get(:memory_context, %{})
+    |> Map.get(:graph, %{})
+    |> Map.get(:current_revision)
   end
 
   defp normalize_map(%{} = map), do: map

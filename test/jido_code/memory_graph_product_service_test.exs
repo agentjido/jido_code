@@ -144,6 +144,40 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
              end)
     end
 
+    test "returns governed-artifact scoped memory and provenance projections" do
+      managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+      workspace_path = create_workspace_path!()
+      revision = "phase-33-governed-surface"
+
+      %{memory_resource_iri: memory_resource_iri, plan_resource_iri: plan_resource_iri} =
+        seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+      artifact_paths = [
+        JidoCode.MemoryGraph.artifact_path(:run, "run-32"),
+        JidoCode.MemoryGraph.artifact_path(:evidence, "evidence-32")
+      ]
+
+      assert {:ok, memories_projection} =
+               ProductService.memories_for_governed_artifacts(
+                 managed_repo_id,
+                 workspace_path,
+                 artifact_paths,
+                 revision: revision
+               )
+
+      assert Enum.any?(memories_projection.items, &(&1.memory_iri == memory_resource_iri))
+
+      assert {:ok, provenance_projection} =
+               ProductService.provenance_for_governed_artifacts(
+                 managed_repo_id,
+                 workspace_path,
+                 artifact_paths,
+                 revision: revision
+               )
+
+      assert Enum.any?(provenance_projection.items, &(&1.resource_iri == plan_resource_iri))
+    end
+
     test "keeps stale memory explicit and only returns degraded recall when requested" do
       managed_repo_id = "repo-#{System.unique_integer([:positive])}"
       workspace_path = create_workspace_path!()
@@ -203,7 +237,8 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
                  workflow: :plan,
                  work_item_id: "work-32",
                  content: "Generated a bounded plan artifact for the repository.",
-                 anchors: %{module_name: "ExampleWorkspace"}
+                 anchors: %{module_name: "ExampleWorkspace"},
+                 governed_context: %{run_id: "run-32", evidence_id: "evidence-32"}
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision

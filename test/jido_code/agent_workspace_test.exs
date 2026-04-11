@@ -11,11 +11,13 @@ defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
+  # covers: architecture.policy_layers.memory_operator_actions_remain_policy_bound
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
   # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
   # covers: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
+  # covers: architecture.agent_os_integration.memory_graph_product_actions_stay_workspace_bound
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentOS.Manager

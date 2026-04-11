@@ -82,11 +82,13 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
          summary: finding.summary,
          evidence_input: evidence_input,
          decision_input: decision_input,
-         review_metadata: %{
-           "graph" => normalize_map(finding.graph),
-           "provenance" => normalize_map(finding.provenance),
-           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph))
-         }
+         review_metadata:
+           %{
+             "graph" => normalize_map(finding.graph),
+             "provenance" => normalize_map(finding.provenance),
+             "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph))
+           }
+           |> maybe_put_workflow_memory(opts)
        }}
     end
   end
@@ -145,6 +147,8 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
   defp governed_capture(kind, finding, details, actor_id, revision, opts) do
     session_id = provenance_session_id(kind, finding, details)
     anchors = anchors_from_finding(finding, opts)
+    workflow_context = workflow_context(opts)
+    related_resources = related_resources(opts, workflow_context)
 
     base = [
       session_id: session_id,
@@ -154,7 +158,9 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
       content: details.content,
       outcome: details.outcome,
       revision: revision,
-      anchors: anchors
+      anchors: anchors,
+      related_resources: related_resources,
+      metadata: workflow_context_metadata(workflow_context)
     ]
 
     case kind do
@@ -256,6 +262,8 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
   defp preserve_work_item_metadata(nil, _finding, _action, _opts), do: {:ok, nil}
 
   defp preserve_work_item_metadata(%WorkItem{} = work_item, finding, action, opts) do
+    workflow_context = workflow_context(opts)
+
     metadata =
       work_item.work_metadata
       |> normalize_map()
@@ -273,9 +281,80 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
           "payload" => normalize_map(finding.payload)
         }
       )
+      |> maybe_put_workflow_memory(workflow_context)
 
     WorkItem.update(work_item, %{work_metadata: metadata}, actor: actor(opts))
   end
+
+  defp workflow_context(opts) do
+    opts
+    |> Keyword.get(:workflow_context)
+    |> normalize_map()
+    |> enrich_workflow_context()
+  end
+
+  defp related_resources(opts, workflow_context) do
+    workflow_resources =
+      workflow_context
+      |> Map.get("related_resources", [])
+      |> List.wrap()
+
+    query_resources =
+      opts
+      |> Keyword.get(:query, %{})
+      |> normalize_map()
+      |> Map.take(["resource_iri", "subject_iri"])
+      |> Map.values()
+
+    (workflow_resources ++ query_resources)
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp maybe_put_workflow_memory(metadata, %{} = workflow_context) when map_size(workflow_context) > 0 do
+    Map.put(metadata, "workflow_memory", workflow_context)
+  end
+
+  defp maybe_put_workflow_memory(metadata, _workflow_context), do: metadata
+
+  defp enrich_workflow_context(%{} = workflow_context) when map_size(workflow_context) > 0 do
+    related_resources =
+      workflow_context
+      |> Map.get("related_resources", [])
+      |> List.wrap()
+
+    memory_resources =
+      case workflow_context |> Map.get("memory_resources", []) |> List.wrap() do
+        [] -> Enum.filter(related_resources, &String.contains?(&1, "/memory#"))
+        values -> values
+      end
+
+    provenance_resources =
+      case workflow_context |> Map.get("provenance_resources", []) |> List.wrap() do
+        [] -> Enum.filter(related_resources, &String.contains?(&1, "/workflow_provenance#"))
+        values -> values
+      end
+
+    workflow_context
+    |> Map.put("memory_resources", memory_resources)
+    |> Map.put("provenance_resources", provenance_resources)
+  end
+
+  defp enrich_workflow_context(workflow_context), do: workflow_context
+
+  defp workflow_context_metadata(%{} = workflow_context) when map_size(workflow_context) > 0 do
+    %{}
+    |> maybe_put_metadata_value(:retrieval_policy, Map.get(workflow_context, "retrieval_policy"))
+    |> maybe_put_metadata_value(:selection, Map.get(workflow_context, "selection"))
+    |> maybe_put_metadata_value(:workflow, Map.get(workflow_context, "workflow"))
+  end
+
+  defp workflow_context_metadata(_workflow_context), do: %{}
+
+  defp maybe_put_metadata_value(metadata, _key, nil), do: metadata
+  defp maybe_put_metadata_value(metadata, key, value), do: Map.put(metadata, key, value)
 
   defp actor(opts) do
     opts

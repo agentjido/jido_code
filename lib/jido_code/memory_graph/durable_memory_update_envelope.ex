@@ -7,6 +7,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
   # covers: architecture.memory_ontology.change_and_revision_provenance_is_explicit
   # covers: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
   # covers: architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+  # covers: architecture.memory_ontology.memory_updates_preserve_mutation_lineage
   @moduledoc false
 
   alias JidoCode.MemoryGraph
@@ -74,6 +75,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
          {:ok, superseded_memory_iri} <- superseded_memory_iri(kind, capture, graph_context),
          {:ok, freshness_score} <- freshness_score(kind, capture) do
       test_run = test_run(capture, managed_repo_id)
+      governed_artifacts = governed_artifacts(capture, managed_repo_id)
       supported_by_artifacts = supported_by_artifacts(capture, managed_repo_id)
       evidence_artifacts = evidence_artifacts(capture, managed_repo_id)
       confidence_source = confidence_source_artifact(capture, managed_repo_id)
@@ -113,6 +115,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
          decision_status_iri: decision_status && decision_status_iri(decision_status),
          superseded_status_iri: superseded_status && decision_status_iri(superseded_status),
          test_run: test_run,
+         governed_artifacts: governed_artifacts,
          supported_by_artifacts: supported_by_artifacts,
          evidence_artifacts: evidence_artifacts,
          confidence_source: confidence_source
@@ -322,6 +325,18 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope do
       nil -> nil
       artifact -> Map.put(artifact, :class, :test_run)
     end
+  end
+
+  defp governed_artifacts(capture, managed_repo_id) do
+    capture
+    |> Map.get(:governed_context, Map.get(capture, "governed_context"))
+    |> normalize_map()
+    |> Enum.flat_map(fn {key, value} ->
+      case normalize_optional_string(value) do
+        nil -> []
+        id -> [artifact("#{key}/#{id}", "#{String.replace(key, "_", " ")} #{id}", managed_repo_id, :memory)]
+      end
+    end)
   end
 
   defp supported_by_artifacts(capture, managed_repo_id) do

@@ -8,7 +8,7 @@ This subject defines the governed run projection model for `Jido.Code`.
 id: architecture.run_governance
 kind: policy
 status: active
-summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, and lets those records inform posture without replacing the run-governance model itself.
+summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, allows bounded memory and provenance context to appear on canonical run-detail surfaces without displacing governed execution truth, and lets those records inform posture without replacing the run-governance model itself.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -56,6 +56,11 @@ surface:
 - id: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   statement: Product-owned execution loaders, retry paths, and runtime materialization shall read and persist governed `Run` state first, using `WorkflowRun` only as bounded internal adapter or audit support where a current execution path still requires it.
   priority: must
+  stability: evolving
+
+- id: architecture.run_governance.run_detail_can_host_bounded_memory_context
+  statement: Canonical run-detail surfaces may host bounded memory and workflow-provenance context plus product-owned memory actions when that context relates to the governed run, but governed `Run`, `Evidence`, `ChangeRequest`, and `Decision` records shall remain the canonical execution and review history.
+  priority: should
   stability: evolving
 
 - id: architecture.run_governance.greenfield_tests_and_fixtures_create_canonical_run_graph
@@ -258,6 +263,13 @@ surface:
   target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+    - architecture.run_governance.run_detail_can_host_bounded_memory_context
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+    - architecture.run_governance.run_detail_can_host_bounded_memory_context
 
 - kind: source_file
   target: test/jido_code_web/live/phase_eighteen_integration_test.exs

@@ -8,7 +8,7 @@ product control-plane ownership.
 id: architecture.runtime_service_overlay
 kind: policy
 status: deprecated
-summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts and Ash-backed product truth remains canonical.
+summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context alongside runtime posture language, and Ash-backed product truth remains canonical.
 superseded_by: architecture.agent_os_integration
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
@@ -65,6 +65,11 @@ surface:
 
 - id: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   statement: Operator-facing dashboard and run-detail surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state, and those surfaces shall load through governed run and evidence records instead of workflow-history fallback paths.
+  priority: should
+  stability: evolving
+
+- id: architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
+  statement: When governed run-detail surfaces also show bounded repository memory context, runtime-service posture narratives shall remain product-oriented and shall not collapse runtime rollout evidence into memory-graph state or expose runtime topology as the contract for those adjacent semantic regions.
   priority: should
   stability: evolving
 
@@ -168,6 +173,7 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_agent_os_integration.md
@@ -185,12 +191,14 @@ surface:
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+    - architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
 
 - kind: source_file
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+    - architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
 
 - kind: source_file
   target: test/jido_code/governance/runtime_evidence_feed_test.exs
@@ -209,6 +217,7 @@ surface:
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+    - architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
 
 - kind: source_file
   target: test/jido_code_web/live/phase_eleven_integration_test.exs

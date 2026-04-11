@@ -17,8 +17,9 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
   @spec write(graph_context(), map()) :: {:ok, map()} | {:error, atom(), map()}
   def write(graph_context, capture) when is_map(graph_context) and is_map(capture) do
     with {:ok, envelope} <- CaptureEnvelope.normalize(capture, graph_context),
-         true <- graph_context.selected_graph_name == MemoryGraph.workflow_provenance_graph_name() or
-                   {:error, :memory_capture_plane_not_ready, wrong_graph_diagnostics(graph_context, capture)},
+         true <-
+           graph_context.selected_graph_name == MemoryGraph.workflow_provenance_graph_name() or
+             {:error, :memory_capture_plane_not_ready, wrong_graph_diagnostics(graph_context, capture)},
          {:ok, store} <- open_store(graph_context.graph_store_path) do
       try do
         graph = RDF.Graph.new(triples(envelope))
@@ -93,6 +94,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
       |> maybe_add_model(envelope)
       |> maybe_add_toolchain(envelope)
       |> add_anchors(session, envelope.source_code_anchors)
+      |> add_related_resources(session, related_session_resources(envelope))
 
     resource_triples =
       case envelope.kind do
@@ -179,6 +181,8 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
           ]
       end
       |> add_anchors(resource, envelope.source_code_anchors)
+      |> add_artifacts(resource, envelope.governed_artifacts, jido("supportedBy"))
+      |> add_related_resources(resource, related_resource_targets(envelope))
 
     (common_actor_and_revision ++ session_stub ++ resource_triples)
     |> List.flatten()
@@ -203,9 +207,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
 
   defp maybe_add_toolchain(triples, %{toolchain_name: toolchain_name, managed_repo_id: managed_repo_id}) do
     toolchain =
-      RDF.iri(
-        "#{MemoryGraph.workflow_provenance_base_iri(managed_repo_id)}toolchain/#{URI.encode(toolchain_name)}"
-      )
+      RDF.iri("#{MemoryGraph.workflow_provenance_base_iri(managed_repo_id)}toolchain/#{URI.encode(toolchain_name)}")
 
     triples ++
       [
@@ -229,8 +231,33 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
       end)
   end
 
+  defp add_artifacts(triples, _subject, [], _predicate), do: triples
+
+  defp add_artifacts(triples, subject, artifacts, predicate) when is_list(artifacts) do
+    triples ++
+      Enum.flat_map(artifacts, fn
+        %{iri: iri} when not is_nil(iri) ->
+          [{subject, predicate, iri}]
+
+        _other ->
+          []
+      end)
+  end
+
   defp maybe_triple(_subject, _predicate, nil), do: nil
   defp maybe_triple(subject, predicate, object), do: {subject, predicate, object}
+
+  defp add_related_resources(triples, _subject, []), do: triples
+
+  defp add_related_resources(triples, subject, related_resources) do
+    triples ++ Enum.map(related_resources, &{subject, jido("relatedTo"), &1})
+  end
+
+  defp related_session_resources(%{kind: :work_session, related_resources: resources}), do: resources
+  defp related_session_resources(_envelope), do: []
+
+  defp related_resource_targets(%{kind: :work_session}), do: []
+  defp related_resource_targets(%{related_resources: resources}), do: resources
 
   defp literal_or_nil(nil), do: nil
   defp literal_or_nil(value), do: RDF.literal(value)

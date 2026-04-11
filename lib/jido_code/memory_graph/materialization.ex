@@ -37,6 +37,8 @@ defmodule JidoCode.MemoryGraph.Materialization do
   @spec work_item_seed(map(), keyword()) :: {:ok, map()} | {:error, term()}
   def work_item_seed(projection_or_finding, opts \\ []) do
     with {:ok, finding} <- ensure_finding(projection_or_finding, opts) do
+      workflow_memory = normalized_workflow_memory(opts)
+
       {:ok,
        %{
          managed_repo_id: finding.managed_repo_id,
@@ -46,14 +48,16 @@ defmodule JidoCode.MemoryGraph.Materialization do
          summary: finding.summary,
          dedup_key: "memory_finding:#{finding.digest}",
          initiating_actor: normalize_map(actor(opts)),
-         work_metadata: %{
-           "source" => "memory_graph",
-           "finding_digest" => finding.digest,
-           "graph" => normalize_map(finding.graph),
-           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
-           "provenance" => normalize_map(finding.provenance),
-           "payload" => normalize_map(finding.payload)
-         }
+         work_metadata:
+           %{
+             "source" => "memory_graph",
+             "finding_digest" => finding.digest,
+             "graph" => normalize_map(finding.graph),
+             "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
+             "provenance" => normalize_map(finding.provenance),
+             "payload" => normalize_map(finding.payload)
+           }
+           |> maybe_put_workflow_memory(workflow_memory)
        }}
     end
   end
@@ -62,6 +66,7 @@ defmodule JidoCode.MemoryGraph.Materialization do
   def evidence_input(projection_or_finding, opts \\ []) do
     with {:ok, finding} <- ensure_finding(projection_or_finding, opts) do
       key = Keyword.get(opts, :key, "memory_finding:#{finding.digest}")
+      workflow_memory = normalized_workflow_memory(opts)
 
       {:ok,
        %{
@@ -71,13 +76,15 @@ defmodule JidoCode.MemoryGraph.Materialization do
          key: key,
          evidence_type: "memory_graph_finding",
          summary: finding.summary,
-         evidence_details: %{
-           "finding_digest" => finding.digest,
-           "graph" => normalize_map(finding.graph),
-           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
-           "provenance" => normalize_map(finding.provenance),
-           "payload" => normalize_map(finding.payload)
-         },
+         evidence_details:
+           %{
+             "finding_digest" => finding.digest,
+             "graph" => normalize_map(finding.graph),
+             "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
+             "provenance" => normalize_map(finding.provenance),
+             "payload" => normalize_map(finding.payload)
+           }
+           |> maybe_put_workflow_memory(workflow_memory),
          source: "memory_graph"
        }}
     end
@@ -87,6 +94,7 @@ defmodule JidoCode.MemoryGraph.Materialization do
   def decision_input(projection_or_finding, opts \\ []) do
     with {:ok, finding} <- ensure_finding(projection_or_finding, opts) do
       decision = Keyword.get(opts, :decision, :defer)
+      workflow_memory = normalized_workflow_memory(opts)
 
       {:ok,
        %{
@@ -107,13 +115,15 @@ defmodule JidoCode.MemoryGraph.Materialization do
              "A durable memory or workflow-provenance finding requires governed review before it changes factory behavior."
            ),
          evidence_ids: Keyword.get(opts, :evidence_ids, []),
-         decision_metadata: %{
-           "finding_digest" => finding.digest,
-           "graph" => normalize_map(finding.graph),
-           "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
-           "provenance" => normalize_map(finding.provenance),
-           "payload" => normalize_map(finding.payload)
-         },
+         decision_metadata:
+           %{
+             "finding_digest" => finding.digest,
+             "graph" => normalize_map(finding.graph),
+             "freshness" => normalize_map(ProductFeedback.for_graph(finding.graph)),
+             "provenance" => normalize_map(finding.provenance),
+             "payload" => normalize_map(finding.payload)
+           }
+           |> maybe_put_workflow_memory(workflow_memory),
          decided_at: Keyword.get(opts, :decided_at, DateTime.utc_now() |> DateTime.truncate(:microsecond))
        }}
     end
@@ -138,6 +148,19 @@ defmodule JidoCode.MemoryGraph.Materialization do
 
   defp ensure_finding(%{kind: :memory_finding} = finding, _opts), do: {:ok, finding}
   defp ensure_finding(projection, opts), do: Finding.from_projection(projection, opts)
+
+  defp normalized_workflow_memory(opts) do
+    opts
+    |> Keyword.get(:workflow_context)
+    |> normalize_map()
+    |> case do
+      %{} = workflow_memory when map_size(workflow_memory) > 0 -> workflow_memory
+      _other -> nil
+    end
+  end
+
+  defp maybe_put_workflow_memory(metadata, nil), do: metadata
+  defp maybe_put_workflow_memory(metadata, workflow_memory), do: Map.put(metadata, "workflow_memory", workflow_memory)
 
   defp observation_attrs(finding, opts) do
     %{

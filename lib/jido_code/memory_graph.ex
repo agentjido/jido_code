@@ -4,6 +4,7 @@ defmodule JidoCode.MemoryGraph do
   # covers: architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links
+  # covers: architecture.source_code_graph_pod.stable_code_links_support_governed_memory_navigation
   @moduledoc """
   Product-owned boundary helpers for repository-scoped memory graph state.
 
@@ -96,6 +97,19 @@ defmodule JidoCode.MemoryGraph do
   @spec workflow_provenance_base_iri(managed_repo_id()) :: String.t()
   def workflow_provenance_base_iri(managed_repo_id) when is_binary(managed_repo_id) do
     "https://jido.run/managed_repos/#{managed_repo_id}/workflow_provenance#"
+  end
+
+  @spec artifact_path(atom() | String.t(), String.t()) :: String.t() | nil
+  def artifact_path(kind, id) when is_binary(id) do
+    case normalize_artifact_kind(kind) do
+      nil -> nil
+      key -> "#{key}/#{id}"
+    end
+  end
+
+  @spec artifact_iri(managed_repo_id(), String.t()) :: RDF.IRI.t()
+  def artifact_iri(managed_repo_id, path) when is_binary(managed_repo_id) and is_binary(path) do
+    RDF.iri("#{base_iri(managed_repo_id)}artifact/#{URI.encode(path)}")
   end
 
   @spec source_code_base_iri(managed_repo_id()) :: String.t()
@@ -212,4 +226,37 @@ defmodule JidoCode.MemoryGraph do
       failure: nil
     }
   end
+
+  defp normalize_artifact_kind(:run), do: "run_id"
+  defp normalize_artifact_kind(:run_id), do: "run_id"
+  defp normalize_artifact_kind(:work_item), do: "work_item_id"
+  defp normalize_artifact_kind(:work_item_id), do: "work_item_id"
+  defp normalize_artifact_kind(:evidence), do: "evidence_id"
+  defp normalize_artifact_kind(:evidence_id), do: "evidence_id"
+  defp normalize_artifact_kind(:decision), do: "decision_id"
+  defp normalize_artifact_kind(:decision_id), do: "decision_id"
+  defp normalize_artifact_kind(:observation), do: "observation_id"
+  defp normalize_artifact_kind(:observation_id), do: "observation_id"
+  defp normalize_artifact_kind(:assessment), do: "assessment_id"
+  defp normalize_artifact_kind(:assessment_id), do: "assessment_id"
+
+  defp normalize_artifact_kind(kind) when is_binary(kind) do
+    case String.trim(kind) do
+      "run" -> "run_id"
+      "run_id" -> "run_id"
+      "work_item" -> "work_item_id"
+      "work_item_id" -> "work_item_id"
+      "evidence" -> "evidence_id"
+      "evidence_id" -> "evidence_id"
+      "decision" -> "decision_id"
+      "decision_id" -> "decision_id"
+      "observation" -> "observation_id"
+      "observation_id" -> "observation_id"
+      "assessment" -> "assessment_id"
+      "assessment_id" -> "assessment_id"
+      _other -> nil
+    end
+  end
+
+  defp normalize_artifact_kind(_kind), do: nil
 end

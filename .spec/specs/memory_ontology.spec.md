@@ -10,7 +10,7 @@ workflow provenance semantics.
 id: architecture.memory_ontology
 kind: feature
 status: proposed
-summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
+summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, expects durable-memory update envelopes and writers to preserve those mutation semantics when operator or workflow actions evolve memory state, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -53,6 +53,11 @@ surface:
 
 - id: architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
   statement: Memories and workflow provenance shall support explicit freshness, evidence, and validation metadata including `freshnessScore`, `staleReason`, `lastValidatedAt`, `validForRevision`, `supportedBy`, `confidenceSource`, and `evidenceArtifact`.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.memory_updates_preserve_mutation_lineage
+  statement: Validation, invalidation, and supersession updates shall preserve explicit mutation lineage such as `lastValidatedAt`, `staleReason`, `invalidatedByRevision`, `supportedBy`, `evidenceArtifact`, and supersession links so later operator and workflow actions can explain why durable memory changed state.
   priority: must
   stability: proposed
 
@@ -155,6 +160,7 @@ surface:
     - architecture.memory_ontology.change_and_revision_provenance_is_explicit
     - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
     - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+    - architecture.memory_ontology.memory_updates_preserve_mutation_lineage
 
 - kind: source_file
   target: lib/jido_code/memory_graph/durable_memory_update_writer.ex
@@ -162,4 +168,5 @@ surface:
     - architecture.memory_ontology.change_and_revision_provenance_is_explicit
     - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
     - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+    - architecture.memory_ontology.memory_updates_preserve_mutation_lineage
 ```

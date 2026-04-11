@@ -20,9 +20,13 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     original_runtime_loader =
       Application.get_env(:jido_code, :dashboard_runtime_evidence_loader, :__missing__)
 
+    original_memory_loader =
+      Application.get_env(:jido_code, :dashboard_memory_summary_loader, :__missing__)
+
     on_exit(fn ->
       restore_env(:dashboard_run_summary_loader, original_loader)
       restore_env(:dashboard_runtime_evidence_loader, original_runtime_loader)
+      restore_env(:dashboard_memory_summary_loader, original_memory_loader)
     end)
 
     :ok
@@ -312,6 +316,52 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              view,
              "#dashboard-runtime-evidence-item-details-runtime-posture-1",
              "Latest provider: github"
+           )
+  end
+
+  test "renders bounded repository memory summaries with canonical follow-up routes", %{conn: _conn} do
+    register_owner("memory-dashboard-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-dashboard-owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :dashboard_memory_summary_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "memory-summary-1",
+           route_id: "repo-memory-dashboard",
+           managed_repo_id: Ecto.UUID.generate(),
+           repo_label: "owner/repo-memory-dashboard",
+           state: "invalidated",
+           label: "Memory graph invalidated",
+           detail: "Repository memory graph validation was explicitly invalidated and should be revalidated.",
+           remediation: "Validate repository memory graph for the current revision.",
+           memory_count: 3,
+           provenance_count: 2,
+           route: "/repos/repo-memory-dashboard#project-detail-memory-inspection",
+           action_label: "Validate memory graph",
+           action_needed?: true,
+           recovery_available?: true,
+           latest_revision: "abc123"
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-memory-summaries")
+    assert has_element?(view, "#dashboard-memory-summary-note", "canonical managed-repository surfaces")
+    assert has_element?(view, "#dashboard-memory-summary-repo-memory-summary-1", "owner/repo-memory-dashboard")
+    assert has_element?(view, "#dashboard-memory-summary-state-memory-summary-1", "Memory graph invalidated")
+    assert has_element?(view, "#dashboard-memory-summary-counts-memory-summary-1", "Durable memory: 3")
+    assert has_element?(view, "#dashboard-memory-summary-counts-memory-summary-1", "Workflow provenance: 2")
+    assert has_element?(view, "#dashboard-memory-summary-action-needed-memory-summary-1", "action needed")
+
+    assert has_element?(
+             view,
+             "#dashboard-memory-summary-link-memory-summary-1[href=\"/repos/repo-memory-dashboard#project-detail-memory-inspection\"]",
+             "Validate memory graph"
            )
   end
 

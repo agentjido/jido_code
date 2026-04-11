@@ -17,6 +17,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
   alias JidoCode.MemoryGraph.{GovernedSurfaceContext, OperatorService}
+  alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
   alias JidoCode.Projects.Project
 
@@ -353,6 +354,31 @@ defmodule JidoCodeWeb.RunDetailLive do
               </p>
             </section>
 
+            <section id="run-detail-work-item" class="space-y-2">
+              <p class="text-sm font-medium">Work item</p>
+
+              <%= if @work_item do %>
+                <div
+                  id="run-detail-work-item-entry"
+                  class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                >
+                  <p id="run-detail-work-item-summary" class="text-sm font-medium">
+                    {Map.get(@work_item, :summary)}
+                  </p>
+                  <p id="run-detail-work-item-status" class="text-xs text-base-content/80">
+                    Status: {Map.get(@work_item, :status) |> status_label()}
+                  </p>
+                  <p id="run-detail-work-item-category" class="text-xs text-base-content/80">
+                    Category: {Map.get(@work_item, :category)}
+                  </p>
+                </div>
+              <% else %>
+                <p id="run-detail-work-item-empty" class="text-xs text-base-content/70">
+                  No governed work item is linked to this run yet.
+                </p>
+              <% end %>
+            </section>
+
             <section id="run-detail-evidence-records" class="space-y-2">
               <p class="text-sm font-medium">Evidence records</p>
 
@@ -364,7 +390,9 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <ol id="run-detail-evidence-list" class="space-y-2">
                   <li
                     :for={{evidence, index} <- Enum.with_index(@evidence_records, 1)}
-                    id={"run-detail-evidence-entry-#{index}"}
+                    id={
+                      "run-detail-evidence-entry-#{governed_record_dom_token(Map.get(evidence, :id) || index)}"
+                    }
                     class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
                   >
                     <p id={"run-detail-evidence-key-#{index}"} class="text-sm font-medium">
@@ -435,7 +463,9 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <ol id="run-detail-decision-list" class="space-y-2">
                   <li
                     :for={{decision, index} <- Enum.with_index(@decisions, 1)}
-                    id={"run-detail-decision-entry-#{index}"}
+                    id={
+                      "run-detail-decision-entry-#{governed_record_dom_token(Map.get(decision, :id) || index)}"
+                    }
                     class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
                   >
                     <p id={"run-detail-decision-value-#{index}"} class="text-sm font-medium">
@@ -486,10 +516,29 @@ defmodule JidoCodeWeb.RunDetailLive do
               </div>
 
               <div
-                :if={@memory_context.governed_history.evidence != [] or @memory_context.governed_history.decisions != []}
+                :if={
+                  (@memory_context.governed_history.work_item != nil ||
+                     @memory_context.governed_history.evidence != []) or
+                    @memory_context.governed_history.decisions != []
+                }
                 id="run-detail-memory-history"
                 class="grid gap-3 md:grid-cols-2"
               >
+                <section :if={@memory_context.governed_history.work_item} class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Work item history
+                  </p>
+                  <div
+                    id="run-detail-memory-work-item-history"
+                    class="rounded border border-base-300/50 bg-base-100 p-2"
+                  >
+                    <p class="text-xs font-medium">{@memory_context.governed_history.work_item.label}</p>
+                    <p class="text-xs text-base-content/70">
+                      Memory: {@memory_context.governed_history.work_item.memory_count} | Provenance: {@memory_context.governed_history.work_item.provenance_count}
+                    </p>
+                  </div>
+                </section>
+
                 <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
                   <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                     Evidence history
@@ -521,6 +570,76 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <p class="text-xs font-medium">{entry.label}</p>
                       <p class="text-xs text-base-content/70">
                         Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                      </p>
+                    </li>
+                  </ol>
+                </section>
+              </div>
+
+              <div
+                :if={
+                  (@memory_context.governed_surfaces.work_item != nil ||
+                     @memory_context.governed_surfaces.evidence != []) or
+                    @memory_context.governed_surfaces.decisions != []
+                }
+                id="run-detail-governed-memory-contexts"
+                class="space-y-3"
+              >
+                <section
+                  :if={@memory_context.governed_surfaces.work_item}
+                  id="run-detail-work-item-memory"
+                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Work item memory context
+                  </p>
+                  <p id="run-detail-work-item-memory-label" class="text-sm font-medium">
+                    {@memory_context.governed_surfaces.work_item.label}
+                  </p>
+                  <p id="run-detail-work-item-memory-counts" class="text-xs text-base-content/70">
+                    Memory: {@memory_context.governed_surfaces.work_item.memory_count} | Provenance: {@memory_context.governed_surfaces.work_item.provenance_count}
+                  </p>
+                </section>
+
+                <section
+                  :if={@memory_context.governed_surfaces.evidence != []}
+                  id="run-detail-evidence-memory-contexts"
+                  class="space-y-2"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Evidence memory context
+                  </p>
+                  <ol class="space-y-2">
+                    <li
+                      :for={{context, index} <- Enum.with_index(@memory_context.governed_surfaces.evidence, 1)}
+                      id={"run-detail-evidence-memory-context-#{governed_record_dom_token(context.id || index)}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{context.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {context.memory_count} | Provenance: {context.provenance_count}
+                      </p>
+                    </li>
+                  </ol>
+                </section>
+
+                <section
+                  :if={@memory_context.governed_surfaces.decisions != []}
+                  id="run-detail-decision-memory-contexts"
+                  class="space-y-2"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Decision memory context
+                  </p>
+                  <ol class="space-y-2">
+                    <li
+                      :for={{context, index} <- Enum.with_index(@memory_context.governed_surfaces.decisions, 1)}
+                      id={"run-detail-decision-memory-context-#{governed_record_dom_token(context.id || index)}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{context.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {context.memory_count} | Provenance: {context.provenance_count}
                       </p>
                     </li>
                   </ol>
@@ -1072,6 +1191,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:project_id, project_id)
     |> assign(:run_id, run_id)
     |> assign(:run, nil)
+    |> assign(:work_item, nil)
     |> assign(:evidence_records, [])
     |> assign(:change_request, nil)
     |> assign(:decisions, [])
@@ -1102,6 +1222,7 @@ defmodule JidoCodeWeb.RunDetailLive do
          socket,
          %{
            run: run,
+           work_item: work_item,
            evidence_records: evidence_records,
            change_request: change_request,
            decisions: decisions,
@@ -1111,6 +1232,7 @@ defmodule JidoCodeWeb.RunDetailLive do
        ) do
     socket
     |> assign(:run, run)
+    |> assign(:work_item, work_item)
     |> assign(:evidence_records, evidence_records)
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
@@ -1147,10 +1269,12 @@ defmodule JidoCodeWeb.RunDetailLive do
          {:ok, run} <- load_governed_run(project_scope, run_id) do
       evidence_records = load_evidence_records(run)
       decisions = load_decisions(run)
+      work_item = load_work_item(run, evidence_records, decisions)
 
       {:ok,
        %{
          run: run,
+         work_item: work_item,
          evidence_records: evidence_records,
          change_request: load_change_request(run),
          decisions: decisions,
@@ -1161,6 +1285,7 @@ defmodule JidoCodeWeb.RunDetailLive do
              run,
              evidence_records,
              decisions,
+             work_item: work_item,
              managed_repo_id: memory_context_managed_repo_id(project_scope, run),
              workspace_path: load_project_workspace_path(project_id)
            )
@@ -1209,6 +1334,44 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_evidence_records(_run), do: []
+
+  defp load_work_item(%Run{} = run, evidence_records, decisions) do
+    work_item_id =
+      normalize_optional_string(Map.get(run, :work_item_id)) ||
+        work_item_id_from_records(evidence_records) ||
+        work_item_id_from_records(decisions)
+
+    case work_item_id do
+      work_item_id when is_binary(work_item_id) ->
+        case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: Actor.operator_actor()) do
+          {:ok, [work_item | _rest]} -> work_item
+          _other -> placeholder_work_item(work_item_id)
+        end
+
+      _other ->
+        nil
+    end
+  end
+
+  defp load_work_item(_run, _evidence_records, _decisions), do: nil
+
+  defp work_item_id_from_records(records) when is_list(records) do
+    records
+    |> Enum.find_value(fn record ->
+      normalize_optional_string(Map.get(record, :work_item_id) || Map.get(record, "work_item_id"))
+    end)
+  end
+
+  defp work_item_id_from_records(_records), do: nil
+
+  defp placeholder_work_item(work_item_id) when is_binary(work_item_id) do
+    %{
+      id: work_item_id,
+      summary: "Governed work item #{work_item_id}",
+      status: :unknown,
+      category: "governed_follow_up"
+    }
+  end
 
   defp load_change_request(%Run{} = run) do
     case ChangeRequest.read(query: [filter: [run_id: run.id], limit: 1], actor: Actor.operator_actor()) do
@@ -1269,6 +1432,16 @@ defmodule JidoCodeWeb.RunDetailLive do
       |> map_get(:managed_repo, "managed_repo", %{})
       |> map_get(:id, "id")
       |> normalize_optional_string()
+  end
+
+  defp governed_record_dom_token(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> "unknown"
+      normalized -> normalized
+    end
+    |> String.replace(~r/[^a-zA-Z0-9_-]/, "-")
   end
 
   defp run_governance_widget_props(assigns) do

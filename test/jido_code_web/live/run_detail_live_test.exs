@@ -21,7 +21,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   alias JidoCode.Governance.{Decision, Evidence, RepoPosture}
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, GovernedSurfaceContext, ProductService}
-  alias JidoCode.Operations.WorkItem
+  alias JidoCode.Operations.{Assessment, Event, WorkItem}
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
 
@@ -252,6 +252,59 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, managed_repo} =
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
+    {:ok, event} =
+      Event.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          category: "memory_graph_review_requested",
+          summary: "Memory graph review was requested for a governed run.",
+          correlation_key: "run-memory-detail-#{System.unique_integer([:positive])}",
+          payload: %{},
+          source_metadata: %{"source" => "run_detail_live_test"},
+          occurred_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, assessment} =
+      Assessment.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          event_id: event.id,
+          category: "memory_review",
+          summary: "Assess durable memory follow-up for the governed run.",
+          priority: :medium,
+          urgency: :medium,
+          recommended_action: "review_memory_context",
+          rationale: "Phase 34 rollout should show bounded work-item memory context.",
+          inputs: %{},
+          assessment_metadata: %{},
+          assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, work_item} =
+      WorkItem.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          assessment_id: assessment.id,
+          event_id: event.id,
+          category: "memory_review",
+          status: :open,
+          priority: :medium,
+          recommended_action: "review_memory_context",
+          summary: "Review memory context linked to the governed run.",
+          dedup_key: "run-memory-detail-work-item-#{System.unique_integer([:positive])}",
+          initiating_actor: %{"id" => "owner-1"},
+          work_metadata: %{},
+          audit_log: [],
+          opened_at: DateTime.utc_now() |> DateTime.truncate(:microsecond),
+          last_assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
     run_id = "run-memory-detail-#{System.unique_integer([:positive])}"
 
     {:ok, workflow_run} =
@@ -294,6 +347,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
         %{
           run_id: run.id,
           managed_repo_id: managed_repo.id,
+          work_item_id: work_item.id,
           key: "memory_history",
           evidence_type: "memory_graph_finding",
           summary: "Memory context was recorded for this governed run.",
@@ -310,6 +364,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
           decision_key: "memory-run-#{run.id}",
           run_id: run.id,
           managed_repo_id: managed_repo.id,
+          work_item_id: work_item.id,
           decision: :defer,
           actor: %{"id" => "owner-1", "email" => "memory-run-owner@example.com"},
           rationale: "Memory context should stay reviewable on the run route.",
@@ -328,7 +383,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       revision,
       run_id,
       evidence.id,
-      decision.id
+      decision.id,
+      work_item_id: work_item.id
     )
 
     {:ok, view, _html} =
@@ -338,6 +394,11 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
     assert has_element?(view, "#run-detail-memory-context")
     assert has_element?(view, "#run-detail-memory-context-state", "ready")
+    assert has_element?(view, "#run-detail-work-item-entry")
+    assert has_element?(view, "#run-detail-memory-work-item-history")
+    assert has_element?(view, "#run-detail-work-item-memory", "Work item memory context")
+    assert has_element?(view, "#run-detail-evidence-memory-contexts", "Evidence memory context")
+    assert has_element?(view, "#run-detail-decision-memory-contexts", "Decision memory context")
     assert rendered =~ "memory_history"
     assert rendered =~ "defer"
   end
@@ -2047,7 +2108,9 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     workspace_path
   end
 
-  defp seed_run_memory_context!(managed_repo_id, workspace_path, revision, run_id, evidence_id, decision_id, opts \\ []) do
+  defp seed_run_memory_context!(managed_repo_id, workspace_path, revision, run_id, evidence_id, decision_id, opts) do
+    work_item_id = Keyword.get(opts, :work_item_id, "work-memory")
+
     assert {:ok, _refresh_result} =
              AgentWorkspace.refresh_memory_graph(
                managed_repo_id,
@@ -2065,7 +2128,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                  session_id: session_id,
                  actor_id: "system:run-detail-memory",
                  workflow: :review,
-                 work_item_id: "work-memory",
+                 work_item_id: work_item_id,
                  goal: "Seed run detail memory context"
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
@@ -2080,10 +2143,10 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                  session_id: session_id,
                  actor_id: "system:run-detail-memory",
                  workflow: :review,
-                 work_item_id: "work-memory",
+                 work_item_id: work_item_id,
                  content: "Review artifact captured for governed run memory context.",
                  anchors: %{module_name: "ExampleRunDetailMemory"},
-                 governed_context: %{run_id: run_id, decision_id: decision_id}
+                 governed_context: %{run_id: run_id, work_item_id: work_item_id, decision_id: decision_id}
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision
@@ -2097,11 +2160,16 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                  session_id: session_id,
                  actor_id: "system:run-detail-memory",
                  workflow: :review,
-                 work_item_id: "work-memory",
+                 work_item_id: work_item_id,
                  content: "Run detail should surface memory context for governed review.",
                  revision: revision,
                  anchors: %{module_name: "ExampleRunDetailMemory"},
-                 governed_context: %{run_id: run_id, evidence_id: evidence_id, decision_id: decision_id},
+                 governed_context: %{
+                   run_id: run_id,
+                   work_item_id: work_item_id,
+                   evidence_id: evidence_id,
+                   decision_id: decision_id
+                 },
                  classification: %{
                    source: "run_detail_live_test",
                    reason: "Phase 33.1 requires bounded run memory context."
@@ -2119,13 +2187,13 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                    session_id: session_id,
                    actor_id: "system:run-detail-memory",
                    workflow: :review,
-                   work_item_id: "work-memory",
+                   work_item_id: work_item_id,
                    content: "Earlier governed decisions should remain reviewable in durable memory.",
                    rationale: "Operator supersession coverage needs a prior durable decision memory.",
                    decision_status: :accepted,
                    revision: revision,
                    anchors: %{module_name: "ExampleRunDetailMemory"},
-                   governed_context: %{run_id: run_id},
+                   governed_context: %{run_id: run_id, work_item_id: work_item_id},
                    classification: %{
                      source: "run_detail_live_test",
                      reason: "Phase 33.2 requires a durable decision memory for supersession coverage."

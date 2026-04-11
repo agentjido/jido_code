@@ -35,7 +35,7 @@ Back to index: [README](./README.md)
 - The stronger model uses a companion ontology file for governed product records instead of overloading `jido-memory.ttl` with mixed concerns.
 - This repo is greenfield after current-truth updates, so the rollout may cut over directly rather than preserving long-lived compatibility shapes for old generic governed links.
 
-[ ] 35 Phase 35 - Governed Control-Plane Ontology And Typed Reference Foundation
+[x] 35 Phase 35 - Governed Control-Plane Ontology And Typed Reference Foundation
   Establish the companion control-plane ontology and canonical typed governed-reference contract so memory and provenance can link to governed product records semantically instead of through generic artifact identifiers.
 
   [x] 35.1 Section - Companion Control-Plane Ontology
@@ -72,19 +72,19 @@ Back to index: [README](./README.md)
       [x] 35.2.2.2 Subtask - Update `.spec/topology.md` so the architecture diagrams and concept descriptions show governed product records as first-class semantic entities.
       [x] 35.2.2.3 Subtask - Keep the planning and package guidance explicit that the stronger semantic model still preserves governed product records as the business system of record.
 
-  [ ] 35.3 Section - Phase 35 Integration Tests
+  [x] 35.3 Section - Phase 35 Integration Tests
     Verify the ontology split, IRI contract, and current-truth workspace before later phases cut over runtime capture and product services.
 
-    [ ] 35.3.1 Task - Ontology and governed-reference contract scenarios
+    [x] 35.3.1 Task - Ontology and governed-reference contract scenarios
       Prove the semantic foundation is loadable, unambiguous, and aligned to product naming.
 
-      [ ] 35.3.1.1 Subtask - Add coverage proving the companion ontology loads alongside `jido-memory.ttl` without namespace ambiguity.
-      [ ] 35.3.1.2 Subtask - Add coverage proving canonical governed IRI helpers generate stable repository-scoped identifiers for each governed record kind.
-      [ ] 35.3.1.3 Subtask - Add coverage proving the stronger model still uses the existing `source_code`, `memory`, and `workflow_provenance` graphs rather than introducing a governance graph.
+      [x] 35.3.1.1 Subtask - Add coverage proving the companion ontology loads alongside `jido-memory.ttl` without namespace ambiguity.
+      [x] 35.3.1.2 Subtask - Add coverage proving canonical governed IRI helpers generate stable repository-scoped identifiers for each governed record kind.
+      [x] 35.3.1.3 Subtask - Add coverage proving the stronger model still uses the existing `source_code`, `memory`, and `workflow_provenance` graphs rather than introducing a governance graph.
 
-    [ ] 35.3.2 Task - Spec and topology coherence scenarios
+    [x] 35.3.2 Task - Spec and topology coherence scenarios
       Prove the workspace explains the stronger semantic model consistently before runtime code starts depending on it.
 
-      [ ] 35.3.2.1 Subtask - Verify the relevant ADR and subject specs all describe the same ontology split and typed governed-link model.
-      [ ] 35.3.2.2 Subtask - Verify `.spec/topology.md` remains aligned with the current semantic planes and product routes.
-      [ ] 35.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 35 adds the stronger semantic foundation.
+      [x] 35.3.2.1 Subtask - Verify the relevant ADR and subject specs all describe the same ontology split and typed governed-link model.
+      [x] 35.3.2.2 Subtask - Verify `.spec/topology.md` remains aligned with the current semantic planes and product routes.
+      [x] 35.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 35 adds the stronger semantic foundation.

@@ -30,7 +30,9 @@ related:
 <!-- covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints -->
 <!-- covers: architecture.memory_graph.memory_graph_supports_cross_graph_provenance -->
 <!-- covers: architecture.memory_ontology.coding_memory_types_extend_core_memory_model -->
+<!-- covers: architecture.memory_ontology.companion_control_plane_ontology_models_governed_records -->
 <!-- covers: architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols -->
+<!-- covers: architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations -->
 <!-- covers: architecture.memory_ontology.change_and_revision_provenance_is_explicit -->
 <!-- covers: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence -->
 <!-- covers: architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled -->
@@ -94,8 +96,16 @@ The ontology boundary is:
 - the earlier Jido memory model expands from `Fact`, `Decision`, and
   `LessonLearned` into a coding-memory ontology that also includes `Invariant`,
   `Convention`, `KnownIssue`, `OpenQuestion`, `Pattern`, and `AntiPattern`
+- a companion governed control-plane ontology now models first-class
+  `ManagedRepo`, `Event`, `Observation`, `Assessment`, `WorkItem`, `Run`,
+  `Evidence`, `ChangeRequest`, and governed `Decision` entities so memory and
+  provenance can link to product records semantically instead of through
+  generic artifact-style identifiers
 - memories link explicitly to repository, file, module, function, test,
   configuration, and symbol entities from the `source_code` graph
+- memories and workflow provenance also link to governed product records
+  through typed relations such as `aboutManagedRepo`, `aboutRun`,
+  `aboutWorkItem`, `aboutEvidence`, and `aboutDecision`
 - workflow provenance entities such as `WorkSession`, `AgentRun`,
   `ToolInvocation`, `PromptTurn`, `Review`, `Patch`, and `Plan` remain explicit
   first-class nodes rather than flattened metadata blobs
@@ -115,6 +125,8 @@ system.
   same facts repeatedly.
 - The existing `source_code` graph becomes more valuable because code entities
   now serve as stable anchors for memory and workflow provenance.
+- Governed control-plane records also become first-class semantic link targets,
+  which improves cross-graph navigation without adding a fourth named graph.
 - The local repository semantic store now has a clearer multi-graph shape, which
   improves expressiveness but increases the need for stable IRIs, freshness
   metadata, and explicit invalidation semantics.

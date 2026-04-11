@@ -25,11 +25,17 @@ defmodule JidoCode.MemoryGraphTest do
                workflow_provenance: "https://jido.run/graphs/workflow_provenance"
              }
 
-      [artifact] = MemoryGraph.ontology_artifacts()
-      assert artifact.kind == :ontology_schema
-      assert artifact.filename == "jido-memory.ttl"
-      assert artifact.format == :turtle
-      assert String.ends_with?(artifact.path, "/priv/ontologies/jido-memory.ttl")
+      artifacts = MemoryGraph.ontology_artifacts()
+
+      assert Enum.map(artifacts, & &1.filename) == ["jido-memory.ttl", "jido-control-plane.ttl"]
+      assert Enum.all?(artifacts, &(&1.kind == :ontology_schema))
+      assert Enum.all?(artifacts, &(&1.format == :turtle))
+      assert String.ends_with?(MemoryGraph.ontology_path(), "/priv/ontologies/jido-memory.ttl")
+
+      assert String.ends_with?(
+               MemoryGraph.control_plane_ontology_path(),
+               "/priv/ontologies/jido-control-plane.ttl"
+             )
     end
 
     test "exposes stable repository-scoped base IRIs for memory and provenance" do

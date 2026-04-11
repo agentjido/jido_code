@@ -1,0 +1,222 @@
+defmodule JidoCode.MemoryGraph.GovernedReference do
+  # covers: architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+  # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+  # covers: architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical
+  @moduledoc """
+  Canonical repository-scoped governed reference helpers for semantic links.
+
+  This boundary gives memory, provenance, query, and UI shaping code one
+  normalized reference contract for governed product records. It is the
+  replacement target for older generic artifact-path assumptions.
+  """
+
+  @type managed_repo_id :: String.t()
+  @type kind ::
+          :managed_repo
+          | :event
+          | :observation
+          | :assessment
+          | :work_item
+          | :run
+          | :evidence
+          | :change_request
+          | :decision
+  @type normalized_reference :: %{
+          kind: kind(),
+          id: String.t(),
+          iri: String.t(),
+          label: String.t()
+        }
+
+  @kind_path %{
+    managed_repo: "managed_repo",
+    event: "event",
+    observation: "observation",
+    assessment: "assessment",
+    work_item: "work_item",
+    run: "run",
+    evidence: "evidence",
+    change_request: "change_request",
+    decision: "decision"
+  }
+
+  @kind_labels %{
+    managed_repo: "Managed repo",
+    event: "Event",
+    observation: "Observation",
+    assessment: "Assessment",
+    work_item: "Work item",
+    run: "Run",
+    evidence: "Evidence",
+    change_request: "Change request",
+    decision: "Decision"
+  }
+
+  @shorthand_keys [
+    {:managed_repo_id, :managed_repo},
+    {"managed_repo_id", :managed_repo},
+    {:event_id, :event},
+    {"event_id", :event},
+    {:observation_id, :observation},
+    {"observation_id", :observation},
+    {:assessment_id, :assessment},
+    {"assessment_id", :assessment},
+    {:work_item_id, :work_item},
+    {"work_item_id", :work_item},
+    {:run_id, :run},
+    {"run_id", :run},
+    {:evidence_id, :evidence},
+    {"evidence_id", :evidence},
+    {:change_request_id, :change_request},
+    {"change_request_id", :change_request},
+    {:decision_id, :decision},
+    {"decision_id", :decision}
+  ]
+
+  @spec kinds() :: [kind()]
+  def kinds, do: Map.keys(@kind_path)
+
+  @spec base_iri(managed_repo_id()) :: String.t()
+  def base_iri(managed_repo_id) when is_binary(managed_repo_id) do
+    "https://jido.run/managed_repos/#{managed_repo_id}/governed#"
+  end
+
+  @spec iri(managed_repo_id(), kind(), String.t()) :: String.t()
+  def iri(managed_repo_id, kind, id) when is_binary(managed_repo_id) and is_binary(id) do
+    "#{base_iri(managed_repo_id)}#{kind_segment(kind)}/#{URI.encode(id, &URI.char_unreserved?/1)}"
+  end
+
+  @spec resource(managed_repo_id(), kind(), String.t()) :: RDF.IRI.t()
+  def resource(managed_repo_id, kind, id), do: RDF.iri(iri(managed_repo_id, kind, id))
+
+  @spec label(kind(), String.t()) :: String.t()
+  def label(kind, id) when is_binary(id), do: "#{kind_label(kind)} #{id}"
+
+  @spec normalize(managed_repo_id(), map() | keyword() | {kind(), String.t()}) ::
+          {:ok, normalized_reference()} | {:error, atom()}
+  def normalize(managed_repo_id, {kind, id}) when is_binary(managed_repo_id) and is_binary(id) do
+    build_reference(managed_repo_id, %{kind: kind, id: id})
+  end
+
+  def normalize(managed_repo_id, reference) when is_binary(managed_repo_id) and is_list(reference) do
+    normalize(managed_repo_id, Enum.into(reference, %{}))
+  end
+
+  def normalize(managed_repo_id, reference) when is_binary(managed_repo_id) and is_map(reference) do
+    with {:ok, kind, id} <- extract_kind_and_id(reference),
+         :ok <- validate_repo_scope(managed_repo_id, kind, id) do
+      build_reference(managed_repo_id, %{
+        kind: kind,
+        id: id,
+        iri: first_present(reference, [:iri, "iri"]),
+        label: first_present(reference, [:label, "label"])
+      })
+    end
+  end
+
+  def normalize(_managed_repo_id, _reference), do: {:error, :invalid_governed_reference}
+
+  @spec normalize_many(managed_repo_id(), [map() | keyword() | {kind(), String.t()}]) ::
+          {:ok, [normalized_reference()]} | {:error, atom()}
+  def normalize_many(managed_repo_id, references)
+      when is_binary(managed_repo_id) and is_list(references) do
+    references
+    |> Enum.reduce_while({:ok, []}, fn reference, {:ok, normalized} ->
+      case normalize(managed_repo_id, reference) do
+        {:ok, result} -> {:cont, {:ok, [result | normalized]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, normalized} ->
+        normalized
+        |> Enum.reverse()
+        |> Enum.uniq_by(& &1.iri)
+        |> then(&{:ok, &1})
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp build_reference(managed_repo_id, %{kind: kind, id: id} = attrs) do
+    with {:ok, normalized_kind} <- normalize_kind(kind),
+         true <- present?(id) or {:error, :invalid_governed_reference} do
+      {:ok,
+       %{
+         kind: normalized_kind,
+         id: id,
+         iri: attrs[:iri] || iri(managed_repo_id, normalized_kind, id),
+         label: attrs[:label] || label(normalized_kind, id)
+       }}
+    end
+  end
+
+  defp extract_kind_and_id(reference) do
+    explicit_kind = first_present(reference, [:kind, "kind"])
+    explicit_id = first_present(reference, [:id, "id"])
+
+    cond do
+      explicit_kind && explicit_id ->
+        with {:ok, kind} <- normalize_kind(explicit_kind) do
+          {:ok, kind, explicit_id}
+        end
+
+      true ->
+        shorthand(reference)
+    end
+  end
+
+  defp shorthand(reference) do
+    Enum.find_value(@shorthand_keys, {:error, :invalid_governed_reference}, fn {key, kind} ->
+      case first_present(reference, [key]) do
+        nil -> nil
+        id -> {:ok, kind, id}
+      end
+    end)
+  end
+
+  defp validate_repo_scope(managed_repo_id, :managed_repo, id) when managed_repo_id != id do
+    {:error, :managed_repo_scope_mismatch}
+  end
+
+  defp validate_repo_scope(_managed_repo_id, _kind, _id), do: :ok
+
+  defp kind_segment(kind), do: Map.fetch!(@kind_path, kind)
+  defp kind_label(kind), do: Map.fetch!(@kind_labels, kind)
+
+  defp normalize_kind(kind) when is_atom(kind) do
+    if Map.has_key?(@kind_path, kind) do
+      {:ok, kind}
+    else
+      {:error, :invalid_governed_reference_kind}
+    end
+  end
+
+  defp normalize_kind(kind) when is_binary(kind) do
+    case String.trim(kind) do
+      "managed_repo" -> {:ok, :managed_repo}
+      "event" -> {:ok, :event}
+      "observation" -> {:ok, :observation}
+      "assessment" -> {:ok, :assessment}
+      "work_item" -> {:ok, :work_item}
+      "run" -> {:ok, :run}
+      "evidence" -> {:ok, :evidence}
+      "change_request" -> {:ok, :change_request}
+      "decision" -> {:ok, :decision}
+      _other -> {:error, :invalid_governed_reference_kind}
+    end
+  end
+
+  defp normalize_kind(_kind), do: {:error, :invalid_governed_reference_kind}
+
+  defp first_present(map, keys) do
+    Enum.find_value(keys, fn key ->
+      value = Map.get(map, key)
+      if present?(value), do: value
+    end)
+  end
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(value), do: not is_nil(value)
+end

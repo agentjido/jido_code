@@ -132,29 +132,35 @@ defmodule JidoCode.MemoryGraph.Store do
   end
 
   defp load_ontology_graph(store, named_graph_resource) do
-    case RDF.Turtle.read_file(MemoryGraph.ontology_path()) do
-      {:ok, graph} ->
-        case TripleStore.load_graph(store, graph, graph: named_graph_resource) do
-          {:ok, count} ->
-            {:ok, count}
+    MemoryGraph.ontology_artifacts()
+    |> Enum.reduce_while({:ok, 0}, fn artifact, {:ok, total_count} ->
+      case RDF.Turtle.read_file(artifact.path) do
+        {:ok, graph} ->
+          case TripleStore.load_graph(store, graph, graph: named_graph_resource) do
+            {:ok, count} ->
+              {:cont, {:ok, total_count + count}}
 
-          {:error, reason} ->
-            {:error,
-             %{
-               stage: :load_ontology_graph,
-               named_graph_iri: to_string(named_graph_resource),
-               reason: inspect(reason)
-             }}
-        end
+            {:error, reason} ->
+              {:halt,
+               {:error,
+                %{
+                  stage: :load_ontology_graph,
+                  named_graph_iri: to_string(named_graph_resource),
+                  ontology_path: artifact.path,
+                  reason: inspect(reason)
+                }}}
+          end
 
-      {:error, reason} ->
-        {:error,
-         %{
-           stage: :read_ontology,
-           ontology_path: MemoryGraph.ontology_path(),
-           reason: inspect(reason)
-         }}
-    end
+        {:error, reason} ->
+          {:halt,
+           {:error,
+            %{
+              stage: :read_ontology,
+              ontology_path: artifact.path,
+              reason: inspect(reason)
+            }}}
+      end
+    end)
   end
 
   defp graph_stats(store, named_graph_resource, graph_name) do

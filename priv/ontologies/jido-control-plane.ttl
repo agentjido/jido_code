@@ -1,0 +1,170 @@
+# covers: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+# covers: architecture.memory_ontology.companion_control_plane_ontology_models_governed_records
+# covers: architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations
+# covers: architecture.run_governance.run_is_preferred_execution_record
+
+@prefix jcp: <https://jido.run/ontology/control-plane#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+jcp: a owl:Ontology ;
+    rdfs:label "Jido Governed Control-Plane Ontology" ;
+    rdfs:comment "A companion ontology that models governed Jido.Code product records as first-class semantic entities so repository memory and workflow provenance can link to managed repositories, observations, assessments, work items, runs, evidence, change requests, and governed decisions directly." ;
+    owl:versionInfo "2026-04-11" .
+
+### Classes
+
+jcp:GovernedRecord a owl:Class ;
+    rdfs:label "Governed Record" ;
+    rdfs:comment "A durable product-owned control-plane record in Jido.Code." ;
+    rdfs:subClassOf prov:Entity .
+
+jcp:ManagedRepo a owl:Class ;
+    rdfs:label "Managed Repository" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Event a owl:Class ;
+    rdfs:label "Event" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Observation a owl:Class ;
+    rdfs:label "Observation" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Assessment a owl:Class ;
+    rdfs:label "Assessment" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:WorkItem a owl:Class ;
+    rdfs:label "Work Item" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Run a owl:Class ;
+    rdfs:label "Run" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Evidence a owl:Class ;
+    rdfs:label "Evidence" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ChangeRequest a owl:Class ;
+    rdfs:label "Change Request" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Decision a owl:Class ;
+    rdfs:label "Governed Decision" ;
+    rdfs:comment "A governed control-plane decision record, distinct from memory:Decision." ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+### Object properties
+
+jcp:forManagedRepo a owl:ObjectProperty ;
+    rdfs:label "for managed repo" ;
+    rdfs:comment "Scopes a governed record to its canonical managed repository." ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range jcp:ManagedRepo .
+
+jcp:aboutEvent a owl:ObjectProperty ;
+    rdfs:label "about event" ;
+    rdfs:domain jcp:Observation ;
+    rdfs:range jcp:Event .
+
+jcp:informedByObservation a owl:ObjectProperty ;
+    rdfs:label "informed by observation" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range jcp:Observation .
+
+jcp:informedByEvent a owl:ObjectProperty ;
+    rdfs:label "informed by event" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range jcp:Event .
+
+jcp:derivedFromAssessment a owl:ObjectProperty ;
+    rdfs:label "derived from assessment" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range jcp:Assessment .
+
+jcp:executesWorkItem a owl:ObjectProperty ;
+    rdfs:label "executes work item" ;
+    rdfs:domain jcp:Run ;
+    rdfs:range jcp:WorkItem .
+
+jcp:hasEvidence a owl:ObjectProperty ;
+    rdfs:label "has evidence" ;
+    rdfs:domain jcp:Run ;
+    rdfs:range jcp:Evidence .
+
+jcp:hasChangeRequest a owl:ObjectProperty ;
+    rdfs:label "has change request" ;
+    rdfs:domain jcp:Run ;
+    rdfs:range jcp:ChangeRequest .
+
+jcp:hasDecision a owl:ObjectProperty ;
+    rdfs:label "has decision" ;
+    rdfs:domain jcp:Run ;
+    rdfs:range jcp:Decision .
+
+jcp:reviewsEvidence a owl:ObjectProperty ;
+    rdfs:label "reviews evidence" ;
+    rdfs:domain jcp:Decision ;
+    rdfs:range jcp:Evidence .
+
+jcp:supersedesDecision a owl:ObjectProperty ;
+    rdfs:label "supersedes governed decision" ;
+    rdfs:domain jcp:Decision ;
+    rdfs:range jcp:Decision .
+
+### Datatype properties
+
+jcp:managedRepoId a owl:DatatypeProperty ;
+    rdfs:label "managed repo id" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:eventId a owl:DatatypeProperty ;
+    rdfs:label "event id" ;
+    rdfs:domain jcp:Event ;
+    rdfs:range xsd:string .
+
+jcp:observationId a owl:DatatypeProperty ;
+    rdfs:label "observation id" ;
+    rdfs:domain jcp:Observation ;
+    rdfs:range xsd:string .
+
+jcp:assessmentId a owl:DatatypeProperty ;
+    rdfs:label "assessment id" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range xsd:string .
+
+jcp:workItemId a owl:DatatypeProperty ;
+    rdfs:label "work item id" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range xsd:string .
+
+jcp:runId a owl:DatatypeProperty ;
+    rdfs:label "run id" ;
+    rdfs:domain jcp:Run ;
+    rdfs:range xsd:string .
+
+jcp:evidenceId a owl:DatatypeProperty ;
+    rdfs:label "evidence id" ;
+    rdfs:domain jcp:Evidence ;
+    rdfs:range xsd:string .
+
+jcp:changeRequestId a owl:DatatypeProperty ;
+    rdfs:label "change request id" ;
+    rdfs:domain jcp:ChangeRequest ;
+    rdfs:range xsd:string .
+
+jcp:decisionId a owl:DatatypeProperty ;
+    rdfs:label "decision id" ;
+    rdfs:domain jcp:Decision ;
+    rdfs:range xsd:string .
+
+jcp:recordLabel a owl:DatatypeProperty ;
+    rdfs:label "record label" ;
+    rdfs:comment "A human-facing label for bounded product projections over governed records." ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .

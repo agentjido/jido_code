@@ -172,6 +172,33 @@ This graph stores workflow and runtime provenance such as:
 This graph explains how work happened and how later memories or governed
 follow-up were produced.
 
+## Ontology Split
+
+The semantic store still uses three named graphs, but it now uses two
+complementary ontology assets:
+
+- [priv/ontologies/jido-memory.ttl](/Users/Pascal/code/epic/jido_code/priv/ontologies/jido-memory.ttl)
+  for durable coding memory and workflow provenance
+- [priv/ontologies/jido-control-plane.ttl](/Users/Pascal/code/epic/jido_code/priv/ontologies/jido-control-plane.ttl)
+  for first-class governed product records
+
+```mermaid
+flowchart LR
+  MEM["jido-memory.ttl<br/>memory and workflow provenance classes"] --> MEMORY["memory + workflow_provenance individuals"]
+  CP["jido-control-plane.ttl<br/>governed product record classes"] --> GOV["ManagedRepo, Observation, Assessment,<br/>WorkItem, Run, Evidence, ChangeRequest, Decision"]
+  MEMORY --> LINKS["typed governed links<br/>aboutManagedRepo / aboutRun / aboutWorkItem / aboutEvidence / aboutDecision"]
+  LINKS --> GOV
+```
+
+This split matters because it keeps two different concepts distinct:
+
+- memory `Decision` means a durable coding-memory decision
+- governed `Decision` means a control-plane review or governance record
+
+The stronger semantic model does **not** add a fourth governance graph. Instead,
+the existing `memory` and `workflow_provenance` graphs can point at governed
+records semantically through typed repository-scoped IRIs.
+
 ## Memory And Provenance Topology
 
 The memory system has two related but separate concerns:
@@ -220,6 +247,9 @@ Cross-graph navigation is how the product safely moves among:
 - durable memories in `memory`
 - workflow provenance in `workflow_provenance`
 - governed product records such as runs, work items, evidence, and decisions
+
+Those governed records now have a typed semantic contract too, so cross-graph
+navigation no longer has to treat them as generic artifact identifiers.
 
 The product does not expose raw graph joins or direct RDF query text as the UI
 contract. Instead, it exposes repository-scoped routes and bounded projections.

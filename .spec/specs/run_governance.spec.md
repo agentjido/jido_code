@@ -266,6 +266,11 @@ surface:
     - architecture.run_governance.run_detail_can_host_bounded_memory_context
 
 - kind: source_file
+  target: test/jido_code/phase_thirty_seven_integration_test.exs
+  covers:
+    - architecture.run_governance.run_detail_can_host_bounded_memory_context
+
+- kind: source_file
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model

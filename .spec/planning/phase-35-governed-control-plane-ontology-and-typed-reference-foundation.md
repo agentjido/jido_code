@@ -55,22 +55,22 @@ Back to index: [README](./README.md)
       [x] 35.1.2.2 Subtask - Model the canonical control-plane relationships among those records, including demand interpretation, work synthesis, run governance, and review history.
       [x] 35.1.2.3 Subtask - Define stable repository-scoped IRIs and labels for governed product records so later memory and provenance links do not rely on generic artifact paths.
 
-  [ ] 35.2 Section - Typed Governed Reference Contract
+  [x] 35.2 Section - Typed Governed Reference Contract
     Define the code-level contract that turns product record ids and generic artifact paths into one typed governed-reference model reused across capture, query, navigation, and UI shaping.
 
-    [ ] 35.2.1 Task - Add canonical governed-reference helpers and normalization rules
+    [x] 35.2.1 Task - Add canonical governed-reference helpers and normalization rules
       Introduce one product-owned helper boundary for typed governed IRIs and reference metadata so later phases do not re-invent link semantics in envelopes or services.
 
-      [ ] 35.2.1.1 Subtask - Add canonical IRI helpers for governed record kinds such as `run`, `work_item`, `evidence`, `decision`, `observation`, `assessment`, `change_request`, and `managed_repo`.
-      [ ] 35.2.1.2 Subtask - Define one normalized governed-reference shape that carries kind, id, iri, and label inputs without falling back to generic `artifact` naming.
-      [ ] 35.2.1.3 Subtask - Replace the plan-level assumption that generic artifact paths are the durable contract for governed references.
+      [x] 35.2.1.1 Subtask - Add canonical IRI helpers for governed record kinds such as `run`, `work_item`, `evidence`, `decision`, `observation`, `assessment`, `change_request`, and `managed_repo`.
+      [x] 35.2.1.2 Subtask - Define one normalized governed-reference shape that carries kind, id, iri, and label inputs without falling back to generic `artifact` naming.
+      [x] 35.2.1.3 Subtask - Replace the plan-level assumption that generic artifact paths are the durable contract for governed references.
 
-    [ ] 35.2.2 Task - Align current-truth docs and topology to the stronger semantic model
+    [x] 35.2.2 Task - Align current-truth docs and topology to the stronger semantic model
       Update the spec workspace so the stronger model is explicit about the ontology split, typed governed links, and no-new-graph constraint.
 
-      [ ] 35.2.2.1 Subtask - Update the relevant ADR/spec subjects to describe the companion control-plane ontology and typed governed-reference contract.
-      [ ] 35.2.2.2 Subtask - Update `.spec/topology.md` so the architecture diagrams and concept descriptions show governed product records as first-class semantic entities.
-      [ ] 35.2.2.3 Subtask - Keep the planning and package guidance explicit that the stronger semantic model still preserves governed product records as the business system of record.
+      [x] 35.2.2.1 Subtask - Update the relevant ADR/spec subjects to describe the companion control-plane ontology and typed governed-reference contract.
+      [x] 35.2.2.2 Subtask - Update `.spec/topology.md` so the architecture diagrams and concept descriptions show governed product records as first-class semantic entities.
+      [x] 35.2.2.3 Subtask - Keep the planning and package guidance explicit that the stronger semantic model still preserves governed product records as the business system of record.
 
   [ ] 35.3 Section - Phase 35 Integration Tests
     Verify the ontology split, IRI contract, and current-truth workspace before later phases cut over runtime capture and product services.

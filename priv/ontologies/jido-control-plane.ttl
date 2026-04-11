@@ -1,4 +1,6 @@
 # covers: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+# covers: architecture.memory_ontology.companion_control_plane_ontology_models_governed_records
+# covers: architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations
 # covers: architecture.run_governance.run_is_preferred_execution_record
 
 @prefix jcp: <https://jido.run/ontology/control-plane#> .

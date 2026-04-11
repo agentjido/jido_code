@@ -1,5 +1,7 @@
 # covers: architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+# covers: architecture.memory_ontology.companion_control_plane_ontology_models_governed_records
 # covers: architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
+# covers: architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations
 # covers: architecture.memory_ontology.change_and_revision_provenance_is_explicit
 # covers: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
 # covers: architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled

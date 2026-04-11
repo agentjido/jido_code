@@ -925,6 +925,14 @@
       },
       {
         "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "The semantic stack shall define one canonical typed governed-reference contract for managed repository, observation, assessment, work item, run, evidence, change request, and decision links so later capture, query, navigation, and UI layers do not depend on generic artifact-path naming.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
         "id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
         "priority": "must",
         "stability": "proposed",
@@ -1205,6 +1213,14 @@
       },
       {
         "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.companion_control_plane_ontology_models_governed_records",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The semantic model shall include a companion governed control-plane ontology that models first-class product records such as ManagedRepo, Event, Observation, Assessment, WorkItem, Run, Evidence, ChangeRequest, and governed Decision without overloading the coding-memory ontology with mixed concerns.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
         "id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
         "priority": "must",
         "stability": "proposed",
@@ -1225,6 +1241,14 @@
         "priority": "must",
         "stability": "proposed",
         "statement": "The ontology shall provide explicit relationships that let memories anchor to repository, file, module, function, test, configuration, and symbol entities through relations such as `aboutRepository`, `aboutFile`, `aboutModule`, `aboutFunction`, `aboutTest`, `aboutConfig`, and `affectsSymbol`.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The ontology shall provide explicit relationships that let memories and workflow provenance link to governed product records through typed relations such as `aboutManagedRepo`, `aboutObservation`, `aboutAssessment`, `aboutWorkItem`, `aboutRun`, `aboutEvidence`, `aboutChangeRequest`, and `aboutDecision`.",
         "subject_id": "architecture.memory_ontology"
       },
       {
@@ -3565,6 +3589,25 @@
       },
       {
         "covers": [
+          "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical",
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "given": [
+          "Memory, provenance, or product services need to point at governed product records."
+        ],
+        "id": "architecture.memory_capture_plane.scenario_governed_reference_contract_replaces_generic_artifact_naming",
+        "subject_id": "architecture.memory_capture_plane",
+        "then": [
+          "The links use a typed governed-reference contract with kind, id, iri, and label semantics.",
+          "Generic artifact-path naming is no longer treated as the durable semantic contract."
+        ],
+        "when": [
+          "The semantic stack normalizes those links before later write or query behavior."
+        ]
+      },
+      {
+        "covers": [
           "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
           "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
           "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples"
@@ -3998,7 +4041,28 @@
       },
       {
         "covers": [
+          "architecture.memory_ontology.companion_control_plane_ontology_models_governed_records",
+          "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "given": [
+          "Memory or workflow provenance needs to link to governed product records."
+        ],
+        "id": "architecture.memory_ontology.scenario_companion_ontology_keeps_governed_records_distinct",
+        "subject_id": "architecture.memory_ontology",
+        "then": [
+          "Governed product records remain first-class semantic entities in the companion ontology.",
+          "Memory `Decision` and governed `Decision` remain distinguishable by namespace and role.",
+          "Typed `about*` relations connect memory or provenance to governed product records without relying on generic artifact paths."
+        ],
+        "when": [
+          "The semantic stack loads the memory ontology alongside the governed control-plane ontology."
+        ]
+      },
+      {
+        "covers": [
           "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+          "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
           "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
           "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence"
         ],
@@ -4011,6 +4075,7 @@
         "then": [
           "The new memory uses the Decision class.",
           "It links to the affected code entities explicitly.",
+          "It can also link to the governed run or decision record it informed without confusing memory Decision with governed Decision.",
           "It records rationale, alternatives, supersession, and consequences rather than only free-form prose."
         ],
         "when": [
@@ -5584,7 +5649,7 @@
           "id": "architecture.agent_os_integration",
           "kind": "policy",
           "status": "proposed",
-          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, cross-graph consistency, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, query, and repository-scoped recovery that can also back product-owned services, an implemented MemoryGraphPod foundation with one eager context agent plus lazy recorder, querier, and validator specialists, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that now normalizes typed workflow-provenance envelopes and durable-memory envelopes before writing them through the canonical capture plane, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, product-owned governed-surface memory context and operator memory actions that still resolve through AgentWorkspace-backed services instead of pod-local mutation paths, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.",
+          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, cross-graph consistency, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, query, and repository-scoped recovery that can also back product-owned services, an implemented MemoryGraphPod foundation with one eager context agent plus lazy recorder, querier, and validator specialists, a companion governed control-plane ontology plus typed governed-reference contract available to that semantic stack before later capture and writer cutovers, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that now normalizes typed workflow-provenance envelopes and durable-memory envelopes before writing them through the canonical capture plane, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, product-owned governed-surface memory context and operator memory actions that still resolve through AgentWorkspace-backed services instead of pod-local mutation paths, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.",
           "surface": [
             ".spec/decisions/jido_code.jido_agent_os_integration.md",
             ".spec/decisions/jido_code.jido_os_deprecation.md",
@@ -5803,7 +5868,7 @@
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -5980,7 +6045,7 @@
           "id": "architecture.memory_capture_plane",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, and extends that same seam to future operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces.",
+          "summary": "Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to future operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and now defines a canonical typed governed-reference contract that later capture and writer phases can reuse instead of generic artifact-path semantics.",
           "surface": [
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
             ".spec/specs/memory_graph.spec.md",
@@ -6024,7 +6089,7 @@
           "id": "architecture.memory_graph",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, now establishes bounded product-facing memory-service and memory-view adoption over those workspace entrypoints, prepares governed workflow surfaces and operator memory actions to consume the same bounded memory stack, and now includes dashboard summary shaping, governed surface context, canonical operator mutation service, and product-shaped follow-up preview boundaries so memory-backed navigation and follow-up remain repository-scoped and explainable when they reach operator surfaces.",
+          "summary": "Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now loads a companion governed control-plane ontology beside the coding-memory ontology, includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, now establishes bounded product-facing memory-service and memory-view adoption over those workspace entrypoints, prepares governed workflow surfaces and operator memory actions to consume the same bounded memory stack, and now includes dashboard summary shaping, governed surface context, canonical operator mutation service, product-shaped follow-up preview boundaries, and a typed governed-reference contract so memory-backed navigation and follow-up remain repository-scoped and explainable when they reach operator surfaces.",
           "surface": [
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
             ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
@@ -6076,7 +6141,7 @@
           "id": "architecture.memory_graph_product_adoption",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, and requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, while keeping dashboard summaries, managed-repository detail, and governed run detail on the same bounded navigation and follow-up-preview contract.",
+          "summary": "Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology and typed governed-reference contract while keeping dashboard summaries, managed-repository detail, and governed run detail on the same bounded navigation and follow-up-preview contract.",
           "surface": [
             ".spec/decisions/jido_code.memory_graph_product_adoption.md",
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
@@ -6121,7 +6186,7 @@
           "id": "architecture.memory_graph_surface_rollout_and_governance_actions",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses, with dashboard summary feeds, governed surface sections, and follow-up preview widgets all staying tied to canonical product routes.",
+          "summary": "Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses, with dashboard summary feeds, governed surface sections, follow-up preview widgets, and the new typed governed-reference contract all staying tied to canonical product routes.",
           "surface": [
             ".spec/decisions/jido_code.memory_graph_surface_rollout_and_governance_actions.md",
             ".spec/specs/memory_graph_product_adoption.spec.md",
@@ -6152,7 +6217,7 @@
           "id": "architecture.memory_graph_workflow_and_operator_expansion",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code expands bounded repository memory and workflow-provenance adoption beyond managed-repository detail into canonical governed run, work-item, evidence, and decision surfaces, introduces product-owned memory action boundaries for validation, invalidation, supersession, and governed promotion over the capture plane rather than direct graph mutation, standardizes bounded cross-graph navigation among memory, workflow provenance, source-code entities, and governed records, lets planner, reviewer, and explainer flows request durable memory through explicit retrieval policies keyed to freshness, memory class, and follow-up intent, and keeps memory-derived product behavior explainable by preserving freshness, supersession, provenance, governed follow-up previews, and governed adoption metadata whenever operators or workflows act on durable memory.",
+          "summary": "Jido.Code expands bounded repository memory and workflow-provenance adoption beyond managed-repository detail into canonical governed run, work-item, evidence, and decision surfaces, introduces product-owned memory action boundaries for validation, invalidation, supersession, and governed promotion over the capture plane rather than direct graph mutation, standardizes bounded cross-graph navigation among memory, workflow provenance, source-code entities, and governed records, now grounds those governed cross-links in the companion control-plane ontology plus typed governed-reference contract, lets planner, reviewer, and explainer flows request durable memory through explicit retrieval policies keyed to freshness, memory class, and follow-up intent, and keeps memory-derived product behavior explainable by preserving freshness, supersession, provenance, governed follow-up previews, and governed adoption metadata whenever operators or workflows act on durable memory.",
           "surface": [
             ".spec/decisions/jido_code.memory_graph_product_adoption.md",
             ".spec/decisions/jido_code.memory_graph_workflow_and_operator_expansion.md",
@@ -6181,7 +6246,7 @@
           "id": "architecture.memory_ontology",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, expects durable-memory update envelopes and writers to preserve those mutation semantics when operator or workflow actions evolve memory state, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.",
+          "summary": "Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, now complements that memory ontology with a companion governed control-plane ontology for product records such as ManagedRepo, Observation, Assessment, WorkItem, Run, Evidence, ChangeRequest, and governed Decision, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, expects durable-memory update envelopes and writers to preserve those mutation semantics when operator or workflow actions evolve memory state, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.",
           "surface": [
             ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
             ".spec/specs/memory_graph.spec.md",
@@ -6254,7 +6319,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, product-owned semantic memory-adoption helpers, dashboard memory summary shaping, governed surface context loaders, canonical operator memory actions, and follow-up preview boundaries under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, and operator memory-action expansion as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, product-owned semantic memory-adoption helpers, dashboard memory summary shaping, governed surface context loaders, canonical operator memory actions, follow-up preview boundaries, the companion governed control-plane ontology, and the typed governed-reference helper boundary under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, and operator memory-action expansion as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -6732,7 +6797,7 @@
           "id": "architecture.source_code_graph_pod",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, assigns stable repository-scoped IRIs so code entities can anchor sibling memory and workflow-provenance graphs later, now feeds those stable IRIs into the typed memory-capture envelope seam for workflow provenance links and durable-memory anchors when code entities are known, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, supports explainable sibling memory-graph consistency by keeping those code anchors stable across refresh and recovery, keeps governed-surface memory context and cross-graph navigation anchored to the same stable source-code IRIs instead of ad hoc graph joins, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists and product-owned semantic service boundaries, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology, and keeps the phase and workspace verification suite aligned to the persisted-kernel runtime path that now backs source-graph pod restoration.",
+          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, assigns stable repository-scoped IRIs so code entities can anchor sibling memory and workflow-provenance graphs later, now feeds those stable IRIs into the typed memory-capture envelope seam for workflow provenance links and durable-memory anchors when code entities are known, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, supports explainable sibling memory-graph consistency by keeping those code anchors stable across refresh and recovery while the sibling memory stack adds a companion governed control-plane ontology and typed governed references without introducing a fourth graph, keeps governed-surface memory context and cross-graph navigation anchored to the same stable source-code IRIs instead of ad hoc graph joins, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists and product-owned semantic service boundaries, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology, and keeps the phase and workspace verification suite aligned to the persisted-kernel runtime path that now backs source-graph pod restoration.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
             ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
@@ -8172,6 +8237,7 @@
           "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
           "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
           "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+          "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical",
           "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
           "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption"
         ],
@@ -8211,6 +8277,16 @@
         "kind": "source_file",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/capture_envelope.ex"
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+          "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/governed_reference.ex"
       },
       {
         "covers": [
@@ -8308,6 +8384,16 @@
         "kind": "source_file",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_workspace_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+          "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/memory_graph_governed_reference_test.exs"
       },
       {
         "covers": [
@@ -8792,7 +8878,9 @@
       {
         "covers": [
           "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+          "architecture.memory_ontology.companion_control_plane_ontology_models_governed_records",
           "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+          "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
           "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
           "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
           "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
@@ -8809,6 +8897,7 @@
         "covers": [
           "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
           "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+          "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
           "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
           "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
           "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
@@ -8820,6 +8909,16 @@
         "kind": "source_file",
         "subject_id": "architecture.memory_ontology",
         "target": "priv/ontologies/jido-memory.ttl"
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.companion_control_plane_ontology_models_governed_records",
+          "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-control-plane.ttl"
       },
       {
         "covers": [
@@ -12755,10 +12854,10 @@
     "decisions": 22,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 311,
-    "scenarios": 144,
+    "requirements": 314,
+    "scenarios": 146,
     "subjects": 42,
-    "verifications": 576
+    "verifications": 579
   },
   "verification": {
     "claims": [
@@ -16019,6 +16118,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
         "cover_id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
         "file": ".spec/specs/memory_capture_plane.spec.md",
         "kind": "source_file",
@@ -16140,6 +16250,28 @@
         "verification_index": 3
       },
       {
+        "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/governed_reference.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/governed_reference.ex",
+        "verification_index": 4
+      },
+      {
         "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
         "file": ".spec/specs/memory_capture_plane.spec.md",
         "kind": "source_file",
@@ -16148,7 +16280,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/capture_writer.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
@@ -16159,7 +16291,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/capture_writer.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
@@ -16170,39 +16302,6 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/capture_writer.ex",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
-        "file": ".spec/specs/memory_capture_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_capture_plane",
-        "target": "lib/jido_code/memory_graph/durable_memory_envelope.ex",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
-        "file": ".spec/specs/memory_capture_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_capture_plane",
-        "target": "lib/jido_code/memory_graph/durable_memory_envelope.ex",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
-        "file": ".spec/specs/memory_capture_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_capture_plane",
-        "target": "lib/jido_code/memory_graph/durable_memory_envelope.ex",
         "verification_index": 5
       },
       {
@@ -16213,18 +16312,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
-        "target": "lib/jido_code/memory_graph/durable_memory_writer.ex",
-        "verification_index": 6
-      },
-      {
-        "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
-        "file": ".spec/specs/memory_capture_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_capture_plane",
-        "target": "lib/jido_code/memory_graph/durable_memory_writer.ex",
+        "target": "lib/jido_code/memory_graph/durable_memory_envelope.ex",
         "verification_index": 6
       },
       {
@@ -16235,8 +16323,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
+        "target": "lib/jido_code/memory_graph/durable_memory_envelope.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/durable_memory_envelope.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/durable_memory_writer.ex",
         "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/durable_memory_writer.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
@@ -16247,7 +16379,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
@@ -16258,7 +16390,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
@@ -16269,7 +16401,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
@@ -16280,7 +16412,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
@@ -16291,7 +16423,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/source_code_graph/memory_capture.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
@@ -16302,7 +16434,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/source_code_graph/memory_capture.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
@@ -16313,7 +16445,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/actions/record_memory_graph.ex",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
@@ -16324,7 +16456,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/actions/record_memory_graph.ex",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
@@ -16335,7 +16467,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "lib/jido_code/actions/record_memory_graph.ex",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
@@ -16346,7 +16478,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_actions_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
@@ -16357,7 +16489,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_actions_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
@@ -16368,7 +16500,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_actions_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
@@ -16379,7 +16511,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_actions_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
@@ -16390,7 +16522,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_actions_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
@@ -16401,7 +16533,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_workspace_test.exs",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
@@ -16412,17 +16544,6 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_workspace_test.exs",
-        "verification_index": 12
-      },
-      {
-        "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
-        "file": ".spec/specs/memory_capture_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_capture_plane",
-        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
         "verification_index": 13
       },
       {
@@ -16433,8 +16554,41 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/memory_graph_governed_reference_test.exs",
+        "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/memory_graph_governed_reference_test.exs",
+        "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
@@ -16445,7 +16599,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
@@ -16456,7 +16610,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
@@ -16467,7 +16621,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/phase_thirty_integration_test.exs",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
@@ -16478,7 +16632,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/phase_thirty_integration_test.exs",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
@@ -16489,7 +16643,7 @@
         "strength": "linked",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/phase_thirty_integration_test.exs",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation",
@@ -18109,6 +18263,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.memory_ontology.companion_control_plane_ontology_models_governed_records",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
         "cover_id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
         "file": ".spec/specs/memory_ontology.spec.md",
         "kind": "source_file",
@@ -18132,6 +18297,17 @@
       },
       {
         "cover_id": "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
         "file": ".spec/specs/memory_ontology.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -18230,6 +18406,17 @@
         "verification_index": 1
       },
       {
+        "cover_id": "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields",
         "file": ".spec/specs/memory_ontology.spec.md",
         "kind": "source_file",
@@ -18263,47 +18450,25 @@
         "verification_index": 1
       },
       {
-        "cover_id": "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+        "cover_id": "architecture.memory_ontology.companion_control_plane_ontology_models_governed_records",
         "file": ".spec/specs/memory_ontology.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
+        "target": "priv/ontologies/jido-control-plane.ttl",
         "verification_index": 2
       },
       {
-        "cover_id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+        "cover_id": "architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations",
         "file": ".spec/specs/memory_ontology.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
-        "file": ".spec/specs/memory_ontology.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.memory_ontology.memory_updates_preserve_mutation_lineage",
-        "file": ".spec/specs/memory_ontology.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
+        "target": "priv/ontologies/jido-control-plane.ttl",
         "verification_index": 2
       },
       {
@@ -18314,7 +18479,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
         "verification_index": 3
       },
       {
@@ -18325,7 +18490,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
         "verification_index": 3
       },
       {
@@ -18336,7 +18501,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
         "verification_index": 3
       },
       {
@@ -18347,8 +18512,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.memory_ontology",
-        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_envelope.ex",
         "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.memory_ontology.memory_updates_preserve_mutation_lineage",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
@@ -25990,7 +26199,7 @@
     "strength_summary": {
       "claimed": 59,
       "executed": 0,
-      "linked": 1143
+      "linked": 1153
     },
     "threshold_failures": 0
   },

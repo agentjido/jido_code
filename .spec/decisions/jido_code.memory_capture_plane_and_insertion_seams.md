@@ -26,6 +26,7 @@ related:
 <!-- covers: architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence -->
 <!-- covers: architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context -->
 <!-- covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples -->
+<!-- covers: architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical -->
 <!-- covers: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs -->
 <!-- covers: architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption -->
 
@@ -92,7 +93,8 @@ The canonical shape is therefore:
 - the `workflow_provenance` graph stores activity/provenance individuals
 - the `memory` graph stores durable coding memories
 - cross-graph links bind both back to stable `source_code` IRIs and, when
-  relevant, to governed product records
+  relevant, to governed product records through one typed governed-reference
+  contract instead of generic artifact naming
 
 The first concrete implementation slice of this plane should therefore land as:
 

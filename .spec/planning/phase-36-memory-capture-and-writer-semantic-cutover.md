@@ -37,7 +37,7 @@ Back to index: [README](./README.md)
 - This phase is a direct cutover: runtime and product callers should move to typed governed references instead of preserving parallel generic-artifact write shapes.
 - True evidence or support artifacts may remain `EvidenceArtifact` entities, but governed product records must no longer be flattened into that class.
 
-[ ] 36 Phase 36 - Memory Capture And Writer Semantic Cutover
+[x] 36 Phase 36 - Memory Capture And Writer Semantic Cutover
   Cut the capture plane and graph writers over to typed governed references so durable memory, workflow provenance, and memory updates all emit stronger governed semantics instead of generic artifact links.
 
   [x] 36.1 Section - Envelope And Capture Request Cutover
@@ -74,19 +74,19 @@ Back to index: [README](./README.md)
       [x] 36.2.2.2 Subtask - Add bounded invalidation, rebuild, or revalidation behavior for repositories whose stored graph data still reflects the older generic-artifact semantics.
       [x] 36.2.2.3 Subtask - Surface typed-cutover readiness and recovery state through the existing memory-graph status path instead of hidden migration assumptions.
 
-  [ ] 36.3 Section - Phase 36 Integration Tests
+  [x] 36.3 Section - Phase 36 Integration Tests
     Verify the capture plane, writers, and store-status paths all emit the stronger governed semantics consistently before query and product services depend on them.
 
-    [ ] 36.3.1 Task - Envelope and writer cutover scenarios
+    [x] 36.3.1 Task - Envelope and writer cutover scenarios
       Prove memory, provenance, and update writes now store typed governed semantics rather than generic artifacts.
 
-      [ ] 36.3.1.1 Subtask - Add coverage proving capture envelopes normalize governed references into typed kinds and IRIs.
-      [ ] 36.3.1.2 Subtask - Add coverage proving writers emit typed governed links while preserving true evidence/support artifacts as evidence semantics only.
-      [ ] 36.3.1.3 Subtask - Add coverage proving validate, invalidate, and supersede updates preserve typed governed context plus freshness and mutation lineage.
+      [x] 36.3.1.1 Subtask - Add coverage proving capture envelopes normalize governed references into typed kinds and IRIs.
+      [x] 36.3.1.2 Subtask - Add coverage proving writers emit typed governed links while preserving true evidence/support artifacts as evidence semantics only.
+      [x] 36.3.1.3 Subtask - Add coverage proving validate, invalidate, and supersede updates preserve typed governed context plus freshness and mutation lineage.
 
-    [ ] 36.3.2 Task - Graph-status and rebuild scenarios
+    [x] 36.3.2 Task - Graph-status and rebuild scenarios
       Prove repository-local graph state remains explainable and recoverable through the semantic cutover.
 
-      [ ] 36.3.2.1 Subtask - Add coverage proving repositories can detect stale generic-artifact graph state and request bounded revalidation or rebuild.
-      [ ] 36.3.2.2 Subtask - Add coverage proving the named-graph layout remains unchanged while semantic triples become stronger.
-      [ ] 36.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 36 cuts over the capture plane and writers.
+      [x] 36.3.2.1 Subtask - Add coverage proving repositories can detect stale generic-artifact graph state and request bounded revalidation or rebuild.
+      [x] 36.3.2.2 Subtask - Add coverage proving the named-graph layout remains unchanged while semantic triples become stronger.
+      [x] 36.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 36 cuts over the capture plane and writers.

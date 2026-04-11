@@ -279,6 +279,13 @@ surface:
     - architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
 
 - kind: source_file
+  target: test/jido_code/phase_thirty_six_integration_test.exs
+  covers:
+    - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+    - architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical
+    - architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
+
+- kind: source_file
   target: test/jido_code/memory_graph_workspace_test.exs
   covers:
     - architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary

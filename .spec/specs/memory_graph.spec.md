@@ -338,6 +338,14 @@ surface:
     - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
     - architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
     - architecture.memory_graph.memory_named_graph_is_canonical_target
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_six_integration_test.exs
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
     - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
     - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
     - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation

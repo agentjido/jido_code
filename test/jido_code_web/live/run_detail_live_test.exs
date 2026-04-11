@@ -506,7 +506,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       run.run_id,
       evidence.id,
       decision.id,
-      include_decision_memory?: true
+      include_decision_memory?: true,
+      link_known_issue_to_decision?: false
     )
 
     assert {:ok, memory_projection} =
@@ -540,21 +541,34 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert memory_context.graph.ready? == true
     assert memory_context.memories.items != []
 
+    assert memory_context.governed_surfaces.decisions != []
+
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     assert has_element?(view, "#run-detail-memory-context")
     assert has_element?(view, "#run-detail-memory-list")
+    assert has_element?(view, "#run-detail-evidence-memory-#{evidence.id}-memory-list")
+    assert has_element?(view, "#run-detail-decision-memory-#{decision.id}-memory-list")
     assert render(view) =~ "Validate"
     assert render(view) =~ "Create follow-up"
     assert has_element?(view, "#run-detail-memory-validate-1")
     assert has_element?(view, "#run-detail-memory-promote-1")
 
-    render_click(element(view, "#run-detail-memory-validate-1"))
+    render_click(element(view, "#run-detail-evidence-memory-#{evidence.id}-memory-validate-1"))
     assert has_element?(view, "#run-detail-memory-action-feedback", "validation was recorded")
 
-    render_click(element(view, "#run-detail-memory-promote-1"))
+    render_click(element(view, "#run-detail-evidence-memory-#{evidence.id}-memory-promote-1"))
     assert has_element?(view, "#run-detail-memory-action-feedback", "Created governed follow-up work item")
+
+    render_click(
+      element(
+        view,
+        "#run-detail-decision-memory-supersede-#{decision.id}"
+      )
+    )
+
+    assert has_element?(view, "#run-detail-memory-action-feedback", "superseded using the latest governed decision")
 
     {:ok, work_items} =
       WorkItem.read(
@@ -2110,6 +2124,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
   defp seed_run_memory_context!(managed_repo_id, workspace_path, revision, run_id, evidence_id, decision_id, opts) do
     work_item_id = Keyword.get(opts, :work_item_id, "work-memory")
+    link_known_issue_to_decision? = Keyword.get(opts, :link_known_issue_to_decision?, true)
 
     assert {:ok, _refresh_result} =
              AgentWorkspace.refresh_memory_graph(
@@ -2164,12 +2179,13 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                  content: "Run detail should surface memory context for governed review.",
                  revision: revision,
                  anchors: %{module_name: "ExampleRunDetailMemory"},
-                 governed_context: %{
-                   run_id: run_id,
-                   work_item_id: work_item_id,
-                   evidence_id: evidence_id,
-                   decision_id: decision_id
-                 },
+                 governed_context:
+                   %{
+                     run_id: run_id,
+                     work_item_id: work_item_id,
+                     evidence_id: evidence_id
+                   }
+                   |> maybe_put(:decision_id, link_known_issue_to_decision? && decision_id),
                  classification: %{
                    source: "run_detail_live_test",
                    reason: "Phase 33.1 requires bounded run memory context."
@@ -2193,7 +2209,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                    decision_status: :accepted,
                    revision: revision,
                    anchors: %{module_name: "ExampleRunDetailMemory"},
-                   governed_context: %{run_id: run_id, work_item_id: work_item_id},
+                   governed_context: %{run_id: run_id, work_item_id: work_item_id, decision_id: decision_id},
                    classification: %{
                      source: "run_detail_live_test",
                      reason: "Phase 33.2 requires a durable decision memory for supersession coverage."
@@ -2221,4 +2237,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   defp assert_eventually(_assertion_fun, 0) do
     flunk("expected condition to become true")
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, false), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

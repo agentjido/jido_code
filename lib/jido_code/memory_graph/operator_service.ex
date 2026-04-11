@@ -216,8 +216,9 @@ defmodule JidoCode.MemoryGraph.OperatorService do
 
   defp select_memory(_projection, _memory_iri), do: {:error, :memory_item_not_found}
 
-  defp ensure_decision_memory(%{memory_kind: "Decision"}), do: :ok
-  defp ensure_decision_memory(_item), do: {:error, :memory_supersession_requires_decision}
+  defp ensure_decision_memory(item) do
+    if decision_memory?(item), do: :ok, else: {:error, :memory_supersession_requires_decision}
+  end
 
   defp successor_decision_capture(context, item, decision, decision_id, opts) do
     content =
@@ -348,6 +349,30 @@ defmodule JidoCode.MemoryGraph.OperatorService do
   end
 
   defp map_get(_map, _atom_key, _string_key), do: nil
+
+  defp decision_memory?(item) when is_map(item) do
+    normalize_optional_string(map_get(item, :memory_kind, "memory_kind")) == "Decision" ||
+      kind_from_memory_iri(map_get(item, :memory_iri, "memory_iri")) == "Decision"
+  end
+
+  defp decision_memory?(_item), do: false
+
+  defp kind_from_memory_iri(value) when is_binary(value) do
+    value
+    |> String.split("#")
+    |> List.last()
+    |> case do
+      nil -> nil
+      fragment -> fragment |> String.split("/") |> List.first()
+    end
+    |> normalize_optional_string()
+    |> case do
+      nil -> nil
+      segment -> segment |> String.replace("-", "_") |> Macro.camelize()
+    end
+  end
+
+  defp kind_from_memory_iri(_value), do: nil
 
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do

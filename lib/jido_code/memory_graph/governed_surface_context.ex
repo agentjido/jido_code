@@ -33,7 +33,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
         status = projection_for(ProductService.status(managed_repo_id, workspace_path, opts))
         graph = Map.get(status, :graph, @default_graph)
         lookup_opts = Keyword.put_new(opts, :allow_stale?, true)
-        artifact_paths = run_artifact_paths(run, evidence_records, decisions)
+        work_item = Keyword.get(opts, :work_item)
+        artifact_paths = run_artifact_paths(run, work_item, evidence_records, decisions)
         run_route = "/repos/#{managed_repo_id}/runs/#{run.run_id}"
 
         {memories, provenance} =
@@ -79,9 +80,21 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
           memories: memories,
           provenance: provenance,
           governed_history: %{
+            work_item: history_summary(work_item, memories.items, provenance.items, :work_item),
             evidence: history_summary(evidence_records, memories.items, provenance.items, :evidence),
             decisions: history_summary(decisions, memories.items, provenance.items, :decision)
           },
+          governed_surfaces:
+            governed_surfaces(
+              managed_repo_id,
+              workspace_path,
+              graph,
+              work_item,
+              evidence_records,
+              decisions,
+              run_route,
+              lookup_opts
+            ),
           notice: governed_notice(status),
           notice_kind: ProductFeedback.notice_kind(graph),
           recovery: ProductFeedback.recovery(graph)
@@ -145,9 +158,10 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
 
   defp workspace_path_from_settings(_settings), do: nil
 
-  defp run_artifact_paths(%Run{} = run, evidence_records, decisions) do
+  defp run_artifact_paths(%Run{} = run, work_item, evidence_records, decisions) do
     []
     |> maybe_add_artifact(:run, normalize_optional_string(run.run_id))
+    |> maybe_add_artifact(:work_item, record_id(work_item))
     |> add_artifacts(evidence_records, :evidence)
     |> add_artifacts(decisions, :decision)
   end
@@ -209,9 +223,10 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   defp patch_governed_navigation(navigation, run_route) when is_map(navigation) do
     governed_records =
       Enum.map(Map.get(navigation, :governed_records, []), fn link ->
-        case {Map.get(link, :kind), Map.get(link, :route)} do
-          {:evidence, nil} -> Map.put(link, :route, run_route <> "#run-detail-evidence-records")
-          {:decision, nil} -> Map.put(link, :route, run_route <> "#run-detail-decisions")
+        case {Map.get(link, :kind), Map.get(link, :route), normalize_optional_string(Map.get(link, :id))} do
+          {:work_item, nil, _id} -> Map.put(link, :route, run_route <> "#run-detail-work-item")
+          {:evidence, nil, id} when is_binary(id) -> Map.put(link, :route, governed_route(:evidence, id, run_route))
+          {:decision, nil, id} when is_binary(id) -> Map.put(link, :route, governed_route(:decision, id, run_route))
           _other -> link
         end
       end)
@@ -219,12 +234,27 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     Map.put(navigation, :governed_records, governed_records)
   end
 
+  defp history_summary(nil, _memories, _provenance, :work_item), do: nil
+
+  defp history_summary(record, memories, provenance, :work_item) when is_map(record) do
+    record_id = record_id(record)
+
+    %{
+      id: record_id,
+      kind: :work_item,
+      label: history_label(record, :work_item),
+      memory_count: related_count(memories, :work_item, record_id),
+      provenance_count: related_count(provenance, :work_item, record_id)
+    }
+  end
+
   defp history_summary(records, memories, provenance, kind) do
     Enum.map(records, fn record ->
-      record_id = normalize_optional_string(map_get(record, :id, "id"))
+      record_id = record_id(record)
 
       %{
         id: record_id,
+        kind: kind,
         label: history_label(record, kind),
         memory_count: related_count(memories, kind, record_id),
         provenance_count: related_count(provenance, kind, record_id)
@@ -243,12 +273,116 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     end)
   end
 
+  defp governed_surfaces(
+         managed_repo_id,
+         workspace_path,
+         graph,
+         work_item,
+         evidence_records,
+         decisions,
+         run_route,
+         opts
+       ) do
+    %{
+      work_item: governed_surface(work_item, :work_item, managed_repo_id, workspace_path, graph, run_route, opts),
+      evidence:
+        Enum.map(
+          evidence_records,
+          &governed_surface(&1, :evidence, managed_repo_id, workspace_path, graph, run_route, opts)
+        ),
+      decisions:
+        Enum.map(decisions, &governed_surface(&1, :decision, managed_repo_id, workspace_path, graph, run_route, opts))
+    }
+  end
+
+  defp governed_surface(nil, _kind, _managed_repo_id, _workspace_path, _graph, _run_route, _opts), do: nil
+
+  defp governed_surface(record, kind, managed_repo_id, workspace_path, graph, run_route, opts) when is_map(record) do
+    record_id = record_id(record)
+    artifact_path = JidoCode.MemoryGraph.artifact_path(kind, record_id)
+    route = record_id && governed_route(kind, record_id, run_route)
+
+    {memories, provenance} =
+      if queryable_graph?(graph) and is_binary(artifact_path) do
+        {
+          navigation_projection(
+            ProductService.memories_for_governed_artifacts(
+              managed_repo_id,
+              workspace_path,
+              [artifact_path],
+              Keyword.put_new(opts, :limit, 4)
+            ),
+            managed_repo_id,
+            workspace_path,
+            run_route,
+            opts
+          ),
+          navigation_projection(
+            ProductService.provenance_for_governed_artifacts(
+              managed_repo_id,
+              workspace_path,
+              [artifact_path],
+              Keyword.put_new(opts, :limit, 4)
+            ),
+            managed_repo_id,
+            workspace_path,
+            run_route,
+            opts
+          )
+        }
+      else
+        {
+          empty_lookup(:memories, managed_repo_id, graph),
+          empty_lookup(:provenance, managed_repo_id, graph)
+        }
+      end
+
+    %{
+      kind: kind,
+      id: record_id,
+      label: history_label(record, kind),
+      route: route,
+      memories: memories,
+      provenance: provenance,
+      memory_count: get_in(memories, [:result_group, :count]) || 0,
+      provenance_count: get_in(provenance, [:result_group, :count]) || 0
+    }
+  end
+
   defp history_label(record, :evidence) do
     normalize_optional_string(map_get(record, :key, "key")) || "Evidence"
   end
 
   defp history_label(record, :decision) do
     normalize_optional_string(map_get(record, :decision, "decision")) || "Decision"
+  end
+
+  defp history_label(record, :work_item) do
+    normalize_optional_string(map_get(record, :summary, "summary")) ||
+      normalize_optional_string(map_get(record, :recommended_action, "recommended_action")) || "Work item"
+  end
+
+  defp governed_route(:work_item, _record_id, run_route), do: run_route <> "#run-detail-work-item"
+
+  defp governed_route(:evidence, record_id, run_route),
+    do: run_route <> "#run-detail-evidence-entry-#{dom_token(record_id)}"
+
+  defp governed_route(:decision, record_id, run_route),
+    do: run_route <> "#run-detail-decision-entry-#{dom_token(record_id)}"
+
+  defp governed_route(_kind, _record_id, run_route), do: run_route
+
+  defp record_id(record) when is_map(record), do: normalize_optional_string(map_get(record, :id, "id"))
+  defp record_id(_record), do: nil
+
+  defp dom_token(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> "unknown"
+      normalized -> normalized
+    end
+    |> String.replace(~r/[^a-zA-Z0-9_-]/, "-")
   end
 
   defp queryable_graph?(graph) when is_map(graph) do
@@ -281,7 +415,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
       graph: @default_graph,
       memories: empty_lookup(:memories, "unavailable", @default_graph),
       provenance: empty_lookup(:provenance, "unavailable", @default_graph),
-      governed_history: %{evidence: [], decisions: []},
+      governed_history: %{work_item: nil, evidence: [], decisions: []},
+      governed_surfaces: %{work_item: nil, evidence: [], decisions: []},
       notice: notice,
       notice_kind: :warning,
       recovery: ProductFeedback.recovery(@default_graph)

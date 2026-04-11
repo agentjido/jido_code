@@ -9,6 +9,7 @@ defmodule JidoCodeWeb.DashboardLive do
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
+  alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
 
@@ -34,11 +35,18 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:runtime_evidence_warning, nil)
       |> assign(:runtime_evidence_last_refreshed_at, nil)
       |> assign(:runtime_evidence_summary, nil)
+      |> assign(:memory_summary_count, 0)
+      |> assign(:memory_summary_rows, [])
+      |> assign(:memory_summary_warning, nil)
+      |> assign(:memory_summary_last_refreshed_at, nil)
+      |> stream_configure(:memory_summaries, dom_id: &memory_summary_dom_id/1)
+      |> stream(:memory_summaries, [], reset: true)
       |> stream_configure(:runtime_evidence_summaries, dom_id: &runtime_evidence_dom_id/1)
       |> stream(:runtime_evidence_summaries, [], reset: true)
       |> stream_configure(:run_summaries, dom_id: &run_summary_dom_id/1)
       |> stream(:run_summaries, [], reset: true)
       |> load_run_summaries()
+      |> load_memory_summaries()
       |> load_runtime_evidence_summaries()
       |> maybe_subscribe_run_events()
 
@@ -68,6 +76,11 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("refresh_memory_summaries", _params, socket) do
+    {:noreply, load_memory_summaries(socket)}
+  end
+
+  @impl true
   def handle_info({:run_event, payload}, socket) do
     event_name =
       payload
@@ -78,6 +91,7 @@ defmodule JidoCodeWeb.DashboardLive do
       {:noreply,
        socket
        |> load_run_summaries()
+       |> load_memory_summaries()
        |> load_runtime_evidence_summaries()}
     else
       {:noreply, socket}
@@ -190,6 +204,120 @@ defmodule JidoCodeWeb.DashboardLive do
               </table>
             </div>
           </details>
+        </section>
+
+        <section
+          id="dashboard-memory-summaries"
+          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Repository memory</h2>
+              <p id="dashboard-memory-summary-note" class="text-sm text-base-content/80">
+                Memory summaries stay bounded and route back to canonical managed-repository surfaces for deeper review.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <p id="dashboard-memory-summary-last-refreshed" class="text-xs text-base-content/70">
+                Last refreshed: {summary_refreshed_label(@memory_summary_last_refreshed_at)}
+              </p>
+              <button
+                id="dashboard-memory-summary-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_memory_summaries"
+              >
+                Refresh memory summaries
+              </button>
+            </div>
+          </div>
+
+          <.operator_state_notice
+            :if={@memory_summary_warning}
+            id="dashboard-memory-summary-warning"
+            title="Repository memory summaries may be stale"
+            state={@memory_summary_warning}
+            compact={true}
+          />
+
+          <%= if @memory_summary_count == 0 do %>
+            <p id="dashboard-memory-summary-empty" class="text-sm text-base-content/70">
+              No bounded repository memory summaries are available yet.
+            </p>
+          <% else %>
+            <ol id="dashboard-memory-summary-list" class="space-y-3" phx-update="stream">
+              <li
+                :for={{dom_id, summary} <- @streams.memory_summaries}
+                id={dom_id}
+                class="rounded border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <p
+                      id={"dashboard-memory-summary-repo-#{run_summary_dom_token(summary.id)}"}
+                      class="text-sm font-medium"
+                    >
+                      {summary.repo_label}
+                    </p>
+                    <p
+                      id={"dashboard-memory-summary-detail-#{run_summary_dom_token(summary.id)}"}
+                      class="text-xs text-base-content/80"
+                    >
+                      {summary.detail}
+                    </p>
+                  </div>
+                  <span
+                    id={"dashboard-memory-summary-state-#{run_summary_dom_token(summary.id)}"}
+                    class={memory_summary_badge_class(summary.state)}
+                  >
+                    {summary.label}
+                  </span>
+                </div>
+
+                <p
+                  id={"dashboard-memory-summary-counts-#{run_summary_dom_token(summary.id)}"}
+                  class="text-xs text-base-content/70"
+                >
+                  Durable memory: {summary.memory_count} | Workflow provenance: {summary.provenance_count}
+                </p>
+
+                <p
+                  :if={summary.latest_revision}
+                  id={"dashboard-memory-summary-revision-#{run_summary_dom_token(summary.id)}"}
+                  class="text-xs text-base-content/70"
+                >
+                  Latest revision: {summary.latest_revision}
+                </p>
+
+                <p
+                  :if={summary.remediation}
+                  id={"dashboard-memory-summary-remediation-#{run_summary_dom_token(summary.id)}"}
+                  class="text-xs text-base-content/70"
+                >
+                  {summary.remediation}
+                </p>
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <span
+                    :if={summary.action_needed?}
+                    id={"dashboard-memory-summary-action-needed-#{run_summary_dom_token(summary.id)}"}
+                    class="badge badge-warning badge-outline"
+                  >
+                    action needed
+                  </span>
+
+                  <.link
+                    :if={summary.route && summary.action_label}
+                    id={"dashboard-memory-summary-link-#{run_summary_dom_token(summary.id)}"}
+                    class="link link-primary text-sm"
+                    navigate={summary.route}
+                  >
+                    {summary.action_label}
+                  </.link>
+                </div>
+              </li>
+            </ol>
+          <% end %>
         </section>
 
         <section
@@ -384,6 +512,10 @@ defmodule JidoCodeWeb.DashboardLive do
     "dashboard-runtime-evidence-#{run_summary_dom_token(runtime_summary.id)}"
   end
 
+  defp memory_summary_dom_id(summary) do
+    "dashboard-memory-summary-#{run_summary_dom_token(summary.id)}"
+  end
+
   defp run_summary_dom_token(value) do
     value
     |> normalize_optional_string()
@@ -406,6 +538,15 @@ defmodule JidoCodeWeb.DashboardLive do
   defp runtime_evidence_badge_class("degraded"), do: "badge badge-warning"
   defp runtime_evidence_badge_class("available"), do: "badge badge-success"
   defp runtime_evidence_badge_class(_status), do: "badge badge-outline"
+
+  defp memory_summary_badge_class(:ready), do: "badge badge-success"
+  defp memory_summary_badge_class(:degraded), do: "badge badge-warning"
+  defp memory_summary_badge_class(:stale), do: "badge badge-warning"
+  defp memory_summary_badge_class(:invalidated), do: "badge badge-warning"
+  defp memory_summary_badge_class(:failed), do: "badge badge-error"
+  defp memory_summary_badge_class(:not_ready), do: "badge badge-outline"
+  defp memory_summary_badge_class(:disabled), do: "badge badge-outline"
+  defp memory_summary_badge_class(_state), do: "badge badge-outline"
 
   defp runtime_evidence_status_label(status) do
     case normalize_optional_string(status) do
@@ -504,6 +645,28 @@ defmodule JidoCodeWeb.DashboardLive do
         |> assign(:runtime_evidence_last_refreshed_at, now)
         |> assign(:runtime_evidence_summary, nil)
         |> stream(:runtime_evidence_summaries, [], reset: true)
+    end
+  end
+
+  defp load_memory_summaries(socket) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    case DashboardSummaryFeed.load() do
+      {:ok, summaries, warning} ->
+        socket
+        |> assign(:memory_summary_count, length(summaries))
+        |> assign(:memory_summary_rows, summaries)
+        |> assign(:memory_summary_warning, warning)
+        |> assign(:memory_summary_last_refreshed_at, now)
+        |> stream(:memory_summaries, summaries, reset: true)
+
+      {:error, warning} ->
+        socket
+        |> assign(:memory_summary_count, 0)
+        |> assign(:memory_summary_rows, [])
+        |> assign(:memory_summary_warning, warning)
+        |> assign(:memory_summary_last_refreshed_at, now)
+        |> stream(:memory_summaries, [], reset: true)
     end
   end
 

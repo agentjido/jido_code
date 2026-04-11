@@ -9,7 +9,7 @@ roll out across the remaining canonical operator and governed product surfaces.
 id: architecture.memory_graph_surface_rollout_and_governance_actions
 kind: feature
 status: proposed
-summary: Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses.
+summary: Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses, with dashboard summary feeds, governed surface sections, and follow-up preview widgets all staying tied to canonical product routes.
 decisions:
   - jido_code.memory_graph_product_adoption
   - jido_code.memory_graph_workflow_and_operator_expansion
@@ -149,4 +149,5 @@ surface:
     - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
     - architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
     - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+
 ```

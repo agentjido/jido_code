@@ -16,7 +16,8 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
-  alias JidoCode.MemoryGraph.{GovernedSurfaceContext, OperatorService}
+  alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService}
+  alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
   alias JidoCode.Projects.Project
 
@@ -353,6 +354,31 @@ defmodule JidoCodeWeb.RunDetailLive do
               </p>
             </section>
 
+            <section id="run-detail-work-item" class="space-y-2">
+              <p class="text-sm font-medium">Work item</p>
+
+              <%= if @work_item do %>
+                <div
+                  id="run-detail-work-item-entry"
+                  class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                >
+                  <p id="run-detail-work-item-summary" class="text-sm font-medium">
+                    {Map.get(@work_item, :summary)}
+                  </p>
+                  <p id="run-detail-work-item-status" class="text-xs text-base-content/80">
+                    Status: {Map.get(@work_item, :status) |> status_label()}
+                  </p>
+                  <p id="run-detail-work-item-category" class="text-xs text-base-content/80">
+                    Category: {Map.get(@work_item, :category)}
+                  </p>
+                </div>
+              <% else %>
+                <p id="run-detail-work-item-empty" class="text-xs text-base-content/70">
+                  No governed work item is linked to this run yet.
+                </p>
+              <% end %>
+            </section>
+
             <section id="run-detail-evidence-records" class="space-y-2">
               <p class="text-sm font-medium">Evidence records</p>
 
@@ -364,7 +390,9 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <ol id="run-detail-evidence-list" class="space-y-2">
                   <li
                     :for={{evidence, index} <- Enum.with_index(@evidence_records, 1)}
-                    id={"run-detail-evidence-entry-#{index}"}
+                    id={
+                      "run-detail-evidence-entry-#{governed_record_dom_token(Map.get(evidence, :id) || index)}"
+                    }
                     class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
                   >
                     <p id={"run-detail-evidence-key-#{index}"} class="text-sm font-medium">
@@ -435,7 +463,9 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <ol id="run-detail-decision-list" class="space-y-2">
                   <li
                     :for={{decision, index} <- Enum.with_index(@decisions, 1)}
-                    id={"run-detail-decision-entry-#{index}"}
+                    id={
+                      "run-detail-decision-entry-#{governed_record_dom_token(Map.get(decision, :id) || index)}"
+                    }
                     class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
                   >
                     <p id={"run-detail-decision-value-#{index}"} class="text-sm font-medium">
@@ -486,10 +516,29 @@ defmodule JidoCodeWeb.RunDetailLive do
               </div>
 
               <div
-                :if={@memory_context.governed_history.evidence != [] or @memory_context.governed_history.decisions != []}
+                :if={
+                  (@memory_context.governed_history.work_item != nil ||
+                     @memory_context.governed_history.evidence != []) or
+                    @memory_context.governed_history.decisions != []
+                }
                 id="run-detail-memory-history"
                 class="grid gap-3 md:grid-cols-2"
               >
+                <section :if={@memory_context.governed_history.work_item} class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Work item history
+                  </p>
+                  <div
+                    id="run-detail-memory-work-item-history"
+                    class="rounded border border-base-300/50 bg-base-100 p-2"
+                  >
+                    <p class="text-xs font-medium">{@memory_context.governed_history.work_item.label}</p>
+                    <p class="text-xs text-base-content/70">
+                      Memory: {@memory_context.governed_history.work_item.memory_count} | Provenance: {@memory_context.governed_history.work_item.provenance_count}
+                    </p>
+                  </div>
+                </section>
+
                 <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
                   <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                     Evidence history
@@ -527,6 +576,85 @@ defmodule JidoCodeWeb.RunDetailLive do
                 </section>
               </div>
 
+              <div
+                :if={
+                  (@memory_context.governed_surfaces.work_item != nil ||
+                     @memory_context.governed_surfaces.evidence != []) or
+                    @memory_context.governed_surfaces.decisions != []
+                }
+                id="run-detail-governed-memory-contexts"
+                class="space-y-3"
+              >
+                <section
+                  :if={@memory_context.governed_surfaces.work_item}
+                  id="run-detail-work-item-memory"
+                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Work item memory context
+                  </p>
+                  <.governed_memory_surface
+                    dom_prefix="run-detail-work-item-memory"
+                    context={@memory_context.governed_surfaces.work_item}
+                  />
+                </section>
+
+                <section
+                  :if={@memory_context.governed_surfaces.evidence != []}
+                  id="run-detail-evidence-memory-contexts"
+                  class="space-y-2"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Evidence memory context
+                  </p>
+                  <ol class="space-y-2">
+                    <li
+                      :for={context <- @memory_context.governed_surfaces.evidence}
+                      id={"run-detail-evidence-memory-context-#{governed_record_dom_token(context.id)}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <.governed_memory_surface
+                        dom_prefix={"run-detail-evidence-memory-#{governed_record_dom_token(context.id)}"}
+                        context={context}
+                      />
+                    </li>
+                  </ol>
+                </section>
+
+                <section
+                  :if={@memory_context.governed_surfaces.decisions != []}
+                  id="run-detail-decision-memory-contexts"
+                  class="space-y-2"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Decision memory context
+                  </p>
+                  <ol class="space-y-2">
+                    <li
+                      :for={context <- @memory_context.governed_surfaces.decisions}
+                      id={"run-detail-decision-memory-context-#{governed_record_dom_token(context.id)}"}
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <.governed_memory_surface
+                        dom_prefix={"run-detail-decision-memory-#{governed_record_dom_token(context.id)}"}
+                        context={context}
+                      />
+                      <button
+                        :if={decision_memory_iri(@memory_context.memories.items)}
+                        type="button"
+                        id={"run-detail-decision-memory-supersede-#{governed_record_dom_token(context.id)}"}
+                        phx-click="supersede_memory"
+                        phx-value-memory_iri={decision_memory_iri(@memory_context.memories.items)}
+                        phx-value-decision_id={context.id}
+                        class="btn btn-xs btn-outline"
+                      >
+                        Supersede with decision
+                      </button>
+                    </li>
+                  </ol>
+                </section>
+              </div>
+
               <section id="run-detail-memory-items" class="space-y-2">
                 <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                   Durable memories
@@ -544,17 +672,17 @@ defmodule JidoCodeWeb.RunDetailLive do
                       class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
                     >
                       <p class="text-sm font-medium">
-                        {item.memory_kind}: {item.content}
+                        {memory_item_kind(item)}: {memory_item_content(item)}
                       </p>
                       <p class="text-xs text-base-content/70">
-                        Freshness: {item.freshness_score || "unknown"} | Decision status: {item.decision_status || "n/a"}
+                        Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
                       </p>
                       <div class="flex flex-wrap gap-2">
                         <button
                           type="button"
                           id={"run-detail-memory-validate-#{index}"}
                           phx-click="validate_memory"
-                          phx-value-memory_iri={item.memory_iri}
+                          phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
                           class="btn btn-xs btn-outline"
                         >
                           Validate
@@ -563,7 +691,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                           type="button"
                           id={"run-detail-memory-invalidate-#{index}"}
                           phx-click="invalidate_memory"
-                          phx-value-memory_iri={item.memory_iri}
+                          phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
                           class="btn btn-xs btn-outline btn-warning"
                         >
                           Invalidate
@@ -572,19 +700,30 @@ defmodule JidoCodeWeb.RunDetailLive do
                           type="button"
                           id={"run-detail-memory-promote-#{index}"}
                           phx-click="promote_memory_follow_up"
-                          phx-value-memory_iri={item.memory_iri}
+                          phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
                           class="btn btn-xs btn-primary"
                         >
                           Create follow-up
                         </button>
                       </div>
                       <div
-                        :if={item.navigation.governed_records != []}
+                        :if={
+                          map_get(map_get(item, :navigation, "navigation", %{}), :governed_records, "governed_records", []) !=
+                            []
+                        }
                         id={"run-detail-memory-links-#{index}"}
                         class="flex flex-wrap gap-2"
                       >
                         <a
-                          :for={link <- item.navigation.governed_records}
+                          :for={
+                            link <-
+                              map_get(
+                                map_get(item, :navigation, "navigation", %{}),
+                                :governed_records,
+                                "governed_records",
+                                []
+                              )
+                          }
                           :if={link.route}
                           href={link.route}
                           class="link link-primary text-xs"
@@ -592,9 +731,37 @@ defmodule JidoCodeWeb.RunDetailLive do
                           {link.label}
                         </a>
                       </div>
+                      <.memory_navigation_groups dom_prefix={"run-detail-memory-#{index}"} item={item} />
                     </li>
                   </ol>
                 <% end %>
+              </section>
+
+              <section
+                :if={@memory_follow_up_preview && @memory_follow_up_preview.available?}
+                id="run-detail-memory-follow-up-preview"
+                class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+              >
+                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  Memory-aware follow-up
+                </p>
+                <p id="run-detail-memory-follow-up-preview-summary" class="text-sm font-medium">
+                  {@memory_follow_up_preview.summary}
+                </p>
+                <p id="run-detail-memory-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                  Recommended action: {@memory_follow_up_preview.recommended_action_label} | Priority: {@memory_follow_up_preview.priority} | Urgency: {@memory_follow_up_preview.urgency}
+                </p>
+                <p id="run-detail-memory-follow-up-preview-kinds" class="text-xs text-base-content/70">
+                  Selected memory kinds: {Enum.join(@memory_follow_up_preview.memory_kinds, ", ")}
+                </p>
+                <.link
+                  :if={@memory_follow_up_preview.route}
+                  id="run-detail-memory-follow-up-preview-route"
+                  class="link link-primary text-xs"
+                  navigate={@memory_follow_up_preview.route}
+                >
+                  {@memory_follow_up_preview.route_label}
+                </.link>
               </section>
 
               <section id="run-detail-memory-provenance" class="space-y-2">
@@ -614,18 +781,29 @@ defmodule JidoCodeWeb.RunDetailLive do
                       class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
                     >
                       <p class="text-sm font-medium">
-                        {item.provenance_kind}: {item.label || item.content || "bounded provenance"}
+                        {provenance_item_kind(item)}: {provenance_item_label(item)}
                       </p>
                       <p class="text-xs text-base-content/70">
-                        Revision: {item.revision_iri || "unknown"}
+                        Revision: {provenance_item_revision(item)}
                       </p>
                       <div
-                        :if={item.navigation.governed_records != []}
+                        :if={
+                          map_get(map_get(item, :navigation, "navigation", %{}), :governed_records, "governed_records", []) !=
+                            []
+                        }
                         id={"run-detail-memory-provenance-links-#{index}"}
                         class="flex flex-wrap gap-2"
                       >
                         <a
-                          :for={link <- item.navigation.governed_records}
+                          :for={
+                            link <-
+                              map_get(
+                                map_get(item, :navigation, "navigation", %{}),
+                                :governed_records,
+                                "governed_records",
+                                []
+                              )
+                          }
                           :if={link.route}
                           href={link.route}
                           class="link link-primary text-xs"
@@ -633,6 +811,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                           {link.label}
                         </a>
                       </div>
+                      <.memory_navigation_groups dom_prefix={"run-detail-memory-provenance-#{index}"} item={item} />
                     </li>
                   </ol>
                 <% end %>
@@ -1072,6 +1251,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:project_id, project_id)
     |> assign(:run_id, run_id)
     |> assign(:run, nil)
+    |> assign(:work_item, nil)
     |> assign(:evidence_records, [])
     |> assign(:change_request, nil)
     |> assign(:decisions, [])
@@ -1084,6 +1264,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:approval_context_blocker, nil)
     |> assign(:runtime_evidence_summary, nil)
     |> assign(:memory_context, nil)
+    |> assign(:memory_follow_up_preview, nil)
     |> assign(:step_retry_state, step_retry_state(nil))
     |> assign(:memory_action_feedback, nil)
     |> assign(:approval_action_error, nil)
@@ -1102,20 +1283,24 @@ defmodule JidoCodeWeb.RunDetailLive do
          socket,
          %{
            run: run,
+           work_item: work_item,
            evidence_records: evidence_records,
            change_request: change_request,
            decisions: decisions,
            repo_posture: repo_posture,
-           memory_context: memory_context
+           memory_context: memory_context,
+           memory_follow_up_preview: memory_follow_up_preview
          }
        ) do
     socket
     |> assign(:run, run)
+    |> assign(:work_item, work_item)
     |> assign(:evidence_records, evidence_records)
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
     |> assign(:runtime_evidence_summary, runtime_evidence_summary(run, evidence_records, repo_posture))
     |> assign(:memory_context, memory_context)
+    |> assign(:memory_follow_up_preview, memory_follow_up_preview)
     |> assign(:timeline_entries, timeline_entries(run))
     |> assign(:retry_lineage_entries, retry_lineage_entries(run))
     |> assign(:artifact_categories, artifact_categories(run))
@@ -1147,22 +1332,36 @@ defmodule JidoCodeWeb.RunDetailLive do
          {:ok, run} <- load_governed_run(project_scope, run_id) do
       evidence_records = load_evidence_records(run)
       decisions = load_decisions(run)
+      work_item = load_work_item(run, evidence_records, decisions)
+
+      managed_repo_id = memory_context_managed_repo_id(project_scope, run)
+      workspace_path = load_project_workspace_path(project_id)
+
+      memory_context =
+        GovernedSurfaceContext.load_run_detail(
+          project_scope,
+          run,
+          evidence_records,
+          decisions,
+          work_item: work_item,
+          managed_repo_id: managed_repo_id,
+          workspace_path: workspace_path
+        )
 
       {:ok,
        %{
          run: run,
+         work_item: work_item,
          evidence_records: evidence_records,
          change_request: load_change_request(run),
          decisions: decisions,
          repo_posture: load_repo_posture(run),
-         memory_context:
-           GovernedSurfaceContext.load_run_detail(
-             project_scope,
+         memory_context: memory_context,
+         memory_follow_up_preview:
+           load_memory_follow_up_preview(
+             memory_context,
              run,
-             evidence_records,
-             decisions,
-             managed_repo_id: memory_context_managed_repo_id(project_scope, run),
-             workspace_path: load_project_workspace_path(project_id)
+             managed_repo_id
            )
        }}
     else
@@ -1209,6 +1408,44 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_evidence_records(_run), do: []
+
+  defp load_work_item(%Run{} = run, evidence_records, decisions) do
+    work_item_id =
+      normalize_optional_string(Map.get(run, :work_item_id)) ||
+        work_item_id_from_records(evidence_records) ||
+        work_item_id_from_records(decisions)
+
+    case work_item_id do
+      work_item_id when is_binary(work_item_id) ->
+        case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: Actor.operator_actor()) do
+          {:ok, [work_item | _rest]} -> work_item
+          _other -> placeholder_work_item(work_item_id)
+        end
+
+      _other ->
+        nil
+    end
+  end
+
+  defp load_work_item(_run, _evidence_records, _decisions), do: nil
+
+  defp work_item_id_from_records(records) when is_list(records) do
+    records
+    |> Enum.find_value(fn record ->
+      normalize_optional_string(Map.get(record, :work_item_id) || Map.get(record, "work_item_id"))
+    end)
+  end
+
+  defp work_item_id_from_records(_records), do: nil
+
+  defp placeholder_work_item(work_item_id) when is_binary(work_item_id) do
+    %{
+      id: work_item_id,
+      summary: "Governed work item #{work_item_id}",
+      status: :unknown,
+      category: "governed_follow_up"
+    }
+  end
 
   defp load_change_request(%Run{} = run) do
     case ChangeRequest.read(query: [filter: [run_id: run.id], limit: 1], actor: Actor.operator_actor()) do
@@ -1269,6 +1506,265 @@ defmodule JidoCodeWeb.RunDetailLive do
       |> map_get(:managed_repo, "managed_repo", %{})
       |> map_get(:id, "id")
       |> normalize_optional_string()
+  end
+
+  defp governed_record_dom_token(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> "unknown"
+      normalized -> normalized
+    end
+    |> String.replace(~r/[^a-zA-Z0-9_-]/, "-")
+  end
+
+  attr :dom_prefix, :string, required: true
+  attr :context, :map, required: true
+
+  defp governed_memory_surface(assigns) do
+    ~H"""
+    <div class="space-y-2">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="space-y-1">
+          <p id={"#{@dom_prefix}-label"} class="text-sm font-medium">{@context.label}</p>
+          <p id={"#{@dom_prefix}-counts"} class="text-xs text-base-content/70">
+            Memory: {@context.memory_count} | Provenance: {@context.provenance_count}
+          </p>
+        </div>
+        <.link
+          :if={@context.route}
+          id={"#{@dom_prefix}-route"}
+          class="link link-primary text-xs"
+          navigate={@context.route}
+        >
+          Open governed record
+        </.link>
+      </div>
+
+      <%= if @context.memories.items == [] do %>
+        <p id={"#{@dom_prefix}-memory-empty"} class="text-xs text-base-content/70">
+          No durable memories currently point at this governed record.
+        </p>
+      <% else %>
+        <ol id={"#{@dom_prefix}-memory-list"} class="space-y-2">
+          <li
+            :for={{item, index} <- Enum.with_index(@context.memories.items, 1)}
+            id={"#{@dom_prefix}-memory-item-#{index}"}
+            class="rounded border border-base-300/50 bg-base-200/20 p-2 space-y-1"
+          >
+            <p class="text-xs font-medium">
+              {memory_item_kind(item)}: {memory_item_content(item)}
+            </p>
+            <p class="text-xs text-base-content/70">
+              Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                id={"#{@dom_prefix}-memory-validate-#{index}"}
+                phx-click="validate_memory"
+                phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
+                class="btn btn-xs btn-outline"
+              >
+                Validate
+              </button>
+              <button
+                type="button"
+                id={"#{@dom_prefix}-memory-invalidate-#{index}"}
+                phx-click="invalidate_memory"
+                phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
+                class="btn btn-xs btn-outline btn-warning"
+              >
+                Invalidate
+              </button>
+              <button
+                type="button"
+                id={"#{@dom_prefix}-memory-promote-#{index}"}
+                phx-click="promote_memory_follow_up"
+                phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
+                class="btn btn-xs btn-primary"
+              >
+                Create follow-up
+              </button>
+            </div>
+            <.memory_navigation_groups dom_prefix={"#{@dom_prefix}-memory-#{index}"} item={item} />
+          </li>
+        </ol>
+      <% end %>
+
+      <%= if @context.provenance.items == [] do %>
+        <p id={"#{@dom_prefix}-provenance-empty"} class="text-xs text-base-content/70">
+          No workflow provenance currently points at this governed record.
+        </p>
+      <% else %>
+        <ol id={"#{@dom_prefix}-provenance-list"} class="space-y-2">
+          <li
+            :for={{item, index} <- Enum.with_index(@context.provenance.items, 1)}
+            id={"#{@dom_prefix}-provenance-item-#{index}"}
+            class="rounded border border-base-300/50 bg-base-200/20 p-2 space-y-1"
+          >
+            <p class="text-xs font-medium">
+              {provenance_item_kind(item)}: {provenance_item_label(item)}
+            </p>
+            <p class="text-xs text-base-content/70">
+              Revision: {provenance_item_revision(item)}
+            </p>
+            <.memory_navigation_groups dom_prefix={"#{@dom_prefix}-provenance-#{index}"} item={item} />
+          </li>
+        </ol>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp decision_memory_iri(items) when is_list(items) do
+    items
+    |> Enum.find(&(memory_item_kind(&1) == "Decision"))
+    |> case do
+      nil -> nil
+      item -> memory_item_iri(item)
+    end
+  end
+
+  defp decision_memory_iri(_items), do: nil
+
+  attr :dom_prefix, :string, required: true
+  attr :item, :map, required: true
+
+  defp memory_navigation_groups(assigns) do
+    ~H"""
+    <div class="space-y-1">
+      <.navigation_link_group
+        :if={navigation_links(@item, :source_code) != []}
+        dom_prefix={"#{@dom_prefix}-source"}
+        label="Source code"
+        links={navigation_links(@item, :source_code)}
+      />
+      <.navigation_link_group
+        :if={navigation_links(@item, :related_memories) != []}
+        dom_prefix={"#{@dom_prefix}-related"}
+        label="Related memory"
+        links={navigation_links(@item, :related_memories)}
+      />
+    </div>
+    """
+  end
+
+  attr :dom_prefix, :string, required: true
+  attr :label, :string, required: true
+  attr :links, :list, required: true
+
+  defp navigation_link_group(assigns) do
+    ~H"""
+    <div class="space-y-1">
+      <p id={"#{@dom_prefix}-label"} class="text-[11px] font-medium uppercase tracking-wide text-base-content/60">
+        {@label}
+      </p>
+      <div id={"#{@dom_prefix}-links"} class="flex flex-wrap gap-2">
+        <a
+          :for={{link, index} <- Enum.with_index(@links, 1)}
+          :if={link.route}
+          id={"#{@dom_prefix}-link-#{index}"}
+          href={link.route}
+          class="link link-primary text-xs"
+        >
+          {link.label}
+        </a>
+      </div>
+    </div>
+    """
+  end
+
+  defp navigation_links(item, key) when is_map(item) do
+    item
+    |> map_get(:navigation, "navigation", %{})
+    |> map_get(key, Atom.to_string(key), [])
+    |> Enum.filter(&(is_binary(Map.get(&1, :route)) && is_binary(Map.get(&1, :label))))
+  end
+
+  defp navigation_links(_item, _key), do: []
+
+  defp memory_item_iri(item) do
+    present_string(map_get(item, :memory_iri, "memory_iri"))
+  end
+
+  defp memory_item_kind(item) do
+    present_string(map_get(item, :memory_kind, "memory_kind")) ||
+      kind_from_resource_iri(memory_item_iri(item)) ||
+      "Memory"
+  end
+
+  defp memory_item_content(item) do
+    present_string(map_get(item, :content, "content")) || "bounded durable memory"
+  end
+
+  defp memory_item_freshness(item) do
+    map_get(item, :freshness_score, "freshness_score") || "unknown"
+  end
+
+  defp memory_item_decision_status(item) do
+    present_string(map_get(item, :decision_status, "decision_status")) || "n/a"
+  end
+
+  defp provenance_item_kind(item) do
+    present_string(map_get(item, :provenance_kind, "provenance_kind")) ||
+      kind_from_resource_iri(present_string(map_get(item, :resource_iri, "resource_iri"))) ||
+      "Provenance"
+  end
+
+  defp provenance_item_label(item) do
+    present_string(map_get(item, :label, "label")) ||
+      present_string(map_get(item, :content, "content")) ||
+      "bounded provenance"
+  end
+
+  defp provenance_item_revision(item) do
+    present_string(map_get(item, :revision_iri, "revision_iri")) || "unknown"
+  end
+
+  defp kind_from_resource_iri(nil), do: nil
+
+  defp kind_from_resource_iri(value) when is_binary(value) do
+    value
+    |> String.split("#")
+    |> List.last()
+    |> case do
+      nil -> nil
+      fragment -> fragment |> String.split("/") |> List.first()
+    end
+    |> present_string()
+    |> case do
+      nil -> nil
+      segment -> segment |> String.replace("-", "_") |> Macro.camelize()
+    end
+  end
+
+  defp load_memory_follow_up_preview(memory_context, %Run{} = run, managed_repo_id) when is_map(memory_context) do
+    FollowUpSurface.preview(
+      Map.get(memory_context, :memories),
+      route: follow_up_preview_route(run, managed_repo_id),
+      category: "governed_follow_up"
+    )
+  end
+
+  defp load_memory_follow_up_preview(_memory_context, _run, _managed_repo_id), do: nil
+
+  defp follow_up_preview_route(%Run{} = run, managed_repo_id) do
+    managed_repo_id = present_string(managed_repo_id)
+    run_id = present_string(run.run_id)
+
+    if is_binary(managed_repo_id) and is_binary(run_id) do
+      "/repos/#{managed_repo_id}/runs/#{run_id}#run-detail-memory-context"
+    else
+      nil
+    end
+  end
+
+  defp present_string(value) do
+    case normalize_optional_string(value) do
+      "nil" -> nil
+      normalized -> normalized
+    end
   end
 
   defp run_governance_widget_props(assigns) do

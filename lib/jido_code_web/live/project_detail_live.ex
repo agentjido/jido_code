@@ -358,8 +358,26 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   </p>
                   <.link
                     :for={link <- memory_navigation_links(item, :governed_records)}
-                    id={"project-detail-memory-item-governed-link-#{memory_item_dom_id(item)}-#{link.kind}"}
                     :if={link.route}
+                    id={"project-detail-memory-item-governed-link-#{memory_item_dom_id(item)}-#{link.kind}"}
+                    navigate={link.route}
+                    class="link link-primary text-xs"
+                  >
+                    {link.label}
+                  </.link>
+                  <.link
+                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :source_code), 1)}
+                    :if={link.route}
+                    id={"project-detail-memory-item-source-link-#{memory_item_dom_id(item)}-#{index}"}
+                    navigate={link.route}
+                    class="link link-primary text-xs"
+                  >
+                    {link.label}
+                  </.link>
+                  <.link
+                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :related_memories), 1)}
+                    :if={link.route}
+                    id={"project-detail-memory-item-related-link-#{memory_item_dom_id(item)}-#{index}"}
                     navigate={link.route}
                     class="link link-primary text-xs"
                   >
@@ -387,6 +405,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
                     Code anchor: {Map.get(item, :module_name)}
                   </p>
+                  <.link
+                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :governed_records), 1)}
+                    :if={link.route}
+                    id={"project-detail-provenance-item-governed-link-#{memory_item_dom_id(item)}-#{index}"}
+                    navigate={link.route}
+                    class="link link-primary text-xs"
+                  >
+                    {link.label}
+                  </.link>
+                  <.link
+                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :source_code), 1)}
+                    :if={link.route}
+                    id={"project-detail-provenance-item-source-link-#{memory_item_dom_id(item)}-#{index}"}
+                    navigate={link.route}
+                    class="link link-primary text-xs"
+                  >
+                    {link.label}
+                  </.link>
                 </li>
               </ul>
             </section>
@@ -750,8 +786,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     Map.get(item, :memory_iri) ||
       Map.get(item, :resource_iri) ||
       "memory-item"
-    |> to_string()
-    |> Base.url_encode64(padding: false)
+      |> to_string()
+      |> Base.url_encode64(padding: false)
   end
 
   defp project_ready_for_launch?(project_detail) do

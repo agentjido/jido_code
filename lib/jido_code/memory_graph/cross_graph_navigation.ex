@@ -4,6 +4,7 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
   @moduledoc false
 
   alias JidoCode.{MemoryGraph, SourceCodeGraph}
+  alias JidoCode.MemoryGraph.GovernedReference
 
   @spec build(String.t(), String.t(), [map()]) :: map()
   def build(managed_repo_id, workspace_path, bindings)
@@ -15,7 +16,7 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
 
     governed_records =
       bindings
-      |> Enum.flat_map(&artifact_links(managed_repo_id, &1))
+      |> Enum.flat_map(&governed_links(managed_repo_id, &1))
       |> uniq_by(:iri)
 
     related_memories =
@@ -85,34 +86,61 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
       ]
   end
 
-  defp artifact_links(managed_repo_id, binding) do
+  defp governed_links(managed_repo_id, binding) do
+    typed_governed_iri = value(binding, "governedRecord")
+    typed_governed_kind = value(binding, "governedKind")
+    typed_governed_label = value(binding, "governedLabel")
     artifact_iri = value(binding, "artifact")
 
-    case {artifact_iri, artifact_target(managed_repo_id, artifact_iri)} do
-      {nil, _target} ->
-        []
+    typed_links =
+      case {typed_governed_iri, typed_target(managed_repo_id, typed_governed_iri, typed_governed_kind)} do
+        {nil, _target} ->
+          []
 
-      {artifact_iri, {target_kind, target_id}} ->
-        [
-          %{
-            kind: target_kind,
-            iri: artifact_iri,
-            id: target_id,
-            label: artifact_label(binding, target_kind, target_id),
-            route: governed_route(managed_repo_id, target_kind, target_id)
-          }
-        ]
+        {typed_governed_iri, {target_kind, target_id}} ->
+          [
+            %{
+              kind: target_kind,
+              iri: typed_governed_iri,
+              id: target_id,
+              label:
+                typed_governed_label || "#{target_kind |> Atom.to_string() |> String.replace("_", " ")} #{target_id}",
+              route: governed_route(managed_repo_id, target_kind, target_id)
+            }
+          ]
 
-      {artifact_iri, nil} ->
-        [
-          %{
-            kind: :artifact,
-            iri: artifact_iri,
-            label: value(binding, "artifactLabel") || compact_name(artifact_iri),
-            route: nil
-          }
-        ]
-    end
+        _other ->
+          []
+      end
+
+    legacy_links =
+      case {artifact_iri, artifact_target(managed_repo_id, artifact_iri)} do
+        {nil, _target} ->
+          []
+
+        {artifact_iri, {target_kind, target_id}} ->
+          [
+            %{
+              kind: target_kind,
+              iri: artifact_iri,
+              id: target_id,
+              label: artifact_label(binding, target_kind, target_id),
+              route: governed_route(managed_repo_id, target_kind, target_id)
+            }
+          ]
+
+        {artifact_iri, nil} ->
+          [
+            %{
+              kind: :artifact,
+              iri: artifact_iri,
+              label: value(binding, "artifactLabel") || compact_name(artifact_iri),
+              route: nil
+            }
+          ]
+      end
+
+    typed_links ++ legacy_links
   end
 
   defp related_memory_links(_managed_repo_id, _workspace_path, binding) do
@@ -162,7 +190,8 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
       |> URI.decode()
       |> String.split("/", parts: 2)
       |> case do
-        [kind, id] when kind in ["observation_id", "assessment_id", "work_item_id", "evidence_id", "decision_id", "run_id"] ->
+        [kind, id]
+        when kind in ["observation_id", "assessment_id", "work_item_id", "evidence_id", "decision_id", "run_id"] ->
           {String.to_atom(String.replace_suffix(kind, "_id", "")), id}
 
         _other ->
@@ -174,6 +203,43 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
   end
 
   defp artifact_target(_managed_repo_id, _artifact_iri), do: nil
+
+  defp typed_target(managed_repo_id, governed_iri, kind) when is_binary(governed_iri) do
+    case GovernedReference.parse_iri(managed_repo_id, governed_iri) do
+      {:ok, %{kind: parsed_kind, id: id}} ->
+        normalized_kind =
+          case normalize_kind(kind) do
+            nil -> parsed_kind
+            explicit_kind -> explicit_kind
+          end
+
+        {normalized_kind, id}
+
+      _other ->
+        nil
+    end
+  end
+
+  defp typed_target(_managed_repo_id, _governed_iri, _kind), do: nil
+
+  defp normalize_kind(nil), do: nil
+
+  defp normalize_kind(kind) when is_atom(kind), do: kind
+
+  defp normalize_kind(kind) when is_binary(kind) do
+    case String.trim(kind) do
+      "managed_repo" -> :managed_repo
+      "event" -> :event
+      "observation" -> :observation
+      "assessment" -> :assessment
+      "work_item" -> :work_item
+      "run" -> :run
+      "evidence" -> :evidence
+      "change_request" -> :change_request
+      "decision" -> :decision
+      _other -> nil
+    end
+  end
 
   defp artifact_label(binding, kind, id) do
     value(binding, "artifactLabel") ||

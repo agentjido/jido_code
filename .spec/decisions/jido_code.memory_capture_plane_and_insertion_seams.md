@@ -96,6 +96,20 @@ The canonical shape is therefore:
   relevant, to governed product records through one typed governed-reference
   contract instead of generic artifact naming
 
+The capture-envelope contract now treats typed `governed_references` as the
+canonical caller input for governed product links. Runtime, workflow, product,
+and governed-adoption callers emit explicit typed references at normalization
+time, while any compatibility `governed_artifacts` shape remains an internal
+derived representation for writer cutover rather than a durable caller-facing
+contract.
+
+The writer seam now emits those governed links as typed ontology relations such
+as `aboutRun`, `aboutWorkItem`, `aboutEvidence`, and `aboutDecision`, and types
+the governed targets with the companion control-plane ontology instead of
+flattening them into generic `EvidenceArtifact` entities. Repository-local
+memory status also detects legacy governed-artifact write shapes and routes
+recovery through the existing bounded memory-graph recovery entrypoint.
+
 The first concrete implementation slice of this plane should therefore land as:
 
 - typed envelope normalization modules that validate provenance capture context

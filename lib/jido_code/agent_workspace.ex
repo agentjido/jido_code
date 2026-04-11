@@ -52,7 +52,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.AgentOS.Manager
   alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
   alias JidoCode.Control.Actor
-  alias JidoCode.MemoryGraph.CaptureEnvelope
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
   alias JidoCode.Pods.{CodingPod, RepoPod}
 
@@ -882,7 +882,7 @@ defmodule JidoCode.AgentWorkspace do
           with {:ok, _pod_entry} <-
                  persist_memory_graph_state(managed_repo_id, %{
                    latest_validation_status: result.latest_validation_status,
-                   latest_failure: nil
+                   latest_failure: Map.get(result, :latest_failure)
                  }) do
             {:ok, result}
           end
@@ -914,7 +914,7 @@ defmodule JidoCode.AgentWorkspace do
           with {:ok, _pod_entry} <-
                  persist_memory_graph_state(managed_repo_id, %{
                    latest_validation_status: result.latest_validation_status,
-                   latest_failure: nil
+                   latest_failure: Map.get(result, :latest_failure)
                  }) do
             {:ok, result}
           end
@@ -1031,7 +1031,12 @@ defmodule JidoCode.AgentWorkspace do
            }}
 
         action ->
-          case run_memory_graph_recovery(managed_repo_id, workspace_path, action, opts) do
+          case run_memory_graph_recovery(
+                 managed_repo_id,
+                 workspace_path,
+                 action,
+                 Keyword.put(opts, :graph_status, status)
+               ) do
             {:ok, result} ->
               {:ok,
                %{
@@ -1678,6 +1683,29 @@ defmodule JidoCode.AgentWorkspace do
     |> Enum.uniq()
   end
 
+  defp provenance_governed_references(work_item_id, opts) do
+    explicit =
+      [
+        work_item_id && %{kind: :work_item, id: work_item_id}
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    inherited =
+      opts
+      |> Keyword.get(:provenance, [])
+      |> Keyword.get(:governed_references)
+      |> GovernedReference.explicit_many()
+
+    legacy =
+      opts
+      |> Keyword.get(:provenance, [])
+      |> Keyword.get(:governed_context)
+      |> GovernedReference.explicit_many()
+
+    (explicit ++ inherited ++ legacy)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
+  end
+
   defp provenance_memory_policy(opts) do
     opts
     |> Keyword.get(:provenance, [])
@@ -1735,6 +1763,7 @@ defmodule JidoCode.AgentWorkspace do
       instruction: instruction,
       workspace_path: workspace_path,
       related_resources: provenance_related_resources(opts),
+      governed_references: provenance_governed_references(work_item_id, opts),
       memory_policy: provenance_memory_policy(opts),
       follow_up_intent: provenance_follow_up_intent(opts)
     }
@@ -1756,6 +1785,7 @@ defmodule JidoCode.AgentWorkspace do
         outcome: "started",
         revision: provenance_context.revision,
         related_resources: provenance_context.related_resources,
+        governed_references: provenance_context.governed_references,
         metadata: provenance_metadata(provenance_context)
       )
 
@@ -1768,6 +1798,7 @@ defmodule JidoCode.AgentWorkspace do
         content: provenance_context.instruction,
         revision: provenance_context.revision,
         related_resources: provenance_context.related_resources,
+        governed_references: provenance_context.governed_references,
         metadata: provenance_metadata(provenance_context)
       )
 
@@ -1817,6 +1848,7 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
+        governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources
       )
 
@@ -1832,6 +1864,7 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
+        governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources
       )
 
@@ -1895,6 +1928,7 @@ defmodule JidoCode.AgentWorkspace do
         started_at: started_at,
         ended_at: ended_at,
         revision: provenance_context.revision,
+        governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources,
         metadata:
           provenance_metadata(provenance_context)
@@ -1916,6 +1950,7 @@ defmodule JidoCode.AgentWorkspace do
       started_at: started_at,
       ended_at: ended_at,
       revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
       metadata: provenance_metadata(provenance_context)
     )
@@ -1932,6 +1967,7 @@ defmodule JidoCode.AgentWorkspace do
       started_at: started_at,
       ended_at: ended_at,
       revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
       metadata: provenance_metadata(provenance_context)
     )
@@ -1948,6 +1984,7 @@ defmodule JidoCode.AgentWorkspace do
       started_at: started_at,
       ended_at: ended_at,
       revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
       metadata: provenance_metadata(provenance_context)
     )
@@ -2447,19 +2484,34 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp run_memory_graph_recovery(managed_repo_id, workspace_path, :recover, opts) do
-    refresh_memory_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+    graph_status = Keyword.get(opts, :graph_status, %{})
+    recovery_opts = opts |> Keyword.delete(:mode) |> Keyword.delete(:graph_status)
+
+    if get_in(graph_status, [:latest_failure, :kind]) == :memory_graph_semantic_cutover_required do
+      refresh_memory_graph(managed_repo_id, workspace_path, Keyword.put(recovery_opts, :reset_store?, true))
+    else
+      refresh_memory_graph(managed_repo_id, workspace_path, recovery_opts)
+    end
   end
 
   defp run_memory_graph_recovery(managed_repo_id, workspace_path, :refresh, opts) do
-    refresh_memory_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+    refresh_memory_graph(
+      managed_repo_id,
+      workspace_path,
+      opts |> Keyword.delete(:mode) |> Keyword.delete(:graph_status)
+    )
   end
 
   defp run_memory_graph_recovery(managed_repo_id, workspace_path, :validate, opts) do
-    validate_memory_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+    validate_memory_graph(
+      managed_repo_id,
+      workspace_path,
+      opts |> Keyword.delete(:mode) |> Keyword.delete(:graph_status)
+    )
   end
 
   defp run_memory_graph_recovery(managed_repo_id, workspace_path, :status, opts) do
-    memory_graph_status(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+    memory_graph_status(managed_repo_id, workspace_path, opts |> Keyword.delete(:mode) |> Keyword.delete(:graph_status))
   end
 
   defp query_failure_requires_refresh?(status) do
@@ -2543,6 +2595,8 @@ defmodule JidoCode.AgentWorkspace do
         state: normalized.state,
         recovery_action: normalized.recovery_action,
         cross_graph: normalized.cross_graph,
+        semantic_model:
+          Map.get(status, :semantic_model) || get_in(status, [:latest_validation_status, :semantic_model]),
         feedback: MemoryGraphProductFeedback.for_graph(normalized)
       })
     end)
@@ -2881,7 +2935,7 @@ defmodule JidoCode.AgentWorkspace do
     |> Enum.into(%{})
   end
 
-  defp memory_graph_params(opts, allowed_keys \\ [:revision, :graph_name]) do
+  defp memory_graph_params(opts, allowed_keys \\ [:revision, :graph_name, :reset_store?]) do
     opts
     |> Keyword.take(allowed_keys)
     |> Enum.into(%{})

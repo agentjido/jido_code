@@ -52,6 +52,19 @@ defmodule JidoCode.MemoryGraph.GovernedReferenceTest do
     assert Enum.map(normalized, & &1.kind) == [:run, :work_item]
   end
 
+  test "normalizes shorthand governed context into typed references" do
+    assert GovernedReference.explicit_many(%{run_id: "run-42", decision_id: "decision-42"})
+           |> Enum.sort_by(&{&1.kind, &1.id}) == [
+             %{kind: :decision, id: "decision-42"},
+             %{kind: :run, id: "run-42"}
+           ]
+
+    assert {:ok, normalized} =
+             GovernedReference.normalize_context("repo-123", %{run_id: "run-42", decision_id: "decision-42"})
+
+    assert normalized |> Enum.map(& &1.kind) |> Enum.sort() == [:decision, :run]
+  end
+
   test "rejects mismatched managed repo scope" do
     assert {:error, :managed_repo_scope_mismatch} =
              GovernedReference.normalize("repo-123", %{managed_repo_id: "repo-456"})

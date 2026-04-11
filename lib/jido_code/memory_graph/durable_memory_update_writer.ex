@@ -12,6 +12,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
 
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope
+  alias JidoCode.MemoryGraph.GovernedReference
 
   @jido_ns "https://jido.run/ontology/memory#"
   @prov_ns "http://www.w3.org/ns/prov#"
@@ -154,6 +155,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
       {envelope.update_iri, prov("wasAttributedTo"), envelope.actor_iri},
       {envelope.update_iri, jido("observedAtRevision"), envelope.revision_iri}
     ]
+    |> add_governed_references(envelope.update_iri, envelope.managed_repo_id, envelope.governed_references)
   end
 
   defp test_run_triples(%{test_run: nil}), do: []
@@ -169,7 +171,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
 
   defp artifact_links(subject, envelope) do
     []
-    |> add_artifacts(subject, envelope.governed_artifacts, jido("supportedBy"))
+    |> add_governed_references(subject, envelope.managed_repo_id, envelope.governed_references)
     |> add_artifacts(subject, envelope.supported_by_artifacts, jido("supportedBy"))
     |> add_artifacts(subject, envelope.evidence_artifacts, jido("evidenceArtifact"))
     |> maybe_add_confidence_source(subject, envelope.confidence_source)
@@ -188,6 +190,56 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
           {subject, jido("supportedBy"), artifact.iri}
         ]
       end)
+  end
+
+  defp add_governed_references(triples, _subject, _managed_repo_id, []), do: triples
+
+  defp add_governed_references(triples, subject, managed_repo_id, references) when is_list(references) do
+    triples ++
+      Enum.flat_map(references, fn
+        %{kind: kind, id: id, iri: iri} = reference when not is_nil(iri) ->
+          governed_reference_triples(subject, managed_repo_id, kind, id, iri, Map.get(reference, :label))
+
+        _other ->
+          []
+      end)
+  end
+
+  defp governed_reference_triples(subject, managed_repo_id, kind, id, iri, label) do
+    governed_resource = RDF.iri(iri)
+    managed_repo_resource = GovernedReference.resource(managed_repo_id, :managed_repo, managed_repo_id)
+    managed_repo_label = GovernedReference.label(:managed_repo, managed_repo_id)
+
+    managed_repo_triples =
+      [
+        {managed_repo_resource, RDF.type(), GovernedReference.class_iri(:managed_repo)},
+        {managed_repo_resource, RDF.type(), GovernedReference.governed_record_class_iri()},
+        {managed_repo_resource, RDF.type(), prov("Entity")},
+        {managed_repo_resource, GovernedReference.id_predicate_iri(:managed_repo), RDF.literal(managed_repo_id)},
+        maybe_triple(managed_repo_resource, rdfs("label"), RDF.literal(managed_repo_label)),
+        maybe_triple(
+          managed_repo_resource,
+          GovernedReference.record_label_predicate_iri(),
+          RDF.literal(managed_repo_label)
+        )
+      ]
+
+    reference_triples =
+      [
+        {governed_resource, RDF.type(), GovernedReference.class_iri(kind)},
+        {governed_resource, RDF.type(), GovernedReference.governed_record_class_iri()},
+        {governed_resource, RDF.type(), prov("Entity")},
+        {governed_resource, GovernedReference.id_predicate_iri(kind), RDF.literal(id)},
+        maybe_triple(governed_resource, rdfs("label"), literal_or_nil(label)),
+        maybe_triple(governed_resource, GovernedReference.record_label_predicate_iri(), literal_or_nil(label)),
+        {subject, GovernedReference.predicate_iri(kind), governed_resource}
+      ] ++
+        case kind do
+          :managed_repo -> []
+          _other -> [{governed_resource, GovernedReference.for_managed_repo_predicate_iri(), managed_repo_resource}]
+        end
+
+    managed_repo_triples ++ reference_triples
   end
 
   defp maybe_add_confidence_source(triples, _subject, nil), do: triples

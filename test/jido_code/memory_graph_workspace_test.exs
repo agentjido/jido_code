@@ -10,6 +10,7 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.MemoryGraph
 
   setup do
     previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
@@ -188,6 +189,55 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       assert failed_status.feedback.recovery.action == :recover
     end
 
+    test "detects legacy governed artifact semantics and recovers through bounded rebuild" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, _refresh_result} =
+               AgentWorkspace.refresh_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "legacy-cutover"
+               )
+
+      inject_legacy_governed_artifact!(managed_repo_id, workspace_path)
+
+      assert {:ok, validate_result} =
+               AgentWorkspace.validate_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "legacy-cutover"
+               )
+
+      assert validate_result.status == :memory_graph_recovery_required
+      assert validate_result.latest_failure.kind == :memory_graph_semantic_cutover_required
+      assert validate_result.semantic_model.legacy_governed_artifact_count > 0
+
+      assert {:ok, failed_status} =
+               AgentWorkspace.memory_graph_status(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "legacy-cutover"
+               )
+
+      assert failed_status.state == :failed
+      assert failed_status.recovery_action == :recover
+      assert failed_status.semantic_model.rebuild_required? == true
+      assert failed_status.feedback.detail =~ "legacy governed artifact links"
+
+      assert {:ok, recovery_result} =
+               AgentWorkspace.recover_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "legacy-cutover"
+               )
+
+      assert recovery_result.recovery_action == :recover
+      assert recovery_result.result.store.reset_store? == true
+      assert recovery_result.graph_status.ready? == true
+      assert recovery_result.graph_status.semantic_model.legacy_governed_artifact_count == 0
+    end
+
     test "routes record and invalidate through bounded workspace entrypoints" do
       managed_repo_id = "repo-#{System.unique_integer()}"
       workspace_path = create_workspace_path!()
@@ -355,5 +405,28 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       end
       """
     )
+  end
+
+  defp inject_legacy_governed_artifact!(managed_repo_id, workspace_path) do
+    store_path = MemoryGraph.graph_store_path(workspace_path)
+    legacy_memory_iri = RDF.iri("#{MemoryGraph.base_iri(managed_repo_id)}fact/legacy-governed-artifact")
+    legacy_artifact_iri = MemoryGraph.artifact_iri(managed_repo_id, "run_id/run-legacy")
+
+    {:ok, store} = TripleStore.open(store_path, create_if_missing: false, schema: :quad)
+
+    try do
+      graph =
+        RDF.Graph.new([
+          {legacy_memory_iri, RDF.type(), RDF.iri("https://jido.run/ontology/memory#Fact")},
+          {legacy_memory_iri, RDF.type(), RDF.iri("https://jido.run/ontology/memory#Memory")},
+          {legacy_artifact_iri, RDF.type(), RDF.iri("https://jido.run/ontology/memory#EvidenceArtifact")},
+          {legacy_memory_iri, RDF.iri("https://jido.run/ontology/memory#supportedBy"), legacy_artifact_iri}
+        ])
+
+      {:ok, _triple_count} =
+        TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource())
+    after
+      :ok = TripleStore.close(store)
+    end
   end
 end

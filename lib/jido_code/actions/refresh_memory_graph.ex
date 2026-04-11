@@ -15,7 +15,8 @@ defmodule JidoCode.Actions.RefreshMemoryGraph do
     schema: [
       managed_repo_id: [type: :string, default: nil],
       workspace_path: [type: :string, default: nil],
-      revision: [type: :string, default: nil]
+      revision: [type: :string, default: nil],
+      reset_store?: [type: :boolean, default: false]
     ]
 
   alias JidoCode.Actions.MemoryGraphSupport
@@ -24,7 +25,7 @@ defmodule JidoCode.Actions.RefreshMemoryGraph do
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- MemoryGraphSupport.resolve_graph_context(params, context) do
-      case Store.refresh(graph_context) do
+      case Store.refresh(Map.put(graph_context, :reset_store?, Map.get(params, :reset_store?, false))) do
         {:ok, result} -> {:ok, result}
         {:error, diagnostics} -> {:error, :memory_graph_refresh_failed, diagnostics}
       end

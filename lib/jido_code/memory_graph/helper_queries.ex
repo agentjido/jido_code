@@ -77,10 +77,15 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
           """
       end
 
-    governed_filter = governed_filter(managed_repo_id, params[:artifact_paths], "memory")
+    governed_filter =
+      governed_filter(
+        managed_repo_id,
+        Map.get(params, :governed_references, params[:artifact_paths]),
+        "memory"
+      )
 
     """
-    SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject
+    SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject ?governedRecord ?governedKind ?governedLabel
     WHERE {
     #{kind_filter}
       ?memory a ?kind ;
@@ -94,6 +99,22 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?memory jido:aboutModule ?module . }
       OPTIONAL { ?memory jido:aboutFunction ?function . }
       OPTIONAL { ?memory jido:affectsSymbol ?subject . }
+      OPTIONAL {
+        VALUES (?governedPredicate ?governedKind) {
+          (jido:aboutManagedRepo "managed_repo")
+          (jido:aboutObservation "observation")
+          (jido:aboutAssessment "assessment")
+          (jido:aboutWorkItem "work_item")
+          (jido:aboutRun "run")
+          (jido:aboutEvidence "evidence")
+          (jido:aboutChangeRequest "change_request")
+          (jido:aboutDecision "decision")
+        }
+        ?memory ?governedPredicate ?governedRecord .
+        OPTIONAL { ?governedRecord <https://jido.run/ontology/control-plane#recordLabel> ?governedRecordLabel . }
+        OPTIONAL { ?governedRecord rdfs:label ?governedRecordRdfsLabel . }
+        BIND(COALESCE(?governedRecordLabel, ?governedRecordRdfsLabel) AS ?governedLabel)
+      }
     #{governed_filter}
       FILTER(STRSTARTS(STR(?memory), "#{base_iri}"))
     #{content_filter}
@@ -140,10 +161,15 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
           """
       end
 
-    governed_filter = governed_filter(managed_repo_id, params[:artifact_paths], "resource")
+    governed_filter =
+      governed_filter(
+        managed_repo_id,
+        Map.get(params, :governed_references, params[:artifact_paths]),
+        "resource"
+      )
 
     """
-    SELECT ?resource ?kind ?label ?content ?startedAt ?endedAt ?session ?module ?function ?subject ?revision
+    SELECT ?resource ?kind ?label ?content ?startedAt ?endedAt ?session ?module ?function ?subject ?revision ?governedRecord ?governedKind ?governedLabel
     WHERE {
     #{kind_filter}
       ?resource a ?kind .
@@ -156,6 +182,22 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?resource jido:aboutFunction ?function . }
       OPTIONAL { ?resource jido:affectsSymbol ?subject . }
       OPTIONAL { ?resource jido:validForRevision ?revision . }
+      OPTIONAL {
+        VALUES (?governedPredicate ?governedKind) {
+          (jido:aboutManagedRepo "managed_repo")
+          (jido:aboutObservation "observation")
+          (jido:aboutAssessment "assessment")
+          (jido:aboutWorkItem "work_item")
+          (jido:aboutRun "run")
+          (jido:aboutEvidence "evidence")
+          (jido:aboutChangeRequest "change_request")
+          (jido:aboutDecision "decision")
+        }
+        ?resource ?governedPredicate ?governedRecord .
+        OPTIONAL { ?governedRecord <https://jido.run/ontology/control-plane#recordLabel> ?governedRecordLabel . }
+        OPTIONAL { ?governedRecord rdfs:label ?governedRecordRdfsLabel . }
+        BIND(COALESCE(?governedRecordLabel, ?governedRecordRdfsLabel) AS ?governedLabel)
+      }
     #{governed_filter}
       FILTER(STRSTARTS(STR(?resource), "#{base_iri}"))
     #{label_filter}

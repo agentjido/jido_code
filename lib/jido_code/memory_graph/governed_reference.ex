@@ -143,6 +143,21 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
   @spec label(kind(), String.t()) :: String.t()
   def label(kind, id) when is_binary(id), do: "#{kind_label(kind)} #{id}"
 
+  @spec route(managed_repo_id(), kind(), String.t()) :: String.t() | nil
+  def route(_managed_repo_id, :managed_repo, id)
+      when is_binary(id),
+      do: "/repos/#{id}"
+
+  def route(managed_repo_id, :run, id) when is_binary(managed_repo_id) and is_binary(id),
+    do: "/repos/#{managed_repo_id}/runs/#{id}"
+
+  def route(_managed_repo_id, _kind, _id), do: nil
+
+  @spec route(managed_repo_id(), normalized_reference()) :: String.t() | nil
+  def route(managed_repo_id, %{kind: kind, id: id})
+      when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
+      do: route(managed_repo_id, kind, id)
+
   @spec predicate_iri(kind()) :: RDF.IRI.t()
   def predicate_iri(kind), do: RDF.iri(@memory_ns <> Map.fetch!(@kind_predicates, kind))
 

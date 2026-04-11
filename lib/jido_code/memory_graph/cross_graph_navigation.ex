@@ -105,7 +105,7 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
               id: target_id,
               label:
                 typed_governed_label || "#{target_kind |> Atom.to_string() |> String.replace("_", " ")} #{target_id}",
-              route: governed_route(managed_repo_id, target_kind, target_id)
+              route: GovernedReference.route(managed_repo_id, target_kind, target_id)
             }
           ]
 
@@ -125,19 +125,12 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
               iri: artifact_iri,
               id: target_id,
               label: artifact_label(binding, target_kind, target_id),
-              route: governed_route(managed_repo_id, target_kind, target_id)
+              route: GovernedReference.route(managed_repo_id, target_kind, target_id)
             }
           ]
 
-        {artifact_iri, nil} ->
-          [
-            %{
-              kind: :artifact,
-              iri: artifact_iri,
-              label: value(binding, "artifactLabel") || compact_name(artifact_iri),
-              route: nil
-            }
-          ]
+        {artifact_iri, nil} when is_binary(artifact_iri) ->
+          []
       end
 
     typed_links ++ legacy_links
@@ -245,9 +238,6 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
     value(binding, "artifactLabel") ||
       "#{kind |> Atom.to_string() |> String.replace("_", " ")} #{id}"
   end
-
-  defp governed_route(managed_repo_id, :run, id), do: "/repos/#{managed_repo_id}/runs/#{id}"
-  defp governed_route(_managed_repo_id, _kind, _id), do: nil
 
   defp uniq_by(items, key) do
     Enum.uniq_by(items, &Map.get(&1, key))

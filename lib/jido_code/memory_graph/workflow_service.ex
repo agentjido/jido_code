@@ -283,6 +283,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
         revision: workflow_provenance.revision,
         related_resources: related_resources
       ]
+      |> maybe_put_provenance_value(:governed_references, memory_governed_references(memory_input))
       |> maybe_put_provenance_value(:memory_policy, memory_policy(memory_input))
       |> maybe_put_provenance_value(:follow_up_intent, memory_follow_up_intent(memory_input))
 
@@ -328,6 +329,14 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     |> get_in([:selection, :related_resources])
     |> List.wrap()
     |> Enum.filter(&is_binary/1)
+  end
+
+  defp memory_governed_references(nil), do: []
+
+  defp memory_governed_references(memory_input) do
+    memory_input
+    |> get_in([:selection, :governed_references])
+    |> List.wrap()
   end
 
   defp maybe_put_provenance_value(keyword, _key, nil), do: keyword
@@ -397,6 +406,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       freshness: normalize_map(Map.get(memory_input, :freshness, %{})),
       graph: normalize_map(Map.get(memory_input, :graph, %{})),
       selection: normalize_map(Map.get(memory_input, :selection, %{})),
+      governed_references: memory_governed_references(memory_input),
       memory_resources: memory_resources,
       provenance_resources: provenance_resources,
       related_resources: related_resources
@@ -551,6 +561,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       revision: provenance.revision,
       workflow: provenance.workflow,
       related_resources: Map.get(provenance, :related_resources, []),
+      governed_references: Map.get(provenance, :governed_references, []),
       memory_policy: Map.get(provenance, :memory_policy)
     }
   end

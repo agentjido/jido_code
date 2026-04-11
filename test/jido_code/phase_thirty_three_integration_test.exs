@@ -81,13 +81,13 @@ defmodule JidoCode.PhaseThirtyThreeIntegrationTest do
       assert Enum.any?(memory_item.navigation.source_code, &(&1.kind == :module))
 
       assert {:ok, projection} =
-               ProductService.memories_for_governed_artifacts(
+               ProductService.memories_for_governed_references(
                  managed_repo.id,
                  workspace_path,
                  [
-                   MemoryGraph.artifact_path(:run, run.run_id),
-                   MemoryGraph.artifact_path(:evidence, evidence.id),
-                   MemoryGraph.artifact_path(:decision, decision.id)
+                   %{kind: :run, id: run.run_id},
+                   %{kind: :evidence, id: evidence.id},
+                   %{kind: :decision, id: decision.id}
                  ],
                  revision: revision
                )

@@ -9,7 +9,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   """
 
   alias JidoCode.MemoryGraph.ProductFeedback
-  alias JidoCode.MemoryGraph.ProductService
+  alias JidoCode.MemoryGraph.{GovernedReference, ProductService}
   alias JidoCode.Orchestration.Run
 
   @default_graph %{
@@ -34,17 +34,17 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
         graph = Map.get(status, :graph, @default_graph)
         lookup_opts = Keyword.put_new(opts, :allow_stale?, true)
         work_item = Keyword.get(opts, :work_item)
-        artifact_paths = run_artifact_paths(run, work_item, evidence_records, decisions)
+        governed_references = run_governed_references(run, work_item, evidence_records, decisions)
         run_route = "/repos/#{managed_repo_id}/runs/#{run.run_id}"
 
         {memories, provenance} =
-          if queryable_graph?(graph) and artifact_paths != [] do
+          if queryable_graph?(graph) and governed_references != [] do
             {
               navigation_projection(
-                ProductService.memories_for_governed_artifacts(
+                ProductService.memories_for_governed_references(
                   managed_repo_id,
                   workspace_path,
-                  artifact_paths,
+                  governed_references,
                   Keyword.put_new(lookup_opts, :limit, 8)
                 ),
                 managed_repo_id,
@@ -53,10 +53,10 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
                 lookup_opts
               ),
               navigation_projection(
-                ProductService.provenance_for_governed_artifacts(
+                ProductService.provenance_for_governed_references(
                   managed_repo_id,
                   workspace_path,
-                  artifact_paths,
+                  governed_references,
                   Keyword.put_new(lookup_opts, :limit, 8)
                 ),
                 managed_repo_id,
@@ -158,26 +158,24 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
 
   defp workspace_path_from_settings(_settings), do: nil
 
-  defp run_artifact_paths(%Run{} = run, work_item, evidence_records, decisions) do
+  defp run_governed_references(%Run{} = run, work_item, evidence_records, decisions) do
     []
-    |> maybe_add_artifact(:run, normalize_optional_string(run.run_id))
-    |> maybe_add_artifact(:work_item, record_id(work_item))
-    |> add_artifacts(evidence_records, :evidence)
-    |> add_artifacts(decisions, :decision)
+    |> maybe_add_governed_reference(:run, normalize_optional_string(run.run_id))
+    |> maybe_add_governed_reference(:work_item, record_id(work_item))
+    |> add_governed_references(evidence_records, :evidence)
+    |> add_governed_references(decisions, :decision)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
   end
 
-  defp maybe_add_artifact(paths, _kind, nil), do: paths
+  defp maybe_add_governed_reference(references, _kind, nil), do: references
 
-  defp maybe_add_artifact(paths, kind, id) do
-    case JidoCode.MemoryGraph.artifact_path(kind, id) do
-      nil -> paths
-      path -> paths ++ [path]
-    end
+  defp maybe_add_governed_reference(references, kind, id) do
+    references ++ [%{kind: kind, id: id}]
   end
 
-  defp add_artifacts(paths, records, kind) when is_list(records) do
-    Enum.reduce(records, paths, fn record, acc ->
-      maybe_add_artifact(acc, kind, normalize_optional_string(map_get(record, :id, "id")))
+  defp add_governed_references(references, records, kind) when is_list(records) do
+    Enum.reduce(records, references, fn record, acc ->
+      maybe_add_governed_reference(acc, kind, normalize_optional_string(map_get(record, :id, "id")))
     end)
   end
 
@@ -206,7 +204,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
           resource_iri when is_binary(resource_iri) ->
             case ProductService.cross_links(managed_repo_id, workspace_path, resource_iri, opts) do
               {:ok, projection} ->
-                patch_governed_navigation(projection.navigation, run_route)
+                patch_governed_navigation(projection.navigation, managed_repo_id, run_route)
 
               _other ->
                 %{source_code: [], governed_records: [], related_memories: []}
@@ -220,13 +218,12 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     end)
   end
 
-  defp patch_governed_navigation(navigation, run_route) when is_map(navigation) do
+  defp patch_governed_navigation(navigation, managed_repo_id, run_route)
+       when is_map(navigation) and is_binary(managed_repo_id) do
     governed_records =
       Enum.map(Map.get(navigation, :governed_records, []), fn link ->
-        case {Map.get(link, :kind), Map.get(link, :route), normalize_optional_string(Map.get(link, :id))} do
-          {:work_item, nil, _id} -> Map.put(link, :route, run_route <> "#run-detail-work-item")
-          {:evidence, nil, id} when is_binary(id) -> Map.put(link, :route, governed_route(:evidence, id, run_route))
-          {:decision, nil, id} when is_binary(id) -> Map.put(link, :route, governed_route(:decision, id, run_route))
+        case governed_route_from_reference(managed_repo_id, link, run_route) do
+          route when is_binary(route) -> Map.put(link, :route, route)
           _other -> link
         end
       end)
@@ -299,17 +296,17 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
 
   defp governed_surface(record, kind, managed_repo_id, workspace_path, graph, run_route, opts) when is_map(record) do
     record_id = record_id(record)
-    artifact_path = JidoCode.MemoryGraph.artifact_path(kind, record_id)
+    governed_references = [%{kind: kind, id: record_id}]
     route = record_id && governed_route(kind, record_id, run_route)
 
     {memories, provenance} =
-      if queryable_graph?(graph) and is_binary(artifact_path) do
+      if queryable_graph?(graph) and is_binary(record_id) do
         {
           navigation_projection(
-            ProductService.memories_for_governed_artifacts(
+            ProductService.memories_for_governed_references(
               managed_repo_id,
               workspace_path,
-              [artifact_path],
+              governed_references,
               Keyword.put_new(opts, :limit, 4)
             ),
             managed_repo_id,
@@ -318,10 +315,10 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
             opts
           ),
           navigation_projection(
-            ProductService.provenance_for_governed_artifacts(
+            ProductService.provenance_for_governed_references(
               managed_repo_id,
               workspace_path,
-              [artifact_path],
+              governed_references,
               Keyword.put_new(opts, :limit, 4)
             ),
             managed_repo_id,
@@ -371,6 +368,24 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     do: run_route <> "#run-detail-decision-entry-#{dom_token(record_id)}"
 
   defp governed_route(_kind, _record_id, run_route), do: run_route
+
+  defp governed_route_from_reference(managed_repo_id, %{kind: :work_item}, run_route)
+       when is_binary(managed_repo_id),
+       do: run_route <> "#run-detail-work-item"
+
+  defp governed_route_from_reference(_managed_repo_id, %{kind: :evidence, id: id}, run_route)
+       when is_binary(id),
+       do: governed_route(:evidence, id, run_route)
+
+  defp governed_route_from_reference(_managed_repo_id, %{kind: :decision, id: id}, run_route)
+       when is_binary(id),
+       do: governed_route(:decision, id, run_route)
+
+  defp governed_route_from_reference(managed_repo_id, %{kind: kind, id: id}, _run_route)
+       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
+       do: GovernedReference.route(managed_repo_id, kind, id)
+
+  defp governed_route_from_reference(_managed_repo_id, _reference, _run_route), do: nil
 
   defp record_id(record) when is_map(record), do: normalize_optional_string(map_get(record, :id, "id"))
   defp record_id(_record), do: nil

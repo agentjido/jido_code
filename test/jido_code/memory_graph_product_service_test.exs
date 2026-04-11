@@ -191,7 +191,7 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
              end)
     end
 
-    test "returns governed-artifact scoped memory and provenance projections" do
+    test "returns governed-reference scoped memory and provenance projections" do
       managed_repo_id = "repo-#{System.unique_integer([:positive])}"
       workspace_path = create_workspace_path!()
       revision = "phase-33-governed-surface"
@@ -199,26 +199,26 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
       %{memory_resource_iri: memory_resource_iri, plan_resource_iri: plan_resource_iri} =
         seed_memory_graph!(managed_repo_id, workspace_path, revision)
 
-      artifact_paths = [
-        JidoCode.MemoryGraph.artifact_path(:run, "run-32"),
-        JidoCode.MemoryGraph.artifact_path(:evidence, "evidence-32")
+      governed_references = [
+        %{kind: :run, id: "run-32"},
+        %{kind: :evidence, id: "evidence-32"}
       ]
 
       assert {:ok, memories_projection} =
-               ProductService.memories_for_governed_artifacts(
+               ProductService.memories_for_governed_references(
                  managed_repo_id,
                  workspace_path,
-                 artifact_paths,
+                 governed_references,
                  revision: revision
                )
 
       assert Enum.any?(memories_projection.items, &(&1.memory_iri == memory_resource_iri))
 
       assert {:ok, provenance_projection} =
-               ProductService.provenance_for_governed_artifacts(
+               ProductService.provenance_for_governed_references(
                  managed_repo_id,
                  workspace_path,
-                 artifact_paths,
+                 governed_references,
                  revision: revision
                )
 

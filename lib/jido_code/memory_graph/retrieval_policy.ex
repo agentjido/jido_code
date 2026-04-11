@@ -152,11 +152,19 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
       |> Map.get(:items, [])
       |> Enum.filter(&selected_provenance?(&1, policy))
 
+    governed_references =
+      [memory_items, provenance_items]
+      |> List.flatten()
+      |> Enum.flat_map(&item_governed_references/1)
+      |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
+
     %{
       state: selection_state(result_projections, memory_items, provenance_items),
       retrieval_policy: summary(policy),
       memory_count: length(memory_items),
       provenance_count: length(provenance_items),
+      governed_reference_count: length(governed_references),
+      governed_references: governed_references,
       memory_resources: Enum.map(memory_items, &Map.get(&1, :memory_iri)) |> compact_strings(),
       provenance_resources: Enum.map(provenance_items, &Map.get(&1, :resource_iri)) |> compact_strings(),
       related_resources:
@@ -269,6 +277,31 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
   end
+
+  defp item_governed_references(item) when is_map(item) do
+    item
+    |> Map.get(:governed_context, [])
+    |> List.wrap()
+    |> Enum.flat_map(fn link ->
+      case {Map.get(link, :kind), Map.get(link, :id), Map.get(link, :iri), Map.get(link, :label), Map.get(link, :route)} do
+        {kind, id, iri, label, route} when is_atom(kind) and is_binary(id) ->
+          [
+            %{
+              kind: kind,
+              id: id,
+              iri: iri,
+              label: label,
+              route: route
+            }
+          ]
+
+        _other ->
+          []
+      end
+    end)
+  end
+
+  defp item_governed_references(_item), do: []
 
   defp normalize_kinds(nil, default), do: {:ok, default}
 

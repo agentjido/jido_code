@@ -218,6 +218,13 @@ surface:
     - architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records
 
 - kind: source_file
+  target: test/jido_code/phase_thirty_seven_integration_test.exs
+  covers:
+    - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
+    - architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records
+    - architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
+
+- kind: source_file
   target: test/jido_code/phase_thirty_two_integration_test.exs
   covers:
     - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary

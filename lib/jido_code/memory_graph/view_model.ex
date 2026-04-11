@@ -4,6 +4,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
   # covers: architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
   @moduledoc false
 
+  alias JidoCode.MemoryGraph.GovernedReference
   alias JidoCode.MemoryGraph.ProductFeedback
 
   @type projection :: map()
@@ -60,7 +61,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       raw_result
       |> Map.get(:bindings, [])
       |> group_bindings("memory")
-      |> Enum.map(&memory_item/1)
+      |> Enum.map(&memory_item(&1, managed_repo_id))
     )
   end
 
@@ -75,7 +76,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       raw_result
       |> Map.get(:bindings, [])
       |> group_bindings("resource")
-      |> Enum.map(&provenance_item/1)
+      |> Enum.map(&provenance_item(&1, managed_repo_id))
     )
   end
 
@@ -179,7 +180,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     |> Enum.map(fn {_group_key, rows} -> rows end)
   end
 
-  defp memory_item(rows) when is_list(rows) do
+  defp memory_item(rows, managed_repo_id) when is_list(rows) and is_binary(managed_repo_id) do
     kind_iri =
       rows
       |> Enum.map(&value(&1, "kind"))
@@ -203,11 +204,12 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       module_name: compact_name(module_iri),
       function_iri: function_iri,
       function_name: compact_name(function_iri),
-      subject_iri: first_present_value(rows, "subject")
+      subject_iri: first_present_value(rows, "subject"),
+      governed_context: governed_context(rows, managed_repo_id)
     }
   end
 
-  defp provenance_item(rows) when is_list(rows) do
+  defp provenance_item(rows, managed_repo_id) when is_list(rows) and is_binary(managed_repo_id) do
     module_iri = first_present_value(rows, "module")
     function_iri = first_present_value(rows, "function")
 
@@ -225,8 +227,41 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       function_iri: function_iri,
       function_name: compact_name(function_iri),
       subject_iri: first_present_value(rows, "subject"),
-      revision_iri: first_present_value(rows, "revision")
+      revision_iri: first_present_value(rows, "revision"),
+      governed_context: governed_context(rows, managed_repo_id)
     }
+  end
+
+  defp governed_context(rows, managed_repo_id) when is_list(rows) and is_binary(managed_repo_id) do
+    rows
+    |> Enum.flat_map(fn row ->
+      governed_context_item(row, managed_repo_id)
+    end)
+    |> Enum.uniq_by(& &1.iri)
+  end
+
+  defp governed_context_item(row, managed_repo_id) when is_map(row) and is_binary(managed_repo_id) do
+    case value(row, "governedRecord") do
+      governed_iri when is_binary(governed_iri) ->
+        case GovernedReference.parse_iri(managed_repo_id, governed_iri) do
+          {:ok, reference} ->
+            [
+              %{
+                kind: reference.kind,
+                id: reference.id,
+                iri: reference.iri,
+                label: value(row, "governedLabel") || reference.label,
+                route: GovernedReference.route(managed_repo_id, reference)
+              }
+            ]
+
+          _other ->
+            []
+        end
+
+      _other ->
+        []
+    end
   end
 
   defp first_present_value(rows, key) do

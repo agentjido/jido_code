@@ -231,6 +231,9 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
              )
 
     assert adoption.work_item.work_metadata["workflow_memory"]["retrieval_policy"]["intent"] == "review_risks"
+    assert Enum.any?(adoption.work_item.work_metadata["workflow_memory"]["governed_references"], fn reference ->
+             reference["kind"] == "run" and reference["id"] == "run-32"
+           end)
 
     assert {:ok, provenance_query} =
              AgentWorkspace.query_memory_graph(
@@ -307,7 +310,8 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
                  workflow: :review,
                  work_item_id: "work-32",
                  content: "Generated a review artifact for governed adoption tests.",
-                 anchors: %{module_name: "ExampleMemoryGoverned"}
+                 anchors: %{module_name: "ExampleMemoryGoverned"},
+                 governed_context: %{run_id: "run-32", evidence_id: "evidence-32"}
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision
@@ -325,6 +329,7 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
                  content: "Greeting contract changes require governed review.",
                  revision: revision,
                  anchors: %{module_name: "ExampleMemoryGoverned"},
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
                  classification: %{
                    source: "memory_governed_adoption_test",
                    reason: "Section 32.3 needs durable memory for governed follow-up tests."

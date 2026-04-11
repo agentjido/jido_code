@@ -13,7 +13,7 @@ defmodule JidoCode.MemoryGraph.ProductService do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CrossGraphNavigation, HelperQueries, ViewModel}
+  alias JidoCode.MemoryGraph.{CrossGraphNavigation, GovernedReference, HelperQueries, ViewModel}
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -93,15 +93,27 @@ defmodule JidoCode.MemoryGraph.ProductService do
     end)
   end
 
-  @spec memories_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+  @spec memories_for_governed_references(managed_repo_id(), workspace_path(), [map()], keyword()) ::
           {:ok, map()} | {:error, atom(), map()}
-  def memories_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
-      when is_list(artifact_paths) do
-    lookup_opts = Keyword.put(opts, :artifact_paths, artifact_paths)
+  def memories_for_governed_references(managed_repo_id, workspace_path, governed_references, opts \\ [])
+      when is_list(governed_references) do
+    lookup_opts = Keyword.put(opts, :governed_references, governed_references)
 
     memory_lookup(managed_repo_id, workspace_path, lookup_opts, :memories, MemoryGraph.memory_graph_name(), fn ->
       HelperQueries.memories(managed_repo_id, Map.new(lookup_opts))
     end)
+  end
+
+  @spec memories_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, atom(), map()}
+  def memories_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
+      when is_list(artifact_paths) do
+    memories_for_governed_references(
+      managed_repo_id,
+      workspace_path,
+      governed_references_from_artifact_paths(managed_repo_id, artifact_paths),
+      opts
+    )
   end
 
   @spec provenance(managed_repo_id(), workspace_path(), keyword()) :: {:ok, map()} | {:error, atom(), map()}
@@ -118,11 +130,11 @@ defmodule JidoCode.MemoryGraph.ProductService do
     )
   end
 
-  @spec provenance_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+  @spec provenance_for_governed_references(managed_repo_id(), workspace_path(), [map()], keyword()) ::
           {:ok, map()} | {:error, atom(), map()}
-  def provenance_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
-      when is_list(artifact_paths) do
-    lookup_opts = Keyword.put(opts, :artifact_paths, artifact_paths)
+  def provenance_for_governed_references(managed_repo_id, workspace_path, governed_references, opts \\ [])
+      when is_list(governed_references) do
+    lookup_opts = Keyword.put(opts, :governed_references, governed_references)
 
     memory_lookup(
       managed_repo_id,
@@ -133,6 +145,18 @@ defmodule JidoCode.MemoryGraph.ProductService do
       fn ->
         HelperQueries.provenance(managed_repo_id, Map.new(lookup_opts))
       end
+    )
+  end
+
+  @spec provenance_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, atom(), map()}
+  def provenance_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
+      when is_list(artifact_paths) do
+    provenance_for_governed_references(
+      managed_repo_id,
+      workspace_path,
+      governed_references_from_artifact_paths(managed_repo_id, artifact_paths),
+      opts
     )
   end
 
@@ -290,4 +314,19 @@ defmodule JidoCode.MemoryGraph.ProductService do
   end
 
   defp error_detail(reason, _detail), do: error_detail(reason)
+
+  defp governed_references_from_artifact_paths(managed_repo_id, artifact_paths) do
+    artifact_paths
+    |> List.wrap()
+    |> Enum.flat_map(fn artifact_path ->
+      case GovernedReference.from_artifact_path(managed_repo_id, artifact_path) do
+        {:ok, reference} ->
+          [%{kind: reference.kind, id: reference.id}]
+
+        _other ->
+          []
+      end
+    end)
+    |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
+  end
 end

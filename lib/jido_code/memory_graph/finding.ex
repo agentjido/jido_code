@@ -124,10 +124,24 @@ defmodule JidoCode.MemoryGraph.Finding do
       projection_kind: Map.get(projection, :kind),
       result_count: get_in(projection, [:result_group, :count]) || length(Map.get(projection, :items, [])),
       selected_count: length(selected_items),
+      governed_references: selected_governed_references(selected_items),
       query: normalize_map(Keyword.get(opts, :query, %{})),
       requested_by: normalize_map(Keyword.get(opts, :requested_by, %{})),
       feedback: normalize_map(Map.get(projection, :feedback, %{}))
     }
+  end
+
+  defp selected_governed_references(selected_items) when is_list(selected_items) do
+    selected_items
+    |> Enum.flat_map(fn item ->
+      item
+      |> Map.get(:governed_context, [])
+      |> List.wrap()
+      |> Enum.map(&normalize_map/1)
+    end)
+    |> Enum.uniq_by(fn reference ->
+      {Map.get(reference, "kind"), Map.get(reference, "id")}
+    end)
   end
 
   defp normalize_graph(graph) when is_map(graph) do

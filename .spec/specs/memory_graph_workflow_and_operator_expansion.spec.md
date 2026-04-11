@@ -158,4 +158,13 @@ surface:
     - architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history
     - architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
     - architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_seven_integration_test.exs
+  covers:
+    - architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context
+    - architecture.memory_graph_workflow_and_operator_expansion.operator_memory_actions_use_product_owned_boundaries
+    - architecture.memory_graph_workflow_and_operator_expansion.memory_workflows_use_explicit_retrieval_policies
+    - architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
+    - architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up
 ```

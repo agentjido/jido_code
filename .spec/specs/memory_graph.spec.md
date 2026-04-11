@@ -340,6 +340,13 @@ surface:
     - architecture.memory_graph.memory_named_graph_is_canonical_target
 
 - kind: source_file
+  target: test/jido_code/phase_thirty_seven_integration_test.exs
+  covers:
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
   target: test/jido_code/phase_thirty_six_integration_test.exs
   covers:
     - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit

@@ -80,6 +80,8 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert result.memory_input.results.cross_links.kind == :cross_links
     assert result.workflow_provenance.workflow == :plan
     assert is_binary(result.workflow_provenance.session_id)
+    assert Enum.any?(result.workflow_provenance.governed_references, &(&1.kind == :run and &1.id == "run-32"))
+    assert Enum.any?(result.follow_up_context["governed_references"], &(&1["kind"] == "run" and &1["id"] == "run-32"))
     refute Map.has_key?(result.memory_input.results.memories, :bindings)
     refute Map.has_key?(result.memory_input.results.provenance, :compiled_sparql)
 
@@ -188,6 +190,7 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert memory_resource_iri in result.memory_input.selection.memory_resources
     assert result.follow_up_context["retrieval_policy"]["intent"] == "review_risks"
     assert memory_resource_iri in result.follow_up_context["memory_resources"]
+    assert Enum.any?(result.follow_up_context["governed_references"], &(&1["kind"] == "run" and &1["id"] == "run-32"))
 
     assert {:ok, provenance_query} =
              AgentWorkspace.query_memory_graph(
@@ -295,7 +298,8 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
                  workflow: :plan,
                  work_item_id: "work-32",
                  content: "Generated a plan artifact for memory-aware workflow tests.",
-                 anchors: %{module_name: "ExampleMemoryWorkflow"}
+                 anchors: %{module_name: "ExampleMemoryWorkflow"},
+                 governed_context: %{run_id: "run-32", evidence_id: "evidence-32"}
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision
@@ -315,6 +319,7 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
                  decision_status: :accepted,
                  revision: revision,
                  anchors: %{module_name: "ExampleMemoryWorkflow"},
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
                  classification: %{
                    source: "memory_workflow_service_test",
                    reason: "Section 32.3 needs durable memory for workflow tests."

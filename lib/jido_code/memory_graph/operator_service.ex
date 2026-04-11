@@ -269,22 +269,37 @@ defmodule JidoCode.MemoryGraph.OperatorService do
 
     inherited =
       item
-      |> Map.get(:navigation, %{})
-      |> Map.get(:governed_records, [])
-      |> Enum.flat_map(fn link ->
-        case {Map.get(link, :kind), normalize_optional_string(Map.get(link, :id))} do
-          {kind, id}
-          when kind in [:run, :work_item, :evidence, :decision, :observation, :assessment] and is_binary(id) ->
-            [%{kind: kind, id: id}]
-
-          _other ->
-            []
-        end
-      end)
+      |> item_governed_context()
 
     (explicit ++ inherited)
     |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
   end
+
+  defp item_governed_context(item) when is_map(item) do
+    item
+    |> Map.get(:governed_context, governed_navigation_context(item))
+    |> List.wrap()
+    |> Enum.flat_map(fn link ->
+      case {Map.get(link, :kind), normalize_optional_string(Map.get(link, :id))} do
+        {kind, id}
+        when kind in [:run, :work_item, :evidence, :decision, :observation, :assessment] and is_binary(id) ->
+          [%{kind: kind, id: id}]
+
+        _other ->
+          []
+      end
+    end)
+  end
+
+  defp item_governed_context(_item), do: []
+
+  defp governed_navigation_context(item) when is_map(item) do
+    item
+    |> Map.get(:navigation, %{})
+    |> Map.get(:governed_records, [])
+  end
+
+  defp governed_navigation_context(_item), do: []
 
   defp stale_reason(opts) do
     case normalize_optional_string(Keyword.get(opts, :stale_reason) || "operator_review_required") do

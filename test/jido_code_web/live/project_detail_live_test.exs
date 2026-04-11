@@ -452,6 +452,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
   test "hosts bounded memory and provenance inspection inside the managed repo detail route", %{conn: _conn} do
     Application.put_env(:jido_code, :memory_graph_enabled, true)
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
 
     register_owner("memory-owner@example.com", "owner-password-123")
 
@@ -477,7 +478,15 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       })
 
     managed_repo_id = managed_repo_route_id!(project.id)
-    seed_memory_graph!(managed_repo_id, workspace_path, "phase-32-repo-detail")
+
+    seed_memory_graph!(
+      managed_repo_id,
+      workspace_path,
+      "phase-32-repo-detail",
+      module_name: "ProjectDetailMemory.Alpha"
+    )
+
+    assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
@@ -487,6 +496,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-memory-list")
     assert has_element?(view, "#project-detail-provenance-list")
     assert has_element?(view, "#project-detail-memory-summary-memories")
+    assert render(view) =~ "ProjectDetailMemory.Alpha"
   end
 
   test "surfaces stale memory inspection with recovery on repo detail", %{conn: _conn} do
@@ -600,7 +610,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> Enum.each(&File.rm!/1)
   end
 
-  defp seed_memory_graph!(managed_repo_id, workspace_path, revision) do
+  defp seed_memory_graph!(managed_repo_id, workspace_path, revision, opts \\ []) do
+    module_name = Keyword.get(opts, :module_name, "ExampleWorkspace")
+
     assert {:ok, _refresh_result} =
              AgentWorkspace.refresh_memory_graph(managed_repo_id, workspace_path, revision: revision)
 
@@ -631,7 +643,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                  workflow: :plan,
                  work_item_id: "work-32",
                  content: "Generated a bounded plan artifact for the repository.",
-                 anchors: %{module_name: "ExampleWorkspace"}
+                 anchors: %{module_name: module_name}
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision
@@ -646,11 +658,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                  actor_id: "system:project-detail-memory",
                  workflow: :review,
                  work_item_id: "work-32",
-                 content: "Repository decisions should keep ExampleWorkspace.greet/1 stable.",
+                 content: "Repository decisions should keep #{module_name}.greet/1 stable.",
                  rationale: "Greeting behavior is used as a stable onboarding example.",
                  decision_status: :accepted,
                  revision: revision,
-                 anchors: %{module_name: "ExampleWorkspace"},
+                 anchors: %{module_name: module_name},
                  governed_context: %{run_id: "run-32", work_item_id: "work-32"},
                  classification: %{
                    source: "project_detail_test",

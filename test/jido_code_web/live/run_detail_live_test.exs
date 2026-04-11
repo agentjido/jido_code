@@ -550,6 +550,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-memory-list")
     assert has_element?(view, "#run-detail-evidence-memory-#{evidence.id}-memory-list")
     assert has_element?(view, "#run-detail-decision-memory-#{decision.id}-memory-list")
+    assert has_element?(view, "#run-detail-memory-follow-up-preview")
+    assert has_element?(view, "#run-detail-memory-follow-up-preview-summary")
     assert render(view) =~ "Validate"
     assert render(view) =~ "Create follow-up"
     assert has_element?(view, "#run-detail-memory-validate-1")

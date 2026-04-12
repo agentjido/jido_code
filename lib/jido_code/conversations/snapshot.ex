@@ -105,11 +105,15 @@ defmodule JidoCode.Conversations.Snapshot do
       conversation: %{
         conversation
         | status: status,
-          work_item_id: normalize_optional_string(map_get(snapshot, :work_item_id)) || conversation.work_item_id
+          work_item_id:
+            normalize_optional_string(map_get(snapshot, :work_item_id)) ||
+              conversation.work_item_id
       },
       status: status,
-      admission_paused: normalize_boolean(map_get(snapshot, :admission_paused, status == :paused)),
-      child_execution_paused: normalize_boolean(map_get(snapshot, :child_execution_paused, false)),
+      admission_paused:
+        normalize_boolean(map_get(snapshot, :admission_paused, status == :paused)),
+      child_execution_paused:
+        normalize_boolean(map_get(snapshot, :child_execution_paused, false)),
       active_turn_id: active_turn_id,
       work_queue: normalize_string_list(map_get(snapshot, :queued_turn_ids, [])),
       turns: turns_by_id,
@@ -187,7 +191,7 @@ defmodule JidoCode.Conversations.Snapshot do
     |> Map.put("accepted_tool_results", accepted_tool_results(state))
     |> maybe_put("latest_turn_id", latest_turn_id(turns))
     |> maybe_put("latest_instruction", latest_instruction(turns))
-    |> maybe_put("pending_clarification", pending_clarification(turns))
+    |> maybe_put("pending_clarification", pending_clarification(turns, state))
   end
 
   defp referenced_files(turns, state) do
@@ -254,19 +258,55 @@ defmodule JidoCode.Conversations.Snapshot do
     end)
   end
 
-  defp pending_clarification(turns) do
+  defp pending_clarification(turns, state) do
     case Enum.find(Enum.reverse(turns), &(&1.state == :awaiting_input)) do
       %Turn{} = turn ->
-        %{
-          "turn_id" => turn.id,
-          "command_type" => turn.command_type,
-          "payload" => turn.payload
-        }
+        child_work =
+          case turn.child_work_id do
+            child_work_id when is_binary(child_work_id) ->
+              Map.get(state.child_works, child_work_id)
+
+            _other ->
+              nil
+          end
+
+        %{}
+        |> Map.put("turn_id", turn.id)
+        |> Map.put("command_type", turn.command_type)
+        |> Map.put("payload", turn.payload)
+        |> maybe_put("child_work_id", turn.child_work_id)
+        |> maybe_put("tool_call_id", child_work && child_work.tool_call_id)
+        |> maybe_put("prompt", child_work_prompt(child_work))
 
       _other ->
         nil
     end
   end
+
+  defp child_work_prompt(%ChildWork{} = child_work) do
+    child_work
+    |> Map.get(:result)
+    |> case do
+      %{} = result ->
+        details =
+          normalize_map(Map.get(result, "needs_input") || Map.get(result, :needs_input) || result)
+
+        %{}
+        |> maybe_put(
+          "prompt",
+          normalize_optional_string(
+            Map.get(details, "prompt") || Map.get(details, :prompt) || Map.get(result, "prompt") ||
+              Map.get(result, :prompt) || Map.get(result, "text") || Map.get(result, :text)
+          )
+        )
+        |> maybe_put("details", details)
+
+      _other ->
+        nil
+    end
+  end
+
+  defp child_work_prompt(_child_work), do: nil
 
   defp referenced_files_from_map(value) when is_map(value) do
     []
@@ -314,7 +354,8 @@ defmodule JidoCode.Conversations.Snapshot do
     )
   end
 
-  defp normalize_status(status) when status in [:active, :paused, :completed, :cancelled], do: status
+  defp normalize_status(status) when status in [:active, :paused, :completed, :cancelled],
+    do: status
 
   defp normalize_status(status) when is_binary(status) do
     case status do

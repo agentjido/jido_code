@@ -16,7 +16,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
-  alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService}
+  alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
   alias JidoCode.Projects.Project
@@ -181,6 +181,58 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("retry_step", _params, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("recover_memory_graph", _params, socket) do
+    with %{managed_repo_id: managed_repo_id, workspace_path: workspace_path} <- socket.assigns.memory_context,
+         managed_repo_id when is_binary(managed_repo_id) <- managed_repo_id,
+         workspace_path when is_binary(workspace_path) <- workspace_path do
+      case ProductService.recover(managed_repo_id, workspace_path) do
+        {:ok, _recovery_result} ->
+          refreshed_socket = refresh_run_assigns(socket)
+
+          {:noreply,
+           assign(
+             refreshed_socket,
+             :memory_action_feedback,
+             SurfaceFeedback.recovery_result(
+               memory_context_graph(refreshed_socket),
+               surface_label: "this governed run surface"
+             )
+           )}
+
+        {:error, reason, diagnostics} ->
+          refreshed_socket = refresh_run_assigns(socket)
+
+          {:noreply,
+           assign(
+             refreshed_socket,
+             :memory_action_feedback,
+             SurfaceFeedback.recovery_error(
+               reason,
+               diagnostics,
+               graph: memory_context_graph(refreshed_socket),
+               surface_label: "this governed run surface"
+             )
+           )}
+      end
+    else
+      _other ->
+        refreshed_socket = refresh_run_assigns(socket)
+
+        {:noreply,
+         assign(
+           refreshed_socket,
+           :memory_action_feedback,
+           SurfaceFeedback.recovery_error(
+             :memory_governed_scope_unavailable,
+             nil,
+             graph: memory_context_graph(refreshed_socket),
+             surface_label: "this governed run surface"
+           )
+         )}
+    end
+  end
+
+  @impl true
   def handle_event(
         "validate_memory",
         %{"memory_iri" => memory_iri},
@@ -188,13 +240,18 @@ defmodule JidoCodeWeb.RunDetailLive do
       ) do
     case OperatorService.validate(projection, memory_iri, memory_operator_opts(socket, run)) do
       {:ok, _result} ->
+        refreshed_socket = refresh_run_assigns(socket)
+
         {:noreply,
-         socket
-         |> refresh_run_assigns()
-         |> assign(:memory_action_feedback, %{
-           type: :info,
-           detail: "Durable memory validation was recorded through the bounded capture plane."
-         })}
+         assign(
+           refreshed_socket,
+           :memory_action_feedback,
+           SurfaceFeedback.action_result(
+             :validate,
+             graph: memory_context_graph(refreshed_socket),
+             surface_label: "this governed run surface"
+           )
+         )}
 
       {:error, reason} ->
         {:noreply, assign_memory_action_error(socket, reason)}
@@ -212,13 +269,18 @@ defmodule JidoCodeWeb.RunDetailLive do
       ) do
     case OperatorService.invalidate(projection, memory_iri, memory_operator_opts(socket, run)) do
       {:ok, _result} ->
+        refreshed_socket = refresh_run_assigns(socket)
+
         {:noreply,
-         socket
-         |> refresh_run_assigns()
-         |> assign(:memory_action_feedback, %{
-           type: :info,
-           detail: "Durable memory invalidation was recorded and the governed history stays canonical."
-         })}
+         assign(
+           refreshed_socket,
+           :memory_action_feedback,
+           SurfaceFeedback.action_result(
+             :invalidate,
+             graph: memory_context_graph(refreshed_socket),
+             surface_label: "this governed run surface"
+           )
+         )}
 
       {:error, reason} ->
         {:noreply, assign_memory_action_error(socket, reason)}
@@ -236,13 +298,19 @@ defmodule JidoCodeWeb.RunDetailLive do
       ) do
     case OperatorService.promote_follow_up(projection, memory_iri, memory_operator_opts(socket, run)) do
       {:ok, %{result: %{work_item: work_item}, target: :work_item}} ->
+        refreshed_socket = refresh_run_assigns(socket)
+
         {:noreply,
-         socket
-         |> refresh_run_assigns()
-         |> assign(:memory_action_feedback, %{
-           type: :info,
-           detail: "Created governed follow-up work item #{work_item.id} from durable memory."
-         })}
+         assign(
+           refreshed_socket,
+           :memory_action_feedback,
+           SurfaceFeedback.action_result(
+             :promote_follow_up,
+             graph: memory_context_graph(refreshed_socket),
+             surface_label: "this governed run surface",
+             work_item_id: work_item.id
+           )
+         )}
 
       {:error, reason} ->
         {:noreply, assign_memory_action_error(socket, reason)}
@@ -258,7 +326,8 @@ defmodule JidoCodeWeb.RunDetailLive do
         %{"memory_iri" => memory_iri, "decision_id" => decision_id},
         %{assigns: %{memory_context: %{memories: projection}, decisions: decisions, run: %Run{} = run}} = socket
       ) do
-    with %{} = decision <- Enum.find(decisions, &(normalize_optional_string(map_get(&1, :id, "id")) == decision_id)),
+    with %{} = decision <-
+           Enum.find(decisions, &(normalize_optional_string(map_get(&1, :id, "id")) == decision_id)),
          {:ok, _result} <-
            OperatorService.supersede_with_governed_decision(
              projection,
@@ -266,13 +335,18 @@ defmodule JidoCodeWeb.RunDetailLive do
              decision,
              memory_operator_opts(socket, run, decision_id: decision_id)
            ) do
+      refreshed_socket = refresh_run_assigns(socket)
+
       {:noreply,
-       socket
-       |> refresh_run_assigns()
-       |> assign(:memory_action_feedback, %{
-         type: :info,
-         detail: "Durable decision memory was superseded using the latest governed decision."
-       })}
+       assign(
+         refreshed_socket,
+         :memory_action_feedback,
+         SurfaceFeedback.action_result(
+           :supersede_with_governed_decision,
+           graph: memory_context_graph(refreshed_socket),
+           surface_label: "this governed run surface"
+         )
+       )}
     else
       nil ->
         {:noreply, assign_memory_action_error(socket, :governed_decision_not_found)}
@@ -493,26 +567,24 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p id="run-detail-memory-context-state" class="text-xs text-base-content/70">
                   Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
                 </p>
-                <p
+                <.operator_state_notice
                   :if={@memory_action_feedback}
                   id="run-detail-memory-action-feedback"
-                  class={[
-                    "text-xs",
-                    if(Map.get(@memory_action_feedback, :type) == :error,
-                      do: "text-error",
-                      else: "text-success"
-                    )
-                  ]}
-                >
-                  {@memory_action_feedback.detail}
-                </p>
-                <p
+                  title="Run memory update"
+                  state={@memory_action_feedback}
+                  kind={memory_feedback_kind(@memory_action_feedback)}
+                  compact={true}
+                />
+                <.memory_status_notice
                   :if={@memory_context.notice}
                   id="run-detail-memory-context-notice"
-                  class="text-xs text-base-content/80"
-                >
-                  {@memory_context.notice.detail}
-                </p>
+                  title="Run memory status"
+                  state={@memory_context.notice}
+                  kind={Map.get(@memory_context, :notice_kind, :warning)}
+                  recovery={Map.get(@memory_context, :recovery)}
+                  recover_event="recover_memory_graph"
+                  recover_id="run-detail-memory-recover"
+                />
               </div>
 
               <div
@@ -706,32 +778,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                           Create follow-up
                         </button>
                       </div>
-                      <div
-                        :if={
-                          map_get(map_get(item, :navigation, "navigation", %{}), :governed_records, "governed_records", []) !=
-                            []
-                        }
-                        id={"run-detail-memory-links-#{index}"}
-                        class="flex flex-wrap gap-2"
-                      >
-                        <a
-                          :for={
-                            link <-
-                              map_get(
-                                map_get(item, :navigation, "navigation", %{}),
-                                :governed_records,
-                                "governed_records",
-                                []
-                              )
-                          }
-                          :if={link.route}
-                          href={link.route}
-                          class="link link-primary text-xs"
-                        >
-                          {link.label}
-                        </a>
-                      </div>
-                      <.memory_navigation_groups dom_prefix={"run-detail-memory-#{index}"} item={item} />
+                      <.memory_link_groups dom_prefix={"run-detail-memory-#{index}"} item={item} />
                     </li>
                   </ol>
                 <% end %>
@@ -786,32 +833,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <p class="text-xs text-base-content/70">
                         Revision: {provenance_item_revision(item)}
                       </p>
-                      <div
-                        :if={
-                          map_get(map_get(item, :navigation, "navigation", %{}), :governed_records, "governed_records", []) !=
-                            []
-                        }
-                        id={"run-detail-memory-provenance-links-#{index}"}
-                        class="flex flex-wrap gap-2"
-                      >
-                        <a
-                          :for={
-                            link <-
-                              map_get(
-                                map_get(item, :navigation, "navigation", %{}),
-                                :governed_records,
-                                "governed_records",
-                                []
-                              )
-                          }
-                          :if={link.route}
-                          href={link.route}
-                          class="link link-primary text-xs"
-                        >
-                          {link.label}
-                        </a>
-                      </div>
-                      <.memory_navigation_groups dom_prefix={"run-detail-memory-provenance-#{index}"} item={item} />
+                      <.memory_link_groups dom_prefix={"run-detail-memory-provenance-#{index}"} item={item} />
                     </li>
                   </ol>
                 <% end %>
@@ -1319,13 +1341,21 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp assign_memory_action_error(socket, reason) do
-    socket
-    |> refresh_run_assigns()
-    |> assign(:memory_action_feedback, %{
-      type: :error,
-      detail: normalize_memory_action_failure(reason)
-    })
+    refreshed_socket = refresh_run_assigns(socket)
+
+    assign(
+      refreshed_socket,
+      :memory_action_feedback,
+      SurfaceFeedback.action_error(
+        reason,
+        graph: memory_context_graph(refreshed_socket),
+        surface_label: "this governed run surface"
+      )
+    )
   end
+
+  defp memory_context_graph(%{assigns: %{memory_context: %{graph: graph}}}) when is_map(graph), do: graph
+  defp memory_context_graph(_socket), do: nil
 
   defp load_run_state(project_id, run_id) do
     with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
@@ -1587,7 +1617,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                 Create follow-up
               </button>
             </div>
-            <.memory_navigation_groups dom_prefix={"#{@dom_prefix}-memory-#{index}"} item={item} />
+            <.memory_link_groups dom_prefix={"#{@dom_prefix}-memory-#{index}"} item={item} />
           </li>
         </ol>
       <% end %>
@@ -1609,7 +1639,7 @@ defmodule JidoCodeWeb.RunDetailLive do
             <p class="text-xs text-base-content/70">
               Revision: {provenance_item_revision(item)}
             </p>
-            <.memory_navigation_groups dom_prefix={"#{@dom_prefix}-provenance-#{index}"} item={item} />
+            <.memory_link_groups dom_prefix={"#{@dom_prefix}-provenance-#{index}"} item={item} />
           </li>
         </ol>
       <% end %>
@@ -1628,61 +1658,8 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp decision_memory_iri(_items), do: nil
 
-  attr :dom_prefix, :string, required: true
-  attr :item, :map, required: true
-
-  defp memory_navigation_groups(assigns) do
-    ~H"""
-    <div class="space-y-1">
-      <.navigation_link_group
-        :if={navigation_links(@item, :source_code) != []}
-        dom_prefix={"#{@dom_prefix}-source"}
-        label="Source code"
-        links={navigation_links(@item, :source_code)}
-      />
-      <.navigation_link_group
-        :if={navigation_links(@item, :related_memories) != []}
-        dom_prefix={"#{@dom_prefix}-related"}
-        label="Related memory"
-        links={navigation_links(@item, :related_memories)}
-      />
-    </div>
-    """
-  end
-
-  attr :dom_prefix, :string, required: true
-  attr :label, :string, required: true
-  attr :links, :list, required: true
-
-  defp navigation_link_group(assigns) do
-    ~H"""
-    <div class="space-y-1">
-      <p id={"#{@dom_prefix}-label"} class="text-[11px] font-medium uppercase tracking-wide text-base-content/60">
-        {@label}
-      </p>
-      <div id={"#{@dom_prefix}-links"} class="flex flex-wrap gap-2">
-        <a
-          :for={{link, index} <- Enum.with_index(@links, 1)}
-          :if={link.route}
-          id={"#{@dom_prefix}-link-#{index}"}
-          href={link.route}
-          class="link link-primary text-xs"
-        >
-          {link.label}
-        </a>
-      </div>
-    </div>
-    """
-  end
-
-  defp navigation_links(item, key) when is_map(item) do
-    item
-    |> map_get(:navigation, "navigation", %{})
-    |> map_get(key, Atom.to_string(key), [])
-    |> Enum.filter(&(is_binary(Map.get(&1, :route)) && is_binary(Map.get(&1, :label))))
-  end
-
-  defp navigation_links(_item, _key), do: []
+  defp memory_feedback_kind(%{kind: kind}) when is_atom(kind), do: kind
+  defp memory_feedback_kind(_feedback), do: :info
 
   defp memory_item_iri(item) do
     present_string(map_get(item, :memory_iri, "memory_iri"))
@@ -2734,33 +2711,6 @@ defmodule JidoCodeWeb.RunDetailLive do
       detail: "Retry action failed and no new attempt was created.",
       remediation: "Review workflow retry policy and retry from run detail."
     }
-  end
-
-  defp normalize_memory_action_failure(reason) when is_atom(reason) do
-    case reason do
-      :memory_item_not_found ->
-        "The selected durable memory could not be found on this governed surface."
-
-      :governed_decision_not_found ->
-        "The latest governed decision was unavailable for durable supersession."
-
-      :memory_supersession_requires_decision ->
-        "Only durable decision memories can be superseded from the governed run surface."
-
-      :unsupported_memory_promotion_target ->
-        "The requested memory promotion target is not available on this governed surface."
-
-      _other ->
-        "The memory action could not be completed through the bounded product service."
-    end
-  end
-
-  defp normalize_memory_action_failure({:missing_memory_operator_context, field}) do
-    "Memory action context is incomplete: #{field}."
-  end
-
-  defp normalize_memory_action_failure(_reason) do
-    "The memory action could not be completed through the bounded product service."
   end
 
   defp status_label(status) do

@@ -262,11 +262,11 @@ defmodule JidoCode.MixProject do
       ],
       "memory.verify": [
         "source_graph.verify",
-        "test test/jido_code/memory_graph_test.exs test/jido_code/memory_graph_actions_test.exs test/jido_code/memory_graph_workspace_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/agent_os/phase_twenty_eight_integration_test.exs test/jido_code/agent_os/phase_twenty_nine_integration_test.exs test/jido_code/phase_thirty_integration_test.exs test/jido_code/phase_thirty_one_integration_test.exs"
+        "test test/jido_code/memory_graph*_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/agent_os/phase_twenty_eight_integration_test.exs test/jido_code/agent_os/phase_twenty_nine_integration_test.exs test/jido_code/phase_thirty_integration_test.exs test/jido_code/phase_thirty_one_integration_test.exs test/jido_code/phase_thirty_three_integration_test.exs test/jido_code/phase_thirty_five_integration_test.exs test/jido_code/phase_thirty_six_integration_test.exs test/jido_code/phase_thirty_seven_integration_test.exs test/jido_code/phase_thirty_eight_integration_test.exs"
       ],
       "semantic.verify": [
         "memory.verify",
-        "test test/jido_code/source_code_graph_product_service_test.exs test/jido_code/source_code_graph_materialization_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/phase_twenty_four_integration_test.exs test/jido_code/phase_twenty_six_integration_test.exs test/jido_code/phase_twenty_seven_integration_test.exs test/jido_code_web/live/phase_twenty_five_integration_test.exs test/jido_code_web/live/phase_twenty_seven_integration_test.exs"
+        "test test/jido_code/source_code_graph_product_service_test.exs test/jido_code/source_code_graph_materialization_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/phase_twenty_four_integration_test.exs test/jido_code/phase_twenty_six_integration_test.exs test/jido_code/phase_twenty_seven_integration_test.exs test/jido_code_web/live/phase_twenty_five_integration_test.exs test/jido_code_web/live/phase_twenty_seven_integration_test.exs test/jido_code_web/live/phase_thirty_eight_integration_test.exs"
       ],
       "assets.deploy": [
         "assets.build"

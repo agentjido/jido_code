@@ -20,6 +20,8 @@ defmodule JidoCode.MemoryGraph do
   @workflow_provenance_graph_name "workflow_provenance"
   @memory_named_graph_iri "https://jido.run/graphs/memory"
   @workflow_provenance_named_graph_iri "https://jido.run/graphs/workflow_provenance"
+  @memory_ontology_iri "https://jido.run/ontology/memory#"
+  @control_plane_ontology_iri "https://jido.run/ontology/control-plane#"
   @memory_ontology_filename "jido-memory.ttl"
   @control_plane_ontology_filename "jido-control-plane.ttl"
 
@@ -46,11 +48,25 @@ defmodule JidoCode.MemoryGraph do
   @spec workflow_provenance_named_graph_iri() :: String.t()
   def workflow_provenance_named_graph_iri, do: @workflow_provenance_named_graph_iri
 
+  @spec memory_ontology_iri() :: String.t()
+  def memory_ontology_iri, do: @memory_ontology_iri
+
+  @spec control_plane_ontology_iri() :: String.t()
+  def control_plane_ontology_iri, do: @control_plane_ontology_iri
+
   @spec named_graph_iris() :: %{memory: String.t(), workflow_provenance: String.t()}
   def named_graph_iris do
     %{
       memory: @memory_named_graph_iri,
       workflow_provenance: @workflow_provenance_named_graph_iri
+    }
+  end
+
+  @spec ontology_iris() :: %{memory: String.t(), control_plane: String.t()}
+  def ontology_iris do
+    %{
+      memory: @memory_ontology_iri,
+      control_plane: @control_plane_ontology_iri
     }
   end
 

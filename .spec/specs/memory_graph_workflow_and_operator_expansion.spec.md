@@ -10,7 +10,7 @@ actions, and intent-specific memory retrieval.
 id: architecture.memory_graph_workflow_and_operator_expansion
 kind: feature
 status: proposed
-summary: Jido.Code expands bounded repository memory and workflow-provenance adoption beyond managed-repository detail into canonical governed run, work-item, evidence, and decision surfaces, introduces product-owned memory action boundaries for validation, invalidation, supersession, and governed promotion over the capture plane rather than direct graph mutation, standardizes bounded cross-graph navigation among memory, workflow provenance, source-code entities, and governed records, now grounds those governed cross-links in the companion control-plane ontology plus a typed governed-reference contract emitted at capture time, lets planner, reviewer, and explainer flows request durable memory through explicit retrieval policies keyed to freshness, memory class, and follow-up intent, and keeps memory-derived product behavior explainable by preserving freshness, supersession, provenance, governed follow-up previews, and governed adoption metadata whenever operators or workflows act on durable memory.
+summary: Jido.Code expands bounded repository memory and workflow-provenance adoption beyond managed-repository detail into canonical governed run, work-item, evidence, and decision surfaces, introduces product-owned memory action boundaries for validation, invalidation, supersession, governed promotion, and governed-surface feedback over the capture plane rather than direct graph mutation, standardizes bounded cross-graph navigation among memory, workflow provenance, source-code entities, and governed records, now grounds those governed cross-links in the companion control-plane ontology plus a typed governed-reference contract emitted at capture time, lets planner, reviewer, and explainer flows request durable memory through explicit retrieval policies keyed to freshness, memory class, and follow-up intent, and keeps memory-derived product behavior explainable by preserving freshness, supersession, provenance, governed follow-up previews, recovery affordances, and governed adoption metadata whenever operators or workflows act on durable memory.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -34,7 +34,7 @@ surface:
 
 ```spec-requirements
 - id: architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context
-  statement: Canonical governed run, work-item, evidence, and decision surfaces may host bounded memory and workflow-provenance context when those records were informed by repository memory, but they shall remain governed product surfaces rather than graph-only views.
+  statement: Canonical governed run, work-item, evidence, and decision surfaces may host bounded memory and workflow-provenance context when those records were informed by repository memory, but they shall remain governed product surfaces rather than graph-only views and shall keep typed governed links plus recovery affordances inside those same product routes.
   priority: must
   stability: proposed
 
@@ -83,6 +83,7 @@ surface:
   then:
     - The surface may show bounded memory and provenance context.
     - The operator can navigate to related code and governed history without leaving the canonical product route family.
+    - Typed governed links remain visible even when a governed record resolves to an anchored route on the current run surface or only to a typed label.
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.scenario_operator_validates_invalidates_or_supersedes_memory
   covers:
@@ -158,6 +159,24 @@ surface:
     - architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history
     - architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
     - architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/surface_feedback.ex
+  covers:
+    - architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
+
+- kind: source_file
+  target: lib/jido_code_web/components/memory_surface_components.ex
+  covers:
+    - architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context
+    - architecture.memory_graph_workflow_and_operator_expansion.operator_memory_actions_use_product_owned_boundaries
+    - architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history
+    - architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
 
 - kind: source_file
   target: test/jido_code/phase_thirty_seven_integration_test.exs

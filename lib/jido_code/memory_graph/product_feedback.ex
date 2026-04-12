@@ -174,6 +174,14 @@ defmodule JidoCode.MemoryGraph.ProductFeedback do
   defp detail(_graph, %{reason: reason}) when is_binary(reason), do: reason
   defp detail(_graph, _error), do: "Repository memory state is unavailable."
 
+  defp remediation(%{latest_failure: %{kind: :memory_graph_ontology_pair_incomplete}}) do
+    "Recover repository memory graph to reload the companion ontology pair and revalidate typed governed links."
+  end
+
+  defp remediation(%{latest_failure: %{kind: :memory_graph_semantic_cutover_required}}) do
+    "Recover repository memory graph to rebuild the local store with the companion ontology pair and typed governed references."
+  end
+
   defp remediation(%{recovery_action: :none}), do: nil
   defp remediation(%{recovery_action: :refresh}), do: "Refresh repository memory graph state."
   defp remediation(%{recovery_action: :validate}), do: "Validate repository memory graph for the current revision."

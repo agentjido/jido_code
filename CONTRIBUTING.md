@@ -41,7 +41,7 @@ For day-to-day development:
 - `mix assets.build` builds the current browser bundle and SSR output
 - `mix frontend.verify` runs the repo-owned browser pipeline verification
 - `mix source_graph.verify` runs the repo-owned semantic source-code graph verification suite
-- `mix memory.verify` runs the repo-owned memory graph and capture-plane verification suite
+- `mix memory.verify` verifies the ontology pair, typed governed links, and the repo-owned memory recovery path
 - `mix semantic.verify` runs the full product-facing semantic graph verification suite
 - `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
 - `mix test` provisions the test database and runs the test suite
@@ -88,6 +88,18 @@ The memory graph follows the same bounded rule:
 - durable memory enters only after explicit classification or governed adoption
 - raw runtime output, prompt text, or agent output is not durable memory unless
   a bounded product path adopts it
+- new governed links should use typed `governed_references` directly instead of
+  introducing fresh generic artifact-path contracts
+- generic artifact-style governed links now count as legacy recovery-only store
+  state and should be rebuilt or revalidated instead of extended
+- governed product records remain the canonical Ash-backed truth; memory and
+  provenance graphs store supporting semantic context and navigation only
+
+Use `mix memory.verify` when this stack changes to confirm:
+
+- the companion ontology pair is present
+- typed governed links have replaced legacy governed-artifact semantics
+- repository-local rebuild or revalidation still recovers older graph state cleanly
 
 ## Code Quality
 

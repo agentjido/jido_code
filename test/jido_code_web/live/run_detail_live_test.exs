@@ -399,8 +399,151 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-work-item-memory", "Work item memory context")
     assert has_element?(view, "#run-detail-evidence-memory-contexts", "Evidence memory context")
     assert has_element?(view, "#run-detail-decision-memory-contexts", "Decision memory context")
+    assert has_element?(view, "#run-detail-memory-1-governed-label", "Governed context")
+    assert has_element?(view, "#run-detail-evidence-memory-#{evidence.id}-memory-1-governed-label", "Governed context")
     assert rendered =~ "memory_history"
     assert rendered =~ "defer"
+  end
+
+  test "surfaces stale run memory context with bounded recovery on the canonical run route", %{
+    conn: _conn
+  } do
+    previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    on_exit(fn ->
+      Application.put_env(:jido_code, :memory_graph_enabled, previous)
+    end)
+
+    register_owner("memory-run-recovery-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-run-recovery-owner@example.com", "owner-password-123")
+
+    workspace_path = create_memory_workspace_path!("run_detail_memory_recovery")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-run-recovery",
+        github_full_name: "owner/repo-memory-run-recovery",
+        default_branch: "main",
+        settings: %{workspace: %{workspace_path: workspace_path}}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, work_item} =
+      WorkItem.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          summary: "Recover stale run memory context",
+          status: :open,
+          category: "review_follow_up"
+        },
+        actor: Actor.operator_actor()
+      )
+
+    run_id = "run-memory-recovery-#{System.unique_integer([:positive])}"
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Recover stale run memory context"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-3", email: "memory-run-recovery-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-10 21:00:00Z]
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "review_memory",
+        transitioned_at: ~U[2026-04-10 21:01:00Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-04-10 21:02:00Z]
+      })
+
+    {:ok, run} =
+      JidoCode.Orchestration.Run.get_by_managed_repo_and_run_id(
+        managed_repo.id,
+        run_id,
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, evidence} =
+      Evidence.create(
+        %{
+          run_id: run.id,
+          managed_repo_id: managed_repo.id,
+          work_item_id: work_item.id,
+          key: "memory_recovery",
+          evidence_type: "memory_graph_finding",
+          summary: "Run memory recovery should stay product-owned.",
+          evidence_details: %{"source" => "run_detail_live_test"},
+          source: "memory_graph",
+          recorded_at: DateTime.utc_now()
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, decision} =
+      Decision.create(
+        %{
+          decision_key: "memory-recovery-run-#{run.id}",
+          run_id: run.id,
+          managed_repo_id: managed_repo.id,
+          work_item_id: work_item.id,
+          decision: :approve,
+          actor: %{"id" => "owner-3", "email" => "memory-run-recovery-owner@example.com"},
+          rationale: "Run detail should expose governed memory recovery without leaving the route.",
+          decision_metadata: %{"source" => "run_detail_live_test"},
+          decided_at: DateTime.utc_now()
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, revision_metadata} = MemoryGraph.current_revision_metadata(workspace_path)
+    revision = revision_metadata.current_revision
+
+    seed_run_memory_context!(
+      managed_repo.id,
+      workspace_path,
+      revision,
+      run_id,
+      evidence.id,
+      decision.id,
+      work_item_id: work_item.id
+    )
+
+    assert {:ok, _invalidate_result} =
+             AgentWorkspace.invalidate_memory_graph(
+               managed_repo.id,
+               workspace_path,
+               reason: :manual_invalidation
+             )
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-memory-context-notice")
+    assert has_element?(view, "#run-detail-memory-recover", "Validate memory graph")
+
+    view
+    |> element("#run-detail-memory-recover")
+    |> render_click()
+
+    assert has_element?(view, "#run-detail-memory-action-feedback-type", "memory_graph_recovered")
   end
 
   test "supports bounded operator memory actions from the governed run surface", %{conn: _conn} do
@@ -550,6 +693,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-memory-list")
     assert has_element?(view, "#run-detail-evidence-memory-#{evidence.id}-memory-list")
     assert has_element?(view, "#run-detail-decision-memory-#{decision.id}-memory-list")
+    assert has_element?(view, "#run-detail-memory-1-governed-label", "Governed context")
     assert has_element?(view, "#run-detail-memory-follow-up-preview")
     assert has_element?(view, "#run-detail-memory-follow-up-preview-summary")
     assert render(view) =~ "Validate"

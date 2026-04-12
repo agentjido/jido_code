@@ -496,6 +496,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-memory-list")
     assert has_element?(view, "#project-detail-provenance-list")
     assert has_element?(view, "#project-detail-memory-summary-memories")
+    assert render(view) =~ "Governed context"
+    assert render(view) =~ "Work item work-32"
     assert render(view) =~ "ProjectDetailMemory.Alpha"
   end
 

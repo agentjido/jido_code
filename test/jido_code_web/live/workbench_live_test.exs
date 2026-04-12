@@ -260,7 +260,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(
              view,
              "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}']",
-             "Open repo detail to validate memory graph"
+             "Open repo detail to review governed memory context and validate memory graph"
            )
   end
 

@@ -10,7 +10,7 @@ workflow entrypoints.
 id: architecture.memory_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, and cross-graph navigation boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, and governed run detail on the same bounded navigation and follow-up-preview contract.
+summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -28,6 +28,7 @@ surface:
   - lib/jido_code/memory_graph/
   - lib/jido_code/memory_graph/product_service.ex
   - lib/jido_code/memory_graph/product_feedback.ex
+  - lib/jido_code/memory_graph/surface_feedback.ex
   - lib/jido_code/memory_graph/finding.ex
   - lib/jido_code/memory_graph/materialization.ex
   - lib/jido_code/memory_graph/workflow_service.ex
@@ -36,6 +37,7 @@ surface:
   - lib/jido_code/workbench/project_memory_inspection.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
+  - lib/jido_code_web/components/memory_surface_components.ex
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
   - test/jido_code/memory_graph_product_service_test.exs
@@ -61,7 +63,7 @@ surface:
   stability: proposed
 
 - id: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
-  statement: Operator-facing memory surfaces shall expose freshness, validation, invalidation, stale state, latest failure, and explicit recovery affordances so repository memory remains explainable and safe.
+  statement: Operator-facing memory surfaces shall expose freshness, validation, invalidation, stale state, latest failure, explicit recovery affordances, and typed governed context so repository memory remains explainable and safe even when some governed records do not yet have standalone canonical routes.
   priority: must
   stability: proposed
 
@@ -102,6 +104,7 @@ surface:
     - The route remains a canonical managed-repository product surface.
     - The page consumes memory and provenance through a product-owned boundary over AgentWorkspace.
     - The operator sees bounded memory and provenance projections without raw graph-engine internals.
+    - Route-less governed references still remain visible as typed governed labels instead of disappearing from the surface.
 
 - id: architecture.memory_graph_product_adoption.scenario_memory_surface_shows_stale_validation_and_recovery
   covers:
@@ -114,6 +117,7 @@ surface:
   then:
     - The product surface shows explicit freshness, validation, invalidation, and failure state.
     - The operator can trigger bounded recovery behavior through product-owned actions.
+    - The surface keeps typed governed context and action feedback visible while recovery is pending or after it completes.
     - The product does not pretend the memory is current or hide the state behind raw runtime errors.
 
 - id: architecture.memory_graph_product_adoption.scenario_workflow_requests_memory_context_explicitly
@@ -195,6 +199,19 @@ surface:
     - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
 
 - kind: source_file
+  target: lib/jido_code/memory_graph/surface_feedback.ex
+  covers:
+    - architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
+    - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
+
+- kind: source_file
+  target: lib/jido_code_web/components/memory_surface_components.ex
+  covers:
+    - architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
+    - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
+    - architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
+
+- kind: source_file
   target: lib/jido_code/memory_graph/workflow_service.ex
   covers:
     - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
@@ -231,6 +248,19 @@ surface:
     - architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
     - architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records
     - architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
+
+- kind: source_file
+  target: test/jido_code_web/live/project_detail_live_test.exs
+  covers:
+    - architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
+    - architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
+    - architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
+
+- kind: source_file
+  target: test/jido_code_web/live/workbench_live_test.exs
+  covers:
+    - architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
+    - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
 
 - kind: source_file
   target: test/jido_code_web/live/phase_thirty_two_integration_test.exs

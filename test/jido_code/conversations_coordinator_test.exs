@@ -1,7 +1,22 @@
 defmodule JidoCode.ConversationsCoordinatorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias JidoCode.Conversations.{ChildWork, Command, Conversation, Coordinator, PubSub, Turn}
+
+  setup do
+    original_persistence = Application.get_env(:jido_code, JidoCode.Conversations.Persistence)
+    Application.put_env(:jido_code, JidoCode.Conversations.Persistence, enabled: false)
+
+    on_exit(fn ->
+      if original_persistence do
+        Application.put_env(:jido_code, JidoCode.Conversations.Persistence, original_persistence)
+      else
+        Application.delete_env(:jido_code, JidoCode.Conversations.Persistence)
+      end
+    end)
+
+    :ok
+  end
 
   test "command normalization separates work and control commands" do
     actor = %{"id" => "operator-1", "actor_class" => "operator"}

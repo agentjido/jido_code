@@ -75,6 +75,27 @@ defmodule JidoCode.Conversations.ChildWork do
     }
   end
 
+  @spec from_summary(map()) :: t()
+  def from_summary(summary) when is_map(summary) do
+    %__MODULE__{
+      id: normalize_optional_string(map_get(summary, :id)) || Ecto.UUID.generate(),
+      conversation_id: normalize_optional_string(map_get(summary, :conversation_id)),
+      managed_repo_id: normalize_optional_string(map_get(summary, :managed_repo_id)),
+      work_item_id: normalize_optional_string(map_get(summary, :work_item_id)),
+      actor: normalize_map(map_get(summary, :actor)),
+      turn_id: normalize_optional_string(map_get(summary, :turn_id)),
+      tool_call_id: normalize_optional_string(map_get(summary, :tool_call_id)),
+      kind: normalize_optional_string(map_get(summary, :kind)) || "tool_call",
+      state: normalize_state(map_get(summary, :state)),
+      inserted_at: normalize_datetime(map_get(summary, :inserted_at)),
+      started_at: normalize_optional_datetime(map_get(summary, :started_at)),
+      completed_at: normalize_optional_datetime(map_get(summary, :completed_at)),
+      result: normalize_optional_map(map_get(summary, :result)),
+      error: normalize_optional_map(map_get(summary, :error)),
+      lifecycle: normalize_lifecycle(map_get(summary, :lifecycle))
+    }
+  end
+
   @spec terminal_state?(atom()) :: boolean()
   def terminal_state?(state), do: state in @terminal_states
 
@@ -182,4 +203,44 @@ defmodule JidoCode.Conversations.ChildWork do
 
   defp optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> optional_string()
   defp optional_string(_value), do: nil
+
+  defp normalize_optional_string(value), do: optional_string(value)
+
+  defp normalize_state(state) when state in @states, do: state
+
+  defp normalize_state(state) when is_binary(state) do
+    case state do
+      "queued" -> :queued
+      "running" -> :running
+      "cancel_requested" -> :cancel_requested
+      "cancel_acknowledged" -> :cancel_acknowledged
+      "completed" -> :completed
+      "cancelled" -> :cancelled
+      "cancel_failed" -> :cancel_failed
+      "failed" -> :failed
+      _other -> :queued
+    end
+  end
+
+  defp normalize_state(_state), do: :queued
+
+  defp normalize_datetime(%DateTime{} = datetime), do: DateTime.truncate(datetime, :microsecond)
+
+  defp normalize_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> DateTime.truncate(datetime, :microsecond)
+      _other -> DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    end
+  end
+
+  defp normalize_datetime(_value), do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+  defp normalize_optional_datetime(nil), do: nil
+  defp normalize_optional_datetime(value), do: normalize_datetime(value)
+
+  defp normalize_optional_map(nil), do: nil
+  defp normalize_optional_map(value), do: normalize_map(value)
+
+  defp normalize_lifecycle(value) when is_list(value), do: Enum.filter(value, &is_map/1)
+  defp normalize_lifecycle(_value), do: []
 end

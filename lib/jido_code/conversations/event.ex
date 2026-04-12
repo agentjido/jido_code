@@ -97,6 +97,24 @@ defmodule JidoCode.Conversations.Event do
     }
   end
 
+  @spec from_summary(map()) :: t()
+  def from_summary(summary) when is_map(summary) do
+    %__MODULE__{
+      id: optional_string(map_get(summary, :id)) || Ecto.UUID.generate(),
+      sequence: normalize_sequence(map_get(summary, :sequence)),
+      conversation_id: optional_string(map_get(summary, :conversation_id)),
+      name: optional_string(map_get(summary, :name)) || "unknown",
+      occurred_at: normalize_datetime(map_get(summary, :occurred_at)),
+      actor: normalize_map(map_get(summary, :actor)),
+      message_id: optional_string(map_get(summary, :message_id)),
+      turn_id: optional_string(map_get(summary, :turn_id)),
+      child_work_id: optional_string(map_get(summary, :child_work_id)),
+      tool_call_id: optional_string(map_get(summary, :tool_call_id)),
+      correlation: normalize_map(map_get(summary, :correlation)),
+      payload: normalize_map(map_get(summary, :payload))
+    }
+  end
+
   defp map_get(map, key) when is_map(map) do
     string_key =
       case key do
@@ -129,6 +147,28 @@ defmodule JidoCode.Conversations.Event do
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
+
+  defp normalize_sequence(value) when is_integer(value) and value > 0, do: value
+
+  defp normalize_sequence(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {sequence, ""} when sequence > 0 -> sequence
+      _other -> 1
+    end
+  end
+
+  defp normalize_sequence(_value), do: 1
+
+  defp normalize_datetime(%DateTime{} = datetime), do: DateTime.truncate(datetime, :microsecond)
+
+  defp normalize_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> DateTime.truncate(datetime, :microsecond)
+      _other -> DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    end
+  end
+
+  defp normalize_datetime(_value), do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
   defp optional_string(value) when is_binary(value) do
     case String.trim(value) do

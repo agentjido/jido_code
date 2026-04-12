@@ -3,7 +3,7 @@ defmodule JidoCode.Conversations do
   use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Conversations.Conversation
+  alias JidoCode.Conversations.{Conversation, EventRecord, SnapshotRecord}
   alias JidoCode.Operations.{Ingress, WorkItem}
 
   admin do
@@ -12,6 +12,8 @@ defmodule JidoCode.Conversations do
 
   resources do
     resource Conversation
+    resource EventRecord
+    resource SnapshotRecord
   end
 
   @type start_result :: %{

@@ -248,6 +248,14 @@ defmodule JidoCode.Operations.Synthesis do
 
   defp intake_assessment_profile(intake) do
     case {normalize_token(intake.channel), normalize_token(intake.intent), requested_workflow_name(intake)} do
+      {"conversation", "conversation_steer_work", _workflow_name} ->
+        {"operator_work_request", :high, :high, "steer_existing_work_item",
+         "Conversation steering redirected governed work through the managed-repository control loop."}
+
+      {"conversation", "conversation_work_kickoff", _workflow_name} ->
+        {"operator_work_request", :medium, :medium, "review_operator_request",
+         "Conversation demand promoted managed-repository work into the governed work loop."}
+
       {"setup", "project_import", _workflow_name} ->
         {"operator_setup_request", :high, :medium, "prepare_managed_repo",
          "Signed-in setup import requested durable repository preparation work."}

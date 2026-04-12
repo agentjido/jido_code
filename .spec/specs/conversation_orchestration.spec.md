@@ -6,23 +6,29 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 ```spec-meta
 id: architecture.conversation_orchestration
 kind: feature
-status: proposed
-summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, cancellable tool jobs, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks rather than snapshot polling or ad hoc FIFO chat handling.
+status: active
+summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks rather than snapshot polling or ad hoc FIFO chat handling.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
   - jido_code.interruptible_conversation_orchestration
 surface:
+  - lib/jido_code/conversations.ex
   - .spec/decisions/jido_code.interruptible_conversation_orchestration.md
   - lib/jido_code/conversations/event.ex
+  - lib/jido_code/conversations/event_record.ex
+  - lib/jido_code/conversations/persistence.ex
   - lib/jido_code/conversations/pub_sub.ex
   - lib/jido_code/conversations/snapshot.ex
+  - lib/jido_code/conversations/snapshot_record.ex
   - lib/jido_code/agent_workspace.ex
+  - lib/jido_code/operations/synthesis.ex
   - lib/jido_code_web/live/demos/chat_live.ex
   - lib/jido_code_web/live/forge/show_live.ex
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
   - test/jido_code/phase_forty_one_integration_test.exs
+  - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/demos/chat_live_test.exs
 ```
 
@@ -146,6 +152,20 @@ surface:
   then:
     - The conversation stays attached to the same managed repository and work context unless the user explicitly changes scope.
     - Bounded short-term context remains available to the next turn.
+
+- id: architecture.conversation_orchestration.scenario_steering_rejoins_canonical_work
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  given:
+    - A conversation already has bounded shared context and managed-repository scope.
+  when:
+    - The user steers that conversation toward an existing or newly governed work item.
+  then:
+    - The durable conversation record reflects the updated work-item scope.
+    - The governed work loop preserves actor attribution and steering auditability on the canonical `WorkItem`.
+    - Persisted conversation snapshots retain the bounded shared context needed for the redirected work.
 ```
 
 ## Verification
@@ -195,15 +215,39 @@ surface:
     - architecture.conversation_orchestration.expensive_work_announces_intent
 
 - kind: source_file
+  target: lib/jido_code/conversations/event_record.ex
+  covers:
+    - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+
+- kind: source_file
   target: lib/jido_code/conversations/pub_sub.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+
+- kind: source_file
+  target: lib/jido_code/conversations/persistence.ex
+  covers:
+    - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
   target: lib/jido_code/conversations/snapshot.ex
   covers:
     - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+
+- kind: source_file
+  target: lib/jido_code/conversations/snapshot_record.ex
+  covers:
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+
+- kind: source_file
+  target: lib/jido_code/conversations.ex
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
   target: test/jido_code/phase_forty_integration_test.exs
@@ -219,6 +263,14 @@ surface:
     - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+
+- kind: source_file
+  target: test/jido_code/phase_forty_two_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
   target: lib/jido_code_web/live/forge/show_live.ex

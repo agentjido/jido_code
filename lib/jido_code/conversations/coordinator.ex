@@ -10,7 +10,17 @@ defmodule JidoCode.Conversations.Coordinator do
 
   use GenServer
 
-  alias JidoCode.Conversations.{ChildWork, ChildWorker, Command, Conversation, Event, PubSub, Snapshot, Turn}
+  alias JidoCode.Conversations.{
+    ChildWork,
+    ChildWorker,
+    Command,
+    Conversation,
+    Event,
+    Persistence,
+    PubSub,
+    Snapshot,
+    Turn
+  }
 
   @type state :: %{
           conversation: Conversation.t(),
@@ -69,29 +79,21 @@ defmodule JidoCode.Conversations.Coordinator do
 
   @impl true
   def init(%Conversation{} = conversation) do
-    {:ok,
-     %{
-       conversation: conversation,
-       status: conversation.status,
-       admission_paused: conversation.status == :paused,
-       child_execution_paused: false,
-       active_turn_id: nil,
-       work_queue: [],
-       turns: %{},
-       turn_order: [],
-       control_history: [],
-       child_works: %{},
-       child_work_order: [],
-       child_worker_pids: %{},
-       event_sequence: 0,
-       events: []
-     }}
+    state =
+      case Persistence.restore_state(conversation) do
+        {:ok, restored_state} when is_map(restored_state) -> restored_state
+        _other -> fresh_state(conversation)
+      end
+
+    {:ok, state}
   end
 
   @impl true
   def handle_call({:admit_command, command, actor}, _from, state) do
     with {:ok, normalized_command} <- Command.normalize(command, actor),
-         {:ok, next_state} <- admit_normalized_command(state, normalized_command) do
+         {:ok, next_state} <- admit_normalized_command(state, normalized_command),
+         :ok <- Persistence.persist_transition(state, next_state),
+         :ok <- broadcast_new_events(state, next_state) do
       {:reply, {:ok, Snapshot.from_state(next_state)}, next_state}
     else
       {:error, reason} -> {:reply, {:error, reason}, state}
@@ -102,7 +104,9 @@ defmodule JidoCode.Conversations.Coordinator do
     case Map.fetch(state.turns, turn_id) do
       {:ok, %Turn{} = turn} ->
         with {:ok, updated_turn} <- Turn.transition(turn, next_state),
-             {:ok, next_state_map} <- apply_turn_transition(state, updated_turn, actor) do
+             {:ok, next_state_map} <- apply_turn_transition(state, updated_turn, actor),
+             :ok <- Persistence.persist_transition(state, next_state_map),
+             :ok <- broadcast_new_events(state, next_state_map) do
           {:reply, {:ok, Snapshot.from_state(next_state_map)}, next_state_map}
         else
           {:error, reason} -> {:reply, {:error, reason}, state}
@@ -118,7 +122,9 @@ defmodule JidoCode.Conversations.Coordinator do
          child_work <- Map.fetch!(state.child_works, child_work_id),
          next_state <- append_child_work_cancel_requested_event(state, child_work, actor, %{}),
          {:ok, updated_child_work} <- ChildWorker.request_cancel(pid),
-         {:ok, final_state} <- apply_child_work_update(next_state, updated_child_work, actor) do
+         {:ok, final_state} <- apply_child_work_update(next_state, updated_child_work, actor),
+         :ok <- Persistence.persist_transition(state, final_state),
+         :ok <- broadcast_new_events(state, final_state) do
       {:reply, {:ok, Snapshot.from_state(final_state)}, final_state}
     else
       {:error, reason} -> {:reply, {:error, reason}, state}
@@ -126,9 +132,10 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   def handle_call({:settle_child_work, child_work_id, outcome, attrs, actor}, _from, state) do
-    with {:ok, pid} <- fetch_child_worker_pid(state, child_work_id),
-         {:ok, updated_child_work} <- ChildWorker.settle(pid, outcome, attrs),
-         {:ok, next_state} <- apply_child_work_update(state, updated_child_work, actor, attrs) do
+    with {:ok, updated_child_work} <- settle_child_work_runtime(state, child_work_id, outcome, attrs),
+         {:ok, next_state} <- apply_child_work_update(state, updated_child_work, actor, attrs),
+         :ok <- Persistence.persist_transition(state, next_state),
+         :ok <- broadcast_new_events(state, next_state) do
       {:reply, {:ok, Snapshot.from_state(next_state)}, next_state}
     else
       {:error, reason} -> {:reply, {:error, reason}, state}
@@ -161,11 +168,13 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   defp admit_normalized_command(state, %{class: :control} = normalized_command) do
-    with {:ok, next_state} <-
+    with {:ok, applied_state} <-
            state
            |> append_command_message_event(normalized_command)
-           |> update_in([:control_history], &(&1 ++ [control_entry(normalized_command)]))
-           |> apply_control_command(normalized_command)
+           |> apply_control_command(normalized_command),
+         {:ok, next_state} <-
+           applied_state
+           |> update_in([:control_history], &(&1 ++ [control_entry(normalized_command, applied_state)]))
            |> maybe_activate_next_turn() do
       {:ok, next_state}
     end
@@ -269,6 +278,21 @@ defmodule JidoCode.Conversations.Coordinator do
     end
   end
 
+  defp settle_child_work_runtime(state, child_work_id, outcome, attrs) do
+    case Map.fetch(state.child_worker_pids, child_work_id) do
+      {:ok, pid} ->
+        ChildWorker.settle(pid, outcome, attrs)
+
+      :error ->
+        state.child_works
+        |> Map.fetch(child_work_id)
+        |> case do
+          {:ok, %ChildWork{} = child_work} -> ChildWork.settle(child_work, outcome, attrs)
+          :error -> {:error, :child_work_not_found}
+        end
+    end
+  end
+
   defp fetch_child_worker_pid(state, child_work_id) do
     case Map.fetch(state.child_worker_pids, child_work_id) do
       {:ok, pid} -> {:ok, pid}
@@ -311,7 +335,7 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp sync_child_work_with_turn(state, _updated_turn, _actor), do: state
 
-  defp control_entry(command) do
+  defp control_entry(command, state) do
     %{
       id: command.id,
       type: command.raw_type,
@@ -320,6 +344,10 @@ defmodule JidoCode.Conversations.Coordinator do
       actor: command.actor,
       payload: command.payload
     }
+    |> maybe_put(:work_item_id, state.conversation.work_item_id)
+    |> maybe_put(:work_action, map_get(state.conversation.conversation_metadata, "last_work_action"))
+    |> maybe_put(:attachment_mode, state.conversation.attachment_mode)
+    |> maybe_put(:scope, state.conversation.scope)
   end
 
   defp stop_turn(state, payload, actor, message_id) do
@@ -345,9 +373,10 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp steer_turn(state, normalized_command) do
     with {:ok, target_turn} <- target_turn(state, normalized_command.payload),
+         {:ok, state_after_work} <- apply_conversation_work_steering(state, normalized_command),
          {:ok, state_after_target} <-
            mark_turn_superseding(
-             state,
+             state_after_work,
              target_turn,
              normalized_command.actor,
              normalized_command.payload,
@@ -358,6 +387,23 @@ defmodule JidoCode.Conversations.Coordinator do
       update_superseded_reference(queued_state, target_turn.id, replacement_turn.id)
     end
   end
+
+  defp apply_conversation_work_steering(state, %{type: :turn_steer} = normalized_command) do
+    case JidoCode.Conversations.steer_work(
+           state.conversation,
+           normalized_command.payload,
+           actor: normalized_command.actor,
+           shared_context: Snapshot.from_state(state).shared_context
+         ) do
+      {:ok, %{conversation: %Conversation{} = updated_conversation}} ->
+        {:ok, %{state | conversation: updated_conversation}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp apply_conversation_work_steering(state, _normalized_command), do: {:ok, state}
 
   defp request_turn_cancellation(state, %Turn{state: :queued, id: turn_id} = turn, actor, payload, message_id) do
     with {:ok, cancelled_turn} <- Turn.transition(turn, :cancelled) do
@@ -648,12 +694,40 @@ defmodule JidoCode.Conversations.Coordinator do
   defp append_event(state, name, attrs) do
     sequence = state.event_sequence + 1
     event = Event.new(state.conversation.id, sequence, name, attrs)
-    _ = PubSub.broadcast_conversation_event(state.conversation.id, Event.summary(event))
 
     %{
       state
       | event_sequence: sequence,
         events: state.events ++ [event]
+    }
+  end
+
+  defp broadcast_new_events(previous_state, next_state) do
+    next_state.events
+    |> Enum.filter(&(&1.sequence > previous_state.event_sequence))
+    |> Enum.each(fn event ->
+      _ = PubSub.broadcast_conversation_event(next_state.conversation.id, Event.summary(event))
+    end)
+
+    :ok
+  end
+
+  defp fresh_state(%Conversation{} = conversation) do
+    %{
+      conversation: conversation,
+      status: conversation.status,
+      admission_paused: conversation.status == :paused,
+      child_execution_paused: false,
+      active_turn_id: nil,
+      work_queue: [],
+      turns: %{},
+      turn_order: [],
+      control_history: [],
+      child_works: %{},
+      child_work_order: [],
+      child_worker_pids: %{},
+      event_sequence: 0,
+      events: []
     }
   end
 
@@ -694,6 +768,9 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp map_get(map, key) when is_map(map), do: Map.get(map, key)
+  defp map_get(_map, _key), do: nil
 
   defp optional_string(value) when is_binary(value) do
     case String.trim(value) do

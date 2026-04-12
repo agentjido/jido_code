@@ -150,6 +150,16 @@ The routed browser shell stays LiveView-first. Reach for Vue only when a surface
 - Keep degraded frontend behavior product-oriented. If a Vue surface cannot load or SSR is reduced, the page should fall back to bounded LiveView fallback messaging rather than raw Vite, SSR, or manifest errors.
 - Run `mix frontend.verify` whenever a change touches `live_vue`, shared browser helpers, Vite config, SSR entrypoints, or the root browser dependency surface.
 
+## Conversation Conventions
+
+Conversation work in this repo is product work, not a parallel chat lane.
+
+- Keep conversations bound to an explicit `ManagedRepo` and, when durable work is in play, to one canonical `WorkItem`.
+- Prefer the event-driven conversation path. Live updates should flow through the product-owned conversation event stream, with snapshots reserved for bootstrap, reconnect recovery, and degraded continuity instead of polling-first UI.
+- Treat `turn.steer`, `turn.stop`, `tool.cancel`, pause, and resume as explicit control-lane commands rather than ad hoc message priorities or browser-local state.
+- When a conversation redirects or promotes work, send that demand back through the governed work loop so `WorkItem` auditability stays canonical.
+- Keep short-term shared context bounded and explainable. Referenced files, accepted tool results, and pending clarification state may inform steering, but they should remain visible, product-shaped context rather than hidden memory.
+
 ## Commit Messages
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):

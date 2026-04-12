@@ -128,7 +128,7 @@ mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
 mix source_graph.verify # run the repo-owned semantic graph verification suite
-mix memory.verify       # run the repo-owned memory graph and capture-plane verification suite
+mix memory.verify       # verify the ontology pair, typed governed links, and repo-owned memory recovery path
 mix semantic.verify     # run the full product-facing semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
@@ -196,6 +196,18 @@ The write seam is explicit:
 - durable memory is inserted only after explicit classification or governed
   adoption
 - raw runtime or model output is not durable memory on its own
+
+The verification and cutover seam is explicit too:
+
+- `mix memory.verify` checks the companion ontology pair, typed governed-link
+  adoption, repository-local graph coherence, and bounded rebuild or
+  revalidation behavior
+- new memory and provenance code should emit typed `governed_references`
+  directly; generic artifact-style governed links are legacy recovery-only
+  state, not the contract for new work
+- governed truth still lives in Ash-backed control-plane records such as
+  `ManagedRepo`, `WorkItem`, `Run`, `Evidence`, and governed `Decision`; the
+  semantic graphs store supporting recall, provenance, and cross-links
 
 When touching the memory graph boundary, capture envelopes, memory actions,
 memory workspace entrypoints, or provenance or durable-memory adoption flows,

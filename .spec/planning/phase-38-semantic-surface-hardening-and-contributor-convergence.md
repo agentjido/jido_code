@@ -52,22 +52,22 @@ Back to index: [README](./README.md)
       [x] 38.1.2.2 Subtask - Extract shared memory action feedback and recovery-state shaping helpers for LiveView or `live_vue` regions that need the stronger model.
       [x] 38.1.2.3 Subtask - Keep these helpers aligned to product services and view models rather than introducing UI-local semantic translation layers.
 
-  [ ] 38.2 Section - Verification, Rebuild, And Contributor Convergence
+  [x] 38.2 Section - Verification, Rebuild, And Contributor Convergence
     Align recovery tooling, repo verification, docs, and topology guidance so the stronger semantic model is maintainable and explainable over time.
 
-    [ ] 38.2.1 Task - Add explicit verification and rebuild behavior for the semantic cutover
+    [x] 38.2.1 Task - Add explicit verification and rebuild behavior for the semantic cutover
       Ensure repositories can detect, validate, and recover from old generic-artifact graph data through bounded repo-owned workflows.
 
-      [ ] 38.2.1.1 Subtask - Extend the existing memory verification path to validate the companion ontology, typed governed links, and repository-local graph coherence together.
-      [ ] 38.2.1.2 Subtask - Add bounded rebuild or revalidation guidance for repositories whose local graphs still reflect the older generic-artifact semantics.
-      [ ] 38.2.1.3 Subtask - Keep rebuild and validation behavior product-owned and explainable through the existing memory status and feedback surfaces.
+      [x] 38.2.1.1 Subtask - Extend the existing memory verification path to validate the companion ontology, typed governed links, and repository-local graph coherence together.
+      [x] 38.2.1.2 Subtask - Add bounded rebuild or revalidation guidance for repositories whose local graphs still reflect the older generic-artifact semantics.
+      [x] 38.2.1.3 Subtask - Keep rebuild and validation behavior product-owned and explainable through the existing memory status and feedback surfaces.
 
-    [ ] 38.2.2 Task - Align contributor docs and architecture guidance to the stronger model
+    [x] 38.2.2 Task - Align contributor docs and architecture guidance to the stronger model
       Update repo documentation so future work builds on the stronger semantic model by default.
 
-      [ ] 38.2.2.1 Subtask - Update contributor docs and topology guidance to explain the companion control-plane ontology and typed governed-reference model.
-      [ ] 38.2.2.2 Subtask - Document the direct cutover expectation so new code does not reintroduce generic artifact semantics for governed links.
-      [ ] 38.2.2.3 Subtask - Keep the package and spec-led guidance explicit about where governed truth lives versus where semantic support links live.
+      [x] 38.2.2.1 Subtask - Update contributor docs and topology guidance to explain the companion control-plane ontology and typed governed-reference model.
+      [x] 38.2.2.2 Subtask - Document the direct cutover expectation so new code does not reintroduce generic artifact semantics for governed links.
+      [x] 38.2.2.3 Subtask - Keep the package and spec-led guidance explicit about where governed truth lives versus where semantic support links live.
 
   [ ] 38.3 Section - Phase 38 Integration Tests
     Verify the stronger semantic model is visible, recoverable, and maintainable across current surfaces, rebuild flows, and contributor-facing verification.

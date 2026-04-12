@@ -267,6 +267,8 @@ defmodule JidoCode.MemoryGraph.Store do
     with {:ok, memory_graph} <- export_graph(store, MemoryGraph.memory_named_graph_resource(), :memory),
          {:ok, workflow_graph} <-
            export_graph(store, MemoryGraph.workflow_provenance_named_graph_resource(), :workflow_provenance) do
+      ontology_pair = ontology_pair_status(memory_graph, workflow_graph)
+
       typed_governed_link_count =
         count_typed_governed_links(memory_graph, managed_repo_id) +
           count_typed_governed_links(workflow_graph, managed_repo_id)
@@ -277,14 +279,11 @@ defmodule JidoCode.MemoryGraph.Store do
 
       {:ok,
        %{
-         state:
-           if(legacy_governed_artifact_count > 0,
-             do: :legacy_governed_artifacts,
-             else: :typed_governed_references
-           ),
+         state: semantic_model_state(ontology_pair, legacy_governed_artifact_count),
+         ontology_pair: ontology_pair,
          typed_governed_link_count: typed_governed_link_count,
          legacy_governed_artifact_count: legacy_governed_artifact_count,
-         rebuild_required?: legacy_governed_artifact_count > 0,
+         rebuild_required?: legacy_governed_artifact_count > 0 or not ontology_pair.complete?,
          explainable?: true
        }}
     end
@@ -348,6 +347,63 @@ defmodule JidoCode.MemoryGraph.Store do
     end)
   end
 
+  defp ontology_pair_status(memory_graph, workflow_graph) do
+    memory_status = graph_ontology_status(memory_graph, :memory)
+    workflow_status = graph_ontology_status(workflow_graph, :workflow_provenance)
+
+    %{
+      complete?: memory_status.complete? and workflow_status.complete?,
+      memory: memory_status,
+      workflow_provenance: workflow_status
+    }
+  end
+
+  defp graph_ontology_status(graph, graph_name) do
+    ontology_iris = MemoryGraph.ontology_iris()
+
+    memory_ontology_loaded? = graph_contains_iri?(graph, ontology_iris.memory)
+    control_plane_ontology_loaded? = graph_contains_iri?(graph, ontology_iris.control_plane)
+
+    %{
+      graph_name: graph_name,
+      memory_ontology_loaded?: memory_ontology_loaded?,
+      control_plane_ontology_loaded?: control_plane_ontology_loaded?,
+      complete?: memory_ontology_loaded? and control_plane_ontology_loaded?
+    }
+  end
+
+  defp graph_contains_iri?(graph, iri) when is_binary(iri) do
+    graph
+    |> RDF.Graph.triples()
+    |> Enum.any?(fn
+      {%RDF.IRI{} = subject, _predicate, _object} -> to_string(subject) == iri
+      {_subject, %RDF.IRI{} = predicate, _object} -> to_string(predicate) == iri
+      {_subject, _predicate, %RDF.IRI{} = object} -> to_string(object) == iri
+      _other -> false
+    end)
+  end
+
+  defp semantic_model_state(%{complete?: false}, _legacy_governed_artifact_count),
+    do: :ontology_pair_incomplete
+
+  defp semantic_model_state(_ontology_pair, legacy_governed_artifact_count)
+       when legacy_governed_artifact_count > 0,
+       do: :legacy_governed_artifacts
+
+  defp semantic_model_state(_ontology_pair, _legacy_governed_artifact_count),
+    do: :typed_governed_references
+
+  defp semantic_failure(%{state: :ontology_pair_incomplete} = semantic_model) do
+    %{
+      kind: :memory_graph_ontology_pair_incomplete,
+      operation: :validate,
+      stage: :ontology_pair,
+      message:
+        "Repository memory graph is missing the companion ontology pair and must be recovered before typed governed semantics are trusted.",
+      semantic_model: semantic_model
+    }
+  end
+
   defp semantic_failure(%{rebuild_required?: true} = semantic_model) do
     %{
       kind: :memory_graph_semantic_cutover_required,
@@ -371,7 +427,22 @@ defmodule JidoCode.MemoryGraph.Store do
 
   defp default_semantic_model do
     %{
-      state: :typed_governed_references,
+      state: :not_loaded,
+      ontology_pair: %{
+        complete?: false,
+        memory: %{
+          graph_name: :memory,
+          memory_ontology_loaded?: false,
+          control_plane_ontology_loaded?: false,
+          complete?: false
+        },
+        workflow_provenance: %{
+          graph_name: :workflow_provenance,
+          memory_ontology_loaded?: false,
+          control_plane_ontology_loaded?: false,
+          complete?: false
+        }
+      },
       typed_governed_link_count: 0,
       legacy_governed_artifact_count: 0,
       rebuild_required?: false,

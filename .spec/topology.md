@@ -199,6 +199,16 @@ The stronger semantic model does **not** add a fourth governance graph. Instead,
 the existing `memory` and `workflow_provenance` graphs can point at governed
 records semantically through typed repository-scoped IRIs.
 
+The verification and rebuild contract is explicit too:
+
+- `mix memory.verify` is the repo-owned contributor path that checks the
+  companion ontology pair, typed governed links, and repository-local graph
+  coherence together
+- product recovery surfaces stay repo-scoped and explainable when those checks
+  require revalidation or rebuild
+- new code should treat typed governed references as the direct contract;
+  generic artifact-style governed links remain legacy recovery-only state
+
 ## Memory And Provenance Topology
 
 The memory system has two related but separate concerns:

@@ -40,3 +40,9 @@ The authored specs and generated state in this folder are maintained through the
 - Use `.spec/planning/` for phased implementation and migration plans instead of embedding time-phased rollout detail into current-truth subjects or ADRs.
 - Use GitHub issues and pull requests for shared collaboration history.
 - Use Beadwork for local durable agent work state, not as a replacement for repo-level review and discussion.
+- Keep current-truth subjects explicit about where Ash-backed governed truth
+  lives versus where semantic support layers add recall, provenance, and
+  cross-links.
+- Treat typed governed references as the default semantic contract; generic
+  artifact-style governed links should only survive as legacy recovery or
+  rebuild state, not as new current-truth behavior.

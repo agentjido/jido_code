@@ -20,6 +20,7 @@ The plan aligns to:
 - `../specs/source_code_graph_product_adoption.spec.md`
 - `../specs/vsm_recursion.spec.md`
 - `../specs/execution_pipeline.spec.md`
+- `../specs/conversation_orchestration.spec.md`
 - `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
@@ -31,6 +32,7 @@ The plan aligns to:
 - `../decisions/jido_code.source_code_graph_product_adoption.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
 - `../decisions/jido_code.runic_execution_model.md`
+- `../decisions/jido_code.interruptible_conversation_orchestration.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
 - `../decisions/jido_code.jido_os_deprecation.md`
 
@@ -67,6 +69,10 @@ The plan aligns to:
 30. [Phase 36 - Memory Capture And Writer Semantic Cutover](./phase-36-memory-capture-and-writer-semantic-cutover.md): cut the capture plane, durable memory writers, and provenance writers over from generic artifact semantics to typed governed references while preserving the existing graph layout.
 31. [Phase 37 - Query, Navigation, And Product Service Semantic Adoption](./phase-37-query-navigation-and-product-service-semantic-adoption.md): adopt typed governed semantics across SPARQL helpers, cross-graph navigation, product services, operator actions, and memory-aware workflow boundaries.
 32. [Phase 38 - Semantic Surface Hardening And Contributor Convergence](./phase-38-semantic-surface-hardening-and-contributor-convergence.md): harden existing memory-aware surfaces, verification and rebuild flows, and contributor guidance so the stronger semantic model becomes the durable repo default.
+33. [Phase 39 - Conversation Coordinator And Command Foundation](./phase-39-conversation-coordinator-and-command-foundation.md): introduce the canonical conversation scope, coordinator boundary, and command-admission model that attaches productive coding conversations to managed-repository and work-item context.
+34. [Phase 40 - Interruptible Turns And Cancellable Tool Execution](./phase-40-interruptible-turns-and-cancellable-tool-execution.md): implement the single control lane, turn supersession, and cancellable child-tool execution model needed for stop, steer, pause, and resume semantics.
+35. [Phase 41 - Evented Conversation UI And Stream Recovery](./phase-41-evented-conversation-ui-and-stream-recovery.md): replace polling-oriented conversation updates with sequenced conversation events, PubSub delivery, LiveView streams, and reconnect or degraded recovery behavior.
+36. [Phase 42 - Conversation Persistence And Product Convergence](./phase-42-conversation-persistence-and-product-convergence.md): persist append-only conversation history and snapshots, preserve bounded short-term context across steering, and converge the conversation model with factory work, docs, and rollout defaults.
 
 ## Shared Conventions
 - Numbering:

@@ -1,0 +1,110 @@
+defmodule JidoCode.ConversationsDriverTest do
+  use JidoCode.DataCase, async: false
+
+  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Conversations.Driver
+  alias JidoCode.Projects.Project
+
+  test "driver starts a conversation without exposing runtime topology" do
+    managed_repo = managed_repo_fixture!("driver-start")
+
+    assert {:ok, %{conversation: conversation, snapshot: snapshot}} =
+             Driver.start_conversation(%{
+               managed_repo_id: managed_repo.id,
+               source: "conversation",
+               objective: "Start a conversation through the driver."
+             })
+
+    assert snapshot.conversation_id == conversation.id
+    assert snapshot.managed_repo_id == managed_repo.id
+    assert Map.has_key?(snapshot, :active_turn_id)
+    refute Map.has_key?(snapshot, :kernel_name)
+    refute Map.has_key?(snapshot, :pod_id)
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  test "driver admits work and control commands through distinct product-owned shapes" do
+    managed_repo = managed_repo_fixture!("driver-commands")
+
+    {:ok, %{conversation: conversation}} =
+      Driver.start_conversation(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Admit commands."
+      })
+
+    assert {:ok, running_snapshot} =
+             Driver.handle_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Plan the next step."}},
+               actor: Actor.operator_actor()
+             )
+
+    assert running_snapshot.active_turn.command_type == "turn.submit"
+    assert running_snapshot.active_turn.state == :running
+
+    assert {:ok, paused_snapshot} =
+             Driver.handle_command(
+               conversation.id,
+               %{type: "session.pause", payload: %{reason: "Operator paused the session."}},
+               actor: Actor.operator_actor()
+             )
+
+    assert paused_snapshot.status == :paused
+    assert Enum.any?(paused_snapshot.control_history, &(&1.type == "session.pause"))
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  test "driver keeps baseline turn lifecycle transitions explicit and auditable" do
+    managed_repo = managed_repo_fixture!("driver-lifecycle")
+
+    {:ok, %{conversation: conversation}} =
+      Driver.start_conversation(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Track lifecycle transitions."
+      })
+
+    {:ok, initial_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.submit", payload: %{instruction: "Review the plan."}},
+        actor: Actor.operator_actor()
+      )
+
+    turn_id = initial_snapshot.active_turn_id
+
+    assert {:ok, awaiting_input_snapshot} =
+             Driver.transition_turn(conversation.id, turn_id, :awaiting_input, actor: Actor.operator_actor())
+
+    assert awaiting_input_snapshot.active_turn.state == :awaiting_input
+
+    assert {:ok, completed_snapshot} =
+             Driver.transition_turn(conversation.id, turn_id, :completed, actor: Actor.operator_actor())
+
+    completed_turn = Enum.find(completed_snapshot.turns, &(&1.id == turn_id))
+
+    assert completed_turn.state == :completed
+    assert Enum.map(completed_turn.lifecycle, & &1["state"]) == ["queued", "running", "awaiting_input", "completed"]
+    assert completed_snapshot.active_turn == nil
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  defp managed_repo_fixture!(suffix) do
+    {:ok, project} =
+      Project.create(%{
+        name: "conversation-driver-#{suffix}",
+        github_full_name: "owner/conversation-driver-#{suffix}",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    managed_repo
+  end
+end

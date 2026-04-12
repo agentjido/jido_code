@@ -69,19 +69,19 @@ Back to index: [README](./README.md)
       [x] 38.2.2.2 Subtask - Document the direct cutover expectation so new code does not reintroduce generic artifact semantics for governed links.
       [x] 38.2.2.3 Subtask - Keep the package and spec-led guidance explicit about where governed truth lives versus where semantic support links live.
 
-  [ ] 38.3 Section - Phase 38 Integration Tests
+  [x] 38.3 Section - Phase 38 Integration Tests
     Verify the stronger semantic model is visible, recoverable, and maintainable across current surfaces, rebuild flows, and contributor-facing verification.
 
-    [ ] 38.3.1 Task - Surface and recovery scenarios
+    [x] 38.3.1 Task - Surface and recovery scenarios
       Prove the current memory-aware surfaces behave cleanly after the stronger semantic cutover.
 
-      [ ] 38.3.1.1 Subtask - Add coverage proving repo detail, run detail, and workbench render typed governed links and feedback without generic artifact wording.
-      [ ] 38.3.1.2 Subtask - Add coverage proving stale, invalidated, and rebuild-required states remain explainable through product-owned recovery flows.
-      [ ] 38.3.1.3 Subtask - Add coverage proving shared surface helpers preserve repository-scoped navigation and memory action behavior.
+      [x] 38.3.1.1 Subtask - Add coverage proving repo detail, run detail, and workbench render typed governed links and feedback without generic artifact wording.
+      [x] 38.3.1.2 Subtask - Add coverage proving stale, invalidated, and rebuild-required states remain explainable through product-owned recovery flows.
+      [x] 38.3.1.3 Subtask - Add coverage proving shared surface helpers preserve repository-scoped navigation and memory action behavior.
 
-    [ ] 38.3.2 Task - Verification and documentation scenarios
+    [x] 38.3.2 Task - Verification and documentation scenarios
       Prove the repo’s verification and documentation surfaces are aligned to the stronger semantic model.
 
-      [ ] 38.3.2.1 Subtask - Add coverage proving the verification path checks the ontology pair, typed governed links, and graph coherence together.
-      [ ] 38.3.2.2 Subtask - Add coverage proving repository rebuild or revalidation guidance works for older generic-artifact graph state.
-      [ ] 38.3.2.3 Subtask - Verify the spec workspace, topology guide, and contributor docs remain coherent after Phase 38 converges the stronger semantic model.
+      [x] 38.3.2.1 Subtask - Add coverage proving the verification path checks the ontology pair, typed governed links, and graph coherence together.
+      [x] 38.3.2.2 Subtask - Add coverage proving repository rebuild or revalidation guidance works for older generic-artifact graph state.
+      [x] 38.3.2.3 Subtask - Verify the spec workspace, topology guide, and contributor docs remain coherent after Phase 38 converges the stronger semantic model.

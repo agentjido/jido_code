@@ -1,81 +1,67 @@
 defmodule JidoCodeWeb.Demos.ChatLive do
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+  # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   @moduledoc """
-  Demo: AI Chat Agent with ReAct Loop
+  Event-driven conversation orchestration demo.
 
-  Demonstrates Jido.AI.Agent with full observability:
-  - Streaming text display with iteration tracking
-  - Tool call lifecycle (planned → executing → completed)
-  - Thinking/reasoning visibility
-  - Conversation history and usage metrics
-  - Toggleable panels for verbose debugging
-
-  Uses polling of strategy_snapshot for real-time updates.
+  This LiveView subscribes to the canonical conversation event stream instead of
+  polling snapshots. Snapshots are only used for initial bootstrap, reconnect
+  recovery, and continuity-gap fallback.
   """
+
   use JidoCodeWeb, :live_view
 
-  alias JidoCode.Demos.ChatAgent
+  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Conversations.{Driver, PubSub}
 
-  @poll_interval 80
+  @completion_delay_ms 120
+  @cancellation_settle_delay_ms 80
+  @degraded_mode_message "Live conversation stream unavailable. Showing the latest conversation snapshot only."
 
-  defmodule Trace do
-    @moduledoc "Pure state for tracking snapshot deltas between polls"
-    defstruct last_iteration: 0,
-              text: "",
-              thinking: "",
-              seen_tool_ids: MapSet.new(),
-              completed_tool_ids: MapSet.new(),
-              awaiting_start?: true
+  @impl true
+  def mount(_params, session, socket) do
+    {:ok,
+     socket
+     |> assign(:page_title, "Conversation Orchestration Demo")
+     |> assign(:preferred_managed_repo_id, normalize_optional_string(session["managed_repo_id"]))
+     |> assign(:conversation_id, nil)
+     |> assign(:snapshot, nil)
+     |> assign(:events, [])
+     |> assign(:last_event_sequence, 0)
+     |> assign(:input, "")
+     |> assign(:error, nil)
+     |> assign(:stream_mode, :booting)
+     |> assign(:stream_degraded_reason, nil)
+     |> assign(:stream_discontinuity_count, 0)
+     |> assign(:stream_notices, [])
+     |> assign(:degraded_mode_message, @degraded_mode_message)
+     |> assign(:client_ready?, false)}
   end
 
   @impl true
-  def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(:agent_pid, nil)
-      |> assign(:running?, false)
-      |> assign(:input, "")
-      |> assign(:error, nil)
-      |> assign(:trace, %Trace{})
-      |> assign(:messages, [])
-      |> assign(:panels, %{thinking: "", usage: %{}, conversation: [], config: %{}})
-      |> assign(:conversation_history, [])
-      |> assign(:poll_ref, nil)
+  def handle_event("client_ready", params, socket) do
+    stored_conversation_id = normalize_optional_string(params["conversation_id"])
+    after_sequence = normalize_sequence(params["after_sequence"])
 
-    socket =
-      if connected?(socket) do
-        case start_agent() do
-          {:ok, pid} ->
-            Process.monitor(pid)
-            assign(socket, :agent_pid, pid)
-
-          {:error, reason} ->
-            assign(socket, :error, "Failed to start agent: #{inspect(reason)}")
-        end
-      else
+    with {:ok, bootstrap} <- load_or_start_conversation(socket, stored_conversation_id) do
+      socket =
         socket
-      end
+        |> maybe_unsubscribe_conversation()
+        |> assign(:client_ready?, true)
+        |> assign(:conversation_id, bootstrap.conversation_id)
+        |> assign(:error, nil)
+        |> subscribe_to_conversation_stream(bootstrap.conversation_id)
+        |> assign_from_snapshot(bootstrap.snapshot)
+        |> maybe_note_fresh_start(stored_conversation_id, bootstrap.resumed?)
+        |> maybe_restore_continuity(bootstrap.conversation_id, bootstrap.resumed?, after_sequence)
 
-    {:ok, socket}
-  end
-
-  defp start_agent do
-    Jido.AgentServer.start_link(
-      agent: ChatAgent,
-      id: "chat-#{System.unique_integer([:positive])}",
-      jido: JidoCode.Jido
-    )
-  end
-
-  @impl true
-  def terminate(_reason, socket) do
-    if pid = socket.assigns[:agent_pid] do
-      if Process.alive?(pid), do: GenServer.stop(pid, :normal)
+      {:noreply, socket}
+    else
+      {:error, reason} ->
+        {:noreply, assign(socket, :error, bootstrap_error_message(reason))}
     end
-
-    :ok
   end
 
-  @impl true
   def handle_event("update_input", %{"input" => value}, socket) do
     {:noreply, assign(socket, :input, value)}
   end
@@ -83,605 +69,823 @@ defmodule JidoCodeWeb.Demos.ChatLive do
   def handle_event("send", _params, socket) do
     input = String.trim(socket.assigns.input)
 
-    if input == "" or socket.assigns.running? or is_nil(socket.assigns.agent_pid) do
-      {:noreply, socket}
-    else
-      case ChatAgent.ask(socket.assigns.agent_pid, input) do
-        {:ok, _request} ->
-          user_msg = %{id: gen_id(), role: :user, content: input}
-          pending_msg = %{id: gen_id(), role: :assistant, content: "", pending: true}
+    cond do
+      input == "" ->
+        {:noreply, socket}
 
-          {:noreply,
-           socket
-           |> assign(:input, "")
-           |> assign(:running?, true)
-           |> assign(:trace, %Trace{})
-           |> assign(:messages, socket.assigns.messages ++ [user_msg, pending_msg])
-           |> assign(:panels, %{thinking: "", usage: %{}, conversation: [], config: %{}})
-           |> schedule_poll()}
+      not is_binary(socket.assigns.conversation_id) ->
+        {:noreply, assign(socket, :error, "Conversation stream is still booting.")}
 
-        {:error, reason} ->
-          {:noreply, assign(socket, :error, "Failed to send message: #{inspect(reason)}")}
-      end
+      socket.assigns.snapshot && socket.assigns.snapshot.status == :paused ->
+        {:noreply, assign(socket, :error, "Resume the conversation before submitting new work.")}
+
+      true ->
+        case Driver.handle_command(
+               socket.assigns.conversation_id,
+               %{type: "turn.submit", payload: %{instruction: input}},
+               actor: current_actor(socket)
+             ) do
+          {:ok, snapshot} ->
+            socket =
+              socket
+              |> assign(:input, "")
+              |> assign(:error, nil)
+              |> assign_from_snapshot(snapshot)
+              |> maybe_schedule_completion(input)
+
+            {:noreply, socket}
+
+          {:error, reason} ->
+            {:noreply, assign(socket, :error, "Failed to submit work: #{inspect(reason)}")}
+        end
     end
   end
 
-  def handle_event("restart_agent", _params, socket) do
-    if pid = socket.assigns[:agent_pid] do
-      if Process.alive?(pid), do: GenServer.stop(pid, :normal)
+  def handle_event("pause", _params, socket) do
+    dispatch_control_command(socket, "session.pause", %{reason: "Operator paused the conversation."})
+  end
+
+  def handle_event("resume", _params, socket) do
+    dispatch_control_command(socket, "session.resume", %{})
+  end
+
+  def handle_event("stop_turn", _params, socket) do
+    if is_binary(active_child_work_id(socket.assigns.snapshot)) do
+      case Driver.handle_command(
+             socket.assigns.conversation_id,
+             %{type: "turn.stop", payload: %{reason: "Operator requested a stop."}},
+             actor: current_actor(socket)
+           ) do
+        {:ok, snapshot} ->
+          socket =
+            socket
+            |> assign(:error, nil)
+            |> assign_from_snapshot(snapshot)
+            |> maybe_schedule_cancellation()
+
+          {:noreply, socket}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, :error, "Failed to stop the active turn: #{inspect(reason)}")}
+      end
+    else
+      {:noreply, socket}
     end
+  end
 
-    case start_agent() do
-      {:ok, pid} ->
-        Process.monitor(pid)
+  def handle_event("restart_conversation", _params, socket) do
+    socket =
+      socket
+      |> maybe_unsubscribe_conversation()
+      |> maybe_stop_conversation()
 
-        {:noreply,
-         socket
-         |> assign(:agent_pid, pid)
-         |> assign(:error, nil)
-         |> assign(:running?, false)
-         |> assign(:messages, [])
-         |> assign(:conversation_history, [])
-         |> assign(:trace, %Trace{})}
+    case load_or_start_conversation(assign(socket, :conversation_id, nil), nil) do
+      {:ok, bootstrap} ->
+        socket =
+          socket
+          |> assign(:conversation_id, bootstrap.conversation_id)
+          |> subscribe_to_conversation_stream(bootstrap.conversation_id)
+          |> assign_from_snapshot(bootstrap.snapshot)
+          |> assign(:error, nil)
+          |> assign(:stream_notices, [%{id: gen_id(), kind: :info, text: "Started a fresh demo conversation."}])
+
+        {:noreply, socket}
 
       {:error, reason} ->
-        {:noreply, assign(socket, :error, "Failed to restart: #{inspect(reason)}")}
+        {:noreply, assign(socket, :error, bootstrap_error_message(reason))}
     end
   end
 
   @impl true
-  def handle_info({:poll, ref}, %{assigns: %{poll_ref: ref}} = socket) do
-    socket = assign(socket, :poll_ref, nil)
+  def handle_info({:conversation_event, event}, socket) do
+    event_sequence = map_get(event, :sequence)
 
-    if socket.assigns.running? and socket.assigns.agent_pid do
-      case get_snapshot(socket.assigns.agent_pid) do
-        {:ok, snap} ->
-          {trace, messages, panels} =
-            process_snapshot(socket.assigns.trace, socket.assigns.messages, snap)
+    cond do
+      not is_integer(event_sequence) ->
+        {:noreply, socket}
 
-          conversation = (snap.details || %{})[:conversation] || []
+      event_sequence <= socket.assigns.last_event_sequence ->
+        {:noreply, socket}
 
-          socket =
-            socket
-            |> assign(:trace, trace)
-            |> assign(:messages, messages)
-            |> assign(:panels, panels)
-            |> assign(:conversation_history, conversation)
+      event_sequence == socket.assigns.last_event_sequence + 1 ->
+        {:noreply,
+         socket
+         |> update(:events, &(&1 ++ [event]))
+         |> assign(:last_event_sequence, event_sequence)}
 
-          if snap.done? and not trace.awaiting_start? do
-            {:noreply, assign(socket, :running?, false)}
+      true ->
+        {:noreply, recover_from_gap(socket, event_sequence)}
+    end
+  end
+
+  def handle_info({:simulate_completion, conversation_id, child_work_id, instruction}, socket) do
+    if socket.assigns.conversation_id == conversation_id do
+      case Driver.snapshot(conversation_id) do
+        {:ok, snapshot} ->
+          if child_work_running?(snapshot, child_work_id) do
+            case Driver.settle_child_work(
+                   conversation_id,
+                   child_work_id,
+                   :completed,
+                   %{result: %{summary: "Completed the requested demo work: #{instruction}"}},
+                   actor: current_actor(socket)
+                 ) do
+              {:ok, settled_snapshot} ->
+                {:noreply, assign_from_snapshot(socket, settled_snapshot)}
+
+              {:error, _reason} ->
+                {:noreply, socket}
+            end
           else
-            {:noreply, schedule_poll(socket)}
+            {:noreply, socket}
           end
 
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(:running?, false)
-           |> assign(:error, "Snapshot error: #{inspect(reason)}")}
+        {:error, _reason} ->
+          {:noreply, socket}
       end
     else
       {:noreply, socket}
     end
   end
 
-  def handle_info({:poll, _old_ref}, socket) do
-    {:noreply, socket}
-  end
+  def handle_info({:simulate_cancel_settlement, conversation_id, child_work_id}, socket) do
+    if socket.assigns.conversation_id == conversation_id do
+      case Driver.snapshot(conversation_id) do
+        {:ok, snapshot} ->
+          if child_work_cancelling?(snapshot, child_work_id) do
+            case Driver.settle_child_work(
+                   conversation_id,
+                   child_work_id,
+                   :cancelled,
+                   %{result: %{reason: "The active demo work was cancelled before completion."}},
+                   actor: current_actor(socket)
+                 ) do
+              {:ok, settled_snapshot} ->
+                {:noreply, assign_from_snapshot(socket, settled_snapshot)}
 
-  def handle_info({:DOWN, _ref, :process, pid, reason}, socket) do
-    if pid == socket.assigns.agent_pid do
-      {:noreply,
-       socket
-       |> assign(:agent_pid, nil)
-       |> assign(:running?, false)
-       |> assign(:poll_ref, nil)
-       |> assign(:error, "Agent crashed: #{inspect(reason)}")}
+              {:error, _reason} ->
+                {:noreply, socket}
+            end
+          else
+            {:noreply, socket}
+          end
+
+        {:error, _reason} ->
+          {:noreply, socket}
+      end
     else
       {:noreply, socket}
     end
   end
 
-  defp schedule_poll(socket) do
-    ref = make_ref()
-    Process.send_after(self(), {:poll, ref}, @poll_interval)
-    assign(socket, :poll_ref, ref)
-  end
+  def handle_info(_msg, socket), do: {:noreply, socket}
 
-  defp get_snapshot(pid) do
-    case Jido.AgentServer.state(pid) do
-      {:ok, server_state} ->
-        {:ok, ChatAgent.strategy_snapshot(server_state.agent)}
+  defp dispatch_control_command(socket, command_type, payload) do
+    case Driver.handle_command(
+           socket.assigns.conversation_id,
+           %{type: command_type, payload: payload},
+           actor: current_actor(socket)
+         ) do
+      {:ok, snapshot} ->
+        {:noreply, socket |> assign(:error, nil) |> assign_from_snapshot(snapshot)}
 
-      error ->
-        error
+      {:error, reason} ->
+        {:noreply, assign(socket, :error, "Failed to update the conversation: #{inspect(reason)}")}
     end
   end
 
-  defp process_snapshot(trace, messages, snap) do
-    details = snap.details || %{}
+  defp load_or_start_conversation(socket, stored_conversation_id) do
+    case stored_conversation_id do
+      conversation_id when is_binary(conversation_id) ->
+        case Driver.snapshot(conversation_id) do
+          {:ok, snapshot} ->
+            {:ok, %{conversation_id: conversation_id, snapshot: snapshot, resumed?: true}}
 
-    current_iteration = details[:iteration] || 0
-    streaming_text = details[:streaming_text] || ""
-    streaming_thinking = details[:streaming_thinking] || ""
-    tool_calls = details[:tool_calls] || []
-
-    trace =
-      if trace.awaiting_start? and snap.status == :running do
-        %{trace | awaiting_start?: false}
-      else
-        trace
-      end
-
-    if trace.awaiting_start? do
-      panels = %{
-        thinking: "",
-        usage: %{},
-        conversation: [],
-        config: %{status: :idle, iteration: 0}
-      }
-
-      {trace, messages, panels}
-    else
-      trace =
-        if current_iteration > trace.last_iteration and trace.last_iteration > 0 do
-          %{trace | last_iteration: current_iteration, text: "", thinking: ""}
-        else
-          %{trace | last_iteration: max(current_iteration, trace.last_iteration)}
+          {:error, _reason} ->
+            start_demo_conversation(socket)
         end
 
-      {messages, trace} = sync_tool_calls(messages, tool_calls, trace)
-
-      messages = update_pending_content(messages, streaming_text)
-
-      {messages, trace} =
-        if snap.done? do
-          final_content = snap.result || streaming_text
-          messages = finalize_pending(messages, final_content, trace.thinking)
-          {messages, trace}
-        else
-          trace = %{trace | text: streaming_text, thinking: streaming_thinking}
-          {messages, trace}
-        end
-
-      panels = %{
-        thinking: streaming_thinking,
-        usage: details[:usage] || %{},
-        conversation: details[:conversation] || [],
-        config: %{
-          model: details[:model],
-          max_iterations: details[:max_iterations],
-          available_tools: details[:available_tools] || [],
-          current_llm_call_id: details[:current_llm_call_id],
-          iteration: current_iteration,
-          duration_ms: details[:duration_ms],
-          termination_reason: details[:termination_reason],
-          status: snap.status
-        }
-      }
-
-      {trace, messages, panels}
+      _other ->
+        start_demo_conversation(socket)
     end
   end
 
-  defp sync_tool_calls(messages, [], trace), do: {messages, trace}
-
-  defp sync_tool_calls(messages, tool_calls, trace) do
-    {messages, seen, completed} =
-      Enum.reduce(tool_calls, {messages, trace.seen_tool_ids, trace.completed_tool_ids}, fn tc,
-                                                                                            {msgs, seen, completed} ->
-        if MapSet.member?(seen, tc.id) do
-          msgs = update_tool_call(msgs, tc)
-
-          completed =
-            if tc.status == :completed, do: MapSet.put(completed, tc.id), else: completed
-
-          {msgs, seen, completed}
-        else
-          tool_msg = %{
-            id: tc.id,
-            role: :tool_call,
-            tool_name: tc.name,
-            arguments: tc.arguments,
-            status: tc.status,
-            result: tc.result
-          }
-
-          msgs = insert_before_pending(msgs, tool_msg)
-          seen = MapSet.put(seen, tc.id)
-
-          completed =
-            if tc.status == :completed, do: MapSet.put(completed, tc.id), else: completed
-
-          {msgs, seen, completed}
-        end
-      end)
-
-    trace = %{trace | seen_tool_ids: seen, completed_tool_ids: completed}
-    {messages, trace}
-  end
-
-  defp update_tool_call(messages, tc) do
-    Enum.map(messages, fn msg ->
-      if msg[:id] == tc.id do
-        %{msg | status: tc.status, result: tc.result}
-      else
-        msg
-      end
-    end)
-  end
-
-  defp insert_before_pending(messages, new_msg) do
-    case Enum.split_while(messages, &(!&1[:pending])) do
-      {before, [pending | rest]} -> before ++ [new_msg, pending | rest]
-      {all, []} -> all ++ [new_msg]
+  defp start_demo_conversation(socket) do
+    with {:ok, managed_repo_id} <- demo_managed_repo_id(socket),
+         {:ok, %{conversation: conversation, snapshot: snapshot}} <-
+           Driver.start_conversation(%{
+             managed_repo_id: managed_repo_id,
+             source: "conversation_demo",
+             objective: "Demonstrate event-driven conversation orchestration.",
+             actor: current_actor(socket),
+             source_metadata: %{"surface" => "chat_live_demo"}
+           }) do
+      {:ok, %{conversation_id: conversation.id, snapshot: snapshot, resumed?: false}}
     end
   end
 
-  defp update_pending_content(messages, content) do
-    Enum.map(messages, fn msg ->
-      if msg[:pending], do: %{msg | content: content}, else: msg
+  defp demo_managed_repo_id(socket) do
+    actor = current_actor(socket)
+
+    case socket.assigns.preferred_managed_repo_id do
+      managed_repo_id when is_binary(managed_repo_id) ->
+        {:ok, managed_repo_id}
+
+      _other ->
+        case ManagedRepo.read(query: [sort: [display_name: :asc], limit: 1], actor: actor) do
+          {:ok, [%ManagedRepo{id: managed_repo_id} | _rest]} -> {:ok, managed_repo_id}
+          {:ok, []} -> {:error, :no_managed_repo_available}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp subscribe_to_conversation_stream(socket, conversation_id) do
+    case PubSub.subscribe_conversation(conversation_id) do
+      :ok ->
+        socket
+        |> assign(:stream_mode, :live)
+        |> assign(:stream_degraded_reason, nil)
+
+      {:error, reason} ->
+        mark_stream_degraded(socket, reason)
+
+      other ->
+        mark_stream_degraded(socket, other)
+    end
+  end
+
+  defp mark_stream_degraded(socket, reason) do
+    socket
+    |> assign(:stream_mode, :degraded)
+    |> assign(:stream_degraded_reason, inspect(reason))
+    |> append_stream_notice(@degraded_mode_message, :warning)
+  end
+
+  defp maybe_restore_continuity(socket, _conversation_id, _resumed?, after_sequence)
+       when after_sequence <= 0,
+       do: socket
+
+  defp maybe_restore_continuity(socket, _conversation_id, false, _after_sequence) do
+    append_stream_notice(
+      socket,
+      "The previous live conversation could not be resumed, so the demo started a fresh stream.",
+      :warning
+    )
+  end
+
+  defp maybe_restore_continuity(socket, conversation_id, true, after_sequence) do
+    case Driver.events_since(conversation_id, after_sequence, actor: current_actor(socket)) do
+      {:ok, []} ->
+        if socket.assigns.last_event_sequence > after_sequence do
+          missing_from = after_sequence + 1
+          missing_to = socket.assigns.last_event_sequence
+
+          socket
+          |> assign(:stream_discontinuity_count, socket.assigns.stream_discontinuity_count + 1)
+          |> append_stream_notice(continuity_gap_message(missing_from, missing_to, socket.assigns.last_event_sequence), :warning)
+        else
+          append_stream_notice(socket, "Conversation stream is current after reconnect.", :info)
+        end
+
+      {:ok, replayed_events} ->
+        first_sequence = map_get(hd(replayed_events), :sequence)
+
+        if first_sequence == after_sequence + 1 do
+          append_stream_notice(socket, "Conversation stream resumed from event sequence #{first_sequence}.", :info)
+        else
+          socket
+          |> assign(:stream_discontinuity_count, socket.assigns.stream_discontinuity_count + 1)
+          |> append_stream_notice(continuity_gap_message(after_sequence + 1, first_sequence - 1, first_sequence), :warning)
+        end
+
+      {:error, reason} ->
+        mark_stream_degraded(socket, reason)
+    end
+  end
+
+  defp maybe_note_fresh_start(socket, nil, _resumed?), do: socket
+  defp maybe_note_fresh_start(socket, _stored_conversation_id, true), do: socket
+
+  defp maybe_note_fresh_start(socket, _stored_conversation_id, false) do
+    append_stream_notice(
+      socket,
+      "Recovered with a fresh conversation snapshot because the prior live stream was unavailable.",
+      :warning
+    )
+  end
+
+  defp recover_from_gap(socket, resumed_at) do
+    case Driver.snapshot(socket.assigns.conversation_id) do
+      {:ok, snapshot} ->
+        missing_from = socket.assigns.last_event_sequence + 1
+        missing_to = resumed_at - 1
+
+        socket
+        |> assign_from_snapshot(snapshot)
+        |> assign(:stream_discontinuity_count, socket.assigns.stream_discontinuity_count + 1)
+        |> append_stream_notice(continuity_gap_message(missing_from, missing_to, resumed_at), :warning)
+
+      {:error, reason} ->
+        mark_stream_degraded(socket, reason)
+    end
+  end
+
+  defp assign_from_snapshot(socket, snapshot) do
+    socket
+    |> assign(:snapshot, snapshot)
+    |> assign(:events, snapshot.events || [])
+    |> assign(:last_event_sequence, snapshot.last_event_sequence || 0)
+  end
+
+  defp maybe_schedule_completion(socket, instruction) do
+    case active_child_work_id(socket.assigns.snapshot) do
+      child_work_id when is_binary(child_work_id) ->
+        Process.send_after(
+          self(),
+          {:simulate_completion, socket.assigns.conversation_id, child_work_id, instruction},
+          @completion_delay_ms
+        )
+
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp maybe_schedule_cancellation(socket) do
+    case active_child_work_id(socket.assigns.snapshot) do
+      child_work_id when is_binary(child_work_id) ->
+        Process.send_after(
+          self(),
+          {:simulate_cancel_settlement, socket.assigns.conversation_id, child_work_id},
+          @cancellation_settle_delay_ms
+        )
+
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp maybe_unsubscribe_conversation(%{assigns: %{conversation_id: conversation_id}} = socket)
+       when is_binary(conversation_id) do
+    _ = PubSub.unsubscribe_conversation(conversation_id)
+    socket
+  end
+
+  defp maybe_unsubscribe_conversation(socket), do: socket
+
+  defp maybe_stop_conversation(%{assigns: %{conversation_id: conversation_id}} = socket)
+       when is_binary(conversation_id) do
+    _ = Driver.stop(conversation_id)
+    socket
+  end
+
+  defp maybe_stop_conversation(socket), do: socket
+
+  defp active_child_work_id(nil), do: nil
+  defp active_child_work_id(snapshot), do: snapshot.active_child_work_id
+
+  defp child_work_running?(snapshot, child_work_id) do
+    snapshot.child_works
+    |> Enum.find(&(&1.id == child_work_id))
+    |> case do
+      %{state: :running} -> true
+      _other -> false
+    end
+  end
+
+  defp child_work_cancelling?(snapshot, child_work_id) do
+    snapshot.child_works
+    |> Enum.find(&(&1.id == child_work_id))
+    |> case do
+      %{state: state} when state in [:cancel_requested, :cancel_acknowledged] -> true
+      _other -> false
+    end
+  end
+
+  defp append_stream_notice(socket, text, kind) do
+    update(socket, :stream_notices, fn notices ->
+      (notices ++ [%{id: gen_id(), kind: kind, text: text}]) |> Enum.take(-4)
     end)
   end
 
-  defp finalize_pending(messages, content, reasoning) do
-    Enum.map(messages, fn msg ->
-      if msg[:pending] do
-        msg
-        |> Map.put(:content, content)
-        |> Map.put(:reasoning, reasoning)
-        |> Map.delete(:pending)
-      else
-        msg
-      end
-    end)
+  defp continuity_gap_message(missing_from, missing_to, resumed_at) do
+    "Missed conversation events #{missing_from}..#{missing_to}; recovered at sequence #{resumed_at}."
   end
+
+  defp current_actor(socket) do
+    socket.assigns
+    |> Map.get(:current_user)
+    |> case do
+      %{} = user ->
+        Actor.operator_actor(%{
+          "id" => user |> Map.get(:id) |> normalize_optional_string() || "conversation-demo",
+          "email" => user |> Map.get(:email) |> normalize_optional_string()
+        })
+
+      _other ->
+        Actor.operator_actor(%{"id" => "conversation-demo", "email" => nil})
+    end
+  end
+
+  defp bootstrap_error_message(:no_managed_repo_available) do
+    "Create or import a managed repository before opening the conversation demo."
+  end
+
+  defp bootstrap_error_message(reason), do: "Failed to bootstrap the conversation demo: #{inspect(reason)}"
+
+  defp map_get(map, key) when is_map(map) do
+    string_key = Atom.to_string(key)
+
+    cond do
+      Map.has_key?(map, key) -> Map.get(map, key)
+      Map.has_key?(map, string_key) -> Map.get(map, string_key)
+      true -> nil
+    end
+  end
+
+  defp normalize_optional_string(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> normalize_optional_string()
+  defp normalize_optional_string(_value), do: nil
+
+  defp normalize_sequence(value) when is_integer(value) and value >= 0, do: value
+
+  defp normalize_sequence(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {sequence, ""} when sequence >= 0 -> sequence
+      _other -> 0
+    end
+  end
+
+  defp normalize_sequence(_value), do: 0
 
   defp gen_id, do: System.unique_integer([:positive]) |> Integer.to_string()
 
-  defp render_markdown(content) when is_binary(content) and content != "" do
-    case MDEx.to_html(content) do
-      {:ok, html} -> html
-      {:error, _} -> content
+  defp format_time(nil), do: "n/a"
+
+  defp format_time(%DateTime{} = dt) do
+    Calendar.strftime(dt, "%H:%M:%S")
+  end
+
+  defp format_time(_value), do: "n/a"
+
+  defp event_label(event_name) when is_binary(event_name) do
+    case String.split(event_name, ".", parts: 2) do
+      [prefix, _rest] -> prefix
+      _other -> "event"
     end
   end
 
-  defp render_markdown(_), do: ""
+  defp event_badge_class("conversation." <> _rest), do: "bg-sky-100 text-sky-800"
+  defp event_badge_class("turn." <> _rest), do: "bg-amber-100 text-amber-800"
+  defp event_badge_class("tool." <> _rest), do: "bg-emerald-100 text-emerald-800"
+  defp event_badge_class(_other), do: "bg-zinc-200 text-zinc-700"
 
-  defp format_args(nil), do: ""
+  defp event_title(event) do
+    case map_get(event, :name) do
+      "conversation.message_added" ->
+        command_payload = map_get(event_payload(event), :payload) || %{}
+        instruction = map_get(command_payload, :instruction) || map_get(command_payload, :reason)
+        command_type = map_get(event_payload(event), :command_type) || "conversation.update"
+        instruction || "Recorded #{command_type}."
 
-  defp format_args(args) when is_map(args) do
-    args
-    |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-    |> Enum.join(", ")
-    |> String.slice(0, 80)
-  end
+      "conversation.status_changed" ->
+        "Conversation status is now #{map_get(event_payload(event), :status) || "active"}."
 
-  defp format_args(args), do: inspect(args) |> String.slice(0, 80)
+      "turn.intent_announced" ->
+        map_get(event_payload(event), :text) || "Intent announced."
 
-  defp format_result(nil), do: nil
-  defp format_result({:ok, result}), do: inspect(result, limit: 5, printable_limit: 100)
-  defp format_result({:error, reason}), do: "Error: #{inspect(reason)}"
-  defp format_result(result), do: inspect(result, limit: 5, printable_limit: 100)
+      "turn.queued" ->
+        "Queued a new work turn."
 
-  defp format_conversation_content(msg) do
-    content = msg[:content] || ""
+      "turn.started" ->
+        "Started the active turn."
 
-    cond do
-      msg[:tool_calls] ->
-        tool_names = Enum.map(msg[:tool_calls], & &1[:name]) |> Enum.join(", ")
-        "Calling: #{tool_names}"
+      "turn.cancelling" ->
+        "Stopping the active turn."
 
-      msg[:role] == :tool ->
-        name = msg[:name] || "unknown"
-        "[#{name}] #{String.slice(to_string(content), 0, 200)}"
+      "turn.superseding" ->
+        "Superseding the active turn."
 
-      msg[:role] == :system ->
-        String.slice(to_string(content), 0, 150) <> "..."
+      "turn.completed" ->
+        "The active turn completed."
 
-      true ->
-        to_string(content)
+      "turn.cancelled" ->
+        "The active turn was cancelled."
+
+      "turn.superseded" ->
+        "The previous turn was superseded."
+
+      "tool.started" ->
+        "Started a child tool execution."
+
+      "tool.cancel_requested" ->
+        "Requested cancellation for the active tool."
+
+      "tool.cancel_acknowledged" ->
+        "The active tool acknowledged cancellation."
+
+      "tool.completed" ->
+        result_summary(event) || "The active tool completed."
+
+      "tool.cancelled" ->
+        result_summary(event) || "The active tool cancelled cleanly."
+
+      "tool.cancel_failed" ->
+        "The active tool reported a cancellation failure."
+
+      "tool.failed" ->
+        "The active tool failed."
+
+      other when is_binary(other) ->
+        other
+
+      _other ->
+        "Conversation event"
     end
   end
+
+  defp event_excerpt(event) do
+    actor_id = map_get(map_get(event, :actor) || %{}, :id)
+    tool_call_id = map_get(event, :tool_call_id)
+    kind = map_get(event_payload(event), :kind)
+
+    %{}
+    |> maybe_put("actor", actor_id)
+    |> maybe_put("tool_call_id", tool_call_id)
+    |> maybe_put("kind", kind)
+    |> maybe_put("state", map_get(event_payload(event), :state))
+    |> case do
+      empty when empty == %{} -> nil
+      details -> inspect(details, pretty: false)
+    end
+  end
+
+  defp event_payload(event), do: map_get(event, :payload) || %{}
+
+  defp result_summary(event) do
+    payload = event_payload(event)
+    result = map_get(payload, :result) || %{}
+
+    map_get(result, :summary) || map_get(result, :reason)
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   @impl true
   def render(assigns) do
+    ready? = is_binary(assigns.conversation_id)
+    paused? = assigns.snapshot && assigns.snapshot.status == :paused
+    active_turn? = assigns.snapshot && is_binary(assigns.snapshot.active_turn_id)
+
+    assigns =
+      assign(assigns,
+        ready?: ready?,
+        paused?: paused?,
+        active_turn?: active_turn?
+      )
+
     ~H"""
-    <Layouts.app flash={@flash}>
-      <div class="space-y-6 max-w-7xl mx-auto">
+    <Layouts.app flash={@flash} current_scope={%{}}>
+      <div
+        id="conversation-demo"
+        phx-hook=".ConversationStream"
+        data-conversation-id={@conversation_id || ""}
+        data-last-event-sequence={@last_event_sequence || 0}
+        class="mx-auto max-w-7xl space-y-6"
+      >
         <.header>
-          AI Chat Agent Demo
-          <:subtitle>Jido.AI.Agent with streaming, tool calls, and full observability</:subtitle>
+          Conversation Orchestration Demo
+          <:subtitle>
+            Event-driven turn and tool lifecycle updates with reconnect-aware recovery and degraded fallback.
+          </:subtitle>
         </.header>
 
-        <%!-- Error Display --%>
         <%= if @error do %>
-          <div class="rounded-lg bg-red-50 p-4 border border-red-200">
-            <div class="flex items-center justify-between">
-              <span class="text-red-800">{@error}</span>
-              <button
-                phx-click="restart_agent"
-                class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
-              >
-                Restart Agent
-              </button>
-            </div>
+          <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {@error}
           </div>
         <% end %>
 
-        <%!-- Full Width Chat Section --%>
-        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-900 shadow-lg border border-zinc-200 dark:border-zinc-800">
-          <div class="p-6">
-            <%!-- Messages --%>
-            <div
-              id="chat-messages"
-              class="h-[400px] overflow-y-auto space-y-3 mb-4"
-              phx-hook=".ScrollBottom"
-            >
-              <%= if @messages == [] do %>
-                <div class="text-center text-zinc-500 py-8">
-                  <p class="text-lg font-medium">Start a conversation</p>
-                  <p class="text-sm mt-2">
-                    Try: "What is 15 * 23?" or "What's the weather in Chicago?"
+        <%= if @stream_mode == :degraded do %>
+          <div id="conversation-stream-degraded-alert" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p class="font-semibold">Stream degraded mode</p>
+            <p class="mt-1">{@degraded_mode_message}</p>
+          </div>
+        <% end %>
+
+        <%= for notice <- @stream_notices do %>
+          <div class={[
+            "rounded-2xl px-4 py-3 text-sm border",
+            notice.kind == :warning && "border-amber-200 bg-amber-50 text-amber-900",
+            notice.kind == :info && "border-sky-200 bg-sky-50 text-sky-900"
+          ]}>
+            {notice.text}
+          </div>
+        <% end %>
+
+        <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <section class="rounded-3xl border border-zinc-200 bg-white shadow-sm">
+            <div class="border-b border-zinc-200 px-6 py-4">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 class="text-lg font-semibold text-zinc-900">Event Transcript</h2>
+                  <p class="text-sm text-zinc-500">
+                    {if @ready?, do: "Conversation #{String.slice(@conversation_id, 0, 8)}", else: "Waiting for the browser to attach the conversation stream"}
+                  </p>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class={[
+                    "rounded-full px-3 py-1 font-medium",
+                    @stream_mode == :live && "bg-emerald-100 text-emerald-800",
+                    @stream_mode == :degraded && "bg-amber-100 text-amber-800",
+                    @stream_mode == :booting && "bg-zinc-100 text-zinc-700"
+                  ]}>
+                    {@stream_mode}
+                  </span>
+                  <span class="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
+                    seq {@last_event_sequence}
+                  </span>
+                  <span id="conversation-stream-discontinuity-count" class="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
+                    discontinuities: {@stream_discontinuity_count}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div id="conversation-events" class="h-[460px] space-y-3 overflow-y-auto px-6 py-5">
+              <%= if @events == [] do %>
+                <div class="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-5 py-10 text-center text-zinc-500">
+                  <p class="text-base font-medium">
+                    <%= if @client_ready? do %>
+                      Submit a prompt to watch the event stream update without polling.
+                    <% else %>
+                      Connecting the browser-side conversation stream…
+                    <% end %>
                   </p>
                 </div>
               <% else %>
-                <%= for msg <- @messages do %>
-                  <%= if msg.role == :tool_call do %>
-                    <div class="flex items-center gap-2 px-4 py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-sm max-w-2xl mx-auto">
-                      <span class={[
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                        msg.status == :running && "bg-amber-100 text-amber-800",
-                        msg.status == :completed && "bg-green-100 text-green-800",
-                        msg.status == :failed && "bg-red-100 text-red-800"
-                      ]}>
-                        <%= case msg.status do %>
-                          <% :running -> %>
-                            <span class="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-amber-500"></span>
-                          <% :completed -> %>
-                            ✓
-                          <% _ -> %>
-                            ✗
-                        <% end %>
-                      </span>
-                      <span class="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{msg.tool_name}</span>
-                      <span class="opacity-60">({format_args(msg.arguments)})</span>
-                      <%= if msg.result do %>
-                        <span class="opacity-70">→ {format_result(msg.result)}</span>
-                      <% end %>
-                    </div>
-                  <% end %>
-
-                  <%= if msg.role in [:user, :assistant] do %>
-                    <div class={[
-                      "flex",
-                      if(msg.role == :user, do: "justify-end", else: "justify-start")
-                    ]}>
-                      <div class="max-w-2xl">
-                        <div class="text-xs text-zinc-500 mb-1">
-                          {if msg.role == :user, do: "You", else: "Assistant"}
-                        </div>
-                        <div class={[
-                          "rounded-2xl px-4 py-3",
-                          if(msg.role == :user,
-                            do: "bg-indigo-600 text-white",
-                            else: "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
-                          )
-                        ]}>
-                          <%= if msg[:pending] == true and msg.content == "" do %>
-                            <span class="inline-flex gap-1">
-                              <span class="h-2 w-2 rounded-full bg-zinc-400 animate-bounce"></span>
-                              <span class="h-2 w-2 rounded-full bg-zinc-400 animate-bounce delay-100"></span>
-                              <span class="h-2 w-2 rounded-full bg-zinc-400 animate-bounce delay-200"></span>
-                            </span>
-                          <% else %>
-                            <%= if msg[:reasoning] && msg.reasoning != "" do %>
-                              <details class="mb-2 rounded bg-zinc-100 dark:bg-zinc-700/50">
-                                <summary class="cursor-pointer text-xs font-medium px-2 py-1">
-                                  💭 Reasoning
-                                </summary>
-                                <pre class="text-xs whitespace-pre-wrap opacity-70 px-2 pb-2">{msg.reasoning}</pre>
-                              </details>
-                            <% end %>
-                            <div class="prose prose-sm max-w-none dark:prose-invert">
-                              {raw(render_markdown(msg.content))}
-                            </div>
-                          <% end %>
-                        </div>
+                <%= for event <- @events do %>
+                  <article id={"event-#{map_get(event, :id)}"} class="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <span class="font-mono text-xs text-zinc-500">#{map_get(event, :sequence)}</span>
+                        <span class={["rounded-full px-2.5 py-1 text-xs font-semibold", event_badge_class(map_get(event, :name) || "")]}>
+                          {event_label(map_get(event, :name) || "")}
+                        </span>
+                        <span class="text-xs text-zinc-400">{map_get(event, :name)}</span>
                       </div>
+                      <time class="text-xs text-zinc-400">{format_time(map_get(event, :occurred_at))}</time>
                     </div>
-                  <% end %>
+                    <p class="mt-3 text-sm font-medium text-zinc-900">{event_title(event)}</p>
+                    <p :if={event_excerpt(event)} class="mt-1 whitespace-pre-wrap text-xs text-zinc-500">{event_excerpt(event)}</p>
+                  </article>
                 <% end %>
               <% end %>
             </div>
 
-            <%!-- Input Form --%>
-            <form phx-submit="send" class="flex gap-2" id="chat-form">
-              <input
-                type="text"
-                name="input"
-                value={@input}
-                phx-change="update_input"
-                placeholder="Type a message..."
-                class="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                disabled={@running? or is_nil(@agent_pid)}
-                autocomplete="off"
-                id="chat-input"
-              />
-              <button
-                type="submit"
-                class={[
-                  "rounded-lg px-6 py-2 font-medium text-white transition-colors",
-                  if(@running? or is_nil(@agent_pid) or String.trim(@input) == "",
-                    do: "bg-zinc-400 cursor-not-allowed",
-                    else: "bg-indigo-600 hover:bg-indigo-700"
-                  )
-                ]}
-                disabled={@running? or is_nil(@agent_pid) or String.trim(@input) == ""}
-              >
-                <%= if @running? do %>
-                  <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent">
-                  </span>
-                <% else %>
-                  Send
-                <% end %>
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <%!-- Debug Panels Grid --%>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <%!-- Agent Status Panel --%>
-          <div class="rounded-lg bg-white dark:bg-zinc-800 shadow border border-zinc-200 dark:border-zinc-700 p-4">
-            <h3 class="font-semibold text-sm mb-2">Agent Status</h3>
-            <dl class="text-xs space-y-1">
-              <div class="flex justify-between">
-                <dt class="text-zinc-500">Status</dt>
-                <dd class={[
-                  "font-medium",
-                  @panels.config[:status] == :success && "text-green-600",
-                  @panels.config[:status] == :failure && "text-red-600",
-                  @panels.config[:status] == :running && "text-amber-600"
-                ]}>
-                  {@panels.config[:status] || "idle"}
-                </dd>
-              </div>
-              <%= if @panels.config[:iteration] do %>
-                <div class="flex justify-between">
-                  <dt class="text-zinc-500">Iteration</dt>
-                  <dd>{@panels.config[:iteration]} / {@panels.config[:max_iterations] || "?"}</dd>
-                </div>
-              <% end %>
-              <%= if @panels.config[:model] do %>
-                <div class="flex justify-between">
-                  <dt class="text-zinc-500">Model</dt>
-                  <dd class="font-mono text-xs truncate max-w-32">{@panels.config[:model]}</dd>
-                </div>
-              <% end %>
-              <%= if @panels.config[:duration_ms] do %>
-                <div class="flex justify-between">
-                  <dt class="text-zinc-500">Duration</dt>
-                  <dd>{@panels.config[:duration_ms]}ms</dd>
-                </div>
-              <% end %>
-              <%= if @panels.config[:termination_reason] do %>
-                <div class="flex justify-between">
-                  <dt class="text-zinc-500">Termination</dt>
-                  <dd>{@panels.config[:termination_reason]}</dd>
-                </div>
-              <% end %>
-            </dl>
-          </div>
-
-          <%!-- Token Usage Panel --%>
-          <div class="rounded-lg bg-white dark:bg-zinc-800 shadow border border-zinc-200 dark:border-zinc-700 p-4">
-            <h3 class="font-semibold text-sm mb-2">Token Usage</h3>
-            <dl class="text-xs space-y-1">
-              <div class="flex justify-between">
-                <dt class="text-zinc-500">Input</dt>
-                <dd>{@panels.usage[:input_tokens] || 0}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-zinc-500">Output</dt>
-                <dd>{@panels.usage[:output_tokens] || 0}</dd>
-              </div>
-              <%= if @panels.usage[:cache_read_input_tokens] do %>
-                <div class="flex justify-between">
-                  <dt class="text-zinc-500">Cache Read</dt>
-                  <dd>{@panels.usage[:cache_read_input_tokens]}</dd>
-                </div>
-              <% end %>
-            </dl>
-          </div>
-
-          <%!-- Available Tools Panel --%>
-          <div class="rounded-lg bg-white dark:bg-zinc-800 shadow border border-zinc-200 dark:border-zinc-700 p-4">
-            <h3 class="font-semibold text-sm mb-2">Available Tools</h3>
-            <div class="flex flex-wrap gap-1">
-              <%= for tool <- @panels.config[:available_tools] || [] do %>
-                <span class="inline-flex items-center rounded-full border border-zinc-300 dark:border-zinc-600 px-2 py-0.5 text-xs font-mono">
-                  {tool}
-                </span>
-              <% end %>
-              <%= if (@panels.config[:available_tools] || []) == [] do %>
-                <span class="text-xs text-zinc-400">No tools loaded</span>
-              <% end %>
+            <div class="border-t border-zinc-200 px-6 py-4">
+              <form phx-submit="send" class="flex flex-col gap-3 sm:flex-row">
+                <input
+                  id="chat-input"
+                  type="text"
+                  name="input"
+                  value={@input}
+                  phx-change="update_input"
+                  placeholder="Describe the work you want this conversation to coordinate…"
+                  class="flex-1 rounded-2xl border border-zinc-300 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  disabled={not @ready?}
+                  autocomplete="off"
+                />
+                <button
+                  type="submit"
+                  class={[
+                    "rounded-2xl px-5 py-3 text-sm font-semibold text-white transition-colors",
+                    (@ready? and String.trim(@input) != "" and not @paused?) && "bg-sky-600 hover:bg-sky-700",
+                    (!@ready? or String.trim(@input) == "" or @paused?) && "bg-zinc-300 cursor-not-allowed"
+                  ]}
+                  disabled={not @ready? or String.trim(@input) == "" or @paused?}
+                >
+                  Submit Turn
+                </button>
+              </form>
             </div>
-          </div>
+          </section>
 
-          <%!-- Thinking Panel --%>
-          <div class="rounded-lg bg-white dark:bg-zinc-800 shadow border border-zinc-200 dark:border-zinc-700 p-4">
-            <h3 class="font-semibold text-sm mb-2 flex items-center gap-2">
-              Thinking
-              <%= if @panels.thinking != "" do %>
-                <span class="inline-flex gap-0.5">
-                  <span class="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse"></span>
-                  <span class="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse delay-75"></span>
-                  <span class="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse delay-150"></span>
-                </span>
-              <% end %>
-            </h3>
-            <%= if @panels.thinking != "" do %>
-              <pre class="text-xs whitespace-pre-wrap text-zinc-600 dark:text-zinc-400 max-h-32 overflow-y-auto">{@panels.thinking}</pre>
-            <% else %>
-              <span class="text-xs text-zinc-400">No active thinking</span>
-            <% end %>
-          </div>
-        </div>
-
-        <%!-- Full Width Conversation History --%>
-        <div class="rounded-lg bg-white dark:bg-zinc-800 shadow border border-zinc-200 dark:border-zinc-700 p-4">
-          <h3 class="font-semibold text-sm mb-2">
-            Full Conversation History ({length(@conversation_history)} messages)
-          </h3>
-          <div class="text-xs space-y-2 max-h-64 overflow-y-auto">
-            <%= if @conversation_history == [] do %>
-              <span class="text-zinc-400">No conversation yet</span>
-            <% else %>
-              <%= for msg <- @conversation_history do %>
-                <div class={[
-                  "p-2 rounded",
-                  msg[:role] == :system && "bg-zinc-100 dark:bg-zinc-700",
-                  msg[:role] == :user && "bg-indigo-50 dark:bg-indigo-900/20",
-                  msg[:role] == :assistant && "bg-zinc-50 dark:bg-zinc-800",
-                  msg[:role] == :tool && "bg-cyan-50 dark:bg-cyan-900/20"
-                ]}>
-                  <div class="font-semibold text-zinc-600 dark:text-zinc-400 flex justify-between">
-                    <span>{msg[:role]}</span>
-                    <%= if msg[:tool_calls] do %>
-                      <span class="inline-flex items-center rounded-full bg-zinc-200 dark:bg-zinc-600 px-2 py-0.5 text-xs">
-                        tool_calls
-                      </span>
-                    <% end %>
-                  </div>
-                  <pre class="whitespace-pre-wrap text-xs mt-1 text-zinc-700 dark:text-zinc-300">{format_conversation_content(msg)}</pre>
+          <aside class="space-y-4">
+            <div class="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h3 class="text-sm font-semibold text-zinc-900">Conversation State</h3>
+              <dl class="mt-3 space-y-2 text-sm">
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Status</dt>
+                  <dd class="font-medium text-zinc-900">{@snapshot && @snapshot.status || "booting"}</dd>
                 </div>
-              <% end %>
-            <% end %>
-          </div>
-        </div>
-      </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Active Turn</dt>
+                  <dd class="font-medium text-zinc-900">{@snapshot && @snapshot.active_turn && @snapshot.active_turn.state || "none"}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Queued Turns</dt>
+                  <dd class="font-medium text-zinc-900">{@snapshot && length(@snapshot.queued_turn_ids) || 0}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Control History</dt>
+                  <dd class="font-medium text-zinc-900">{@snapshot && length(@snapshot.control_history) || 0}</dd>
+                </div>
+              </dl>
+            </div>
 
-      <%!-- Colocated JS Hook for auto-scroll --%>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".ScrollBottom">
-        export default {
-          mounted() {
-            this.scrollToBottom()
-            this.observer = new MutationObserver(() => this.scrollToBottom())
-            this.observer.observe(this.el, { childList: true, subtree: true })
-          },
-          updated() {
-            this.scrollToBottom()
-          },
-          destroyed() {
-            if (this.observer) this.observer.disconnect()
-          },
-          scrollToBottom() {
-            this.el.scrollTop = this.el.scrollHeight
+            <div class="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h3 class="text-sm font-semibold text-zinc-900">Execution</h3>
+              <dl class="mt-3 space-y-2 text-sm">
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Active Tool</dt>
+                  <dd class="font-medium text-zinc-900">{@snapshot && @snapshot.active_child_work && @snapshot.active_child_work.state || "idle"}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Tool Call</dt>
+                  <dd class="max-w-[10rem] truncate font-mono text-xs text-zinc-700">
+                    {@snapshot && @snapshot.active_child_work && @snapshot.active_child_work.tool_call_id || "n/a"}
+                  </dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-zinc-500">Events</dt>
+                  <dd class="font-medium text-zinc-900">{length(@events)}</dd>
+                </div>
+              </dl>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button
+                  phx-click="pause"
+                  class="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={not @ready? or @paused?}
+                >
+                  Pause
+                </button>
+                <button
+                  phx-click="resume"
+                  class="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={not @ready? or not @paused?}
+                >
+                  Resume
+                </button>
+                <button
+                  phx-click="stop_turn"
+                  class="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={not @active_turn?}
+                >
+                  Stop Turn
+                </button>
+                <button
+                  phx-click="restart_conversation"
+                  class="rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-800"
+                >
+                  Restart Demo
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".ConversationStream">
+          export default {
+            mounted() {
+              const conversationId = sessionStorage.getItem("conversation-demo:conversation-id") || ""
+              const lastSequence = sessionStorage.getItem("conversation-demo:last-sequence") || "0"
+              this.pushEvent("client_ready", {
+                conversation_id: conversationId,
+                after_sequence: lastSequence
+              })
+              this.persist()
+            },
+            updated() {
+              this.persist()
+            },
+            persist() {
+              const { conversationId, lastEventSequence } = this.el.dataset
+
+              if (conversationId && conversationId.length > 0) {
+                sessionStorage.setItem("conversation-demo:conversation-id", conversationId)
+              }
+
+              if (lastEventSequence && lastEventSequence.length > 0) {
+                sessionStorage.setItem("conversation-demo:last-sequence", lastEventSequence)
+              }
+            }
           }
-        }
-      </script>
+        </script>
+      </div>
     </Layouts.app>
     """
   end

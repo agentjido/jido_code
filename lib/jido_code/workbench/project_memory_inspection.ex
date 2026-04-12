@@ -12,7 +12,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   internals behind bounded memory and provenance projections.
   """
 
-  alias JidoCode.MemoryGraph.{ProductFeedback, ProductService}
+  alias JidoCode.MemoryGraph.{ProductFeedback, ProductService, SurfaceFeedback}
 
   @default_graph %{
     graph_name: "memory",
@@ -149,7 +149,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
             {:error,
              %{
                inspection: inspection,
-               feedback: recovery_error_feedback(reason, diagnostics)
+               feedback: recovery_error_feedback(reason, diagnostics, inspection.graph)
              }}
         end
 
@@ -317,7 +317,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   defp hint_remediation(graph) do
     case ProductFeedback.recovery(graph) do
       %{available?: true, label: label} when is_binary(label) ->
-        "Open repo detail to #{String.downcase(label)}."
+        "Open repo detail to review governed memory context and #{String.downcase(label)}."
 
       _other ->
         ProductFeedback.for_graph(graph).remediation
@@ -325,30 +325,16 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   end
 
   defp recovery_feedback(%{graph: graph}) do
-    %{
-      error_type: "memory_graph_recovered",
-      detail: "#{ProductFeedback.recovery_label(Map.get(graph, :recovery_action, :recover)) || "Recover memory graph"} completed successfully.",
-      remediation: nil
-    }
+    SurfaceFeedback.recovery_result(graph, surface_label: "this managed repository surface")
   end
 
-  defp recovery_error_feedback(reason, diagnostics) do
-    %{
-      error_type: normalize_optional_string(reason) || "memory_graph_recovery_failed",
-      detail: recovery_error_detail(reason, diagnostics),
-      remediation: "Review repository memory status and retry recovery when memory graph inputs are available."
-    }
-  end
-
-  defp recovery_error_detail(_reason, diagnostics) when is_map(diagnostics) do
-    map_get(diagnostics, :message, "message") ||
-      map_get(diagnostics, :detail, "detail") ||
-      map_get(diagnostics, :reason, "reason") ||
-      inspect(diagnostics)
-  end
-
-  defp recovery_error_detail(reason, _diagnostics) do
-    "Repository memory recovery failed (#{reason})."
+  defp recovery_error_feedback(reason, diagnostics, graph) do
+    SurfaceFeedback.recovery_error(
+      reason,
+      diagnostics,
+      graph: graph,
+      surface_label: "this managed repository surface"
+    )
   end
 
   defp map_get(map, atom_key, string_key, default \\ nil)

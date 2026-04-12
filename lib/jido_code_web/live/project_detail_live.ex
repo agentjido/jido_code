@@ -287,28 +287,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             id="project-detail-memory-feedback"
             title="Memory graph recovery update"
             state={@memory_action_feedback}
-            kind={:info}
+            kind={memory_feedback_kind(@memory_action_feedback)}
           />
 
-          <.operator_state_notice
-            :if={memory_notice_visible?(@memory_inspection)}
+          <.memory_status_notice
+            :if={is_map(@memory_inspection.notice)}
             id="project-detail-memory-notice"
             title="Repository memory status"
             state={@memory_inspection.notice}
-            kind={memory_notice_kind(@memory_inspection)}
-          >
-            <:actions>
-              <button
-                :if={memory_recovery_available?(@memory_inspection)}
-                id="project-detail-memory-recover"
-                type="button"
-                class="btn btn-sm btn-outline"
-                phx-click="recover_memory_graph"
-              >
-                {memory_recovery_label(@memory_inspection)}
-              </button>
-            </:actions>
-          </.operator_state_notice>
+            kind={Map.get(@memory_inspection, :notice_kind, :warning)}
+            recovery={Map.get(@memory_inspection, :recovery)}
+            recover_event="recover_memory_graph"
+            recover_id="project-detail-memory-recover"
+          />
 
           <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
             <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
@@ -356,33 +347,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
                     Code anchor: {Map.get(item, :module_name)}
                   </p>
-                  <.link
-                    :for={link <- memory_navigation_links(item, :governed_records)}
-                    :if={link.route}
-                    id={"project-detail-memory-item-governed-link-#{memory_item_dom_id(item)}-#{link.kind}"}
-                    navigate={link.route}
-                    class="link link-primary text-xs"
-                  >
-                    {link.label}
-                  </.link>
-                  <.link
-                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :source_code), 1)}
-                    :if={link.route}
-                    id={"project-detail-memory-item-source-link-#{memory_item_dom_id(item)}-#{index}"}
-                    navigate={link.route}
-                    class="link link-primary text-xs"
-                  >
-                    {link.label}
-                  </.link>
-                  <.link
-                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :related_memories), 1)}
-                    :if={link.route}
-                    id={"project-detail-memory-item-related-link-#{memory_item_dom_id(item)}-#{index}"}
-                    navigate={link.route}
-                    class="link link-primary text-xs"
-                  >
-                    {link.label}
-                  </.link>
+                  <.memory_link_groups
+                    dom_prefix={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
+                    item={item}
+                  />
                 </li>
               </ul>
             </section>
@@ -405,24 +373,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
                     Code anchor: {Map.get(item, :module_name)}
                   </p>
-                  <.link
-                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :governed_records), 1)}
-                    :if={link.route}
-                    id={"project-detail-provenance-item-governed-link-#{memory_item_dom_id(item)}-#{index}"}
-                    navigate={link.route}
-                    class="link link-primary text-xs"
-                  >
-                    {link.label}
-                  </.link>
-                  <.link
-                    :for={{link, index} <- Enum.with_index(memory_navigation_links(item, :source_code), 1)}
-                    :if={link.route}
-                    id={"project-detail-provenance-item-source-link-#{memory_item_dom_id(item)}-#{index}"}
-                    navigate={link.route}
-                    class="link link-primary text-xs"
-                  >
-                    {link.label}
-                  </.link>
+                  <.memory_link_groups
+                    dom_prefix={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
+                    item={item}
+                  />
                 </li>
               </ul>
             </section>
@@ -753,17 +707,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp semantic_items(%{items: items}) when is_list(items), do: items
   defp semantic_items(_projection), do: []
 
-  defp memory_notice_visible?(%{notice: notice}) when is_map(notice), do: true
-  defp memory_notice_visible?(_inspection), do: false
-
-  defp memory_notice_kind(%{notice_kind: notice_kind}) when is_atom(notice_kind), do: notice_kind
-  defp memory_notice_kind(_inspection), do: :warning
-
-  defp memory_recovery_available?(%{recovery: %{available?: true}}), do: true
-  defp memory_recovery_available?(_inspection), do: false
-
-  defp memory_recovery_label(%{recovery: %{label: label}}) when is_binary(label), do: label
-  defp memory_recovery_label(_inspection), do: "Recover memory graph"
+  defp memory_feedback_kind(%{kind: kind}) when is_atom(kind), do: kind
+  defp memory_feedback_kind(_feedback), do: :info
 
   defp memory_group_count(%{groups: groups}, group_key) when is_map(groups) do
     groups
@@ -775,12 +720,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp memory_items(%{items: items}) when is_list(items), do: items
   defp memory_items(_projection), do: []
-
-  defp memory_navigation_links(item, key) when is_map(item) do
-    item
-    |> Map.get(:navigation, %{})
-    |> Map.get(key, [])
-  end
 
   defp memory_item_dom_id(item) when is_map(item) do
     Map.get(item, :memory_iri) ||

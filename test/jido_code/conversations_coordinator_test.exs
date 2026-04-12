@@ -1,7 +1,7 @@
 defmodule JidoCode.ConversationsCoordinatorTest do
   use ExUnit.Case, async: true
 
-  alias JidoCode.Conversations.{Command, Conversation, Coordinator, Turn}
+  alias JidoCode.Conversations.{ChildWork, Command, Conversation, Coordinator, Turn}
 
   test "command normalization separates work and control commands" do
     actor = %{"id" => "operator-1", "actor_class" => "operator"}
@@ -37,6 +37,8 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert first_snapshot.status == :active
     assert first_snapshot.active_turn.command_type == "turn.submit"
     assert first_snapshot.active_turn.state == :running
+    assert first_snapshot.active_child_work.turn_id == first_snapshot.active_turn.id
+    assert first_snapshot.active_child_work.state == :running
     refute Map.has_key?(first_snapshot, :pod_id)
     refute Map.has_key?(first_snapshot, :kernel_name)
 
@@ -76,14 +78,105 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert resumed_snapshot.status == :active
     assert resumed_snapshot.active_turn.id == List.first(second_snapshot.queued_turn_ids)
     assert resumed_snapshot.active_turn.state == :running
+    assert resumed_snapshot.active_child_work.turn_id == resumed_snapshot.active_turn.id
     assert resumed_snapshot.queued_turn_ids == []
+  end
+
+  test "coordinator tracks child work ownership, cancellation, and settled outcomes explicitly" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-3", "actor_class" => "operator"}
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{
+                 type: "turn.submit",
+                 payload: %{instruction: "Inspect the failing test.", tool_call_id: "tool-call-1"}
+               },
+               actor
+             )
+
+    child_work = running_snapshot.active_child_work
+
+    assert child_work.conversation_id == conversation.id
+    assert child_work.managed_repo_id == conversation.managed_repo_id
+    assert child_work.work_item_id == conversation.work_item_id
+    assert child_work.turn_id == running_snapshot.active_turn.id
+    assert child_work.tool_call_id == "tool-call-1"
+    assert child_work.kind == "tool_call"
+
+    assert {:ok, cancellation_snapshot} = Coordinator.cancel_child_work(conversation.id, child_work.id)
+
+    assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
+
+    assert Enum.map(cancellation_snapshot.active_child_work.lifecycle, & &1["state"]) == [
+             "queued",
+             "running",
+             "cancel_requested",
+             "cancel_acknowledged"
+           ]
+
+    assert {:ok, settled_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               child_work.id,
+               :cancelled,
+               %{"result" => %{"reason" => "Operator stopped the tool call."}}
+             )
+
+    settled_turn = Enum.find(settled_snapshot.turns, &(&1.id == child_work.turn_id))
+    settled_child_work = Enum.find(settled_snapshot.child_works, &(&1.id == child_work.id))
+
+    assert settled_snapshot.active_turn == nil
+    assert settled_snapshot.active_child_work == nil
+    assert settled_turn.state == :cancelled
+    assert settled_child_work.state == :cancelled
+    assert settled_child_work.result["reason"] == "Operator stopped the tool call."
+  end
+
+  test "child work settles completion before a later cancel can land" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-4", "actor_class" => "operator"}
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Run the analysis."}},
+               actor
+             )
+
+    child_work_id = running_snapshot.active_child_work_id
+
+    assert {:ok, completed_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               child_work_id,
+               :completed,
+               %{result: %{summary: "Analysis finished before cancellation landed."}}
+             )
+
+    completed_child_work = Enum.find(completed_snapshot.child_works, &(&1.id == child_work_id))
+    completed_turn = Enum.find(completed_snapshot.turns, &(&1.child_work_id == child_work_id))
+
+    assert completed_child_work.state == :completed
+    assert completed_turn.state == :completed
+    assert {:error, :child_work_already_settled} = Coordinator.cancel_child_work(conversation.id, child_work_id)
   end
 
   test "turn transition keeps lifecycle history explicit" do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
     turn =
-      Turn.new("conversation-1", %{id: Ecto.UUID.generate(), raw_type: "turn.submit", payload: %{}, admitted_at: now})
+      Turn.new("conversation-1", %{
+        id: Ecto.UUID.generate(),
+        raw_type: "turn.submit",
+        payload: %{},
+        admitted_at: now
+      })
 
     assert {:ok, running_turn} = Turn.transition(turn, :running)
     assert {:ok, awaiting_input_turn} = Turn.transition(running_turn, :awaiting_input)
@@ -91,6 +184,40 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
     assert Enum.map(completed_turn.lifecycle, & &1["state"]) == ["queued", "running", "awaiting_input", "completed"]
     assert completed_turn.completed_at != nil
+  end
+
+  test "child work lifecycle keeps cancellation outcomes explicit" do
+    conversation = conversation_fixture()
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    turn =
+      Turn.new(conversation.id, %{
+        id: Ecto.UUID.generate(),
+        raw_type: "turn.submit",
+        payload: %{},
+        admitted_at: now
+      })
+
+    child_work = ChildWork.new(conversation, turn)
+
+    assert {:ok, running_child_work} = ChildWork.start(child_work)
+    assert {:ok, requested_child_work} = ChildWork.request_cancel(running_child_work)
+    assert {:ok, acknowledged_child_work} = ChildWork.acknowledge_cancel(requested_child_work)
+
+    assert {:ok, cancelled_child_work} =
+             ChildWork.settle(acknowledged_child_work, :cancelled, %{
+               result: %{reason: "Operator stopped the tool."}
+             })
+
+    assert Enum.map(cancelled_child_work.lifecycle, & &1["state"]) == [
+             "queued",
+             "running",
+             "cancel_requested",
+             "cancel_acknowledged",
+             "cancelled"
+           ]
+
+    assert cancelled_child_work.result["reason"] == "Operator stopped the tool."
   end
 
   defp conversation_fixture do

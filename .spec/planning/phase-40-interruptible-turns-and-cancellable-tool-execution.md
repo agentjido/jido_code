@@ -30,22 +30,22 @@ Back to index: [README](./README.md)
 [ ] 40 Phase 40 - Interruptible Turns And Cancellable Tool Execution
   Implement the interruption layer that lets users stop, steer, pause, and resume productive coding turns while long-running tool work is still in flight.
 
-  [ ] 40.1 Section - Cancellable Child Execution Model
+  [x] 40.1 Section - Cancellable Child Execution Model
     Move long-running tool work into bounded child execution paths so the coordinator can remain responsive to control commands.
 
-    [ ] 40.1.1 Task - Refactor long-running tool work into child jobs or workers
+    [x] 40.1.1 Task - Refactor long-running tool work into child jobs or workers
       Separate coordination from execution so the system can interrupt in-flight tooling without wedging turn admission.
 
-      [ ] 40.1.1.1 Subtask - Introduce a canonical child-work contract for long-running tool invocations, shell sessions, and similar extended runtime steps.
-      [ ] 40.1.1.2 Subtask - Preserve ownership metadata linking each child job to conversation, turn, tool-call, and work-item identifiers.
-      [ ] 40.1.1.3 Subtask - Keep result delivery bounded and explicit so coordinator state is updated through settled outcomes rather than hidden mailbox side effects.
+      [x] 40.1.1.1 Subtask - Introduce a canonical child-work contract for long-running tool invocations, shell sessions, and similar extended runtime steps.
+      [x] 40.1.1.2 Subtask - Preserve ownership metadata linking each child job to conversation, turn, tool-call, and work-item identifiers.
+      [x] 40.1.1.3 Subtask - Keep result delivery bounded and explicit so coordinator state is updated through settled outcomes rather than hidden mailbox side effects.
 
-    [ ] 40.1.2 Task - Add cooperative cancellation and race-safe settlement
+    [x] 40.1.2 Task - Add cooperative cancellation and race-safe settlement
       Ensure child execution can be asked to stop, can acknowledge that request, and still settle deterministically if completion wins the race.
 
-      [ ] 40.1.2.1 Subtask - Introduce cancellation requests, acknowledgements, and final settlement behavior for child tool jobs.
-      [ ] 40.1.2.2 Subtask - Handle completion-before-cancel, cancel-before-start, and cancel-failed races without leaving turns in ambiguous intermediate state.
-      [ ] 40.1.2.3 Subtask - Keep cancellation behavior provider- and tool-agnostic so later adapters reuse one product contract.
+      [x] 40.1.2.1 Subtask - Introduce cancellation requests, acknowledgements, and final settlement behavior for child tool jobs.
+      [x] 40.1.2.2 Subtask - Handle completion-before-cancel, cancel-before-start, and cancel-failed races without leaving turns in ambiguous intermediate state.
+      [x] 40.1.2.3 Subtask - Keep cancellation behavior provider- and tool-agnostic so later adapters reuse one product contract.
 
   [ ] 40.2 Section - Control Lane And Turn Supersession
     Add the admission and lifecycle behavior that gives interruption commands precedence over stale queued or active work.

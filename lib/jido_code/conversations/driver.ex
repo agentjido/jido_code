@@ -7,7 +7,7 @@ defmodule JidoCode.Conversations.Driver do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
-  alias JidoCode.Conversations.{Conversation, Coordinator}
+  alias JidoCode.Conversations.{ChildWork, Conversation, Coordinator}
 
   @supervisor JidoCode.Conversations.DynamicSupervisor
   @registry JidoCode.Conversations.Registry
@@ -40,6 +40,32 @@ defmodule JidoCode.Conversations.Driver do
     with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
          {:ok, _pid} <- ensure_coordinator(conversation),
          {:ok, snapshot} <- Coordinator.transition_turn(conversation_id, turn_id, next_state) do
+      {:ok, snapshot}
+    end
+  end
+
+  @spec cancel_child_work(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def cancel_child_work(conversation_id, child_work_id, opts \\ [])
+      when is_binary(conversation_id) and is_binary(child_work_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
+         {:ok, _pid} <- ensure_coordinator(conversation),
+         {:ok, snapshot} <- Coordinator.cancel_child_work(conversation_id, child_work_id) do
+      {:ok, snapshot}
+    end
+  end
+
+  @spec settle_child_work(String.t(), String.t(), ChildWork.settlement(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def settle_child_work(conversation_id, child_work_id, outcome, attrs \\ %{}, opts \\ [])
+      when is_binary(conversation_id) and is_binary(child_work_id) and is_atom(outcome) and is_map(attrs) and
+             is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
+         {:ok, _pid} <- ensure_coordinator(conversation),
+         {:ok, snapshot} <- Coordinator.settle_child_work(conversation_id, child_work_id, outcome, attrs) do
       {:ok, snapshot}
     end
   end
@@ -87,8 +113,11 @@ defmodule JidoCode.Conversations.Driver do
       status: conversation.status,
       active_turn_id: nil,
       active_turn: nil,
+      active_child_work_id: nil,
+      active_child_work: nil,
       queued_turn_ids: [],
       turns: [],
+      child_works: [],
       control_history: []
     }
   end

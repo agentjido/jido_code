@@ -10,6 +10,7 @@ defmodule JidoCode.Conversations.Turn do
     :conversation_id,
     :command_id,
     :command_type,
+    :child_work_id,
     :state,
     :payload,
     :inserted_at,

@@ -18,6 +18,7 @@ defmodule JidoCode.ConversationsDriverTest do
     assert snapshot.conversation_id == conversation.id
     assert snapshot.managed_repo_id == managed_repo.id
     assert Map.has_key?(snapshot, :active_turn_id)
+    assert Map.has_key?(snapshot, :active_child_work_id)
     refute Map.has_key?(snapshot, :kernel_name)
     refute Map.has_key?(snapshot, :pod_id)
 
@@ -43,6 +44,8 @@ defmodule JidoCode.ConversationsDriverTest do
 
     assert running_snapshot.active_turn.command_type == "turn.submit"
     assert running_snapshot.active_turn.state == :running
+    assert running_snapshot.active_child_work.turn_id == running_snapshot.active_turn.id
+    assert running_snapshot.active_child_work.state == :running
 
     assert {:ok, paused_snapshot} =
              Driver.handle_command(
@@ -89,6 +92,53 @@ defmodule JidoCode.ConversationsDriverTest do
     assert completed_turn.state == :completed
     assert Enum.map(completed_turn.lifecycle, & &1["state"]) == ["queued", "running", "awaiting_input", "completed"]
     assert completed_snapshot.active_turn == nil
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  test "driver exposes child work cancellation and explicit settlement" do
+    managed_repo = managed_repo_fixture!("driver-child-work")
+
+    {:ok, %{conversation: conversation}} =
+      Driver.start_conversation(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Track child work ownership and cancellation."
+      })
+
+    {:ok, running_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{
+          type: "turn.submit",
+          payload: %{instruction: "Inspect the workspace.", tool_call_id: "tool-driver-1"}
+        },
+        actor: Actor.operator_actor()
+      )
+
+    child_work_id = running_snapshot.active_child_work_id
+    assert running_snapshot.active_child_work.tool_call_id == "tool-driver-1"
+
+    assert {:ok, cancellation_snapshot} =
+             Driver.cancel_child_work(conversation.id, child_work_id, actor: Actor.operator_actor())
+
+    assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
+
+    assert {:ok, settled_snapshot} =
+             Driver.settle_child_work(
+               conversation.id,
+               child_work_id,
+               :cancelled,
+               %{result: %{reason: "Operator cancelled from the driver."}},
+               actor: Actor.operator_actor()
+             )
+
+    cancelled_child_work = Enum.find(settled_snapshot.child_works, &(&1.id == child_work_id))
+
+    assert settled_snapshot.active_turn == nil
+    assert settled_snapshot.active_child_work == nil
+    assert cancelled_child_work.state == :cancelled
+    assert cancelled_child_work.result["reason"] == "Operator cancelled from the driver."
 
     assert :ok = Driver.stop(conversation.id)
   end

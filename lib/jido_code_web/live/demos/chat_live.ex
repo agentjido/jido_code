@@ -756,7 +756,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
             </div>
 
             <div class="border-t border-zinc-200 px-6 py-4">
-              <form phx-submit="send" class="flex flex-col gap-3 sm:flex-row">
+              <form id="chat-form" phx-submit="send" class="flex flex-col gap-3 sm:flex-row">
                 <input
                   id="chat-input"
                   type="text"

@@ -111,6 +111,8 @@ defmodule JidoCode.Conversations.Driver do
       managed_repo_id: conversation.managed_repo_id,
       work_item_id: conversation.work_item_id,
       status: conversation.status,
+      admission_paused: conversation.status == :paused,
+      child_execution_paused: false,
       active_turn_id: nil,
       active_turn: nil,
       active_child_work_id: nil,

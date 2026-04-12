@@ -17,15 +17,18 @@ defmodule JidoCode.Conversations.Turn do
     :started_at,
     :completed_at,
     :supersedes_turn_id,
+    :superseded_by_turn_id,
     lifecycle: []
   ]
 
-  @states [:queued, :running, :awaiting_input, :completed, :cancelled, :superseded, :failed]
+  @states [:queued, :running, :awaiting_input, :cancelling, :superseding, :completed, :cancelled, :superseded, :failed]
   @terminal_states [:completed, :cancelled, :superseded, :failed]
   @transitions %{
     queued: [:running, :cancelled, :superseded, :failed],
-    running: [:awaiting_input, :completed, :cancelled, :superseded, :failed],
-    awaiting_input: [:running, :completed, :cancelled, :superseded, :failed],
+    running: [:awaiting_input, :cancelling, :superseding, :completed, :cancelled, :superseded, :failed],
+    awaiting_input: [:running, :cancelling, :superseding, :completed, :cancelled, :superseded, :failed],
+    cancelling: [:completed, :cancelled, :failed],
+    superseding: [:completed, :superseded, :failed],
     completed: [],
     cancelled: [],
     superseded: [],
@@ -53,6 +56,7 @@ defmodule JidoCode.Conversations.Turn do
       payload: command.payload,
       inserted_at: inserted_at,
       supersedes_turn_id: Map.get(attrs, :supersedes_turn_id) || Map.get(attrs, "supersedes_turn_id"),
+      superseded_by_turn_id: Map.get(attrs, :superseded_by_turn_id) || Map.get(attrs, "superseded_by_turn_id"),
       lifecycle: [lifecycle_entry(:queued, inserted_at)]
     }
   end

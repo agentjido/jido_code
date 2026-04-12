@@ -60,6 +60,8 @@ defmodule JidoCode.ConversationsCoordinatorTest do
              )
 
     assert paused_snapshot.status == :paused
+    assert paused_snapshot.admission_paused
+    refute paused_snapshot.child_execution_paused
     assert Enum.any?(paused_snapshot.control_history, &(&1.type == "session.pause"))
 
     assert {:ok, completed_snapshot} =
@@ -76,6 +78,8 @@ defmodule JidoCode.ConversationsCoordinatorTest do
              )
 
     assert resumed_snapshot.status == :active
+    refute resumed_snapshot.admission_paused
+    refute resumed_snapshot.child_execution_paused
     assert resumed_snapshot.active_turn.id == List.first(second_snapshot.queued_turn_ids)
     assert resumed_snapshot.active_turn.state == :running
     assert resumed_snapshot.active_child_work.turn_id == resumed_snapshot.active_turn.id
@@ -165,6 +169,101 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert completed_child_work.state == :completed
     assert completed_turn.state == :completed
     assert {:error, :child_work_already_settled} = Coordinator.cancel_child_work(conversation.id, child_work_id)
+  end
+
+  test "turn stop marks the active turn as cancelling before it settles cancelled" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-5", "actor_class" => "operator"}
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Run the current plan."}},
+               actor
+             )
+
+    child_work_id = running_snapshot.active_child_work_id
+
+    assert {:ok, stopping_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.stop", payload: %{reason: "Stop the current turn."}},
+               actor
+             )
+
+    assert stopping_snapshot.active_turn.state == :cancelling
+    assert stopping_snapshot.active_child_work.state == :cancel_acknowledged
+
+    assert {:ok, cancelled_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               child_work_id,
+               :cancelled,
+               %{result: %{reason: "Stop completed."}}
+             )
+
+    cancelled_turn = Enum.find(cancelled_snapshot.turns, &(&1.child_work_id == child_work_id))
+
+    assert cancelled_snapshot.active_turn == nil
+    assert cancelled_turn.state == :cancelled
+  end
+
+  test "turn steer overtakes queued work and preserves supersession links" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-6", "actor_class" => "operator"}
+
+    assert {:ok, first_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the failing workflow."}},
+               actor
+             )
+
+    assert {:ok, second_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Prepare the old follow-up plan."}},
+               actor
+             )
+
+    queued_turn_id = List.first(second_snapshot.queued_turn_ids)
+
+    assert {:ok, steering_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.steer", payload: %{instruction: "Narrow the scope to the failing test only."}},
+               actor
+             )
+
+    replacement_turn = List.last(steering_snapshot.turns)
+
+    assert steering_snapshot.active_turn.id == first_snapshot.active_turn.id
+    assert steering_snapshot.active_turn.state == :superseding
+    assert steering_snapshot.active_child_work.state == :cancel_acknowledged
+    assert steering_snapshot.queued_turn_ids == [replacement_turn.id, queued_turn_id]
+    assert replacement_turn.command_type == "turn.steer"
+    assert replacement_turn.supersedes_turn_id == first_snapshot.active_turn.id
+
+    assert {:ok, superseded_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               first_snapshot.active_child_work_id,
+               :cancelled,
+               %{result: %{reason: "Steering replaced the previous turn."}}
+             )
+
+    superseded_turn = Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn.id))
+    replacement_turn = Enum.find(superseded_snapshot.turns, &(&1.id == replacement_turn.id))
+
+    assert superseded_turn.state == :superseded
+    assert superseded_turn.superseded_by_turn_id == replacement_turn.id
+    assert superseded_snapshot.active_turn.id == replacement_turn.id
+    assert superseded_snapshot.active_turn.state == :running
+    assert superseded_snapshot.queued_turn_ids == [queued_turn_id]
   end
 
   test "turn transition keeps lifecycle history explicit" do

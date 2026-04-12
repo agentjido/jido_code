@@ -13,6 +13,8 @@ defmodule JidoCode.Conversations.Coordinator do
   @type state :: %{
           conversation: Conversation.t(),
           status: atom(),
+          admission_paused: boolean(),
+          child_execution_paused: boolean(),
           active_turn_id: String.t() | nil,
           work_queue: [String.t()],
           turns: %{String.t() => Turn.t()},
@@ -61,6 +63,8 @@ defmodule JidoCode.Conversations.Coordinator do
      %{
        conversation: conversation,
        status: conversation.status,
+       admission_paused: conversation.status == :paused,
+       child_execution_paused: false,
        active_turn_id: nil,
        work_queue: [],
        turns: %{},
@@ -135,25 +139,52 @@ defmodule JidoCode.Conversations.Coordinator do
     with {:ok, next_state} <-
            state
            |> update_in([:control_history], &(&1 ++ [control_entry(normalized_command)]))
-           |> apply_baseline_control(normalized_command)
+           |> apply_control_command(normalized_command)
            |> maybe_activate_next_turn() do
       {:ok, next_state}
     end
   end
 
-  defp apply_baseline_control(state, %{type: :session_pause}) do
-    {:ok, %{state | status: :paused, conversation: %{state.conversation | status: :paused}}}
+  defp apply_control_command(state, %{type: :session_pause}) do
+    {:ok,
+     %{
+       state
+       | status: :paused,
+         admission_paused: true,
+         child_execution_paused: false,
+         conversation: %{state.conversation | status: :paused}
+     }}
   end
 
-  defp apply_baseline_control(state, %{type: :session_resume}) do
-    {:ok, %{state | status: :active, conversation: %{state.conversation | status: :active}}}
+  defp apply_control_command(state, %{type: :session_resume}) do
+    {:ok,
+     %{
+       state
+       | status: :active,
+         admission_paused: false,
+         child_execution_paused: false,
+         conversation: %{state.conversation | status: :active}
+     }}
   end
 
-  defp apply_baseline_control(state, _normalized_command), do: {:ok, state}
+  defp apply_control_command(state, %{type: :turn_stop} = normalized_command) do
+    stop_turn(state, normalized_command.payload)
+  end
+
+  defp apply_control_command(state, %{type: :tool_cancel} = normalized_command) do
+    cancel_tool(state, normalized_command.payload)
+  end
+
+  defp apply_control_command(state, %{type: :turn_steer} = normalized_command) do
+    steer_turn(state, normalized_command)
+  end
+
+  defp apply_control_command(state, _normalized_command), do: {:ok, state}
 
   defp maybe_activate_next_turn({:ok, state}), do: maybe_activate_next_turn(state)
 
   defp maybe_activate_next_turn(%{status: :paused} = state), do: {:ok, state}
+  defp maybe_activate_next_turn(%{admission_paused: true} = state), do: {:ok, state}
   defp maybe_activate_next_turn(%{active_turn_id: active_turn_id} = state) when not is_nil(active_turn_id), do: {:ok, state}
 
   defp maybe_activate_next_turn(%{work_queue: [next_turn_id | remaining_turn_ids]} = state) do
@@ -202,7 +233,7 @@ defmodule JidoCode.Conversations.Coordinator do
     if ChildWork.terminal_state?(updated_child_work.state) do
       turn = Map.fetch!(next_state.turns, updated_child_work.turn_id)
 
-      with {:ok, settled_turn} <- Turn.transition(turn, child_work_terminal_state(updated_child_work.state)) do
+      with {:ok, settled_turn} <- Turn.transition(turn, settled_turn_state(turn, updated_child_work.state)) do
         apply_turn_transition(next_state, settled_turn)
       end
     else
@@ -229,6 +260,9 @@ defmodule JidoCode.Conversations.Coordinator do
   defp child_work_terminal_state(:cancelled), do: :cancelled
   defp child_work_terminal_state(:cancel_failed), do: :failed
   defp child_work_terminal_state(:failed), do: :failed
+
+  defp settled_turn_state(%Turn{state: :superseding}, :cancelled), do: :superseded
+  defp settled_turn_state(_turn, child_work_state), do: child_work_terminal_state(child_work_state)
 
   defp sync_child_work_with_turn(state, %Turn{state: turn_state, child_work_id: child_work_id})
        when turn_state in [:completed, :cancelled, :failed] and is_binary(child_work_id) do
@@ -263,6 +297,8 @@ defmodule JidoCode.Conversations.Coordinator do
       managed_repo_id: state.conversation.managed_repo_id,
       work_item_id: state.conversation.work_item_id,
       status: state.status,
+      admission_paused: state.admission_paused,
+      child_execution_paused: state.child_execution_paused,
       active_turn_id: state.active_turn_id,
       active_turn: summarize_turn(state.turns[state.active_turn_id]),
       active_child_work_id: active_child_work_id,
@@ -290,6 +326,7 @@ defmodule JidoCode.Conversations.Coordinator do
       child_work_id: turn.child_work_id,
       state: turn.state,
       supersedes_turn_id: turn.supersedes_turn_id,
+      superseded_by_turn_id: turn.superseded_by_turn_id,
       inserted_at: turn.inserted_at,
       started_at: turn.started_at,
       completed_at: turn.completed_at,
@@ -327,5 +364,175 @@ defmodule JidoCode.Conversations.Coordinator do
       admitted_at: command.admitted_at,
       payload: command.payload
     }
+  end
+
+  defp stop_turn(state, payload) do
+    case target_turn(state, payload) do
+      {:ok, %Turn{} = turn} ->
+        request_turn_cancellation(state, turn)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp cancel_tool(state, payload) do
+    with {:ok, child_work_id} <- target_child_work_id(state, payload),
+         {:ok, pid} <- fetch_child_worker_pid(state, child_work_id),
+         {:ok, next_state} <- mark_parent_turn_cancelling(state, child_work_id),
+         {:ok, updated_child_work} <- ChildWorker.request_cancel(pid) do
+      apply_child_work_update(next_state, updated_child_work)
+    end
+  end
+
+  defp steer_turn(state, normalized_command) do
+    with {:ok, target_turn} <- target_turn(state, normalized_command.payload),
+         {:ok, state_after_target} <- mark_turn_superseding(state, target_turn),
+         {:ok, replacement_turn} <- build_replacement_turn(state_after_target, normalized_command, target_turn.id),
+         {:ok, queued_state} <- enqueue_priority_turn(state_after_target, replacement_turn) do
+      update_superseded_reference(queued_state, target_turn.id, replacement_turn.id)
+    end
+  end
+
+  defp request_turn_cancellation(state, %Turn{state: :queued, id: turn_id} = turn) do
+    with {:ok, cancelled_turn} <- Turn.transition(turn, :cancelled) do
+      state
+      |> put_in([:turns, turn_id], cancelled_turn)
+      |> update_in([:work_queue], &Enum.reject(&1, fn queued_turn_id -> queued_turn_id == turn_id end))
+      |> then(&{:ok, &1})
+    end
+  end
+
+  defp request_turn_cancellation(state, %Turn{} = turn) do
+    with {:ok, cancelling_turn} <- Turn.transition(turn, :cancelling),
+         {:ok, next_state} <- put_turn(state, cancelling_turn) do
+      case turn.child_work_id do
+        child_work_id when is_binary(child_work_id) ->
+          cancel_tool(next_state, %{"child_work_id" => child_work_id})
+
+        _ ->
+          with {:ok, cancelled_turn} <- Turn.transition(cancelling_turn, :cancelled) do
+            apply_turn_transition(next_state, cancelled_turn)
+          end
+      end
+    end
+  end
+
+  defp mark_parent_turn_cancelling(state, child_work_id) do
+    child_work = Map.fetch!(state.child_works, child_work_id)
+    turn = Map.fetch!(state.turns, child_work.turn_id)
+
+    case turn.state do
+      :running ->
+        with {:ok, cancelling_turn} <- Turn.transition(turn, :cancelling) do
+          put_turn(state, cancelling_turn)
+        end
+
+      :awaiting_input ->
+        with {:ok, cancelling_turn} <- Turn.transition(turn, :cancelling) do
+          put_turn(state, cancelling_turn)
+        end
+
+      _ ->
+        {:ok, state}
+    end
+  end
+
+  defp mark_turn_superseding(state, %Turn{state: :queued, id: turn_id} = turn) do
+    with {:ok, superseded_turn} <- Turn.transition(turn, :superseded) do
+      state
+      |> put_in([:turns, turn_id], superseded_turn)
+      |> update_in([:work_queue], &Enum.reject(&1, fn queued_turn_id -> queued_turn_id == turn_id end))
+      |> then(&{:ok, &1})
+    end
+  end
+
+  defp mark_turn_superseding(state, %Turn{} = turn) do
+    with {:ok, superseding_turn} <- Turn.transition(turn, :superseding),
+         {:ok, next_state} <- put_turn(state, superseding_turn) do
+      case turn.child_work_id do
+        child_work_id when is_binary(child_work_id) ->
+          with {:ok, pid} <- fetch_child_worker_pid(next_state, child_work_id),
+               {:ok, updated_child_work} <- ChildWorker.request_cancel(pid) do
+            apply_child_work_update(next_state, updated_child_work)
+          end
+
+        _ ->
+          with {:ok, superseded_turn} <- Turn.transition(superseding_turn, :superseded) do
+            apply_turn_transition(next_state, superseded_turn)
+          end
+      end
+    end
+  end
+
+  defp build_replacement_turn(state, normalized_command, supersedes_turn_id) do
+    {:ok, Turn.new(state.conversation.id, normalized_command, %{supersedes_turn_id: supersedes_turn_id})}
+  end
+
+  defp enqueue_priority_turn(state, %Turn{} = turn) do
+    {:ok,
+     state
+     |> put_in([:turns, turn.id], turn)
+     |> update_in([:turn_order], &(&1 ++ [turn.id]))
+     |> update_in([:work_queue], &[turn.id | &1])}
+  end
+
+  defp update_superseded_reference(state, target_turn_id, replacement_turn_id) do
+    turn = Map.fetch!(state.turns, target_turn_id)
+    updated_turn = %{turn | superseded_by_turn_id: replacement_turn_id}
+    put_turn(state, updated_turn)
+  end
+
+  defp put_turn(state, %Turn{} = turn) do
+    {:ok, put_in(state, [:turns, turn.id], turn)}
+  end
+
+  defp target_turn(state, payload) do
+    case target_turn_id(state, payload) do
+      {:ok, turn_id} ->
+        case Map.fetch(state.turns, turn_id) do
+          {:ok, %Turn{} = turn} -> {:ok, turn}
+          :error -> {:error, :turn_not_found}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp target_turn_id(state, payload) do
+    payload_turn_id = Map.get(payload, "turn_id")
+
+    cond do
+      is_binary(payload_turn_id) ->
+        {:ok, payload_turn_id}
+
+      is_binary(state.active_turn_id) ->
+        {:ok, state.active_turn_id}
+
+      state.work_queue != [] ->
+        {:ok, hd(state.work_queue)}
+
+      true ->
+        {:error, :turn_not_found}
+    end
+  end
+
+  defp target_child_work_id(state, payload) do
+    payload_child_work_id = Map.get(payload, "child_work_id")
+
+    cond do
+      is_binary(payload_child_work_id) ->
+        {:ok, payload_child_work_id}
+
+      is_binary(state.active_turn_id) ->
+        case Map.get(state.turns, state.active_turn_id) do
+          %Turn{child_work_id: child_work_id} when is_binary(child_work_id) -> {:ok, child_work_id}
+          _ -> {:error, :child_work_not_found}
+        end
+
+      true ->
+        {:error, :child_work_not_found}
+    end
   end
 end

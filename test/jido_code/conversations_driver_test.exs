@@ -55,6 +55,8 @@ defmodule JidoCode.ConversationsDriverTest do
              )
 
     assert paused_snapshot.status == :paused
+    assert paused_snapshot.admission_paused
+    refute paused_snapshot.child_execution_paused
     assert Enum.any?(paused_snapshot.control_history, &(&1.type == "session.pause"))
 
     assert :ok = Driver.stop(conversation.id)
@@ -139,6 +141,64 @@ defmodule JidoCode.ConversationsDriverTest do
     assert settled_snapshot.active_child_work == nil
     assert cancelled_child_work.state == :cancelled
     assert cancelled_child_work.result["reason"] == "Operator cancelled from the driver."
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  test "driver surfaces steer priority and supersession state cleanly" do
+    managed_repo = managed_repo_fixture!("driver-steer")
+
+    {:ok, %{conversation: conversation}} =
+      Driver.start_conversation(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Exercise steer priority."
+      })
+
+    {:ok, first_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.submit", payload: %{instruction: "Inspect the old objective."}},
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, second_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.submit", payload: %{instruction: "Run the queued stale task."}},
+        actor: Actor.operator_actor()
+      )
+
+    queued_turn_id = List.first(second_snapshot.queued_turn_ids)
+
+    {:ok, steering_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.steer", payload: %{instruction: "Replace the active turn with the narrowed objective."}},
+        actor: Actor.operator_actor()
+      )
+
+    replacement_turn = List.last(steering_snapshot.turns)
+
+    assert steering_snapshot.active_turn.id == first_snapshot.active_turn_id
+    assert steering_snapshot.active_turn.state == :superseding
+    assert steering_snapshot.queued_turn_ids == [replacement_turn.id, queued_turn_id]
+    assert replacement_turn.supersedes_turn_id == first_snapshot.active_turn_id
+
+    {:ok, superseded_snapshot} =
+      Driver.settle_child_work(
+        conversation.id,
+        first_snapshot.active_child_work_id,
+        :cancelled,
+        %{result: %{reason: "Steering took precedence."}},
+        actor: Actor.operator_actor()
+      )
+
+    superseded_turn = Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn_id))
+
+    assert superseded_turn.state == :superseded
+    assert superseded_snapshot.active_turn.id == replacement_turn.id
+    assert superseded_snapshot.queued_turn_ids == [queued_turn_id]
 
     assert :ok = Driver.stop(conversation.id)
   end

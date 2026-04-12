@@ -47,22 +47,22 @@ Back to index: [README](./README.md)
       [x] 40.1.2.2 Subtask - Handle completion-before-cancel, cancel-before-start, and cancel-failed races without leaving turns in ambiguous intermediate state.
       [x] 40.1.2.3 Subtask - Keep cancellation behavior provider- and tool-agnostic so later adapters reuse one product contract.
 
-  [ ] 40.2 Section - Control Lane And Turn Supersession
+  [x] 40.2 Section - Control Lane And Turn Supersession
     Add the admission and lifecycle behavior that gives interruption commands precedence over stale queued or active work.
 
-    [ ] 40.2.1 Task - Implement the single control lane
+    [x] 40.2.1 Task - Implement the single control lane
       Make control commands drain ahead of queued work while keeping the runtime model explainable and bounded.
 
-      [ ] 40.2.1.1 Subtask - Admit `turn.stop`, `turn.steer`, `tool.cancel`, `session.pause`, and `session.resume` through one explicit control lane.
-      [ ] 40.2.1.2 Subtask - Keep queued work turns in a separate normal lane rather than introducing arbitrary multi-level message priorities.
-      [ ] 40.2.1.3 Subtask - Add fairness and guardrails so repeated control traffic does not create hidden starvation or orphaned work state.
+      [x] 40.2.1.1 Subtask - Admit `turn.stop`, `turn.steer`, `tool.cancel`, `session.pause`, and `session.resume` through one explicit control lane.
+      [x] 40.2.1.2 Subtask - Keep queued work turns in a separate normal lane rather than introducing arbitrary multi-level message priorities.
+      [x] 40.2.1.3 Subtask - Add fairness and guardrails so repeated control traffic does not create hidden starvation or orphaned work state.
 
-    [ ] 40.2.2 Task - Wire interruption and supersession behavior into turn lifecycle
+    [x] 40.2.2 Task - Wire interruption and supersession behavior into turn lifecycle
       Turn stop and steer into explicit, user-visible product behavior instead of runtime-local cancellation tricks.
 
-      [ ] 40.2.2.1 Subtask - Mark active turns as cancelling or superseding immediately when a control command is admitted.
-      [ ] 40.2.2.2 Subtask - Preserve links between replacement turns and the turns they supersede so steering remains auditable.
-      [ ] 40.2.2.3 Subtask - Keep pause and resume semantics explicit about whether work admission, tool execution, or both are currently halted.
+      [x] 40.2.2.1 Subtask - Mark active turns as cancelling or superseding immediately when a control command is admitted.
+      [x] 40.2.2.2 Subtask - Preserve links between replacement turns and the turns they supersede so steering remains auditable.
+      [x] 40.2.2.3 Subtask - Keep pause and resume semantics explicit about whether work admission, tool execution, or both are currently halted.
 
   [ ] 40.3 Section - Phase 40 Integration Tests
     Verify interruption, cancellation, and supersession work end to end before the UI begins to depend on them as the canonical conversation model.

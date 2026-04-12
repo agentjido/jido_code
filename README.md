@@ -39,6 +39,7 @@ For normal local development, leave `DATABASE_URL` unset. `mix setup` installs d
 Jido.Code currently centers on a few concrete areas:
 
 - a Phoenix web app with AshAuthentication-backed sign-in, settings, setup, and dashboard/workbench routes
+- a repo-scoped conversation orchestration layer with interruptible turns, durable event history, bounded shared context, and governed work steering
 - Forge, an OTP subsystem for isolated execution sessions with observable events and a LiveView terminal UI
 - GitHub integration primitives for repos, webhook deliveries, analyses, and automation-oriented workflows
 - Jido-oriented command, skill, and workflow task surfaces for local operator and developer use
@@ -119,6 +120,14 @@ Keep the semantic graph as a bounded enhancement, not a hidden dependency:
 - Mount Vue-backed regions through `<.vue_surface ...>` rather than raw LiveVue calls so props, streams, and emits stay product-owned.
 - Treat `props:` and `streams:` as server-authored boundaries and map Vue emits back into LiveView events.
 - When changing the browser stack, run `mix frontend.verify`. Hybrid screens must degrade to product-oriented fallback messaging instead of exposing raw Vite or SSR failures to operators.
+
+## Conversation Model
+
+Productive coding conversations are managed-repository scoped and usually attach to one canonical `WorkItem`.
+
+- Use the conversation driver and sequenced event stream for conversation UX. Snapshots are for cold load, reconnect recovery, and degraded continuity, not steady-state polling.
+- Route steering through canonical work records. If a conversation narrows, redirects, or promotes work, the durable outcome should rejoin `ManagedRepo` and `WorkItem` surfaces instead of living as free-floating chat state.
+- Keep short-term collaboration context bounded and explainable. Referenced files, accepted tool results, and pending clarification state should remain explicit enough to steer follow-up work without turning conversations into hidden long-term memory.
 
 ## Day-To-Day Commands
 

@@ -168,11 +168,13 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   defp admit_normalized_command(state, %{class: :control} = normalized_command) do
-    with {:ok, next_state} <-
+    with {:ok, applied_state} <-
            state
            |> append_command_message_event(normalized_command)
-           |> update_in([:control_history], &(&1 ++ [control_entry(normalized_command)]))
-           |> apply_control_command(normalized_command)
+           |> apply_control_command(normalized_command),
+         {:ok, next_state} <-
+           applied_state
+           |> update_in([:control_history], &(&1 ++ [control_entry(normalized_command, applied_state)]))
            |> maybe_activate_next_turn() do
       {:ok, next_state}
     end
@@ -333,7 +335,7 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp sync_child_work_with_turn(state, _updated_turn, _actor), do: state
 
-  defp control_entry(command) do
+  defp control_entry(command, state) do
     %{
       id: command.id,
       type: command.raw_type,
@@ -342,6 +344,10 @@ defmodule JidoCode.Conversations.Coordinator do
       actor: command.actor,
       payload: command.payload
     }
+    |> maybe_put(:work_item_id, state.conversation.work_item_id)
+    |> maybe_put(:work_action, map_get(state.conversation.conversation_metadata, "last_work_action"))
+    |> maybe_put(:attachment_mode, state.conversation.attachment_mode)
+    |> maybe_put(:scope, state.conversation.scope)
   end
 
   defp stop_turn(state, payload, actor, message_id) do
@@ -367,9 +373,10 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp steer_turn(state, normalized_command) do
     with {:ok, target_turn} <- target_turn(state, normalized_command.payload),
+         {:ok, state_after_work} <- apply_conversation_work_steering(state, normalized_command),
          {:ok, state_after_target} <-
            mark_turn_superseding(
-             state,
+             state_after_work,
              target_turn,
              normalized_command.actor,
              normalized_command.payload,
@@ -380,6 +387,23 @@ defmodule JidoCode.Conversations.Coordinator do
       update_superseded_reference(queued_state, target_turn.id, replacement_turn.id)
     end
   end
+
+  defp apply_conversation_work_steering(state, %{type: :turn_steer} = normalized_command) do
+    case JidoCode.Conversations.steer_work(
+           state.conversation,
+           normalized_command.payload,
+           actor: normalized_command.actor,
+           shared_context: Snapshot.from_state(state).shared_context
+         ) do
+      {:ok, %{conversation: %Conversation{} = updated_conversation}} ->
+        {:ok, %{state | conversation: updated_conversation}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp apply_conversation_work_steering(state, _normalized_command), do: {:ok, state}
 
   defp request_turn_cancellation(state, %Turn{state: :queued, id: turn_id} = turn, actor, payload, message_id) do
     with {:ok, cancelled_turn} <- Turn.transition(turn, :cancelled) do
@@ -744,6 +768,9 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp map_get(map, key) when is_map(map), do: Map.get(map, key)
+  defp map_get(_map, _key), do: nil
 
   defp optional_string(value) when is_binary(value) do
     case String.trim(value) do

@@ -10,6 +10,7 @@ defmodule JidoCode.Conversations.Turn do
     :conversation_id,
     :command_id,
     :command_type,
+    :actor,
     :child_work_id,
     :state,
     :payload,
@@ -52,6 +53,7 @@ defmodule JidoCode.Conversations.Turn do
       conversation_id: conversation_id,
       command_id: command.id,
       command_type: command.raw_type,
+      actor: normalize_map(Map.get(command, :actor) || Map.get(command, "actor")),
       state: :queued,
       payload: command.payload,
       inserted_at: inserted_at,
@@ -82,4 +84,23 @@ defmodule JidoCode.Conversations.Turn do
   def transition(_turn, _next_state), do: {:error, :invalid_transition}
 
   defp lifecycle_entry(state, at), do: %{"state" => Atom.to_string(state), "at" => DateTime.to_iso8601(at)}
+
+  defp normalize_map(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      Map.put(acc, normalized_key, normalize_nested_value(nested_value))
+    end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
+  defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
+  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+  defp normalize_nested_value(value), do: value
 end

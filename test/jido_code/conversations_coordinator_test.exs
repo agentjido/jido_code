@@ -1,7 +1,7 @@
 defmodule JidoCode.ConversationsCoordinatorTest do
   use ExUnit.Case, async: true
 
-  alias JidoCode.Conversations.{ChildWork, Command, Conversation, Coordinator, Turn}
+  alias JidoCode.Conversations.{ChildWork, Command, Conversation, Coordinator, PubSub, Turn}
 
   test "command normalization separates work and control commands" do
     actor = %{"id" => "operator-1", "actor_class" => "operator"}
@@ -84,6 +84,48 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert resumed_snapshot.active_turn.state == :running
     assert resumed_snapshot.active_child_work.turn_id == resumed_snapshot.active_turn.id
     assert resumed_snapshot.queued_turn_ids == []
+  end
+
+  test "coordinator records sequenced events and broadcasts typed conversation events" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-events", "actor_class" => "operator"}
+
+    assert :ok = PubSub.subscribe_conversation(conversation.id)
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the current event stream."}},
+               actor
+             )
+
+    assert running_snapshot.last_event_sequence == 5
+    assert running_snapshot.event_count == 5
+    assert Enum.map(running_snapshot.events, & &1.sequence) == [1, 2, 3, 4, 5]
+
+    assert Enum.map(running_snapshot.events, & &1.name) == [
+             "conversation.message_added",
+             "turn.queued",
+             "turn.intent_announced",
+             "turn.started",
+             "tool.started"
+           ]
+
+    assert Enum.all?(running_snapshot.events, &(&1.conversation_id == conversation.id))
+    assert Enum.all?(running_snapshot.events, &(is_binary(&1.id) and &1.id != ""))
+    assert running_snapshot.active_turn.actor["id"] == "operator-events"
+    assert running_snapshot.active_child_work.actor["id"] == "operator-events"
+
+    assert_receive {:conversation_event, %{name: "conversation.message_added", sequence: 1}}
+    assert_receive {:conversation_event, %{name: "turn.queued", sequence: 2}}
+    assert_receive {:conversation_event, %{name: "turn.intent_announced", sequence: 3}}
+    assert_receive {:conversation_event, %{name: "turn.started", sequence: 4}}
+    assert_receive {:conversation_event, %{name: "tool.started", sequence: 5}}
+
+    assert {:ok, replayed_events} = Coordinator.events_since(conversation.id, 3)
+    assert Enum.map(replayed_events, & &1.name) == ["turn.started", "tool.started"]
   end
 
   test "coordinator tracks child work ownership, cancellation, and settled outcomes explicitly" do

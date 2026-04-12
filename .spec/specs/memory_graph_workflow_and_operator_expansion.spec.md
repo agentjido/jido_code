@@ -9,7 +9,7 @@ actions, and intent-specific memory retrieval.
 ```spec-meta
 id: architecture.memory_graph_workflow_and_operator_expansion
 kind: feature
-status: proposed
+status: active
 summary: Jido.Code expands bounded repository memory and workflow-provenance adoption beyond managed-repository detail into canonical governed run, work-item, evidence, and decision surfaces, introduces product-owned memory action boundaries for validation, invalidation, supersession, governed promotion, and governed-surface feedback over the capture plane rather than direct graph mutation, standardizes bounded cross-graph navigation among memory, workflow provenance, source-code entities, and governed records, now grounds those governed cross-links in the companion control-plane ontology plus a typed governed-reference contract emitted at capture time, lets planner, reviewer, and explainer flows request durable memory through explicit retrieval policies keyed to freshness, memory class, and follow-up intent, and keeps memory-derived product behavior explainable by preserving freshness, supersession, provenance, governed follow-up previews, recovery affordances, and governed adoption metadata whenever operators or workflows act on durable memory.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
@@ -36,37 +36,37 @@ surface:
 - id: architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context
   statement: Canonical governed run, work-item, evidence, and decision surfaces may host bounded memory and workflow-provenance context when those records were informed by repository memory, but they shall remain governed product surfaces rather than graph-only views and shall keep typed governed links plus recovery affordances inside those same product routes.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.operator_memory_actions_use_product_owned_boundaries
   statement: Operator-facing memory actions such as validate, invalidate, supersede, or promote follow-up shall route through product-owned action boundaries over AgentWorkspace and governed services rather than raw graph mutation or direct pod calls from UI-owned code.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.memory_mutations_flow_through_capture_plane_updates
   statement: Product-owned memory mutations shall emit canonical durable-memory update or capture requests through the memory capture plane instead of writing raw RDF updates directly.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.memory_workflows_use_explicit_retrieval_policies
   statement: Planner, reviewer, explainer, and governed follow-up flows shall request durable memory through explicit retrieval policies that name freshness expectations, memory classes, provenance needs, and bounded follow-up intent rather than relying on ambient recall or broad raw queries.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history
   statement: Product-facing memory navigation shall support bounded links among memories, workflow provenance, source-code entities, runs, work items, evidence, and decisions through stable repository-scoped projections rather than exposing ad hoc graph joins or raw RDF identifiers as the UI contract.
   priority: should
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
   statement: Validation, invalidation, supersession, and promotion behavior shall preserve explicit freshness, revision, supersession, provenance, and evidence metadata so later operators can understand why a memory changed state.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up
   statement: When an operator or workflow promotes a memory into action, the resulting follow-up shall re-enter governed product records such as Observation, Assessment, WorkItem, Evidence, or Decision instead of remaining only a graph-local state change.
   priority: must
-  stability: proposed
+  stability: stable
 ```
 
 ## Scenarios

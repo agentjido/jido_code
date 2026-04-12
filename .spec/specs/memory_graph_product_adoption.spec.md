@@ -9,8 +9,8 @@ workflow entrypoints.
 ```spec-meta
 id: architecture.memory_graph_product_adoption
 kind: feature
-status: proposed
-summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract.
+status: active
+summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository, dashboard-summary, and governed-surface routes, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -55,37 +55,37 @@ surface:
 - id: architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
   statement: Product code shall consume memory-graph capability through bounded product-owned service, feedback, and view-model boundaries over AgentWorkspace rather than by issuing raw SPARQL, reading pod internals, or opening TripleStore directly from UI-owned code.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
   statement: Managed-repository operator routes shall be the canonical host surfaces for repository memory and workflow-provenance inspection instead of introducing a separate graph-only memory browser route family.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   statement: Operator-facing memory surfaces shall expose freshness, validation, invalidation, stale state, latest failure, explicit recovery affordances, and typed governed context so repository memory remains explainable and safe even when some governed records do not yet have standalone canonical routes.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
   statement: Planning, review, and explanation workflows shall request memory context explicitly through product-owned options or service calls rather than assuming ambient memory-graph availability.
   priority: should
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records
   statement: When durable memory or workflow-provenance findings influence factory behavior, those findings shall be materialized back into governed product records such as Observation, Assessment, WorkItem, Evidence, or Decision instead of remaining graph-local product truth.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
   statement: Product operator surfaces shall present bounded memory and provenance projections, cross-links, and recovery affordances rather than raw SPARQL text, pod topology, graph-store handles, or low-level RDF details.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
   statement: Product-facing memory and provenance views may navigate to stable repository-scoped code entities and related source-code graph projections through bounded cross-graph links, but those links shall remain product-owned projections rather than raw graph joins exposed directly to UI code.
   priority: should
-  stability: proposed
+  stability: evolving
 ```
 
 ## Scenarios

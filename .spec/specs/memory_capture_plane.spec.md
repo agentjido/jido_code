@@ -8,8 +8,8 @@ durable coding memories into the repository semantic store over time.
 ```spec-meta
 id: architecture.memory_capture_plane
 kind: feature
-status: proposed
-summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, now emits typed governed relations from those writers while leaving artifact-style compatibility data internal to the cutover, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to future operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and now defines a canonical typed governed-reference contract that callers emit as `governed_references` while any artifact-style compatibility data stays internal to the cutover.
+status: active
+summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, emits typed governed relations from those writers while leaving artifact-style compatibility data internal to the cutover, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and defines a canonical typed governed-reference contract that callers emit as `governed_references` while any artifact-style compatibility data stays internal to the cutover.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -48,47 +48,47 @@ surface:
 - id: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
   statement: Jido.Code shall insert memory-graph individuals and relationships through one bounded memory capture plane rather than allowing direct graph writes from UI surfaces, specialist agents, or ad hoc helpers.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
   statement: Workflow provenance individuals such as WorkSession, AgentRun, ToolInvocation, PromptTurn, Plan, Patch, and Review shall be inserted at AgentWorkspace and explicit workflow-boundary transitions where repository, work-item, actor, workspace, and revision context are already explicit.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption
   statement: Durable memory classes such as Fact, Decision, LessonLearned, Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern shall be inserted only after explicit classification or adoption through product-owned workflow, semantic, or governed-adoption boundaries rather than from raw intermediate runtime output.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
   statement: Freshness, validation, and invalidation relationships shall be inserted or updated when revision movement, test validation, explicit review, or recovery behavior produces bounded evidence that a memory still applies or no longer applies.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context
   statement: Durable memory capture shall require explicit repository identity, actor identity, and revision context, and shall include work-item or workflow context whenever the memory originated from bounded work execution.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
   statement: Product and runtime callers shall emit typed capture envelopes or bounded capture requests rather than authoring raw RDF triples directly.
   priority: should
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical
   statement: The semantic stack shall define one canonical typed governed-reference contract for managed repository, observation, assessment, work item, run, evidence, change request, and decision links so later capture, query, navigation, and UI layers do not depend on generic artifact-path naming.
   priority: should
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
   statement: Workflow provenance activity shall be written to the `workflow_provenance` named graph, while durable coding memories shall be written to the `memory` named graph, with explicit cross-graph links instead of flattening both concerns into one graph.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
   statement: Transient model text, intermediate reasoning artifacts, or unadopted helper output shall not be inserted as durable memory unless a bounded product or governed boundary explicitly classifies and adopts them.
   priority: must
-  stability: proposed
+  stability: stable
 ```
 
 ## Scenarios

@@ -9,8 +9,8 @@ workflow provenance.
 ```spec-meta
 id: architecture.memory_graph
 kind: feature
-status: proposed
-summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now loads a companion governed control-plane ontology beside the coding-memory ontology, includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, now normalizes typed governed references at the envelope seam and emits typed governed relations from the writers while legacy governed-artifact shapes are detected as recovery-required store state, now validates the ontology pair, typed governed links, and repository-local graph coherence together before product callers trust cutover state, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, now establishes bounded product-facing memory-service and memory-view adoption over those workspace entrypoints, prepares governed workflow surfaces and operator memory actions to consume the same bounded memory stack, and now includes dashboard summary shaping, governed surface context, canonical operator mutation service, product-shaped follow-up preview boundaries, and a typed governed-reference contract so memory-backed navigation and follow-up remain repository-scoped and explainable when they reach operator surfaces.
+status: active
+summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, loads a companion governed control-plane ontology beside the coding-memory ontology, includes the concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, normalizes typed governed references at the envelope seam and emits typed governed relations from the writers while legacy governed-artifact shapes are detected as recovery-required store state, validates the ontology pair, typed governed links, and repository-local graph coherence together before product callers trust cutover state, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, invalidated, latest-failure, cross-graph consistency, and durable-memory validation state through bounded AgentWorkspace entrypoints plus product-shaped feedback and repository-scoped recovery, establishes bounded product-facing memory-service and memory-view adoption over those workspace entrypoints, supports governed workflow surfaces and operator memory actions through the same bounded memory stack, and includes dashboard summary shaping, governed surface context, canonical operator mutation service, product-shaped follow-up preview boundaries, and a typed governed-reference contract so memory-backed navigation and follow-up remain repository-scoped and explainable when they reach operator surfaces.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -57,52 +57,52 @@ surface:
 - id: architecture.memory_graph.repo_scoped_memory_graph_pod
   statement: When coding-memory capability is enabled for a managed repository, Jido.Code shall provide one repository-scoped MemoryGraphPod inside that repository's AgentOS kernel rather than a cross-repository memory singleton.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
   statement: The memory graph and workflow provenance graph shall live in the same repository-local TripleStore quad store that hosts the `source_code` graph so code, memory, and provenance links remain local, durable, and queryable together.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph.memory_named_graph_is_canonical_target
   statement: The canonical named graph for repository coding memories shall be exactly `memory`.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
   statement: The canonical named graph for repository workflow, agent, and evidence provenance shall be exactly `workflow_provenance`.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
   statement: Memories and workflow provenance shall link to repository, file, module, function, test, config, and symbol entities in the `source_code` graph through stable repository-scoped IRIs rather than string-only labels.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   statement: Recording memories, querying memories, validating freshness, invalidating stale facts, and refreshing memory-graph state shall route through explicit Jido.Action tools rather than ambient helper calls or direct TripleStore access from callers.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   statement: Repository-scoped memory-graph status shall surface current workspace revision, latest validated revision, stale or invalidated state, bounded failure metadata, validation freshness, and repository-scoped recovery guidance so callers can reason safely about whether a memory still applies.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
   statement: Product code, workflow services, and operator surfaces shall consume memory-graph capability through bounded product-owned services or AgentWorkspace entrypoints rather than by issuing raw SPARQL or reading pod/store internals.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph.memory_graph_supports_cross_graph_provenance
   statement: Memory and workflow provenance records shall preserve explicit links among work sessions, agent activity, tool use, code entities, revisions, and evidence artifacts so coding memories remain explainable over time.
   priority: should
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
   statement: Memory-graph status shall expose bounded cross-graph consistency and repository isolation context for `source_code` and `workflow_provenance` so callers can distinguish aligned, stale-dependency, and unavailable-dependency states safely.
   priority: should
-  stability: proposed
+  stability: evolving
 ```
 
 ## Scenarios

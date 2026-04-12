@@ -9,8 +9,8 @@ workflow provenance semantics.
 ```spec-meta
 id: architecture.memory_ontology
 kind: feature
-status: proposed
-summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, now complements that memory ontology with a companion governed control-plane ontology for product records such as ManagedRepo, Observation, Assessment, WorkItem, Run, Evidence, ChangeRequest, and governed Decision, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, expects capture envelopes to normalize typed governed references before writer emission, expects writers to emit those references through explicit `about*` relations plus control-plane typing instead of generic evidence-artifact flattening, expects durable-memory update envelopes and writers to preserve those mutation semantics when operator or workflow actions evolve memory state, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
+status: active
+summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, complements that memory ontology with a companion governed control-plane ontology for product records such as ManagedRepo, Observation, Assessment, WorkItem, Run, Evidence, ChangeRequest, and governed Decision, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, requires capture envelopes to normalize typed governed references before writer emission, requires writers to emit those references through explicit `about*` relations plus control-plane typing instead of generic evidence-artifact flattening, requires durable-memory update envelopes and writers to preserve those mutation semantics when operator or workflow actions evolve memory state, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -29,57 +29,57 @@ surface:
 - id: architecture.memory_ontology.coding_memory_types_extend_core_memory_model
   statement: The ontology shall extend the core Jido memory model beyond Fact, Decision, and LessonLearned to include at least Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern as first-class memory classes.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.companion_control_plane_ontology_models_governed_records
   statement: The semantic model shall include a companion governed control-plane ontology that models first-class product records such as ManagedRepo, Event, Observation, Assessment, WorkItem, Run, Evidence, ChangeRequest, and governed Decision without overloading the coding-memory ontology with mixed concerns.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
   statement: The ontology shall provide explicit relationships that let memories anchor to repository, file, module, function, test, configuration, and symbol entities through relations such as `aboutRepository`, `aboutFile`, `aboutModule`, `aboutFunction`, `aboutTest`, `aboutConfig`, and `affectsSymbol`.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations
   statement: The ontology shall provide explicit relationships that let memories and workflow provenance link to governed product records through typed relations such as `aboutManagedRepo`, `aboutObservation`, `aboutAssessment`, `aboutWorkItem`, `aboutRun`, `aboutEvidence`, `aboutChangeRequest`, and `aboutDecision`.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.change_and_revision_provenance_is_explicit
   statement: The ontology shall model revision and change provenance explicitly through relationships such as `introducedInCommit`, `validatedByTestRun`, `mentionedInPR`, `derivedFromIssue`, `observedAtRevision`, and `invalidatedByRevision`.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
   statement: Decision memories shall support richer structure including `alternativeConsidered`, `decisionStatus`, `supersedes`, and `hasConsequence` so coding decisions can evolve over time without losing lineage.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled
   statement: The ontology shall model workflow and LLM provenance with first-class entities including WorkSession, AgentRun, ToolInvocation, PromptTurn, Review, Patch, and Plan rather than flattening those concepts into string metadata.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
   statement: Memories and workflow provenance shall support explicit freshness, evidence, and validation metadata including `freshnessScore`, `staleReason`, `lastValidatedAt`, `validForRevision`, `supportedBy`, `confidenceSource`, and `evidenceArtifact`.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.memory_updates_preserve_mutation_lineage
   statement: Validation, invalidation, and supersession updates shall preserve explicit mutation lineage such as `lastValidatedAt`, `staleReason`, `invalidatedByRevision`, `supportedBy`, `evidenceArtifact`, and supersession links so later operator and workflow actions can explain why durable memory changed state.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
   statement: WorkSession entities shall capture repository, branch, revision, actor, model, toolchain, goal, and outcome context so memories remain attributable to the runtime conditions under which they were recorded.
   priority: should
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
   statement: The ontology shall prefer rdf:type-driven class membership and repeated first-class tag values or tag entities over stringly `memoryType` or comma-delimited tag blobs.
   priority: should
-  stability: proposed
+  stability: stable
 ```
 
 ## Scenarios

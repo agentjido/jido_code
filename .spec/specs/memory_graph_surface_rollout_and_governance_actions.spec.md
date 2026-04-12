@@ -1,14 +1,14 @@
 # Memory Graph Surface Rollout And Governance Actions
 
 This subject defines how bounded memory and workflow-provenance adoption should
-roll out across the remaining canonical operator and governed product surfaces.
+roll out across the current canonical operator and governed product surfaces.
 
 <!-- covers: package.jido_code.spec_led_workspace -->
 
 ```spec-meta
 id: architecture.memory_graph_surface_rollout_and_governance_actions
 kind: feature
-status: proposed
+status: active
 summary: Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses, with dashboard summary feeds, governed surface sections, follow-up preview widgets, and the new typed governed-reference contract staying tied to canonical product routes and the shared capture-envelope seam.
 decisions:
   - jido_code.memory_graph_product_adoption
@@ -34,32 +34,32 @@ surface:
 - id: architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context
   statement: Dashboard summaries plus canonical work-item, evidence, and decision surfaces may host bounded memory and workflow-provenance context when that context explains governed state, freshness, review pressure, or follow-up needs, but they shall remain product and governed surfaces rather than graph-only views.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces
   statement: Product-owned validate, invalidate, supersede, and promote memory actions shall be available from canonical governed and operator surfaces that already host bounded memory context instead of being confined to special-case semantic views.
   priority: must
-  stability: proposed
+  stability: stable
 
 - id: architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented
   statement: Dashboard memory and provenance summaries shall present bounded freshness, stale, invalidated, recovery, and follow-up signals that help operators choose action without exposing raw graph queries, low-level RDF details, or route-breaking graph browser state.
   priority: should
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
   statement: Cross-graph navigation among memory, workflow provenance, source-code anchors, runs, work items, evidence, and decisions shall remain repository-scoped and product-shaped across dashboard, managed-repository, and governed surfaces instead of varying by surface-specific graph contracts.
   priority: should
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
   statement: Memory-aware workflow preparation, operator follow-up, and governed action suggestions shown on product surfaces shall consume bounded product projections, summaries, or view models instead of raw graph responses or direct pod interactions.
   priority: must
-  stability: proposed
+  stability: evolving
 
 - id: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
   statement: Dashboard, managed-repository, run, work-item, evidence, and decision routes shall remain the canonical product-owned surfaces for memory-backed operator behavior, and the architecture shall not introduce a separate graph-first route family as the main operator contract.
   priority: must
-  stability: proposed
+  stability: stable
 ```
 
 ## Scenarios

@@ -47,22 +47,22 @@ Back to index: [README](./README.md)
       [x] 43.1.2.2 Subtask - Clear pending clarification state from the active child work when a resume payload is accepted.
       [x] 43.1.2.3 Subtask - Keep resumed turn state, actor attribution, and runtime history explainable in snapshots and sequenced events.
 
-  [ ] 43.2 Section - LiveView Clarification And Streaming Adoption
+  [x] 43.2 Section - LiveView Clarification And Streaming Adoption
     Update the conversation demo surface so it exercises the new canonical runtime commands and shows progressive output plus clarification state clearly.
 
-    [ ] 43.2.1 Task - Stream progressive tool and turn updates in the demo surface
+    [x] 43.2.1 Task - Stream progressive tool and turn updates in the demo surface
       Render live progress, stdout, and delta events as first-class conversation output instead of only showing terminal settlement.
 
-      [ ] 43.2.1.1 Subtask - Use `tool_result.submit` from the demo flow for in-flight progress and final settlement simulation.
-      [ ] 43.2.1.2 Subtask - Render progress, stdout, and delta updates with product-readable event titles and excerpts.
-      [ ] 43.2.1.3 Subtask - Keep reconnect and degraded recovery legible when the latest state includes in-flight runtime output.
+      [x] 43.2.1.1 Subtask - Use `tool_result.submit` from the demo flow for in-flight progress and final settlement simulation.
+      [x] 43.2.1.2 Subtask - Render progress, stdout, and delta updates with product-readable event titles and excerpts.
+      [x] 43.2.1.3 Subtask - Keep reconnect and degraded recovery legible when the latest state includes in-flight runtime output.
 
-    [ ] 43.2.2 Task - Surface clarification prompts and resume actions through the same form
+    [x] 43.2.2 Task - Surface clarification prompts and resume actions through the same form
       Let the operator answer an awaiting-input turn without leaving the event-driven conversation surface.
 
-      [ ] 43.2.2.1 Subtask - Render pending clarification context from the snapshot when the active turn is waiting on input.
-      [ ] 43.2.2.2 Subtask - Submit operator clarification through `turn.resume` using the existing bounded input flow.
-      [ ] 43.2.2.3 Subtask - Keep the UI language product-oriented rather than exposing raw child-worker internals.
+      [x] 43.2.2.1 Subtask - Render pending clarification context from the snapshot when the active turn is waiting on input.
+      [x] 43.2.2.2 Subtask - Submit operator clarification through `turn.resume` using the existing bounded input flow.
+      [x] 43.2.2.3 Subtask - Keep the UI language product-oriented rather than exposing raw child-worker internals.
 
   [ ] 43.3 Section - Phase 43 Integration Tests And Spec Convergence
     Verify the new runtime update path, clarification recovery, and spec workspace all stay coherent before later conversation surface work builds on them.

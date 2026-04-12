@@ -141,6 +141,22 @@ surface:
     - New events continue from the next available sequence.
     - The user sees explicit continuity or degraded-mode messaging when gaps cannot be recovered live.
 
+- id: architecture.conversation_orchestration.scenario_clarification_recovers_through_persistence
+  covers:
+    - architecture.conversation_orchestration.control_and_work_commands_are_distinct
+    - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+  given:
+    - A conversation has active child work that already emitted progress or stdout updates.
+    - That child work requests clarification before the active turn can finish.
+  when:
+    - The coordinator stops or the browser reconnects before the operator responds, and the operator later answers through `turn.resume`.
+  then:
+    - Persisted snapshots retain the pending clarification plus bounded runtime context needed to continue.
+    - Replayed events preserve progress, stdout, clarification, resume, and settlement ordering.
+    - The resumed turn continues from awaiting-input state instead of queueing unrelated new work.
+
 - id: architecture.conversation_orchestration.scenario_steering_keeps_shared_context
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
@@ -268,6 +284,14 @@ surface:
   target: test/jido_code/phase_forty_two_integration_test.exs
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+
+- kind: source_file
+  target: test/jido_code/phase_forty_three_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.control_and_work_commands_are_distinct
     - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.steering_preserves_short_term_context

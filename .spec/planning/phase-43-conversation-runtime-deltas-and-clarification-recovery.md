@@ -27,7 +27,7 @@ Back to index: [README](./README.md)
 - Progressive tool updates and clarification prompts should stay product-readable and sequenced so reconnect, degraded recovery, and persisted snapshots remain coherent.
 - LiveView surfaces should exercise the canonical runtime commands rather than relying on ad hoc test-only settlement shortcuts for normal interactive paths.
 
-[ ] 43 Phase 43 - Conversation Runtime Deltas And Clarification Recovery
+[x] 43 Phase 43 - Conversation Runtime Deltas And Clarification Recovery
   Make runtime tool-result updates and clarification loops first-class conversation behavior so productive coding sessions can stream progress, pause for missing input, and resume without losing event or snapshot coherence.
 
   [x] 43.1 Section - Canonical Tool Result And Resume Commands
@@ -64,19 +64,19 @@ Back to index: [README](./README.md)
       [x] 43.2.2.2 Subtask - Submit operator clarification through `turn.resume` using the existing bounded input flow.
       [x] 43.2.2.3 Subtask - Keep the UI language product-oriented rather than exposing raw child-worker internals.
 
-  [ ] 43.3 Section - Phase 43 Integration Tests And Spec Convergence
+  [x] 43.3 Section - Phase 43 Integration Tests And Spec Convergence
     Verify the new runtime update path, clarification recovery, and spec workspace all stay coherent before later conversation surface work builds on them.
 
-    [ ] 43.3.1 Task - Runtime delta and clarification scenarios
+    [x] 43.3.1 Task - Runtime delta and clarification scenarios
       Prove the coordinator and driver keep progressive updates, awaiting-input turns, and resumed execution coherent.
 
-      [ ] 43.3.1.1 Subtask - Add coverage proving progressive tool updates append sequenced events without breaking the active child-work contract.
-      [ ] 43.3.1.2 Subtask - Add coverage proving `turn.resume` clears pending clarification and restarts the awaiting turn rather than queueing new work.
-      [ ] 43.3.1.3 Subtask - Add coverage proving terminal tool-result submission stays aligned with durable snapshots and replay.
+      [x] 43.3.1.1 Subtask - Add coverage proving progressive tool updates append sequenced events without breaking the active child-work contract.
+      [x] 43.3.1.2 Subtask - Add coverage proving `turn.resume` clears pending clarification and restarts the awaiting turn rather than queueing new work.
+      [x] 43.3.1.3 Subtask - Add coverage proving terminal tool-result submission stays aligned with durable snapshots and replay.
 
-    [ ] 43.3.2 Task - Surface and workspace truth scenarios
+    [x] 43.3.2 Task - Surface and workspace truth scenarios
       Keep the planning workspace, specs, and browser-facing surface aligned to the now-complete command vocabulary.
 
-      [ ] 43.3.2.1 Subtask - Add coverage proving the conversation demo renders clarification prompts and resumed output through live events.
-      [ ] 43.3.2.2 Subtask - Update the conversation spec verification targets to include the new runtime-delta and clarification coverage.
-      [ ] 43.3.2.3 Subtask - Verify the planning index and Phase 43 document remain coherent after the new command behavior lands.
+      [x] 43.3.2.1 Subtask - Add coverage proving the conversation demo renders clarification prompts and resumed output through live events.
+      [x] 43.3.2.2 Subtask - Update the conversation spec verification targets to include the new runtime-delta and clarification coverage.
+      [x] 43.3.2.3 Subtask - Verify the planning index and Phase 43 document remain coherent after the new command behavior lands.

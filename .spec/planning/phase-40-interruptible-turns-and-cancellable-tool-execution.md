@@ -27,7 +27,7 @@ Back to index: [README](./README.md)
 - The product contract prefers one explicit control lane over a general numeric-priority message model.
 - Cancellation outcomes must stay observable and product-shaped even when underlying tools race with completion or fail to stop cleanly.
 
-[ ] 40 Phase 40 - Interruptible Turns And Cancellable Tool Execution
+[x] 40 Phase 40 - Interruptible Turns And Cancellable Tool Execution
   Implement the interruption layer that lets users stop, steer, pause, and resume productive coding turns while long-running tool work is still in flight.
 
   [x] 40.1 Section - Cancellable Child Execution Model
@@ -64,19 +64,19 @@ Back to index: [README](./README.md)
       [x] 40.2.2.2 Subtask - Preserve links between replacement turns and the turns they supersede so steering remains auditable.
       [x] 40.2.2.3 Subtask - Keep pause and resume semantics explicit about whether work admission, tool execution, or both are currently halted.
 
-  [ ] 40.3 Section - Phase 40 Integration Tests
+  [x] 40.3 Section - Phase 40 Integration Tests
     Verify interruption, cancellation, and supersession work end to end before the UI begins to depend on them as the canonical conversation model.
 
-    [ ] 40.3.1 Task - Child execution and cancellation scenarios
+    [x] 40.3.1 Task - Child execution and cancellation scenarios
       Prove long-running tool work can be cancelled cleanly and race-safe settlement remains explicit.
 
-      [ ] 40.3.1.1 Subtask - Add coverage proving in-flight tool work receives and honors cancellation requests through the new child-work contract.
-      [ ] 40.3.1.2 Subtask - Add coverage proving completion-before-cancel and cancel-failed races settle with explicit terminal outcomes.
-      [ ] 40.3.1.3 Subtask - Add coverage proving child-work ownership metadata stays aligned to conversation, turn, and tool-call identifiers.
+      [x] 40.3.1.1 Subtask - Add coverage proving in-flight tool work receives and honors cancellation requests through the new child-work contract.
+      [x] 40.3.1.2 Subtask - Add coverage proving completion-before-cancel and cancel-failed races settle with explicit terminal outcomes.
+      [x] 40.3.1.3 Subtask - Add coverage proving child-work ownership metadata stays aligned to conversation, turn, and tool-call identifiers.
 
-    [ ] 40.3.2 Task - Control-lane and supersession scenarios
+    [x] 40.3.2 Task - Control-lane and supersession scenarios
       Prove stop, steer, pause, and resume semantics overtake queued work and stay understandable to product callers.
 
-      [ ] 40.3.2.1 Subtask - Add coverage proving control commands overtake queued work turns without introducing arbitrary numeric priority semantics.
-      [ ] 40.3.2.2 Subtask - Add coverage proving active turns become cancelled or superseded explicitly when replacement turns are admitted.
-      [ ] 40.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 40 establishes interruptible turn execution.
+      [x] 40.3.2.1 Subtask - Add coverage proving control commands overtake queued work turns without introducing arbitrary numeric priority semantics.
+      [x] 40.3.2.2 Subtask - Add coverage proving active turns become cancelled or superseded explicitly when replacement turns are admitted.
+      [x] 40.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 40 establishes interruptible turn execution.

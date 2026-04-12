@@ -163,6 +163,35 @@ surface:
     - architecture.conversation_orchestration.expensive_work_announces_intent
 
 - kind: source_file
+  target: lib/jido_code/conversations/child_work.ex
+  covers:
+    - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
+    - architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+
+- kind: source_file
+  target: lib/jido_code/conversations/coordinator.ex
+  covers:
+    - architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+    - architecture.conversation_orchestration.control_lane_preempts_work_lane
+    - architecture.conversation_orchestration.active_turns_can_be_superseded
+    - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
+    - architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+
+- kind: source_file
+  target: lib/jido_code/conversations/driver.ex
+  covers:
+    - architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+    - architecture.conversation_orchestration.control_and_work_commands_are_distinct
+
+- kind: source_file
+  target: test/jido_code/phase_forty_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.control_lane_preempts_work_lane
+    - architecture.conversation_orchestration.active_turns_can_be_superseded
+    - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
+    - architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+
+- kind: source_file
   target: lib/jido_code_web/live/forge/show_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable

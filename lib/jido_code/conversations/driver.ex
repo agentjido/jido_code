@@ -15,8 +15,9 @@ defmodule JidoCode.Conversations.Driver do
   @spec start_conversation(map()) :: {:ok, map()} | {:error, term()}
   def start_conversation(attrs) when is_map(attrs) do
     with {:ok, %{conversation: %Conversation{} = conversation} = result} <- Conversations.start(attrs),
-         {:ok, _pid} <- ensure_coordinator(conversation) do
-      {:ok, Map.put(result, :snapshot, empty_snapshot(conversation))}
+         {:ok, _pid} <- ensure_coordinator(conversation),
+         {:ok, snapshot} <- Coordinator.snapshot(conversation.id) do
+      {:ok, Map.put(result, :snapshot, snapshot)}
     end
   end
 
@@ -39,7 +40,7 @@ defmodule JidoCode.Conversations.Driver do
 
     with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
          {:ok, _pid} <- ensure_coordinator(conversation),
-         {:ok, snapshot} <- Coordinator.transition_turn(conversation_id, turn_id, next_state) do
+         {:ok, snapshot} <- Coordinator.transition_turn(conversation_id, turn_id, next_state, actor) do
       {:ok, snapshot}
     end
   end
@@ -51,7 +52,7 @@ defmodule JidoCode.Conversations.Driver do
 
     with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
          {:ok, _pid} <- ensure_coordinator(conversation),
-         {:ok, snapshot} <- Coordinator.cancel_child_work(conversation_id, child_work_id) do
+         {:ok, snapshot} <- Coordinator.cancel_child_work(conversation_id, child_work_id, actor) do
       {:ok, snapshot}
     end
   end
@@ -65,8 +66,20 @@ defmodule JidoCode.Conversations.Driver do
 
     with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
          {:ok, _pid} <- ensure_coordinator(conversation),
-         {:ok, snapshot} <- Coordinator.settle_child_work(conversation_id, child_work_id, outcome, attrs) do
+         {:ok, snapshot} <- Coordinator.settle_child_work(conversation_id, child_work_id, outcome, attrs, actor) do
       {:ok, snapshot}
+    end
+  end
+
+  @spec events_since(String.t(), non_neg_integer(), keyword()) :: {:ok, [map()]} | {:error, term()}
+  def events_since(conversation_id, after_sequence, opts \\ [])
+      when is_binary(conversation_id) and is_integer(after_sequence) and after_sequence >= 0 and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    with {:ok, %Conversation{} = conversation} <- Conversations.resume(conversation_id, actor: actor),
+         {:ok, _pid} <- ensure_coordinator(conversation),
+         {:ok, events} <- Coordinator.events_since(conversation_id, after_sequence) do
+      {:ok, events}
     end
   end
 
@@ -103,25 +116,6 @@ defmodule JidoCode.Conversations.Driver do
           other -> other
         end
     end
-  end
-
-  defp empty_snapshot(%Conversation{} = conversation) do
-    %{
-      conversation_id: conversation.id,
-      managed_repo_id: conversation.managed_repo_id,
-      work_item_id: conversation.work_item_id,
-      status: conversation.status,
-      admission_paused: conversation.status == :paused,
-      child_execution_paused: false,
-      active_turn_id: nil,
-      active_turn: nil,
-      active_child_work_id: nil,
-      active_child_work: nil,
-      queued_turn_ids: [],
-      turns: [],
-      child_works: [],
-      control_history: []
-    }
   end
 
   defp normalize_actor(nil), do: Actor.operator_actor()

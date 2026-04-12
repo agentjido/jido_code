@@ -19,6 +19,9 @@ defmodule JidoCode.ConversationsDriverTest do
     assert snapshot.managed_repo_id == managed_repo.id
     assert Map.has_key?(snapshot, :active_turn_id)
     assert Map.has_key?(snapshot, :active_child_work_id)
+    assert snapshot.last_event_sequence == 0
+    assert snapshot.event_count == 0
+    assert snapshot.events == []
     refute Map.has_key?(snapshot, :kernel_name)
     refute Map.has_key?(snapshot, :pod_id)
 
@@ -199,6 +202,53 @@ defmodule JidoCode.ConversationsDriverTest do
     assert superseded_turn.state == :superseded
     assert superseded_snapshot.active_turn.id == replacement_turn.id
     assert superseded_snapshot.queued_turn_ids == [queued_turn_id]
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  test "driver replays sequenced events after the last accepted conversation sequence" do
+    managed_repo = managed_repo_fixture!("driver-events")
+
+    {:ok, %{conversation: conversation}} =
+      Driver.start_conversation(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Replay sequenced conversation events."
+      })
+
+    {:ok, first_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.submit", payload: %{instruction: "Inspect the replay path."}},
+        actor: Actor.operator_actor(%{"id" => "operator-events"})
+      )
+
+    assert first_snapshot.last_event_sequence == first_snapshot.event_count
+
+    assert {:ok, initial_events} =
+             Driver.events_since(conversation.id, 0, actor: Actor.operator_actor())
+
+    assert Enum.map(initial_events, & &1.sequence) == Enum.to_list(1..first_snapshot.event_count)
+    assert Enum.map(initial_events, & &1.name) == Enum.map(first_snapshot.events, & &1.name)
+
+    {:ok, stopping_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.stop", payload: %{reason: "Stop and replay the control lane."}},
+        actor: Actor.operator_actor(%{"id" => "operator-events"})
+      )
+
+    assert stopping_snapshot.last_event_sequence > first_snapshot.last_event_sequence
+
+    assert {:ok, replayed_events} =
+             Driver.events_since(conversation.id, first_snapshot.last_event_sequence, actor: Actor.operator_actor())
+
+    assert Enum.map(replayed_events, & &1.name) == [
+             "conversation.message_added",
+             "turn.cancelling",
+             "tool.cancel_requested",
+             "tool.cancel_acknowledged"
+           ]
 
     assert :ok = Driver.stop(conversation.id)
   end

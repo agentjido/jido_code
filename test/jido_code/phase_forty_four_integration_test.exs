@@ -24,10 +24,6 @@ defmodule JidoCode.PhaseFortyFourIntegrationTest do
                actor: Actor.operator_actor(%{"id" => "operator-phase44-open"})
              )
 
-    on_exit(fn ->
-      :ok = AgentWorkspace.stop_conversation(conversation.id)
-    end)
-
     assert snapshot.conversation_id == conversation.id
     assert snapshot.managed_repo_id == managed_repo.id
     assert snapshot.work_item_id == nil
@@ -68,6 +64,9 @@ defmodule JidoCode.PhaseFortyFourIntegrationTest do
 
     assert reopened_conversation.id == conversation.id
     assert reopened_snapshot.conversation_id == conversation.id
+
+    assert :ok = AgentWorkspace.stop_conversation(conversation.id)
+    assert :ok = AgentWorkspace.shutdown_kernel(managed_repo.id)
   end
 
   defp managed_repo_fixture!(suffix) do

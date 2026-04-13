@@ -300,7 +300,10 @@ defmodule JidoCode.AgentOS.Manager do
 
   defp shutdown_kernel_impl(kernel_name, state) do
     Logger.info("Shutting down kernel #{inspect(kernel_name)}")
-    DynamicSupervisor.terminate_child(kernel_supervisor(), state.pid)
+    wait_for_termination(state.pid, fn ->
+      DynamicSupervisor.terminate_child(kernel_supervisor(), state.pid)
+    end)
+
     untrack_kernel(kernel_name)
     :ok
   end
@@ -524,5 +527,18 @@ defmodule JidoCode.AgentOS.Manager do
 
   defp kernel_supervisor do
     Application.get_env(:jido_code, :agent_os_kernel_supervisor, __MODULE__.Supervisor)
+  end
+
+  defp wait_for_termination(pid, terminate_fun) when is_pid(pid) and is_function(terminate_fun, 0) do
+    ref = Process.monitor(pid)
+    _ = terminate_fun.()
+
+    receive do
+      {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+    after
+      1_000 ->
+        Process.demonitor(ref, [:flush])
+        :ok
+    end
   end
 end

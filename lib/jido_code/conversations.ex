@@ -534,7 +534,7 @@ defmodule JidoCode.Conversations do
   defp normalize_map(value) when is_map(value), do: stringify_keys(value)
   defp normalize_map(_value), do: %{}
 
-  defp stringify_keys(value) when is_map(value) do
+  defp stringify_keys(value) when is_map(value) and not is_struct(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       normalized_key =
         case key do
@@ -549,6 +549,11 @@ defmodule JidoCode.Conversations do
 
   defp stringify_keys(_value), do: %{}
 
+  defp stringify_nested_value(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  defp stringify_nested_value(%NaiveDateTime{} = value), do: NaiveDateTime.to_iso8601(value)
+  defp stringify_nested_value(%Date{} = value), do: Date.to_iso8601(value)
+  defp stringify_nested_value(%Time{} = value), do: Time.to_iso8601(value)
+  defp stringify_nested_value(value) when is_struct(value), do: value |> Map.from_struct() |> stringify_keys()
   defp stringify_nested_value(value) when is_map(value), do: stringify_keys(value)
   defp stringify_nested_value(value) when is_list(value), do: Enum.map(value, &stringify_nested_value/1)
   defp stringify_nested_value(value), do: value

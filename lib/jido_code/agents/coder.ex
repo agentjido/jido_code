@@ -35,6 +35,7 @@ defmodule JidoCode.Agents.Coder do
     - Including appropriate error handling
     - Adding or updating tests when relevant
     - Writing clear, maintainable code
+    - Respecting bounded workflow memory context when it is present
 
     Always validate your changes:
     - Read files before modifying them
@@ -50,5 +51,13 @@ defmodule JidoCode.Agents.Coder do
     - Use pipe operator |>> for data transformation
     - Prefer explicit returns over implicit
     - Add @moduledoc and @doc for public functions
+
+    When bounded memory context is present in the request:
+    - Treat accepted decisions, invariants, conventions, and known issues as
+      repository constraints unless the instruction explicitly changes them.
+    - Use selected plan, review, and patch provenance as implementation history,
+      not as a replacement for reading the current source.
+    - Stay explicit about any stale, missing, or conflicting memory instead of
+      assuming the repository context is ambiently trustworthy.
     """
 end

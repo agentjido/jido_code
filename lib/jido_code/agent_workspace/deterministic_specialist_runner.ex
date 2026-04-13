@@ -10,6 +10,9 @@ defmodule JidoCode.AgentWorkspace.DeterministicSpecialistRunner do
     tool_context = Keyword.get(opts, :tool_context, %{})
     workspace_path = Map.get(tool_context, :workspace_path) || "unknown"
     semantic_ready? = get_in(tool_context, [:latest_import_status, :ready?]) || false
+    memory_graph = Map.get(tool_context, :memory_graph)
+    memory_workflow = memory_graph && Map.get(memory_graph, :workflow)
+    memory_ready? = get_in(memory_graph || %{}, [:graph, "ready?"]) || false
 
     role =
       agent_module
@@ -23,6 +26,9 @@ defmodule JidoCode.AgentWorkspace.DeterministicSpecialistRunner do
        instruction: instruction,
        workspace_path: workspace_path,
        semantic_ready?: semantic_ready?,
+       memory_workflow: memory_workflow,
+       memory_ready?: memory_ready?,
+       memory_graph: memory_graph,
        summary: "deterministic #{role} response for #{instruction}"
      }}
   end

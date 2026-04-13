@@ -7,6 +7,28 @@ defmodule JidoCode.MemoryGraph.ViewModel do
   alias JidoCode.MemoryGraph.GovernedReference
   alias JidoCode.MemoryGraph.ProductFeedback
 
+  @known_memory_kind_suffixes ~w(
+    Fact
+    Decision
+    LessonLearned
+    Invariant
+    Convention
+    KnownIssue
+    OpenQuestion
+    Pattern
+    AntiPattern
+  )
+
+  @known_provenance_kind_suffixes ~w(
+    WorkSession
+    AgentRun
+    ToolInvocation
+    PromptTurn
+    Plan
+    Patch
+    Review
+  )
+
   @type projection :: map()
 
   @spec status(String.t(), map()) :: projection()
@@ -184,7 +206,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     kind_iri =
       rows
       |> Enum.map(&value(&1, "kind"))
-      |> Enum.find(&specific_memory_kind?/1)
+      |> Enum.find(&known_memory_kind?/1)
 
     module_iri = first_present_value(rows, "module")
     function_iri = first_present_value(rows, "function")
@@ -210,13 +232,18 @@ defmodule JidoCode.MemoryGraph.ViewModel do
   end
 
   defp provenance_item(rows, managed_repo_id) when is_list(rows) and is_binary(managed_repo_id) do
+    kind_iri =
+      rows
+      |> Enum.map(&value(&1, "kind"))
+      |> Enum.find(&known_provenance_kind?/1)
+
     module_iri = first_present_value(rows, "module")
     function_iri = first_present_value(rows, "function")
 
     %{
       resource_iri: first_present_value(rows, "resource"),
-      provenance_kind_iri: first_present_value(rows, "kind"),
-      provenance_kind: compact_name(first_present_value(rows, "kind")),
+      provenance_kind_iri: kind_iri || first_present_value(rows, "kind"),
+      provenance_kind: compact_name(kind_iri || first_present_value(rows, "kind")),
       label: first_present_value(rows, "label"),
       content: first_present_value(rows, "content"),
       started_at: first_present_value(rows, "startedAt"),
@@ -276,8 +303,16 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     |> Enum.find(&(not is_nil(&1)))
   end
 
-  defp specific_memory_kind?(nil), do: false
-  defp specific_memory_kind?(value), do: not String.ends_with?(value, "#Memory")
+  defp known_memory_kind?(value), do: known_kind_suffix?(value, @known_memory_kind_suffixes)
+  defp known_provenance_kind?(value), do: known_kind_suffix?(value, @known_provenance_kind_suffixes)
+
+  defp known_kind_suffix?(nil, _suffixes), do: false
+
+  defp known_kind_suffix?(value, suffixes) when is_binary(value) do
+    Enum.any?(suffixes, &String.ends_with?(value, "##{&1}") or String.ends_with?(value, "/#{&1}"))
+  end
+
+  defp known_kind_suffix?(_value, _suffixes), do: false
 
   defp value(binding, key) when is_map(binding) do
     binding

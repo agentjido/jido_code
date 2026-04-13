@@ -106,6 +106,52 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert provenance_query.row_count >= 1
   end
 
+  test "execute returns bounded memory workflow inputs with implementation-focused defaults", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+    revision = "rev-45-memory-execute"
+
+    %{
+      memory_resource_iri: memory_resource_iri,
+      plan_resource_iri: plan_resource_iri
+    } = seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+    assert {:ok, result} =
+             WorkflowService.execute(
+               managed_repo_id,
+               work_item_id,
+               "Implement with memory context",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision
+               ]
+             )
+
+    assert result.workflow == :execute
+    assert result.changes =~ "deterministic coder response"
+    assert result.memory_input.workflow == :execute
+    assert result.memory_input.graph.state == :ready
+    assert result.memory_input.freshness.state == :ready
+    assert result.memory_input.policy.intent == :implementation_constraints
+    assert result.memory_input.policy.follow_up_intent == :work_item
+    assert :decision in result.memory_input.policy.memory_kinds
+    assert :plan in result.memory_input.policy.provenance_kinds
+    assert result.memory_input.selection.state == :selected
+    assert memory_resource_iri in result.memory_input.selection.memory_resources
+    assert plan_resource_iri in result.memory_input.selection.provenance_resources
+    assert result.workflow_provenance.workflow == :execute
+    assert result.workflow_provenance.follow_up_intent == :work_item
+    assert Enum.any?(result.workflow_provenance.governed_references, &(&1.kind == :run and &1.id == "run-32"))
+    assert result.follow_up_context["workflow"] == "execute"
+    assert result.follow_up_context["retrieval_policy"]["intent"] == "implementation_constraints"
+    assert memory_resource_iri in result.follow_up_context["memory_resources"]
+    assert plan_resource_iri in result.follow_up_context["provenance_resources"]
+  end
+
   test "workflow memory requests fail safely with explicit freshness and recovery feedback", %{
     workspace_path: workspace_path
   } do
@@ -151,6 +197,28 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert raw_query_error.error.type == :unsupported_raw_memory_query
     assert raw_query_error.feedback.state == :unavailable
     assert raw_query_error.feedback.label == "Memory graph unavailable"
+  end
+
+  test "execute rejects raw memory queries at the workflow boundary", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+
+    assert {:error, :unsupported_raw_memory_query, error} =
+             WorkflowService.execute(
+               managed_repo_id,
+               "work-#{System.unique_integer([:positive])}",
+               "Execute with raw query",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 query: "SELECT * WHERE { ?s ?p ?o }"
+               ]
+             )
+
+    assert error.workflow == :execute
+    assert error.error.type == :unsupported_raw_memory_query
+    assert error.feedback.state == :unavailable
   end
 
   test "review uses explicit retrieval policy and records selected durable memory in workflow provenance", %{
@@ -259,6 +327,87 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
                ]
              )
 
+    assert result.memory_input.selection.memory_count == 0
+    refute memory_resource_iri in result.memory_input.selection.memory_resources
+  end
+
+  test "execute memory requests fail safely when memory is disabled or invalidated", %{
+    workspace_path: workspace_path
+  } do
+    previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
+
+    on_exit(fn ->
+      Application.put_env(:jido_code, :memory_graph_enabled, previous)
+    end)
+
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    disabled_work_item_id = "work-#{System.unique_integer([:positive])}"
+
+    Application.put_env(:jido_code, :memory_graph_enabled, false)
+
+    assert {:error, :memory_graph_disabled, disabled_error} =
+             WorkflowService.execute(
+               managed_repo_id,
+               disabled_work_item_id,
+               "Execute with disabled memory context",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :none,
+                 memories: [content_contains: "Repository decisions"]
+               ]
+             )
+
+    assert disabled_error.workflow == :execute
+    assert disabled_error.graph.state == :disabled
+    assert disabled_error.feedback.state == :disabled
+
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    invalidated_work_item_id = "work-#{System.unique_integer([:positive])}"
+    revision = "rev-45-memory-execute-filter"
+
+    %{memory_resource_iri: memory_resource_iri} =
+      seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+    assert {:ok, projection} =
+             ProductService.memories(
+               managed_repo_id,
+               workspace_path,
+               content_contains: "Repository decisions should keep ExampleMemoryWorkflow.greet/1 stable.",
+               revision: revision
+             )
+
+    assert {:ok, _invalidated} =
+             OperatorService.invalidate(
+               projection,
+               memory_resource_iri,
+               workspace_path: workspace_path,
+               revision: revision,
+               stale_reason: "workflow_memory_invalidated_execute"
+             )
+
+    assert {:ok, result} =
+             WorkflowService.execute(
+               managed_repo_id,
+               invalidated_work_item_id,
+               "Implement with invalidated memory filtered out",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision,
+                 policy: [
+                   intent: :implementation_constraints,
+                   memory_kinds: [:decision],
+                   freshness: :ready_only,
+                   provenance_kinds: [:plan],
+                   follow_up_intent: :work_item
+                 ]
+               ]
+             )
+
+    assert result.workflow == :execute
     assert result.memory_input.selection.memory_count == 0
     refute memory_resource_iri in result.memory_input.selection.memory_resources
   end

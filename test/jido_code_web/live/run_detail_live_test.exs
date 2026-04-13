@@ -7,6 +7,9 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: architecture.run_governance.run_detail_can_host_bounded_memory_context
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+  # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  # covers: architecture.conversation_orchestration.governed_run_routes_host_work_conversations
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   # covers: architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
@@ -224,6 +227,75 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-evidence-key-1")
     assert has_element?(view, "#run-detail-change-request-status", "open")
     assert has_element?(view, "#run-detail-decisions-empty")
+  end
+
+  test "hosts governed work conversation interaction inside the run detail route", %{conn: _conn} do
+    register_owner("run-conversation-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("run-conversation-owner@example.com", "owner-password-123")
+
+    {project, _managed_repo, work_item, run_id} =
+      create_run_conversation_fixture!("run_detail_conversation_ui")
+
+    on_exit(fn ->
+      case AgentWorkspace.latest_work_item_conversation(work_item.id, actor: Actor.operator_actor()) do
+        {:ok, %{id: conversation_id}} -> :ok = AgentWorkspace.stop_conversation(conversation_id)
+        _other -> :ok
+      end
+    end)
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-conversation-panel")
+    assert has_element?(view, "#run-detail-conversation-open", "Open work conversation")
+
+    view
+    |> element("#run-detail-conversation-open")
+    |> render_click()
+
+    assert has_element?(view, "#run-detail-conversation-id")
+    assert has_element?(view, "#run-detail-conversation-status", "active")
+    assert has_element?(view, "#run-detail-conversation-work-item", work_item.id)
+
+    html =
+      view
+      |> form("#run-detail-conversation-form", %{
+        "input" => "Inspect the governed run detail conversation flow."
+      })
+      |> render_submit()
+
+    assert html =~ "Inspect the governed run detail conversation flow."
+    assert has_element?(view, "#run-detail-conversation-events")
+
+    _html =
+      view
+      |> form("#run-detail-conversation-form", %{
+        "input" => "Clarify which failing step needs input."
+      })
+      |> render_submit()
+
+    assert_eventually(fn ->
+      has_element?(view, "#run-detail-conversation-pending-clarification")
+    end)
+
+    _html =
+      view
+      |> form("#run-detail-conversation-form", %{
+        "input" => "run_tests in lib/jido_code_web/live/run_detail_live.ex"
+      })
+      |> render_submit()
+
+    assert_eventually(fn ->
+      render(view) =~
+        "Completed the clarified governed work: run_tests in lib/jido_code_web/live/run_detail_live.ex"
+    end)
+
+    assert {:ok, latest_conversation} =
+             AgentWorkspace.latest_work_item_conversation(work_item.id, actor: Actor.operator_actor())
+
+    assert is_binary(latest_conversation.id)
   end
 
   test "shows bounded memory context for governed run history", %{conn: _conn} do
@@ -2234,6 +2306,96 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     refute has_element?(view, "#run-detail-step-retry-button")
     assert has_element?(view, "#run-detail-step-retry-guidance-detail", "does not declare")
     assert has_element?(view, "#run-detail-step-retry-guidance-remediation", "step-level retry")
+  end
+
+  defp create_run_conversation_fixture!(suffix) do
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-#{suffix}",
+        github_full_name: "owner/#{suffix}",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, event} =
+      Event.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          category: "operator_request",
+          summary: "Create governed work for run detail conversation coverage.",
+          correlation_key: "run-detail-conversation-#{System.unique_integer([:positive])}",
+          payload: %{},
+          source_metadata: %{"source" => "run_detail_live_test"},
+          occurred_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, assessment} =
+      Assessment.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          event_id: event.id,
+          category: "operator_work_request",
+          summary: "Assess governed work for run detail conversation coverage.",
+          priority: :high,
+          urgency: :medium,
+          recommended_action: "review_operator_request",
+          rationale: "Run detail conversation coverage needs canonical governed work.",
+          inputs: %{},
+          assessment_metadata: %{},
+          assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, work_item} =
+      WorkItem.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          assessment_id: assessment.id,
+          event_id: event.id,
+          category: "operator_work_request",
+          status: :open,
+          priority: :high,
+          recommended_action: "review_operator_request",
+          summary: "Continue governed work from run detail.",
+          dedup_key: "run-detail-conversation-work-item-#{System.unique_integer([:positive])}",
+          initiating_actor: %{"id" => "owner-1"},
+          work_metadata: %{},
+          audit_log: [],
+          opened_at: DateTime.utc_now() |> DateTime.truncate(:microsecond),
+          last_assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    run_id = "run-detail-conversation-#{System.unique_integer([:positive])}"
+
+    {:ok, _workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{
+          "task_summary" => "Continue governed work from run detail.",
+          "work_item_id" => work_item.id
+        },
+        input_metadata: %{
+          "task_summary" => %{required: true, source: "manual_workflows_ui"},
+          "work_item_id" => %{"required" => true, "source" => "work_item"}
+        },
+        initiating_actor: %{id: "owner-1", email: "run-conversation-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-13 16:30:00Z]
+      })
+
+    {project, managed_repo, work_item, run_id}
   end
 
   defp create_memory_workspace_path!(suffix) do

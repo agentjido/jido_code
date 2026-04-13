@@ -1,4 +1,6 @@
 defmodule JidoCode.ConversationsCoordinatorTest do
+  # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+  # covers: architecture.conversation_orchestration.control_and_work_commands_are_distinct
   use ExUnit.Case, async: false
 
   alias JidoCode.Conversations.{ChildWork, Command, Conversation, Coordinator, PubSub, Turn}
@@ -258,6 +260,60 @@ defmodule JidoCode.ConversationsCoordinatorTest do
              "conversation.message_added",
              "turn.started"
            ]
+  end
+
+  test "coordinator admits tool.cancel as a control command against the active child work" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-tool-cancel", "actor_class" => "operator"}
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the active child work."}},
+               actor
+             )
+
+    child_work_id = running_snapshot.active_child_work_id
+    turn_id = running_snapshot.active_turn_id
+
+    assert {:ok, cancellation_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "tool.cancel", payload: %{}},
+               actor
+             )
+
+    assert cancellation_snapshot.active_turn.id == turn_id
+    assert cancellation_snapshot.active_turn.state == :cancelling
+    assert cancellation_snapshot.active_child_work.id == child_work_id
+    assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
+    assert Enum.any?(cancellation_snapshot.control_history, &(&1.type == "tool.cancel"))
+
+    assert Enum.map(Enum.take(cancellation_snapshot.events, -4), & &1.name) == [
+             "conversation.message_added",
+             "turn.cancelling",
+             "tool.cancel_requested",
+             "tool.cancel_acknowledged"
+           ]
+
+    assert {:ok, settled_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               child_work_id,
+               :cancelled,
+               %{result: %{reason: "Operator cancelled the active tool."}},
+               actor
+             )
+
+    cancelled_turn = Enum.find(settled_snapshot.turns, &(&1.id == turn_id))
+    cancelled_child_work = Enum.find(settled_snapshot.child_works, &(&1.id == child_work_id))
+
+    assert settled_snapshot.active_turn == nil
+    assert settled_snapshot.active_child_work == nil
+    assert cancelled_turn.state == :cancelled
+    assert cancelled_child_work.state == :cancelled
   end
 
   test "coordinator tracks child work ownership, cancellation, and settled outcomes explicitly" do

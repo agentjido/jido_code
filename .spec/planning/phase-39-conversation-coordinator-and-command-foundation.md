@@ -48,29 +48,29 @@ Back to index: [README](./README.md)
       [x] 39.1.2.2 Subtask - Preserve initiating actor, source metadata, and requested objective so conversation history stays explainable alongside work synthesis.
       [x] 39.1.2.3 Subtask - Keep conversation start behavior compatible with steering existing work instead of always creating fresh parallel work objects.
 
-  [ ] 39.2 Section - Coordinator Boundary And Command Admission
+  [x] 39.2 Section - Coordinator Boundary And Command Admission
     Add the coordinator layer that owns turn admission, state transitions, and command normalization before interruption and event streaming are layered on top.
 
-    [ ] 39.2.1 Task - Introduce the product-owned conversation coordinator and driver boundary
+    [x] 39.2.1 Task - Introduce the product-owned conversation coordinator and driver boundary
       Create the runtime-owned boundary that sits beside `AgentWorkspace` and becomes the single owner of turn state for an active conversation.
 
-      [ ] 39.2.1.1 Subtask - Introduce a canonical conversation driver or coordinator module that owns admission, snapshots, and turn lifecycle state.
-      [ ] 39.2.1.2 Subtask - Route the coordinator through AgentWorkspace or adjacent workspace-owned helpers so LiveViews do not address pods directly.
-      [ ] 39.2.1.3 Subtask - Keep the boundary compatible with one CodingPod per `WorkItem` while making room for pre-work repo-scoped conversations.
+      [x] 39.2.1.1 Subtask - Introduce a canonical conversation driver or coordinator module that owns admission, snapshots, and turn lifecycle state.
+      [x] 39.2.1.2 Subtask - Route the coordinator through AgentWorkspace or adjacent workspace-owned helpers so LiveViews do not address pods directly.
+      [x] 39.2.1.3 Subtask - Keep the boundary compatible with one CodingPod per `WorkItem` while making room for pre-work repo-scoped conversations.
 
-    [ ] 39.2.2 Task - Split work commands from control commands
+    [x] 39.2.2 Task - Split work commands from control commands
       Establish the explicit command vocabulary that later phases will use for interruption, steering, and tool-result handling.
 
-      [ ] 39.2.2.1 Subtask - Define canonical work commands such as `turn.submit`, `tool_result.submit`, and `turn.resume`.
-      [ ] 39.2.2.2 Subtask - Define canonical control commands such as `turn.stop`, `turn.steer`, `tool.cancel`, `session.pause`, and `session.resume`.
-      [ ] 39.2.2.3 Subtask - Validate and normalize command payloads at the coordinator boundary so callers never depend on raw model- or tool-local shapes.
+      [x] 39.2.2.1 Subtask - Define canonical work commands such as `turn.submit`, `tool_result.submit`, and `turn.resume`.
+      [x] 39.2.2.2 Subtask - Define canonical control commands such as `turn.stop`, `turn.steer`, `tool.cancel`, `session.pause`, and `session.resume`.
+      [x] 39.2.2.3 Subtask - Validate and normalize command payloads at the coordinator boundary so callers never depend on raw model- or tool-local shapes.
 
-    [ ] 39.2.3 Task - Materialize the baseline turn lifecycle
+    [x] 39.2.3 Task - Materialize the baseline turn lifecycle
       Introduce the turn-state model the coordinator will use before more advanced cancellation and eventing semantics arrive.
 
-      [ ] 39.2.3.1 Subtask - Define queued, running, awaiting-input, completed, cancelled, superseded, and failed turn states with explicit transitions.
-      [ ] 39.2.3.2 Subtask - Preserve supersedes and superseded references so later steering behavior can remain explainable and auditable.
-      [ ] 39.2.3.3 Subtask - Keep turn lifecycle shaping product-readable and detached from any one provider or model runtime.
+      [x] 39.2.3.1 Subtask - Define queued, running, awaiting-input, completed, cancelled, superseded, and failed turn states with explicit transitions.
+      [x] 39.2.3.2 Subtask - Preserve supersedes and superseded references so later steering behavior can remain explainable and auditable.
+      [x] 39.2.3.3 Subtask - Keep turn lifecycle shaping product-readable and detached from any one provider or model runtime.
 
   [ ] 39.3 Section - Phase 39 Integration Tests
     Verify the new conversation foundation produces bounded scope, canonical command handling, and explainable turn lifecycle behavior before interruption semantics build on it.

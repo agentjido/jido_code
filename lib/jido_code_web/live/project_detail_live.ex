@@ -8,6 +8,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+  # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -174,8 +177,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     {:noreply, assign(socket, :conversation_input, value)}
   end
 
-  def handle_event("send_conversation", _params, socket) do
-    input = String.trim(socket.assigns.conversation_input)
+  def handle_event("send_conversation", params, socket) do
+    input =
+      params
+      |> Map.get("input", socket.assigns.conversation_input)
+      |> normalize_optional_string()
+      |> Kernel.||("")
+
     submit_as_resume? = conversation_awaiting_input?(socket.assigns.conversation_snapshot)
     conversation_id = conversation_id(socket)
 

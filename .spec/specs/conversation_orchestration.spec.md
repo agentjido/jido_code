@@ -7,7 +7,7 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks rather than snapshot polling or ad hoc FIFO chat handling.
+summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption rather than snapshot polling or ad hoc FIFO chat handling.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
@@ -23,13 +23,17 @@ surface:
   - lib/jido_code/conversations/snapshot_record.ex
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/operations/synthesis.ex
+  - lib/jido_code/workbench/project_conversation.ex
+  - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/demos/chat_live.ex
   - lib/jido_code_web/live/forge/show_live.ex
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
+  - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/demos/chat_live_test.exs
+  - test/jido_code_web/live/project_detail_live_test.exs
 ```
 
 ## Requirements
@@ -92,6 +96,11 @@ surface:
 
 - id: architecture.conversation_orchestration.expensive_work_announces_intent
   statement: Before expensive tool use or long-running execution, the assistant should emit a concise intent or plan event that tells the user what it is about to inspect or execute and why.
+  priority: should
+  stability: proposed
+
+- id: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  statement: Managed-repository operator routes should be able to open, resume, and guide bounded repo-scoped conversations through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.
   priority: should
   stability: proposed
 ```
@@ -182,6 +191,21 @@ surface:
     - The durable conversation record reflects the updated work-item scope.
     - The governed work loop preserves actor attribution and steering auditability on the canonical `WorkItem`.
     - Persisted conversation snapshots retain the bounded shared context needed for the redirected work.
+
+- id: architecture.conversation_orchestration.scenario_managed_repo_route_reuses_repo_conversation
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  given:
+    - A managed-repository detail route needs to show the latest bounded conversation state for that repository.
+  when:
+    - The operator opens or resumes the repository conversation from that route.
+  then:
+    - The product-owned route boundary reuses the latest active repo-scoped conversation when one already exists.
+    - The route loads the latest durable snapshot and recent events through bounded workspace helpers.
+    - Live delivery stays event-driven while degraded continuity still renders the latest durable conversation state.
 ```
 
 ## Verification
@@ -266,6 +290,19 @@ surface:
     - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+
+- kind: source_file
+  target: lib/jido_code/workbench/project_conversation.ex
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+
+- kind: source_file
   target: test/jido_code/phase_forty_integration_test.exs
   covers:
     - architecture.conversation_orchestration.control_lane_preempts_work_lane
@@ -297,6 +334,13 @@ surface:
     - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
+  target: test/jido_code/phase_forty_four_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+
+- kind: source_file
   target: lib/jido_code_web/live/forge/show_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
@@ -309,10 +353,24 @@ surface:
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
 
 - kind: source_file
+  target: lib/jido_code_web/live/project_detail_live.ex
+  covers:
+    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+
+- kind: source_file
   target: test/jido_code_web/live/demos/chat_live_test.exs
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+
+- kind: source_file
+  target: test/jido_code_web/live/project_detail_live_test.exs
+  covers:
+    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
 
 - kind: source_file
   target: lib/jido_code/forge/pubsub.ex

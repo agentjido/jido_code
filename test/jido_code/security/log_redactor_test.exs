@@ -47,4 +47,18 @@ defmodule JidoCode.Security.LogRedactorTest do
     refute inspected =~ "abcdef1234567890"
     refute inspected =~ "letmein1234"
   end
+
+  test "redact_event preserves structs like DateTime while redacting nested secrets" do
+    occurred_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    payload = %{
+      occurred_at: occurred_at,
+      nested: %{api_token: "sk-test-0123456789abcdef"}
+    }
+
+    assert {:ok, redacted_payload} = LogRedactor.redact_event(payload)
+    assert %DateTime{} = redacted_payload.occurred_at
+    assert redacted_payload.occurred_at == occurred_at
+    assert redacted_payload.nested.api_token =~ "[REDACTED"
+  end
 end

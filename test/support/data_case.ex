@@ -38,7 +38,12 @@ defmodule JidoCode.DataCase do
   """
   def setup_sandbox(tags) do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(JidoCode.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    Process.put({JidoCode.Repo, :sandbox_owner}, pid)
+
+    on_exit(fn ->
+      Process.delete({JidoCode.Repo, :sandbox_owner})
+      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
+    end)
   end
 
   @doc """

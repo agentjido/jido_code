@@ -39,9 +39,11 @@ defmodule JidoCode.Conversations.Coordinator do
           events: [Event.t()]
         }
 
-  def start_link(%Conversation{} = conversation) do
-    GenServer.start_link(__MODULE__, conversation, name: via_tuple(conversation.id))
+  def start_link({%Conversation{} = conversation, opts}) when is_list(opts) do
+    GenServer.start_link(__MODULE__, {conversation, opts}, name: via_tuple(conversation.id))
   end
+
+  def start_link(%Conversation{} = conversation), do: start_link({conversation, []})
 
   @spec via_tuple(String.t()) :: {:via, Registry, {module(), String.t()}}
   def via_tuple(conversation_id),
@@ -82,7 +84,12 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   @impl true
-  def init(%Conversation{} = conversation) do
+  def init({%Conversation{} = conversation, opts}) when is_list(opts) do
+    maybe_allow_test_sandbox(
+      Keyword.get(opts, :sandbox_owner),
+      Keyword.get(opts, :starter_pid)
+    )
+
     state =
       case Persistence.restore_state(conversation) do
         {:ok, restored_state} when is_map(restored_state) -> restored_state
@@ -91,6 +98,8 @@ defmodule JidoCode.Conversations.Coordinator do
 
     {:ok, state}
   end
+
+  def init(%Conversation{} = conversation), do: init({conversation, []})
 
   @impl true
   def handle_call({:admit_command, command, actor}, _from, state) do
@@ -1146,6 +1155,33 @@ defmodule JidoCode.Conversations.Coordinator do
       event_sequence: 0,
       events: []
     }
+  end
+
+  defp maybe_allow_test_sandbox(sandbox_owner, starter_pid) do
+    [sandbox_owner, starter_pid]
+    |> Enum.filter(&is_pid/1)
+    |> Enum.uniq()
+    |> Enum.reduce_while(:ok, fn owner_pid, :ok ->
+      case allow_test_sandbox(owner_pid) do
+        :ok -> {:halt, :ok}
+        :error -> {:cont, :ok}
+      end
+    end)
+  end
+
+  defp allow_test_sandbox(owner_pid) when is_pid(owner_pid) do
+    if Code.ensure_loaded?(Ecto.Adapters.SQL.Sandbox) do
+      try do
+        Ecto.Adapters.SQL.Sandbox.allow(JidoCode.Repo, owner_pid, self())
+        :ok
+      rescue
+        _exception -> :error
+      catch
+        _kind, _reason -> :error
+      end
+    else
+      :error
+    end
   end
 
   defp turn_event_name(nil, %Turn{state: :queued}), do: "turn.queued"

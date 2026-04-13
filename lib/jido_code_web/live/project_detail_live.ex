@@ -1291,9 +1291,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp conversation_input_command(socket, input) do
     case socket.assigns.conversation_snapshot do
-      %{active_turn_id: turn_id} = snapshot
-      when is_binary(turn_id) and conversation_awaiting_input?(snapshot) ->
-        %{type: "turn.resume", payload: %{turn_id: turn_id, response: input}}
+      %{active_turn_id: turn_id} = snapshot when is_binary(turn_id) ->
+        if conversation_awaiting_input?(snapshot) do
+          %{type: "turn.resume", payload: %{turn_id: turn_id, response: input}}
+        else
+          %{type: "turn.submit", payload: %{instruction: input}}
+        end
 
       _other ->
         %{type: "turn.submit", payload: %{instruction: input}}

@@ -18,10 +18,14 @@ defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
   # covers: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
   # covers: architecture.agent_os_integration.memory_graph_product_actions_stay_workspace_bound
+  # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+  # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Projects.Project
 
   describe "kernel lifecycle" do
     test "ensure_kernel creates or returns existing kernel" do
@@ -411,6 +415,77 @@ defmodule JidoCode.AgentWorkspaceTest do
     end
   end
 
+  describe "conversation coordination" do
+    test "workspace helpers keep conversation coordination repo-scoped without exposing runtime topology" do
+      managed_repo = managed_repo_fixture!("workspace-conversation")
+
+      assert {:ok, %{conversation: conversation, snapshot: initial_snapshot}} =
+               AgentWorkspace.open_repo_conversation(
+                 managed_repo.id,
+                 %{
+                   source: "agent_workspace_test",
+                   objective: "Open a repository conversation through the workspace boundary."
+                 },
+                 actor: Actor.operator_actor(%{"id" => "operator-workspace-conversation"})
+               )
+
+      assert initial_snapshot.conversation_id == conversation.id
+      assert initial_snapshot.managed_repo_id == managed_repo.id
+      refute Map.has_key?(initial_snapshot, :kernel_name)
+      refute Map.has_key?(initial_snapshot, :pod_id)
+
+      assert {:ok, latest_conversation} =
+               AgentWorkspace.latest_repo_conversation(managed_repo.id,
+                 actor: Actor.operator_actor()
+               )
+
+      assert latest_conversation.id == conversation.id
+
+      assert {:ok, running_snapshot} =
+               AgentWorkspace.handle_conversation_command(
+                 conversation.id,
+                 %{type: "turn.submit", payload: %{instruction: "Inspect the workspace boundary."}},
+                 actor: Actor.operator_actor(%{"id" => "operator-workspace-conversation"})
+               )
+
+      assert running_snapshot.active_turn.command_type == "turn.submit"
+      assert running_snapshot.active_turn.state == :running
+      assert running_snapshot.active_child_work.turn_id == running_snapshot.active_turn.id
+
+      assert {:ok, cancellation_snapshot} =
+               AgentWorkspace.handle_conversation_command(
+                 conversation.id,
+                 %{type: "tool.cancel", payload: %{}},
+                 actor: Actor.operator_actor(%{"id" => "operator-workspace-conversation"})
+               )
+
+      assert cancellation_snapshot.active_turn.state == :cancelling
+      assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
+      assert Enum.any?(cancellation_snapshot.control_history, &(&1.type == "tool.cancel"))
+
+      assert {:ok, persisted_snapshot} =
+               AgentWorkspace.conversation_snapshot(conversation.id)
+
+      assert persisted_snapshot.conversation_id == conversation.id
+      refute Map.has_key?(persisted_snapshot, :kernel_name)
+      refute Map.has_key?(persisted_snapshot, :pod_id)
+
+      assert {:ok, replayed_events} =
+               AgentWorkspace.conversation_events_since(conversation.id, running_snapshot.last_event_sequence,
+                 actor: Actor.operator_actor()
+               )
+
+      assert Enum.map(replayed_events, & &1.name) == [
+               "conversation.message_added",
+               "turn.cancelling",
+               "tool.cancel_requested",
+               "tool.cancel_acknowledged"
+             ]
+
+      assert :ok = AgentWorkspace.stop_conversation(conversation.id)
+    end
+  end
+
   describe "source code graph workflow adoption" do
     setup do
       previous = Application.get_env(:jido_code, :source_code_graph_enabled, false)
@@ -535,5 +610,20 @@ defmodule JidoCode.AgentWorkspaceTest do
     )
 
     workspace_path
+  end
+
+  defp managed_repo_fixture!(suffix) do
+    {:ok, project} =
+      Project.create(%{
+        name: "agent-workspace-#{suffix}",
+        github_full_name: "owner/agent-workspace-#{suffix}",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    managed_repo
   end
 end

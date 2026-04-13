@@ -381,6 +381,21 @@ defmodule JidoCode.Conversations.Snapshot do
 
   defp normalize_string_list(_value), do: []
 
+  defp normalize_map(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      Map.put(acc, normalized_key, normalize_nested_value(nested_value))
+    end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
   defp normalize_map_list(value) when is_list(value), do: Enum.filter(value, &is_map/1)
   defp normalize_map_list(_value), do: []
 
@@ -402,10 +417,16 @@ defmodule JidoCode.Conversations.Snapshot do
     end
   end
 
+  defp normalize_optional_string(nil), do: nil
+
   defp normalize_optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> normalize_optional_string()
 
   defp normalize_optional_string(_value), do: nil
+
+  defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
+  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+  defp normalize_nested_value(value), do: value
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)

@@ -527,6 +527,7 @@ defmodule JidoCode.Conversations do
     end
   end
 
+  defp optional_string(nil), do: nil
   defp optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> optional_string()
   defp optional_string(_value), do: nil
 

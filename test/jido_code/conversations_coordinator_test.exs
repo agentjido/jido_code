@@ -1,7 +1,11 @@
 defmodule JidoCode.ConversationsCoordinatorTest do
-  use ExUnit.Case, async: false
+  # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+  # covers: architecture.conversation_orchestration.control_and_work_commands_are_distinct
+  use JidoCode.DataCase, async: false
 
+  alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Conversations.{ChildWork, Command, Conversation, Coordinator, PubSub, Turn}
+  alias JidoCode.Projects.Project
 
   setup do
     original_persistence = Application.get_env(:jido_code, JidoCode.Conversations.Persistence)
@@ -44,7 +48,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   test "coordinator admits work turns, pauses the session, and resumes queued work" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-2", "actor_class" => "operator"}
 
@@ -113,7 +117,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   test "coordinator records sequenced events and broadcasts typed conversation events" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-events", "actor_class" => "operator"}
 
@@ -158,7 +162,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   test "coordinator routes tool-result updates and turn resumes through explicit runtime events" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-runtime", "actor_class" => "operator"}
 
@@ -260,9 +264,63 @@ defmodule JidoCode.ConversationsCoordinatorTest do
            ]
   end
 
+  test "coordinator admits tool.cancel as a control command against the active child work" do
+    conversation = conversation_fixture()
+    start_coordinator!(conversation)
+
+    actor = %{"id" => "operator-tool-cancel", "actor_class" => "operator"}
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the active child work."}},
+               actor
+             )
+
+    child_work_id = running_snapshot.active_child_work_id
+    turn_id = running_snapshot.active_turn_id
+
+    assert {:ok, cancellation_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "tool.cancel", payload: %{}},
+               actor
+             )
+
+    assert cancellation_snapshot.active_turn.id == turn_id
+    assert cancellation_snapshot.active_turn.state == :cancelling
+    assert cancellation_snapshot.active_child_work.id == child_work_id
+    assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
+    assert Enum.any?(cancellation_snapshot.control_history, &(&1.type == "tool.cancel"))
+
+    assert Enum.map(Enum.take(cancellation_snapshot.events, -4), & &1.name) == [
+             "conversation.message_added",
+             "turn.cancelling",
+             "tool.cancel_requested",
+             "tool.cancel_acknowledged"
+           ]
+
+    assert {:ok, settled_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               child_work_id,
+               :cancelled,
+               %{result: %{reason: "Operator cancelled the active tool."}},
+               actor
+             )
+
+    cancelled_turn = Enum.find(settled_snapshot.turns, &(&1.id == turn_id))
+    cancelled_child_work = Enum.find(settled_snapshot.child_works, &(&1.id == child_work_id))
+
+    assert settled_snapshot.active_turn == nil
+    assert settled_snapshot.active_child_work == nil
+    assert cancelled_turn.state == :cancelled
+    assert cancelled_child_work.state == :cancelled
+  end
+
   test "coordinator tracks child work ownership, cancellation, and settled outcomes explicitly" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-3", "actor_class" => "operator"}
 
@@ -317,7 +375,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   test "child work settles completion before a later cancel can land" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-4", "actor_class" => "operator"}
 
@@ -350,7 +408,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   test "turn stop marks the active turn as cancelling before it settles cancelled" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-5", "actor_class" => "operator"}
 
@@ -389,7 +447,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   test "turn steer overtakes queued work and preserves supersession links" do
     conversation = conversation_fixture()
-    start_supervised!({Coordinator, conversation})
+    start_coordinator!(conversation)
 
     actor = %{"id" => "operator-6", "actor_class" => "operator"}
 
@@ -509,22 +567,52 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   defp conversation_fixture do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    managed_repo = managed_repo_fixture!("coordinator")
 
-    %Conversation{
-      id: Ecto.UUID.generate(),
-      managed_repo_id: Ecto.UUID.generate(),
-      work_item_id: nil,
-      status: :active,
-      scope: :repo_scoped,
-      attachment_mode: :pre_work,
-      source: "conversation",
-      title: "Phase 39 Coordinator Test",
-      objective: "Exercise coordinator behavior without database persistence.",
-      initiating_actor: %{"id" => "operator-test", "actor_class" => "operator"},
-      source_metadata: %{},
-      conversation_metadata: %{},
-      started_at: now,
-      last_activity_at: now
-    }
+    {:ok, conversation} =
+      Conversation.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          work_item_id: nil,
+          status: :active,
+          scope: :repo_scoped,
+          attachment_mode: :pre_work,
+          source: "conversation",
+          title: "Phase 39 Coordinator Test",
+          objective: "Exercise coordinator behavior with governed conversation state.",
+          initiating_actor: %{"id" => "operator-test", "actor_class" => "operator"},
+          source_metadata: %{},
+          conversation_metadata: %{},
+          started_at: now,
+          last_activity_at: now
+        },
+        actor: Actor.operator_actor(%{"id" => "operator-test"})
+      )
+
+    conversation
+  end
+
+  defp start_coordinator!(conversation) do
+    start_supervised!(
+      {Coordinator,
+       {conversation,
+        starter_pid: self(),
+        sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner})}}
+    )
+  end
+
+  defp managed_repo_fixture!(suffix) do
+    {:ok, project} =
+      Project.create(%{
+        name: "coordinator-#{suffix}",
+        github_full_name: "owner/coordinator-#{suffix}",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    managed_repo
   end
 end

@@ -58,6 +58,25 @@ defmodule JidoCode.Conversations do
     end
   end
 
+  @spec latest_for_managed_repo(String.t(), keyword()) :: {:ok, Conversation.t() | nil} | {:error, term()}
+  def latest_for_managed_repo(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    case Conversation.read(
+           query: [
+             filter: [managed_repo_id: managed_repo_id],
+             sort: [last_activity_at: :desc, inserted_at: :desc],
+             limit: 1
+           ],
+           actor: actor
+         ) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @spec steer_work(Conversation.t(), map(), keyword()) :: {:ok, steer_result()} | {:error, term()}
   def steer_work(%Conversation{} = conversation, %{} = payload, opts \\ []) when is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))

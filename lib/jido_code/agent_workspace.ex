@@ -260,6 +260,16 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Returns the latest work-item-scoped conversation for the governed work item, if any.
+  """
+  @spec latest_work_item_conversation(work_item_id(), keyword()) ::
+          {:ok, Conversations.Conversation.t() | nil} | {:error, term()}
+  def latest_work_item_conversation(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    Conversations.latest_for_work_item(work_item_id, actor: conversation_actor(opts))
+  end
+
+  @doc """
   Opens a repo-scoped conversation and returns its initial snapshot.
   """
   @spec open_repo_conversation(managed_repo_id(), map(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -268,6 +278,22 @@ defmodule JidoCode.AgentWorkspace do
     ConversationDriver.start_conversation(
       attrs
       |> Map.put("managed_repo_id", managed_repo_id)
+      |> Map.put_new("actor", conversation_actor(opts))
+    )
+  end
+
+  @doc """
+  Opens a work-item-scoped conversation and returns its initial snapshot.
+  """
+  @spec open_work_item_conversation(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def open_work_item_conversation(managed_repo_id, work_item_id, attrs \\ %{}, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(attrs) and is_list(opts) do
+    ConversationDriver.start_conversation(
+      attrs
+      |> Map.put("managed_repo_id", managed_repo_id)
+      |> Map.put("work_item_id", work_item_id)
+      |> Map.put_new("attach_mode", :existing_work_item)
       |> Map.put_new("actor", conversation_actor(opts))
     )
   end

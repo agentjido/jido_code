@@ -175,6 +175,7 @@ mix workflow.run my_workflow --inputs '{"file_path":"lib/example.ex","mode":"ful
 The canonical repo-facing guides now live here:
 
 - [`.spec/README.md`](.spec/README.md) for the repo-local Spec Led Development workflow
+- [`docs/developer/README.md`](docs/developer/README.md) for the numbered developer architecture guide set; these guides are explanatory and point back to `.spec` as the current-truth source
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) for contributor setup and quality expectations
 - [`memory_ontology_guide.md`](memory_ontology_guide.md) for the developer-facing explanation of the coding memory ontology
 - [`tauri/README.md`](tauri/README.md) for the separate desktop packaging/runtime path

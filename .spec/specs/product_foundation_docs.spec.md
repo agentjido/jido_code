@@ -7,7 +7,7 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that points back to `.spec` as current truth plus the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -25,6 +25,8 @@ surface:
   - README.md
   - CONTRIBUTING.md
   - AGENTS.md
+  - docs/developer/README.md
+  - docs/developer/
   - .spec/README.md
   - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
@@ -66,7 +68,7 @@ surface:
   stability: evolving
 
 - id: docs.product_foundation.docs_index_present
-  statement: The repository shall expose the adjacent contributor guides through the top-level README, including the repo-local spec workflow, the separate desktop packaging guide, and the direct Mix-based CLI surfaces.
+  statement: The repository shall expose the adjacent contributor and explanatory developer guides through the top-level README, including the repo-local spec workflow, the derived `docs/developer/` guide set, the separate desktop packaging guide, and the direct Mix-based CLI surfaces.
   priority: must
   stability: stable
 ```
@@ -96,7 +98,7 @@ surface:
   when:
     - The contributor looks for the adjacent contributor and architecture guides.
   then:
-    - The README links the spec workspace, contributor guide, and separate desktop runtime guide directly.
+    - The README links the spec workspace, contributor guide, derived developer architecture guide set, and separate desktop runtime guide directly.
 ```
 
 ## Verification

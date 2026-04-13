@@ -7,9 +7,9 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   @moduledoc """
   Product-owned memory workflow boundary over AgentWorkspace.
 
-  This module keeps planning, review, and explanation flows explicit about when
-  durable memory or workflow provenance context is requested and returns
-  bounded memory input maps rather than raw graph query details.
+  This module keeps planning, coding, review, and explanation flows explicit
+  about when durable memory or workflow provenance context is requested and
+  returns bounded memory input maps rather than raw graph query details.
   """
 
   alias JidoCode.AgentWorkspace
@@ -17,7 +17,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, ProductFeedback, ProductService, RetrievalPolicy}
 
-  @type workflow_kind :: :plan | :review | :explain
+  @type workflow_kind :: :plan | :execute | :review | :explain
   @type workflow_result :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
   @workflow_provenance_actor Actor.factory_system_actor(%{
                                "id" => "system:memory-graph-workflow-provenance",
@@ -34,6 +34,11 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     run_workflow(:review, managed_repo_id, work_item_id, instruction, opts)
   end
 
+  @spec execute(String.t(), String.t(), String.t(), keyword()) :: workflow_result()
+  def execute(managed_repo_id, work_item_id, instruction, opts \\ []) do
+    run_workflow(:execute, managed_repo_id, work_item_id, instruction, opts)
+  end
+
   @spec explain(String.t(), String.t(), String.t(), keyword()) :: workflow_result()
   def explain(managed_repo_id, work_item_id, instruction, opts \\ []) do
     run_workflow(:explain, managed_repo_id, work_item_id, instruction, opts)
@@ -44,7 +49,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   def follow_up_context(_result), do: nil
 
   defp run_workflow(workflow, managed_repo_id, work_item_id, instruction, opts)
-       when workflow in [:plan, :review, :explain] and is_list(opts) do
+       when workflow in [:plan, :execute, :review, :explain] and is_list(opts) do
     with {:ok, memory_opts} <- normalize_memory_opts(Keyword.get(opts, :memory)),
          {:ok, workflow_provenance} <-
            workflow_provenance_context(
@@ -57,6 +62,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
            ),
          {:ok, memory_input, runtime_memory_opts} <-
            prepare_memory_input(workflow, managed_repo_id, opts, memory_opts),
+         workflow_provenance = enrich_workflow_provenance(workflow_provenance, memory_input),
          {:ok, raw_result} <-
            invoke_workspace(
              workflow,
@@ -86,6 +92,9 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
 
   defp invoke_workspace(:plan, managed_repo_id, work_item_id, instruction, opts),
     do: AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction, opts)
+
+  defp invoke_workspace(:execute, managed_repo_id, work_item_id, instruction, opts),
+    do: AgentWorkspace.execute_work(managed_repo_id, work_item_id, instruction, opts)
 
   defp invoke_workspace(:review, managed_repo_id, work_item_id, instruction, opts),
     do: AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction, opts)
@@ -339,8 +348,21 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     |> List.wrap()
   end
 
+  defp enrich_workflow_provenance(nil, _memory_input), do: nil
+  defp enrich_workflow_provenance(%{enabled?: false} = workflow_provenance, _memory_input), do: workflow_provenance
+
+  defp enrich_workflow_provenance(workflow_provenance, memory_input) do
+    workflow_provenance
+    |> Map.put(:related_resources, memory_related_resources(memory_input))
+    |> Map.put(:governed_references, memory_governed_references(memory_input))
+    |> maybe_put_map_value(:memory_policy, memory_policy(memory_input))
+    |> maybe_put_map_value(:follow_up_intent, memory_follow_up_intent(memory_input))
+  end
+
   defp maybe_put_provenance_value(keyword, _key, nil), do: keyword
   defp maybe_put_provenance_value(keyword, key, value), do: Keyword.put(keyword, key, value)
+  defp maybe_put_map_value(map, _key, nil), do: map
+  defp maybe_put_map_value(map, key, value), do: Map.put(map, key, value)
 
   defp shape_result(:plan, managed_repo_id, work_item_id, instruction, raw_result, memory_input, workflow_provenance) do
     %{
@@ -352,6 +374,19 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       memory_input: memory_input,
       workflow_provenance: provenance_summary(workflow_provenance),
       follow_up_context: follow_up_context(:plan, memory_input, workflow_provenance)
+    }
+  end
+
+  defp shape_result(:execute, managed_repo_id, work_item_id, instruction, raw_result, memory_input, workflow_provenance) do
+    %{
+      workflow: :execute,
+      managed_repo_id: managed_repo_id,
+      work_item_id: work_item_id,
+      instruction: instruction,
+      changes: Map.get(raw_result, :changes),
+      memory_input: memory_input,
+      workflow_provenance: provenance_summary(workflow_provenance),
+      follow_up_context: follow_up_context(:execute, memory_input, workflow_provenance)
     }
   end
 
@@ -562,7 +597,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       workflow: provenance.workflow,
       related_resources: Map.get(provenance, :related_resources, []),
       governed_references: Map.get(provenance, :governed_references, []),
-      memory_policy: Map.get(provenance, :memory_policy)
+      memory_policy: Map.get(provenance, :memory_policy),
+      follow_up_intent: Map.get(provenance, :follow_up_intent)
     }
   end
 

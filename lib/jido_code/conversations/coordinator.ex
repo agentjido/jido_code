@@ -206,6 +206,8 @@ defmodule JidoCode.Conversations.Coordinator do
     with {:ok, resumable_turn} <- resumable_turn(state, normalized_command.payload),
          resume_state = append_command_message_event(state, normalized_command),
          {:ok, resumed_turn} <- Turn.transition(resumable_turn, :running),
+         resumed_turn =
+           with_resume_payload(resumed_turn, state, normalized_command.payload),
          next_state <-
            maybe_clear_child_work_pending_input(
              resume_state,
@@ -383,23 +385,36 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp ensure_child_worker_for_runtime(state, child_work_id) do
     case Map.fetch(state.child_worker_pids, child_work_id) do
-      {:ok, pid} ->
-        {:ok, pid, state}
+      {:ok, pid} when is_pid(pid) ->
+        if Process.alive?(pid) do
+          {:ok, pid, state}
+        else
+          restart_child_worker_for_runtime(state, child_work_id)
+        end
+
+      {:ok, _stale_pid} ->
+        restart_child_worker_for_runtime(state, child_work_id)
 
       :error ->
-        case Map.fetch(state.child_works, child_work_id) do
-          {:ok, %ChildWork{} = child_work} ->
-            with {:ok, pid} <- ChildWorker.start(child_work) do
-              {:ok, pid, put_in(state, [:child_worker_pids, child_work_id], pid)}
-            end
+        restart_child_worker_for_runtime(state, child_work_id)
+    end
+  end
 
-          :error ->
-            {:error, :child_work_not_found}
+  defp restart_child_worker_for_runtime(state, child_work_id) do
+    case Map.fetch(state.child_works, child_work_id) do
+      {:ok, %ChildWork{} = child_work} ->
+        with {:ok, pid} <- ChildWorker.start(child_work) do
+          {:ok, pid, put_in(state, [:child_worker_pids, child_work_id], pid)}
         end
+
+      :error ->
+        {:error, :child_work_not_found}
     end
   end
 
   defp runtime_spec(state, turn, child_work) do
+    shared_context = Snapshot.from_state(state).shared_context
+
     %{
       conversation_id: state.conversation.id,
       managed_repo_id: state.conversation.managed_repo_id,
@@ -409,33 +424,96 @@ defmodule JidoCode.Conversations.Coordinator do
       instruction: runtime_instruction(turn),
       command_type: turn.command_type,
       actor: turn.actor,
+      objective: state.conversation.objective,
+      source: state.conversation.source,
+      source_metadata: normalize_map(state.conversation.source_metadata),
+      conversation_metadata: normalize_map(state.conversation.conversation_metadata),
+      shared_context: shared_context,
+      turn_payload: normalize_map(turn.payload),
+      child_work_result: normalize_map(child_work.result),
       sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner}),
       starter_pid: self()
     }
   end
 
-  defp runtime_instruction(%Turn{command_type: "turn.resume", payload: payload}) do
-    response = Map.get(payload, "response")
-    prompt = Map.get(payload, "prompt")
+  defp runtime_instruction(%Turn{payload: payload}) do
+    payload = normalize_map(payload)
 
-    %{}
-    |> maybe_put("prompt", prompt)
-    |> maybe_put("response", response)
-    |> case do
-      %{"prompt" => prompt, "response" => response} ->
-        "Resume the repository conversation using this clarification.\nPrompt: #{prompt}\nResponse: #{response}"
-
-      %{"response" => response} ->
-        "Resume the repository conversation using this clarification.\nResponse: #{response}"
+    case Map.get(payload, "clarification_resume") do
+      %{} = clarification_resume ->
+        Map.get(clarification_resume, "response") ||
+          Map.get(payload, "instruction") ||
+          Map.get(payload, "reason") ||
+          "Continue the repository conversation."
 
       _other ->
-        "Resume the repository conversation."
+        Map.get(payload, "instruction") || Map.get(payload, "reason") || "Continue the repository conversation."
     end
   end
 
-  defp runtime_instruction(%Turn{payload: payload}) do
-    Map.get(payload, "instruction") || Map.get(payload, "reason") || "Continue the repository conversation."
+  defp with_resume_payload(%Turn{} = turn, state, payload) when is_map(payload) do
+    clarification_resume =
+      %{}
+      |> maybe_put("response", optional_string(Map.get(payload, "response")))
+      |> maybe_put("prompt", resume_prompt(state, turn, payload))
+
+    if clarification_resume == %{} do
+      turn
+    else
+      %{turn | payload: Map.put(normalize_map(turn.payload), "clarification_resume", clarification_resume)}
+    end
   end
+
+  defp with_resume_payload(%Turn{} = turn, _state, _payload), do: turn
+
+  defp resume_prompt(state, %Turn{} = turn, payload) when is_map(payload) do
+    case optional_string(Map.get(payload, "prompt")) do
+      nil ->
+        state
+        |> pending_clarification_for_turn(turn.id)
+        |> case do
+          %{"prompt" => %{"prompt" => prompt}} -> prompt
+          %{"prompt" => %{"details" => %{"prompt" => prompt}}} -> prompt
+          %{"prompt" => prompt} when is_binary(prompt) -> prompt
+          _other -> nil
+        end
+
+      prompt ->
+        prompt
+    end
+  end
+
+  defp pending_clarification_for_turn(state, turn_id) when is_binary(turn_id) do
+    state
+    |> Snapshot.from_state()
+    |> Map.get(:shared_context, %{})
+    |> Map.get("pending_clarification")
+    |> case do
+      %{"turn_id" => ^turn_id} = pending_clarification -> pending_clarification
+      _other -> nil
+    end
+  end
+
+  defp pending_clarification_for_turn(_state, _turn_id), do: nil
+
+  defp normalize_map(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      Map.put(acc, normalized_key, normalize_nested_value(nested_value))
+    end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
+  defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
+  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+  defp normalize_nested_value(value), do: value
 
   defp auto_runtime_enabled?(%Conversation{source: "project_detail"}), do: true
   defp auto_runtime_enabled?(_conversation), do: false

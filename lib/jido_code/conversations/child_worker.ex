@@ -157,6 +157,18 @@ defmodule JidoCode.Conversations.ChildWorker do
     end
   end
 
+  def handle_info({:runtime_finished, {:awaiting_input, payload}}, %{child_work: %ChildWork{} = child_work} = state)
+      when is_map(payload) do
+    with {:ok, updated_child_work} <- apply_runtime_update(child_work, payload),
+         :ok <- dispatch_runtime_payload(updated_child_work, payload) do
+      {:noreply,
+       clear_runtime(%{state | child_work: updated_child_work, runtime_status: :idle})}
+    else
+      _other ->
+        {:noreply, clear_runtime(%{state | runtime_status: :idle})}
+    end
+  end
+
   def handle_info(
         {:DOWN, runtime_ref, :process, runtime_pid, reason},
         %{runtime_ref: runtime_ref, runtime_pid: runtime_pid} = state

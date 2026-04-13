@@ -76,6 +76,7 @@ The plan aligns to:
 37. [Phase 43 - Conversation Runtime Deltas And Clarification Recovery](./phase-43-conversation-runtime-deltas-and-clarification-recovery.md): make `tool_result.submit` and `turn.resume` first-class coordinator behaviors, surface progressive tool and turn updates, and keep clarification loops recoverable through the event-driven conversation model.
 38. [Phase 44 - Managed Repo Conversation Surface Adoption](./phase-44-managed-repo-conversation-surface-adoption.md): adopt the durable conversation model into the managed-repository detail route through product-owned workspace helpers, bounded repo-detail interaction, and current-truth coverage.
 39. [Phase 45 - Memory-Aware Execute Workflow Adoption](./phase-45-memory-aware-execute-workflow-adoption.md): add a product-owned memory-aware execute workflow so coder paths can request bounded, freshness-aware durable memory and provenance context through the canonical workspace boundary.
+40. [Phase 46 - Real LLM Conversation Runtime Cutover](./phase-46-real-llm-conversation-runtime-cutover.md): replace the remaining fake managed-repository conversation runtime with a real LLM-backed execution path routed through product-owned conversation, workspace, and specialist boundaries.
 
 ## Shared Conventions
 - Numbering:

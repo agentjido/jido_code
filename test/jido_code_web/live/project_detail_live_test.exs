@@ -3,6 +3,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+  # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+  # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -309,7 +314,12 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     on_exit(fn ->
       case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: Actor.operator_actor()) do
-        {:ok, %{id: conversation_id}} -> :ok = AgentWorkspace.stop_conversation(conversation_id)
+        {:ok, %{id: conversation_id}} ->
+          case AgentWorkspace.stop_conversation(conversation_id) do
+            :ok -> :ok
+            {:error, _reason} -> :ok
+          end
+
         _other -> :ok
       end
     end)
@@ -322,6 +332,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-conversation-id")
     assert has_element?(view, "#project-detail-conversation-status", "active")
+
+    conversation_id = latest_repo_conversation_id!(managed_repo_id)
 
     html =
       view
@@ -352,9 +364,78 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       |> render_submit()
 
     assert_eventually(fn ->
-      render(view) =~
-        "Completed the clarified repository work: lib/jido_code_web/live/project_detail_live.ex"
+      rendered = render(view)
+
+      rendered =~ "deterministic explainer response" and
+        rendered =~ "lib/jido_code_web/live/project_detail_live.ex" and
+        not has_element?(view, "#project-detail-conversation-pending-clarification")
     end)
+
+    assert_conversation_settled!(conversation_id)
+    assert :ok = AgentWorkspace.stop_conversation(conversation_id)
+  end
+
+  test "surfaces explicit conversation runtime readiness failures on the repo detail route", %{
+    conn: _conn
+  } do
+    register_owner("conversation-runtime-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("conversation-runtime-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-conversation-runtime-missing-workspace",
+        github_full_name: "owner/repo-conversation-runtime-missing-workspace",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    on_exit(fn ->
+      case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: Actor.operator_actor()) do
+        {:ok, %{id: conversation_id}} ->
+          case AgentWorkspace.stop_conversation(conversation_id) do
+            :ok -> :ok
+            {:error, _reason} -> :ok
+          end
+
+        _other -> :ok
+      end
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    view
+    |> element("#project-detail-conversation-open")
+    |> render_click()
+
+    conversation_id = latest_repo_conversation_id!(managed_repo_id)
+
+    _html =
+      view
+      |> form("#project-detail-conversation-form", %{
+        "input" => "Explain why this repository is ready."
+      })
+      |> render_submit()
+
+    assert_eventually(fn ->
+      rendered = render(view)
+
+      rendered =~ "Repository workspace path is missing for real conversation runtime." and
+        not String.contains?(rendered, "deterministic explainer response")
+    end)
+
+    assert_conversation_settled!(conversation_id)
+    assert :ok = AgentWorkspace.stop_conversation(conversation_id)
   end
 
   test "hosts bounded semantic inspection inside the managed repo detail route", %{conn: _conn} do
@@ -750,6 +831,25 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                ),
                revision: revision
              )
+  end
+
+  defp latest_repo_conversation_id!(managed_repo_id) do
+    assert {:ok, %{id: conversation_id}} =
+             AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: Actor.operator_actor())
+
+    conversation_id
+  end
+
+  defp assert_conversation_settled!(conversation_id) do
+    assert_eventually(fn ->
+      case AgentWorkspace.conversation_snapshot(conversation_id) do
+        {:ok, snapshot} ->
+          is_nil(snapshot.active_turn) and is_nil(snapshot.active_child_work)
+
+        _other ->
+          false
+      end
+    end)
   end
 
   defp assert_eventually(fun, attempts \\ 20)

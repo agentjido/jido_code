@@ -11,6 +11,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -282,7 +283,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           {:noreply, socket}
 
         event_sequence == socket.assigns.conversation_last_event_sequence + 1 ->
-          {:noreply, append_conversation_event(socket, event)}
+          {:noreply, sync_conversation_event(socket, event)}
 
         true ->
           {:noreply, recover_project_conversation_gap(socket)}
@@ -1117,6 +1118,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_events, updated_events)
     |> assign(:conversation_last_event_sequence, map_get(event, :sequence, "sequence"))
     |> update(:conversation_surface, &Map.put(&1, :recent_events, updated_events))
+  end
+
+  defp sync_conversation_event(socket, event) do
+    case conversation_id(socket) do
+      conversation_id when is_binary(conversation_id) ->
+        case JidoCode.AgentWorkspace.conversation_snapshot(conversation_id) do
+          {:ok, snapshot} ->
+            socket
+            |> assign_conversation_snapshot(snapshot)
+            |> assign(:conversation_stream_mode, :live)
+            |> assign(:conversation_stream_degraded_reason, nil)
+
+          {:error, _reason} ->
+            append_conversation_event(socket, event)
+        end
+
+      _other ->
+        append_conversation_event(socket, event)
+    end
   end
 
   defp conversation_event_applies?(socket, event) do

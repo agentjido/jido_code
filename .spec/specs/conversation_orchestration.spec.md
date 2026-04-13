@@ -7,7 +7,7 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption rather than snapshot polling or ad hoc FIFO chat handling.
+summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption rather than snapshot polling, fake timer-driven turn simulation, or ad hoc FIFO chat handling.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
@@ -26,14 +26,24 @@ surface:
   - lib/jido_code/conversations/snapshot.ex
   - lib/jido_code/conversations/snapshot_record.ex
   - lib/jido_code/conversations/turn.ex
+  - lib/jido_code/conversations/runtime.ex
   - lib/jido_code/agent_workspace.ex
+  - lib/jido_code/agent_workspace/runtime_specialist_runner.ex
   - lib/jido_code/operations/synthesis.ex
+  - lib/jido_code/pods/coding_pod.ex
+  - lib/jido_code/agents/planner.ex
+  - lib/jido_code/agents/coder.ex
+  - lib/jido_code/agents/reviewer.ex
+  - lib/jido_code/agents/refactorer.ex
+  - lib/jido_code/agents/explainer.ex
   - lib/jido_code/workbench/project_conversation.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code/setup/provider_credential_checks.ex
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
   - test/jido_code/phase_thirty_nine_integration_test.exs
   - test/jido_code/phase_forty_four_integration_test.exs
+  - test/jido_code/phase_forty_six_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
@@ -105,6 +115,26 @@ surface:
 - id: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   statement: Managed-repository operator routes should be able to open, resume, and guide bounded repo-scoped conversations through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.
   priority: should
+  stability: proposed
+
+- id: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+  statement: Product-facing repository or work-scoped conversation turns that claim active execution shall run through a real LLM-backed runtime path, specialist agent, or equivalent product-owned execution boundary rather than LiveView-local timer simulation or fake progress events.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+  statement: Conversation runtime shall assemble prompts, bounded shared context, tool access, and model execution through AgentWorkspace, CodingPod specialists, or an adjacent product-owned conversation runtime boundary instead of embedding prompt assembly or model orchestration directly in LiveView surfaces.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+  statement: When a repository conversation cannot start or continue real LLM-backed execution because provider credentials, runtime services, or policy prerequisites are unavailable, operator surfaces shall render explicit readiness or recovery states instead of simulating successful work.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
+  statement: The real conversation-runtime cutover shall remove the fake repository-conversation execution path rather than preserving a backward-compatibility shim, feature-flagged legacy mode, or parallel simulated runtime after adoption.
+  priority: must
   stability: proposed
 ```
 
@@ -209,6 +239,48 @@ surface:
     - The product-owned route boundary reuses the latest active repo-scoped conversation when one already exists.
     - The route loads the latest durable snapshot and recent events through bounded workspace helpers.
     - Live delivery stays event-driven while degraded continuity still renders the latest durable conversation state.
+
+- id: architecture.conversation_orchestration.scenario_repo_conversation_executes_real_llm_turns
+  covers:
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+  given:
+    - A managed-repository detail route has an active repository conversation and the required LLM provider plus runtime prerequisites are available.
+  when:
+    - The operator submits a new repository conversation turn or resumes a clarification.
+  then:
+    - The coordinator creates child work that routes through a product-owned LLM execution boundary instead of LiveView-local fake progress scheduling.
+    - Progress, stdout, delta, clarification, and completion updates reflect the real conversation runtime outcome.
+    - The route continues to consume those updates through the existing event-driven conversation delivery model.
+
+- id: architecture.conversation_orchestration.scenario_repo_conversation_surfaces_llm_unavailability
+  covers:
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  given:
+    - A managed-repository detail route can open a repository conversation record but the real LLM execution path is unavailable because provider credentials, runtime services, or policy prerequisites are not ready.
+  when:
+    - The operator submits a repository conversation turn.
+  then:
+    - The route reports an explicit readiness or recovery state explaining why real execution cannot continue.
+    - The system does not fabricate progress, delta, or completion events that imply successful work.
+    - Persisted conversation state still remains available for continuity and later recovery.
+
+- id: architecture.conversation_orchestration.scenario_real_runtime_cutover_removes_fake_path
+  covers:
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
+  given:
+    - The repository conversation runtime has been cut over to real LLM-backed execution.
+  when:
+    - The operator submits or resumes repository conversation work after the cutover.
+  then:
+    - The system has one canonical runtime path for active conversation execution.
+    - The prior fake or timer-driven repository conversation execution path is removed rather than retained behind a compatibility switch.
+    - Route behavior stays governed by explicit readiness and degraded-state handling instead of falling back to simulated success.
 ```
 
 ## Verification
@@ -252,6 +324,14 @@ surface:
     - architecture.conversation_orchestration.control_and_work_commands_are_distinct
 
 - kind: source_file
+  target: .spec/planning/phase-46-real-llm-conversation-runtime-cutover.md
+  covers:
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+    - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
+
+- kind: source_file
   target: lib/jido_code/conversations/event.ex
   covers:
     - architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
@@ -285,6 +365,14 @@ surface:
   covers:
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.steering_preserves_short_term_context
+
+- kind: source_file
+  target: lib/jido_code/conversations/runtime.ex
+  covers:
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+    - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
 
 - kind: source_file
   target: lib/jido_code/conversations.ex
@@ -351,11 +439,19 @@ surface:
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
 
 - kind: source_file
+  target: test/jido_code/phase_forty_six_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+
+- kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
 
 - kind: source_file
   target: test/jido_code_web/live/project_detail_live_test.exs
@@ -363,6 +459,8 @@ surface:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
 
 - kind: source_file
   target: lib/jido_code/forge/pubsub.ex

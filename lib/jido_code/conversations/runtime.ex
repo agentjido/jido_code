@@ -1,6 +1,8 @@
 defmodule JidoCode.Conversations.Runtime do
   # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
   # covers: architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+  # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+  # covers: architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
   @moduledoc """
   Product-owned real execution boundary for conversation child work.
 

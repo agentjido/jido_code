@@ -31,22 +31,22 @@ Back to index: [README](./README.md)
 [ ] 39 Phase 39 - Conversation Coordinator And Command Foundation
   Establish the canonical conversation scope, coordinator boundary, and command-admission model so productive coding conversations become governed runtime objects rather than ad hoc chat turns.
 
-  [ ] 39.1 Section - Canonical Conversation Scope And Identity
+  [x] 39.1 Section - Canonical Conversation Scope And Identity
     Define what a productive coding conversation is in product terms and ensure it binds cleanly to managed repositories and durable work context.
 
-    [ ] 39.1.1 Task - Introduce a canonical conversation record and identity model
+    [x] 39.1.1 Task - Introduce a canonical conversation record and identity model
       Define the identifiers, scope metadata, and lifecycle fields that let the product talk about conversations as first-class bounded objects.
 
-      [ ] 39.1.1.1 Subtask - Define canonical conversation identifiers, correlation metadata, actor attribution, and repo/work-item attachment fields.
-      [ ] 39.1.1.2 Subtask - Decide when a conversation must attach to an existing `WorkItem`, when it may synthesize a new one, and when it remains repo-scoped but pre-work.
-      [ ] 39.1.1.3 Subtask - Keep the conversation contract product-owned and explicit about repository scope without leaking kernel, pod, or model-session internals.
+      [x] 39.1.1.1 Subtask - Define canonical conversation identifiers, correlation metadata, actor attribution, and repo/work-item attachment fields.
+      [x] 39.1.1.2 Subtask - Decide when a conversation must attach to an existing `WorkItem`, when it may synthesize a new one, and when it remains repo-scoped but pre-work.
+      [x] 39.1.1.3 Subtask - Keep the conversation contract product-owned and explicit about repository scope without leaking kernel, pod, or model-session internals.
 
-    [ ] 39.1.2 Task - Align conversation entrypoints with the factory control plane
+    [x] 39.1.2 Task - Align conversation entrypoints with the factory control plane
       Ensure operator- or workflow-originated coding conversations enter through bounded product seams that preserve attribution and durable work context.
 
-      [ ] 39.1.2.1 Subtask - Add or refine product-owned entrypoints that normalize conversation start and resume requests with managed-repository scope.
-      [ ] 39.1.2.2 Subtask - Preserve initiating actor, source metadata, and requested objective so conversation history stays explainable alongside work synthesis.
-      [ ] 39.1.2.3 Subtask - Keep conversation start behavior compatible with steering existing work instead of always creating fresh parallel work objects.
+      [x] 39.1.2.1 Subtask - Add or refine product-owned entrypoints that normalize conversation start and resume requests with managed-repository scope.
+      [x] 39.1.2.2 Subtask - Preserve initiating actor, source metadata, and requested objective so conversation history stays explainable alongside work synthesis.
+      [x] 39.1.2.3 Subtask - Keep conversation start behavior compatible with steering existing work instead of always creating fresh parallel work objects.
 
   [ ] 39.2 Section - Coordinator Boundary And Command Admission
     Add the coordinator layer that owns turn admission, state transitions, and command normalization before interruption and event streaming are layered on top.

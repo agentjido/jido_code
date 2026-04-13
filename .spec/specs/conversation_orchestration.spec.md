@@ -30,15 +30,12 @@ surface:
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/workbench/project_conversation.ex
   - lib/jido_code_web/live/project_detail_live.ex
-  - lib/jido_code_web/live/demos/chat_live.ex
-  - lib/jido_code_web/live/forge/show_live.ex
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
   - test/jido_code/phase_thirty_nine_integration_test.exs
   - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
-  - test/jido_code_web/live/demos/chat_live_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
 ```
 
@@ -354,29 +351,11 @@ surface:
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
 
 - kind: source_file
-  target: lib/jido_code_web/live/forge/show_live.ex
-  covers:
-    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
-    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
-
-- kind: source_file
-  target: lib/jido_code_web/live/demos/chat_live.ex
-  covers:
-    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
-    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
-
-- kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
-
-- kind: source_file
-  target: test/jido_code_web/live/demos/chat_live_test.exs
-  covers:
-    - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
-    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
 
 - kind: source_file
   target: test/jido_code_web/live/project_detail_live_test.exs

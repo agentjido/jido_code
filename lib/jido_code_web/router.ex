@@ -50,14 +50,6 @@ defmodule JidoCodeWeb.Router do
       live("/repos/:id/runs/:run_id", RunDetailLive, :show)
       live("/settings", SettingsLive, :index)
       live("/settings/:tab", SettingsLive, :index)
-
-      live("/forge", Forge.IndexLive, :index)
-      live("/forge/new", Forge.NewLive, :new)
-      live("/forge/:session_id", Forge.ShowLive, :show)
-
-      live("/folio", FolioLive, :index)
-
-      live("/demos/chat", Demos.ChatLive, :index)
     end
   end
 

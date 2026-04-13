@@ -166,6 +166,7 @@ defmodule JidoCode.Conversations.ChildWork do
     result =
       child_work.result
       |> normalize_optional_map()
+      |> Kernel.||(%{})
       |> Map.delete("needs_input")
       |> empty_to_nil()
 
@@ -205,6 +206,7 @@ defmodule JidoCode.Conversations.ChildWork do
   defp merge_runtime_update(result, :progress, attrs) do
     result
     |> normalize_optional_map()
+    |> Kernel.||(%{})
     |> Map.put("latest_progress", normalize_map(attrs))
   end
 
@@ -215,6 +217,7 @@ defmodule JidoCode.Conversations.ChildWork do
     stdout =
       result
       |> normalize_optional_map()
+      |> Kernel.||(%{})
       |> Map.get("stdout", [])
       |> normalize_string_list()
       |> maybe_append_string(text)
@@ -222,18 +225,21 @@ defmodule JidoCode.Conversations.ChildWork do
 
     result
     |> normalize_optional_map()
+    |> Kernel.||(%{})
     |> Map.put("stdout", stdout)
   end
 
   defp merge_runtime_update(result, :needs_input, attrs) do
     result
     |> normalize_optional_map()
+    |> Kernel.||(%{})
     |> Map.put("needs_input", normalize_map(attrs))
   end
 
   defp merge_runtime_update(result, :delta, attrs) do
     result
     |> normalize_optional_map()
+    |> Kernel.||(%{})
     |> Map.put("last_delta", normalize_map(attrs))
   end
 
@@ -279,6 +285,8 @@ defmodule JidoCode.Conversations.ChildWork do
       trimmed -> trimmed
     end
   end
+
+  defp optional_string(nil), do: nil
 
   defp optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> optional_string()

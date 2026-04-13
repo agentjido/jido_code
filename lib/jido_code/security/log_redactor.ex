@@ -99,6 +99,21 @@ defmodule JidoCode.Security.LogRedactor do
     end
   end
 
+  defp redact_term(%_{} = value, key_context) do
+    struct_module = value.__struct__
+
+    value
+    |> Map.from_struct()
+    |> redact_term(key_context)
+    |> case do
+      {:ok, redacted_fields} when is_map(redacted_fields) ->
+        {:ok, struct(struct_module, redacted_fields)}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
   defp redact_term(value, _key_context) when is_map(value) do
     value
     |> Enum.reduce_while({:ok, %{}}, fn {key, nested_value}, {:ok, acc} ->

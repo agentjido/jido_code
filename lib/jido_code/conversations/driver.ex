@@ -110,7 +110,13 @@ defmodule JidoCode.Conversations.Driver do
         {:ok, pid}
 
       [] ->
-        case DynamicSupervisor.start_child(@supervisor, {Coordinator, conversation}) do
+        sandbox_owner = Process.get({JidoCode.Repo, :sandbox_owner})
+
+        case DynamicSupervisor.start_child(
+               @supervisor,
+               {Coordinator,
+                {conversation, starter_pid: self(), sandbox_owner: sandbox_owner}}
+             ) do
           {:ok, pid} -> {:ok, pid}
           {:error, {:already_started, pid}} -> {:ok, pid}
           other -> other

@@ -11,6 +11,8 @@ defmodule JidoCode.Conversations.Persistence do
   snapshots alone.
   """
 
+  require Ash.Query
+
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations.{Conversation, Event, EventRecord, Snapshot, SnapshotRecord}
   alias JidoCode.Repo
@@ -83,7 +85,14 @@ defmodule JidoCode.Conversations.Persistence do
   def events_since(conversation_id, after_sequence, actor \\ @persistence_actor)
       when is_binary(conversation_id) and is_integer(after_sequence) and after_sequence >= 0 and is_map(actor) do
     if enabled?() do
-      case EventRecord.after_sequence(conversation_id, after_sequence, actor: actor) do
+      query =
+        EventRecord
+        |> Ash.Query.for_read(:after_sequence, %{
+          conversation_id: conversation_id,
+          after_sequence: after_sequence
+        })
+
+      case Ash.read(query, domain: JidoCode.Conversations, actor: actor) do
         {:ok, records} -> {:ok, Enum.map(records, &event_from_record/1)}
         {:error, reason} -> {:error, reason}
       end
@@ -109,7 +118,11 @@ defmodule JidoCode.Conversations.Persistence do
 
   defp persist_events(events) when is_list(events) do
     Enum.reduce_while(events, :ok, fn %Event{} = event, :ok ->
-      case EventRecord.append(event_record_attrs(event), actor: @persistence_actor) do
+      case Ash.create(EventRecord, event_record_attrs(event),
+             action: :append,
+             domain: JidoCode.Conversations,
+             actor: @persistence_actor
+           ) do
         {:ok, _record} -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -122,7 +135,6 @@ defmodule JidoCode.Conversations.Persistence do
 
   defp event_record_attrs(%Event{} = event) do
     %{
-      id: event.id,
       conversation_id: event.conversation_id,
       sequence: event.sequence,
       name: event.name,

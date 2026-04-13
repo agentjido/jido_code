@@ -164,6 +164,8 @@ defmodule JidoCode.Conversations.Turn do
     end
   end
 
+  defp normalize_optional_string(nil), do: nil
+
   defp normalize_optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> normalize_optional_string()
 

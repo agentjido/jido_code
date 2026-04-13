@@ -285,6 +285,14 @@ defmodule JidoCode.Conversations.SnapshotRecord do
 
   defp normalize_map(_value), do: %{}
 
+  defp normalize_nested_value(%DateTime{} = value),
+    do: value |> DateTime.truncate(:microsecond) |> DateTime.to_iso8601()
+
+  defp normalize_nested_value(%NaiveDateTime{} = value),
+    do: value |> NaiveDateTime.truncate(:microsecond) |> NaiveDateTime.to_iso8601()
+
+  defp normalize_nested_value(%Date{} = value), do: Date.to_iso8601(value)
+  defp normalize_nested_value(%Time{} = value), do: Time.to_iso8601(value)
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value

@@ -11,10 +11,22 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
+  alias JidoCode.Conversations.PubSub, as: ConversationPubSub
   alias JidoCode.Workbench.ProjectDetail
+  alias JidoCode.Workbench.ProjectConversation
   alias JidoCode.Workbench.ProjectMemoryInspection
   alias JidoCode.Workbench.ProjectSemanticInspection
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
+
+  @conversation_progress_delay_ms 60
+  @conversation_stdout_delay_ms 100
+  @conversation_clarification_delay_ms 140
+  @conversation_delta_delay_ms 180
+  @conversation_completion_delay_ms 240
+  @conversation_resume_delta_delay_ms 80
+  @conversation_resume_completion_delay_ms 160
+  @conversation_cancellation_settle_delay_ms 80
+  @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
 
   @impl true
   def mount(_params, _session, socket) do
@@ -26,6 +38,17 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:semantic_action_feedback, nil)
      |> assign(:memory_inspection, nil)
      |> assign(:memory_action_feedback, nil)
+     |> assign(:conversation_surface, empty_conversation_surface())
+     |> assign(:conversation_snapshot, nil)
+     |> assign(:conversation_events, [])
+     |> assign(:conversation_last_event_sequence, 0)
+     |> assign(:conversation_input, "")
+     |> assign(:conversation_action_feedback, nil)
+     |> assign(:conversation_action_feedback_kind, :info)
+     |> assign(:conversation_stream_mode, :idle)
+     |> assign(:conversation_stream_degraded_reason, nil)
+     |> assign(:conversation_stream_discontinuity_count, 0)
+     |> assign(:conversation_degraded_mode_message, @conversation_degraded_mode_message)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
@@ -37,24 +60,33 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     return_to_path = normalize_return_to_path(Map.get(params, "return_to"))
 
     socket =
-      case ProjectDetail.load(project_id) do
-        {:ok, project_detail} ->
-          socket
-          |> assign(:project_detail, project_detail)
-          |> assign(:project_load_error, nil)
-          |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
-          |> assign(:semantic_action_feedback, nil)
-          |> assign(:memory_inspection, ProjectMemoryInspection.load_repo_detail(project_detail))
-          |> assign(:memory_action_feedback, nil)
+      socket
+      |> maybe_unsubscribe_conversation()
+      |> case do
+        socket ->
+          case ProjectDetail.load(project_id) do
+            {:ok, project_detail} ->
+              socket
+              |> assign(:project_detail, project_detail)
+              |> assign(:project_load_error, nil)
+              |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
+              |> assign(:semantic_action_feedback, nil)
+              |> assign(:memory_inspection, ProjectMemoryInspection.load_repo_detail(project_detail))
+              |> assign(:memory_action_feedback, nil)
+              |> assign(:conversation_action_feedback, nil)
+              |> assign(:conversation_action_feedback_kind, :info)
+              |> assign_project_conversation(project_detail)
 
-        {:error, project_load_error} ->
-          socket
-          |> assign(:project_detail, nil)
-          |> assign(:project_load_error, project_load_error)
-          |> assign(:semantic_inspection, nil)
-          |> assign(:semantic_action_feedback, nil)
-          |> assign(:memory_inspection, nil)
-          |> assign(:memory_action_feedback, nil)
+            {:error, project_load_error} ->
+              socket
+              |> assign(:project_detail, nil)
+              |> assign(:project_load_error, project_load_error)
+              |> assign(:semantic_inspection, nil)
+              |> assign(:semantic_action_feedback, nil)
+              |> assign(:memory_inspection, nil)
+              |> assign(:memory_action_feedback, nil)
+              |> clear_project_conversation()
+          end
       end
 
     {:noreply,
@@ -116,6 +148,189 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   @impl true
+  def handle_event("open_repo_conversation", _params, socket) do
+    case ProjectConversation.open_repo_detail(
+           socket.assigns.project_detail,
+           actor: initiating_actor(socket)
+         ) do
+      {:ok, %{conversation: conversation, snapshot: snapshot}} ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, nil)
+         |> assign(:conversation_action_feedback_kind, :info)
+         |> assign(:conversation_input, "")
+         |> assign_opened_conversation(conversation, snapshot)
+         |> maybe_subscribe_conversation()}
+
+      {:error, notice} ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, notice)
+         |> assign(:conversation_action_feedback_kind, :error)}
+    end
+  end
+
+  def handle_event("update_conversation_input", %{"input" => value}, socket) do
+    {:noreply, assign(socket, :conversation_input, value)}
+  end
+
+  def handle_event("send_conversation", _params, socket) do
+    input = String.trim(socket.assigns.conversation_input)
+    submit_as_resume? = conversation_awaiting_input?(socket.assigns.conversation_snapshot)
+    conversation_id = conversation_id(socket)
+
+    cond do
+      input == "" ->
+        {:noreply, socket}
+
+      not is_binary(conversation_id) ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, %{
+           error_type: "project_detail_conversation_missing",
+           detail: "Open a repository conversation before submitting work.",
+           remediation: "Use the repository conversation action above and then retry the request."
+         })
+         |> assign(:conversation_action_feedback_kind, :error)}
+
+      socket.assigns.conversation_snapshot &&
+          socket.assigns.conversation_snapshot.status == :paused ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, %{
+           error_type: "project_detail_conversation_paused",
+           detail: "Resume the repository conversation before submitting new work.",
+           remediation: "Use the Resume control and then retry the request."
+         })
+         |> assign(:conversation_action_feedback_kind, :error)}
+
+      true ->
+        case JidoCode.AgentWorkspace.handle_conversation_command(
+               conversation_id,
+               conversation_input_command(socket, input),
+               actor: initiating_actor(socket)
+             ) do
+          {:ok, snapshot} ->
+            socket =
+              socket
+              |> assign(:conversation_input, "")
+              |> assign(:conversation_action_feedback, nil)
+              |> assign(:conversation_action_feedback_kind, :info)
+              |> assign_conversation_snapshot(snapshot)
+              |> maybe_schedule_conversation_runtime_flow(input, submit_as_resume?)
+
+            {:noreply, socket}
+
+          {:error, reason} ->
+            {:noreply,
+             socket
+             |> assign(:conversation_action_feedback, %{
+               error_type: "project_detail_conversation_submit_failed",
+               detail: "Repository conversation work could not be submitted (#{inspect(reason)}).",
+               remediation: "Retry the request or reopen the repository conversation if the prior turn cannot continue."
+             })
+             |> assign(:conversation_action_feedback_kind, :error)}
+        end
+    end
+  end
+
+  def handle_event("pause_conversation", _params, socket) do
+    dispatch_conversation_control(socket, "session.pause", %{
+      reason: "Operator paused the repository conversation."
+    })
+  end
+
+  def handle_event("resume_conversation", _params, socket) do
+    dispatch_conversation_control(socket, "session.resume", %{})
+  end
+
+  def handle_event("stop_conversation_turn", _params, socket) do
+    if is_binary(active_child_work_id(socket.assigns.conversation_snapshot)) do
+      case JidoCode.AgentWorkspace.handle_conversation_command(
+             conversation_id(socket),
+             %{type: "turn.stop", payload: %{reason: "Operator requested a stop."}},
+             actor: initiating_actor(socket)
+           ) do
+        {:ok, snapshot} ->
+          {:noreply,
+           socket
+           |> assign(:conversation_action_feedback, nil)
+           |> assign(:conversation_action_feedback_kind, :info)
+           |> assign_conversation_snapshot(snapshot)
+           |> maybe_schedule_conversation_cancellation()}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:conversation_action_feedback, %{
+             error_type: "project_detail_conversation_stop_failed",
+             detail: "The active repository conversation turn could not be stopped (#{inspect(reason)}).",
+             remediation: "Retry the stop request or let the active turn settle before continuing."
+           })
+           |> assign(:conversation_action_feedback_kind, :error)}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:conversation_event, event}, socket) do
+    if conversation_event_applies?(socket, event) do
+      event_sequence = map_get(event, :sequence, "sequence")
+
+      cond do
+        not is_integer(event_sequence) ->
+          {:noreply, socket}
+
+        event_sequence <= socket.assigns.conversation_last_event_sequence ->
+          {:noreply, socket}
+
+        event_sequence == socket.assigns.conversation_last_event_sequence + 1 ->
+          {:noreply, append_conversation_event(socket, event)}
+
+        true ->
+          {:noreply, recover_project_conversation_gap(socket)}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:project_detail_conversation_tool_result, conversation_id, child_work_id, payload}, socket) do
+    if conversation_id(socket) == conversation_id do
+      case JidoCode.AgentWorkspace.conversation_snapshot(conversation_id) do
+        {:ok, snapshot} ->
+          if child_work_open?(snapshot, child_work_id) or child_work_cancelling?(snapshot, child_work_id) do
+            case JidoCode.AgentWorkspace.handle_conversation_command(
+                   conversation_id,
+                   %{
+                     type: "tool_result.submit",
+                     payload: Map.put(payload, :child_work_id, child_work_id)
+                   },
+                   actor: initiating_actor(socket)
+                 ) do
+              {:ok, updated_snapshot} ->
+                {:noreply, assign_conversation_snapshot(socket, updated_snapshot)}
+
+              {:error, _reason} ->
+                {:noreply, socket}
+            end
+          else
+            {:noreply, socket}
+          end
+
+        {:error, _reason} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(_message, socket), do: {:noreply, socket}
+
+  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
@@ -159,6 +374,273 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           socket={@socket}
           props={project_detail_overview_props(assigns)}
         />
+
+        <section id="project-detail-conversation-panel" class="space-y-4">
+          <div class="space-y-1">
+            <h2 class="text-lg font-semibold">Repository conversation</h2>
+            <p class="text-sm text-base-content/70">
+              Repository-scoped conversations stay product-owned on this managed-repository route and recover from the latest durable snapshot when live delivery degrades.
+            </p>
+          </div>
+
+          <.operator_state_notice
+            :if={@conversation_action_feedback}
+            id="project-detail-conversation-feedback"
+            title="Repository conversation update"
+            state={@conversation_action_feedback}
+            kind={@conversation_action_feedback_kind}
+          />
+
+          <.operator_state_notice
+            :if={conversation_notice_visible?(@conversation_surface)}
+            id="project-detail-conversation-notice"
+            title="Repository conversation status"
+            state={@conversation_surface.notice}
+            kind={:warning}
+          />
+
+          <div
+            :if={@conversation_stream_mode == :degraded}
+            id="project-detail-conversation-degraded"
+            class="rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm text-warning-content"
+          >
+            <p class="font-semibold">Conversation stream degraded</p>
+            <p class="mt-1">{@conversation_degraded_mode_message}</p>
+          </div>
+
+          <%= if @conversation_surface.snapshot do %>
+            <div class="grid gap-3 lg:grid-cols-[2fr,1fr]">
+              <section class="rounded-lg border border-base-300/70 bg-base-100">
+                <div class="border-b border-base-300/70 px-4 py-3">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 class="font-semibold">Conversation transcript</h3>
+                      <p
+                        id="project-detail-conversation-id"
+                        class="text-xs font-mono text-base-content/60"
+                      >
+                        {@conversation_surface.conversation.id}
+                      </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        id="project-detail-conversation-stream-mode"
+                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                      >
+                        {@conversation_stream_mode}
+                      </span>
+                      <span
+                        id="project-detail-conversation-sequence"
+                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                      >
+                        seq {@conversation_last_event_sequence}
+                      </span>
+                      <span
+                        id="project-detail-conversation-discontinuities"
+                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                      >
+                        discontinuities: {@conversation_stream_discontinuity_count}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="project-detail-conversation-events" class="max-h-96 space-y-3 overflow-y-auto px-4 py-4">
+                  <%= for event <- @conversation_events do %>
+                    <article
+                      id={"project-detail-conversation-event-#{map_get(event, :id, "id")}"}
+                      class="rounded-md border border-base-300/70 bg-base-200/30 p-3"
+                    >
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                          <span class="font-mono text-xs text-base-content/60">
+                            #{map_get(event, :sequence, "sequence")}
+                          </span>
+                          <span class="rounded-full bg-base-200 px-2.5 py-1 text-xs font-semibold">
+                            {conversation_event_label(event)}
+                          </span>
+                          <span class="text-xs text-base-content/60">
+                            {map_get(event, :name, "name")}
+                          </span>
+                        </div>
+                        <time class="text-xs text-base-content/60">
+                          {format_time(map_get(event, :occurred_at, "occurred_at"))}
+                        </time>
+                      </div>
+                      <p class="mt-2 text-sm font-medium">
+                        {conversation_event_title(event)}
+                      </p>
+                      <p
+                        :if={conversation_event_excerpt(event)}
+                        class="mt-1 whitespace-pre-wrap text-xs text-base-content/70"
+                      >
+                        {conversation_event_excerpt(event)}
+                      </p>
+                    </article>
+                  <% end %>
+                </div>
+
+                <div class="border-t border-base-300/70 px-4 py-4">
+                  <div
+                    :if={conversation_pending_clarification(@conversation_snapshot)}
+                    id="project-detail-conversation-pending-clarification"
+                    class="mb-3 rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm"
+                  >
+                    <p class="font-semibold">Input required</p>
+                    <p class="mt-1">
+                      {conversation_clarification_prompt(@conversation_snapshot) ||
+                        "The active turn is waiting on clarification."}
+                    </p>
+                  </div>
+
+                  <form id="project-detail-conversation-form" phx-submit="send_conversation" class="flex flex-col gap-3 sm:flex-row">
+                    <input
+                      id="project-detail-conversation-input"
+                      type="text"
+                      name="input"
+                      value={@conversation_input}
+                      phx-change="update_conversation_input"
+                      placeholder={
+                        if conversation_awaiting_input?(@conversation_snapshot) do
+                          conversation_clarification_prompt(@conversation_snapshot) ||
+                            "Provide the missing clarification…"
+                        else
+                          "Describe the repository work this conversation should coordinate…"
+                        end
+                      }
+                      class="input input-bordered flex-1"
+                      autocomplete="off"
+                    />
+                    <button
+                      id="project-detail-conversation-submit"
+                      type="submit"
+                      class="btn btn-primary"
+                      disabled={String.trim(@conversation_input) == "" || conversation_paused?(@conversation_snapshot)}
+                    >
+                      {if conversation_awaiting_input?(@conversation_snapshot),
+                        do: "Resume turn",
+                        else: "Submit turn"}
+                    </button>
+                  </form>
+                </div>
+              </section>
+
+              <aside class="space-y-3">
+                <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                  <h3 class="font-semibold">Conversation state</h3>
+                  <dl class="mt-3 space-y-2 text-sm">
+                    <div class="flex justify-between gap-3">
+                      <dt class="text-base-content/70">Status</dt>
+                      <dd id="project-detail-conversation-status" class="font-medium">
+                        {Map.get(@conversation_surface.conversation, :status)}
+                      </dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                      <dt class="text-base-content/70">Scope</dt>
+                      <dd id="project-detail-conversation-scope" class="font-medium">
+                        {Map.get(@conversation_surface.conversation, :scope)}
+                      </dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                      <dt class="text-base-content/70">Attachment</dt>
+                      <dd id="project-detail-conversation-attachment" class="font-medium">
+                        {Map.get(@conversation_surface.conversation, :attachment_mode)}
+                      </dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                      <dt class="text-base-content/70">Work item</dt>
+                      <dd id="project-detail-conversation-work-item" class="font-medium">
+                        {Map.get(@conversation_snapshot, :work_item_id) || "repo-scoped"}
+                      </dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                      <dt class="text-base-content/70">Active turn</dt>
+                      <dd class="font-medium">
+                        {conversation_turn_state(@conversation_snapshot)}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                  <h3 class="font-semibold">Execution</h3>
+                  <div
+                    :if={conversation_latest_progress(@conversation_snapshot)}
+                    id="project-detail-conversation-progress"
+                    class="mt-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm"
+                  >
+                    <p class="font-semibold">Latest progress</p>
+                    <p class="mt-1">
+                      {conversation_latest_progress(@conversation_snapshot)["summary"] ||
+                        "Runtime progress update received."}
+                    </p>
+                  </div>
+
+                  <div
+                    :if={conversation_stdout_preview(@conversation_snapshot) != []}
+                    id="project-detail-conversation-stdout"
+                    class="mt-3 rounded-lg border border-base-300/70 bg-base-200/30 p-3 text-sm"
+                  >
+                    <p class="font-semibold">Recent tool output</p>
+                    <pre class="mt-2 whitespace-pre-wrap font-mono text-xs">
+                      <%= for line <- conversation_stdout_preview(@conversation_snapshot) do %>
+                        {line}
+                      <% end %>
+                    </pre>
+                  </div>
+
+                  <div class="mt-4 flex flex-wrap gap-2">
+                    <button
+                      id="project-detail-conversation-pause"
+                      type="button"
+                      class="btn btn-sm btn-outline"
+                      phx-click="pause_conversation"
+                      disabled={
+                        conversation_paused?(@conversation_snapshot) ||
+                          !is_binary(Map.get(@conversation_surface.conversation || %{}, :id))
+                      }
+                    >
+                      Pause
+                    </button>
+                    <button
+                      id="project-detail-conversation-resume"
+                      type="button"
+                      class="btn btn-sm btn-outline"
+                      phx-click="resume_conversation"
+                      disabled={!conversation_paused?(@conversation_snapshot)}
+                    >
+                      Resume
+                    </button>
+                    <button
+                      id="project-detail-conversation-stop-turn"
+                      type="button"
+                      class="btn btn-sm btn-outline"
+                      phx-click="stop_conversation_turn"
+                      disabled={!conversation_active_turn?(@conversation_snapshot)}
+                    >
+                      Stop turn
+                    </button>
+                  </div>
+                </section>
+              </aside>
+            </div>
+          <% else %>
+            <div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 p-4 space-y-3">
+              <p class="text-sm text-base-content/70">
+                Open a repository conversation to coordinate repo-scoped work without leaving the managed-repository detail route.
+              </p>
+              <button
+                id="project-detail-conversation-open"
+                type="button"
+                class="btn btn-primary btn-sm"
+                phx-click="open_repo_conversation"
+              >
+                {@conversation_surface.action_label}
+              </button>
+            </div>
+          <% end %>
+        </section>
 
         <section id="project-detail-semantic-inspection" class="space-y-4">
           <div class="space-y-1">
@@ -473,6 +955,551 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     </Layouts.app>
     """
   end
+
+  defp empty_conversation_surface do
+    %{
+      available?: false,
+      managed_repo_id: nil,
+      conversation: nil,
+      snapshot: nil,
+      recent_events: [],
+      notice: nil,
+      action_label: "Open repo conversation"
+    }
+  end
+
+  defp assign_project_conversation(socket, project_detail) do
+    projection = ProjectConversation.load_repo_detail(project_detail, actor: initiating_actor(socket))
+
+    socket
+    |> assign_conversation_surface(projection)
+    |> maybe_subscribe_conversation()
+  end
+
+  defp clear_project_conversation(socket) do
+    socket
+    |> assign(:conversation_surface, empty_conversation_surface())
+    |> assign(:conversation_snapshot, nil)
+    |> assign(:conversation_events, [])
+    |> assign(:conversation_last_event_sequence, 0)
+    |> assign(:conversation_input, "")
+    |> assign(:conversation_action_feedback, nil)
+    |> assign(:conversation_action_feedback_kind, :info)
+    |> assign(:conversation_stream_mode, :idle)
+    |> assign(:conversation_stream_degraded_reason, nil)
+    |> assign(:conversation_stream_discontinuity_count, 0)
+  end
+
+  defp assign_opened_conversation(socket, conversation, snapshot) do
+    projection = %{
+      available?: true,
+      managed_repo_id: conversation.managed_repo_id,
+      conversation: %{
+        id: conversation.id,
+        status: conversation.status,
+        scope: conversation.scope,
+        attachment_mode: conversation.attachment_mode,
+        title: conversation.title,
+        objective: conversation.objective,
+        source: conversation.source,
+        work_item_id: conversation.work_item_id,
+        last_activity_at: conversation.last_activity_at
+      },
+      snapshot: snapshot,
+      recent_events: Enum.take(snapshot.events || [], -10),
+      notice: nil,
+      action_label: "Continue repo conversation"
+    }
+
+    assign_conversation_surface(socket, projection)
+  end
+
+  defp assign_conversation_surface(socket, projection) do
+    snapshot = Map.get(projection, :snapshot)
+    recent_events = Map.get(projection, :recent_events, [])
+
+    socket
+    |> assign(:conversation_surface, projection)
+    |> assign(:conversation_snapshot, snapshot)
+    |> assign(:conversation_events, recent_events)
+    |> assign(:conversation_last_event_sequence, snapshot && snapshot.last_event_sequence || 0)
+    |> assign(:conversation_stream_mode, conversation_stream_mode(projection))
+    |> assign(:conversation_stream_degraded_reason, conversation_stream_reason(projection))
+    |> assign(:conversation_stream_discontinuity_count, 0)
+  end
+
+  defp assign_conversation_snapshot(socket, snapshot) do
+    recent_events = Enum.take(snapshot.events || [], -10)
+
+    socket
+    |> assign(:conversation_snapshot, snapshot)
+    |> assign(:conversation_events, recent_events)
+    |> assign(:conversation_last_event_sequence, snapshot.last_event_sequence || 0)
+    |> update(:conversation_surface, fn surface ->
+      surface
+      |> Map.put(:snapshot, snapshot)
+      |> Map.put(:recent_events, recent_events)
+      |> update_conversation_summary(snapshot)
+    end)
+  end
+
+  defp update_conversation_summary(%{conversation: %{} = conversation} = surface, snapshot) do
+    Map.put(
+      surface,
+      :conversation,
+      conversation
+      |> Map.put(:status, snapshot.status)
+      |> Map.put(:work_item_id, snapshot.work_item_id)
+    )
+  end
+
+  defp update_conversation_summary(surface, _snapshot), do: surface
+
+  defp maybe_subscribe_conversation(socket) do
+    if connected?(socket) do
+      case conversation_id(socket) do
+        conversation_id when is_binary(conversation_id) ->
+          case ConversationPubSub.subscribe_conversation(conversation_id) do
+            :ok ->
+              socket
+              |> assign(:conversation_stream_mode, :live)
+              |> assign(:conversation_stream_degraded_reason, nil)
+
+            {:error, reason} ->
+              socket
+              |> assign(:conversation_stream_mode, :degraded)
+              |> assign(:conversation_stream_degraded_reason, inspect(reason))
+
+            other ->
+              socket
+              |> assign(:conversation_stream_mode, :degraded)
+              |> assign(:conversation_stream_degraded_reason, inspect(other))
+          end
+
+        _other ->
+          socket
+      end
+    else
+      socket
+    end
+  end
+
+  defp maybe_unsubscribe_conversation(socket) do
+    case conversation_id(socket) do
+      conversation_id when is_binary(conversation_id) ->
+        _ = ConversationPubSub.unsubscribe_conversation(conversation_id)
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp dispatch_conversation_control(socket, command_type, payload) do
+    case JidoCode.AgentWorkspace.handle_conversation_command(
+           conversation_id(socket),
+           %{type: command_type, payload: payload},
+           actor: initiating_actor(socket)
+         ) do
+      {:ok, snapshot} ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, nil)
+         |> assign(:conversation_action_feedback_kind, :info)
+         |> assign_conversation_snapshot(snapshot)}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, %{
+           error_type: "project_detail_conversation_control_failed",
+           detail: "The repository conversation could not be updated (#{inspect(reason)}).",
+           remediation: "Retry the control action after the active conversation state is available again."
+         })
+         |> assign(:conversation_action_feedback_kind, :error)}
+    end
+  end
+
+  defp maybe_schedule_conversation_runtime_flow(socket, input, true) do
+    case active_child_work_id(socket.assigns.conversation_snapshot) do
+      child_work_id when is_binary(child_work_id) ->
+        Process.send_after(
+          self(),
+          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+           %{
+             kind: "delta",
+             text: "Continuing with the clarified repository instruction: #{input}"
+           }},
+          @conversation_resume_delta_delay_ms
+        )
+
+        Process.send_after(
+          self(),
+          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+           %{
+             kind: "completed",
+             result: %{summary: "Completed the clarified repository work: #{input}"}
+           }},
+          @conversation_resume_completion_delay_ms
+        )
+
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp maybe_schedule_conversation_runtime_flow(socket, instruction, false) do
+    case active_child_work_id(socket.assigns.conversation_snapshot) do
+      child_work_id when is_binary(child_work_id) ->
+        Process.send_after(
+          self(),
+          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+           %{
+             kind: "progress",
+             summary: "Inspecting the requested repository scope.",
+             percent: 35
+           }},
+          @conversation_progress_delay_ms
+        )
+
+        Process.send_after(
+          self(),
+          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+           %{kind: "stdout", text: simulated_conversation_stdout(instruction)}},
+          @conversation_stdout_delay_ms
+        )
+
+        if conversation_requires_clarification?(instruction) do
+          Process.send_after(
+            self(),
+            {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+             %{kind: "needs_input", prompt: "Which file should I inspect first?"}},
+            @conversation_clarification_delay_ms
+          )
+        else
+          Process.send_after(
+            self(),
+            {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+             %{kind: "delta", text: "Applying the requested repository scope: #{instruction}"}},
+            @conversation_delta_delay_ms
+          )
+
+          Process.send_after(
+            self(),
+            {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+             %{
+               kind: "completed",
+               result: %{summary: "Completed the requested repository work: #{instruction}"}
+             }},
+            @conversation_completion_delay_ms
+          )
+        end
+
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp maybe_schedule_conversation_cancellation(socket) do
+    case active_child_work_id(socket.assigns.conversation_snapshot) do
+      child_work_id when is_binary(child_work_id) ->
+        Process.send_after(
+          self(),
+          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
+           %{
+             kind: "cancelled",
+             result: %{reason: "The active repository conversation work was cancelled before completion."}
+           }},
+          @conversation_cancellation_settle_delay_ms
+        )
+
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp recover_project_conversation_gap(socket) do
+    case conversation_id(socket) do
+      conversation_id when is_binary(conversation_id) ->
+        case JidoCode.AgentWorkspace.conversation_snapshot(conversation_id) do
+          {:ok, snapshot} ->
+            socket
+            |> assign_conversation_snapshot(snapshot)
+            |> assign(
+              :conversation_stream_discontinuity_count,
+              socket.assigns.conversation_stream_discontinuity_count + 1
+            )
+
+          {:error, reason} ->
+            socket
+            |> assign(:conversation_stream_mode, :degraded)
+            |> assign(:conversation_stream_degraded_reason, inspect(reason))
+        end
+
+      _other ->
+        socket
+    end
+  end
+
+  defp append_conversation_event(socket, event) do
+    updated_events =
+      socket.assigns.conversation_events
+      |> Kernel.++([event])
+      |> Enum.take(-10)
+
+    socket
+    |> assign(:conversation_events, updated_events)
+    |> assign(:conversation_last_event_sequence, map_get(event, :sequence, "sequence"))
+    |> update(:conversation_surface, &Map.put(&1, :recent_events, updated_events))
+  end
+
+  defp conversation_event_applies?(socket, event) do
+    event_conversation_id = map_get(event, :conversation_id, "conversation_id")
+    is_binary(event_conversation_id) and event_conversation_id == conversation_id(socket)
+  end
+
+  defp conversation_notice_visible?(%{notice: notice}) when is_map(notice), do: true
+  defp conversation_notice_visible?(_surface), do: false
+
+  defp conversation_stream_mode(%{notice: notice}) when is_map(notice), do: :degraded
+  defp conversation_stream_mode(%{snapshot: nil}), do: :idle
+  defp conversation_stream_mode(%{snapshot: _snapshot}), do: :live
+  defp conversation_stream_mode(_surface), do: :idle
+
+  defp conversation_stream_reason(%{notice: notice}) when is_map(notice), do: notice.detail
+  defp conversation_stream_reason(_surface), do: nil
+
+  defp conversation_id(%{assigns: %{conversation_surface: %{conversation: %{} = conversation}}}) do
+    Map.get(conversation, :id)
+  end
+
+  defp conversation_id(_socket), do: nil
+
+  defp conversation_input_command(socket, input) do
+    case socket.assigns.conversation_snapshot do
+      %{active_turn_id: turn_id} = snapshot
+      when is_binary(turn_id) and conversation_awaiting_input?(snapshot) ->
+        %{type: "turn.resume", payload: %{turn_id: turn_id, response: input}}
+
+      _other ->
+        %{type: "turn.submit", payload: %{instruction: input}}
+    end
+  end
+
+  defp active_child_work_id(nil), do: nil
+  defp active_child_work_id(snapshot), do: snapshot.active_child_work_id
+
+  defp child_work_open?(snapshot, child_work_id) do
+    snapshot.child_works
+    |> Enum.find(&(&1.id == child_work_id))
+    |> case do
+      %{state: state} when state in [:running, :cancel_requested, :cancel_acknowledged] -> true
+      _other -> false
+    end
+  end
+
+  defp child_work_cancelling?(snapshot, child_work_id) do
+    snapshot.child_works
+    |> Enum.find(&(&1.id == child_work_id))
+    |> case do
+      %{state: state} when state in [:cancel_requested, :cancel_acknowledged] -> true
+      _other -> false
+    end
+  end
+
+  defp conversation_active_turn?(%{active_turn_id: turn_id}) when is_binary(turn_id), do: true
+  defp conversation_active_turn?(_snapshot), do: false
+
+  defp conversation_paused?(%{status: :paused}), do: true
+  defp conversation_paused?(_snapshot), do: false
+
+  defp conversation_turn_state(%{active_turn: %{state: state}}), do: state
+  defp conversation_turn_state(_snapshot), do: "none"
+
+  defp conversation_awaiting_input?(%{active_turn: %{state: :awaiting_input}}), do: true
+
+  defp conversation_awaiting_input?(%{
+         shared_context: %{"pending_clarification" => %{} = _pending_clarification}
+       }),
+       do: true
+
+  defp conversation_awaiting_input?(_snapshot), do: false
+
+  defp conversation_pending_clarification(%{
+         shared_context: %{"pending_clarification" => %{} = pending_clarification}
+       }),
+       do: pending_clarification
+
+  defp conversation_pending_clarification(_snapshot), do: nil
+
+  defp conversation_clarification_prompt(snapshot) do
+    snapshot
+    |> conversation_pending_clarification()
+    |> case do
+      %{"prompt" => %{"prompt" => prompt}} -> prompt
+      %{"prompt" => %{"details" => %{"prompt" => prompt}}} -> prompt
+      %{"prompt" => prompt} when is_binary(prompt) -> prompt
+      _other -> nil
+    end
+  end
+
+  defp conversation_latest_progress(%{active_child_work: %{result: %{} = result}}) do
+    case result do
+      %{"latest_progress" => %{} = latest_progress} -> latest_progress
+      _other -> nil
+    end
+  end
+
+  defp conversation_latest_progress(_snapshot), do: nil
+
+  defp conversation_stdout_preview(%{active_child_work: %{result: %{"stdout" => stdout}}})
+       when is_list(stdout),
+       do: Enum.take(stdout, -4)
+
+  defp conversation_stdout_preview(_snapshot), do: []
+
+  defp conversation_requires_clarification?(instruction) when is_binary(instruction) do
+    normalized = String.downcase(instruction)
+
+    String.contains?(normalized, "clarify") or String.contains?(normalized, "input") or
+      String.contains?(normalized, "question")
+  end
+
+  defp conversation_requires_clarification?(_instruction), do: false
+
+  defp simulated_conversation_stdout(instruction) do
+    "rg --context 2 #{String.slice(instruction, 0, 32)}"
+  end
+
+  defp conversation_event_label(event) do
+    event
+    |> map_get(:name, "name", "")
+    |> case do
+      "" -> "event"
+      name -> name |> String.split(".", parts: 2) |> List.first()
+    end
+  end
+
+  defp conversation_event_title(event) do
+    case map_get(event, :name, "name") do
+      "conversation.message_added" ->
+        payload = conversation_event_payload(event)
+        command_payload = map_get(payload, :payload, "payload", %{})
+
+        map_get(command_payload, :instruction, "instruction") ||
+          map_get(command_payload, :response, "response") ||
+          map_get(command_payload, :reason, "reason") ||
+          "Recorded repository conversation input."
+
+      "conversation.status_changed" ->
+        "Conversation status is now #{map_get(conversation_event_payload(event), :status, "status") || "active"}."
+
+      "turn.intent_announced" ->
+        map_get(conversation_event_payload(event), :text, "text") || "Intent announced."
+
+      "turn.queued" ->
+        "Queued a new repository work turn."
+
+      "turn.started" ->
+        "Started the active repository turn."
+
+      "turn.awaiting_input" ->
+        map_get(conversation_event_payload(event), :prompt, "prompt") ||
+          "Waiting for clarification before continuing."
+
+      "turn.delta" ->
+        map_get(conversation_event_payload(event), :text, "text") ||
+          "Streaming turn update received."
+
+      "turn.cancelling" ->
+        "Stopping the active repository turn."
+
+      "turn.completed" ->
+        "The active repository turn completed."
+
+      "turn.cancelled" ->
+        "The active repository turn was cancelled."
+
+      "tool.started" ->
+        "Started a child tool execution."
+
+      "tool.progress" ->
+        map_get(conversation_event_payload(event), :summary, "summary") ||
+          "Progress update received."
+
+      "tool.stdout" ->
+        map_get(conversation_event_payload(event), :text, "text") ||
+          "Tool output received."
+
+      "tool.needs_input" ->
+        map_get(conversation_event_payload(event), :prompt, "prompt") ||
+          "The active tool requested more input."
+
+      "tool.completed" ->
+        conversation_result_summary(event) || "The active tool completed."
+
+      "tool.cancelled" ->
+        conversation_result_summary(event) || "The active tool cancelled cleanly."
+
+      other when is_binary(other) ->
+        other
+
+      _other ->
+        "Conversation event"
+    end
+  end
+
+  defp conversation_event_excerpt(event) do
+    actor_id =
+      event
+      |> map_get(:actor, "actor", %{})
+      |> map_get(:id, "id")
+
+    tool_call_id = map_get(event, :tool_call_id, "tool_call_id")
+    payload = conversation_event_payload(event)
+
+    %{}
+    |> maybe_put("actor", actor_id)
+    |> maybe_put("tool_call_id", tool_call_id)
+    |> maybe_put("summary", map_get(payload, :summary, "summary"))
+    |> maybe_put("prompt", map_get(payload, :prompt, "prompt"))
+    |> maybe_put(
+      "text",
+      map_get(payload, :text, "text") || map_get(payload, :chunk, "chunk")
+    )
+    |> case do
+      empty when empty == %{} -> nil
+      details -> inspect(details, pretty: false)
+    end
+  end
+
+  defp conversation_event_payload(event), do: map_get(event, :payload, "payload", %{})
+
+  defp conversation_result_summary(event) do
+    result =
+      event
+      |> conversation_event_payload()
+      |> map_get(:result, "result", %{})
+
+    map_get(result, :summary, "summary") || map_get(result, :reason, "reason")
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp format_time(nil), do: "n/a"
+
+  defp format_time(%DateTime{} = dt) do
+    Calendar.strftime(dt, "%H:%M:%S")
+  end
+
+  defp format_time(_value), do: "n/a"
 
   attr(:feedback, :map, default: nil)
   attr(:dom_prefix, :string, required: true)

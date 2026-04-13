@@ -27,7 +27,9 @@ defmodule JidoCodeWeb.Demos.ChatLiveTest do
     managed_repo = managed_repo_fixture!("live-updates")
 
     {:ok, view, _html} =
-      live_isolated(conn, JidoCodeWeb.Demos.ChatLive, session: %{"managed_repo_id" => managed_repo.id})
+      live_isolated(conn, JidoCodeWeb.Demos.ChatLive,
+        session: %{"managed_repo_id" => managed_repo.id}
+      )
 
     render_hook(view, "client_ready", %{"after_sequence" => "0"})
     conversation_id = capture_data_attr(render(view), "conversation-id")
@@ -51,11 +53,15 @@ defmodule JidoCodeWeb.Demos.ChatLiveTest do
     assert has_element?(view, "#conversation-stream-discontinuity-count", "discontinuities: 0")
   end
 
-  test "reconnect resumes from the next available event sequence when continuity is available", %{conn: conn} do
+  test "reconnect resumes from the next available event sequence when continuity is available", %{
+    conn: conn
+  } do
     managed_repo = managed_repo_fixture!("reconnect")
 
     {:ok, first_view, _html} =
-      live_isolated(conn, JidoCodeWeb.Demos.ChatLive, session: %{"managed_repo_id" => managed_repo.id})
+      live_isolated(conn, JidoCodeWeb.Demos.ChatLive,
+        session: %{"managed_repo_id" => managed_repo.id}
+      )
 
     render_hook(first_view, "client_ready", %{"after_sequence" => "0"})
     conversation_id = capture_data_attr(render(first_view), "conversation-id")
@@ -78,7 +84,9 @@ defmodule JidoCodeWeb.Demos.ChatLiveTest do
     after_sequence = max(last_sequence - 2, 0)
 
     {:ok, resumed_view, _html} =
-      live_isolated(conn, JidoCodeWeb.Demos.ChatLive, session: %{"managed_repo_id" => managed_repo.id})
+      live_isolated(conn, JidoCodeWeb.Demos.ChatLive,
+        session: %{"managed_repo_id" => managed_repo.id}
+      )
 
     render_hook(resumed_view, "client_ready", %{
       "conversation_id" => conversation_id,
@@ -92,13 +100,58 @@ defmodule JidoCodeWeb.Demos.ChatLiveTest do
            )
   end
 
-  test "surfaces degraded-mode messaging when the conversation stream subscription fails", %{conn: conn} do
+  test "renders clarification prompts and resumes the active turn through the same form", %{
+    conn: conn
+  } do
+    managed_repo = managed_repo_fixture!("clarification")
+
+    {:ok, view, _html} =
+      live_isolated(conn, JidoCodeWeb.Demos.ChatLive,
+        session: %{"managed_repo_id" => managed_repo.id}
+      )
+
+    render_hook(view, "client_ready", %{"after_sequence" => "0"})
+    conversation_id = capture_data_attr(render(view), "conversation-id")
+
+    on_exit(fn ->
+      :ok = Driver.stop(conversation_id)
+    end)
+
+    view
+    |> form("#chat-form", input: "Clarify the repo surface before continuing.")
+    |> render_submit()
+
+    assert_eventually(fn ->
+      has_element?(
+        view,
+        "#conversation-pending-clarification",
+        "Which file should I inspect first?"
+      )
+    end)
+
+    assert has_element?(view, "#chat-form button", "Resume Turn")
+
+    view
+    |> form("#chat-form", input: "Start with lib/jido_code/conversations/coordinator.ex.")
+    |> render_submit()
+
+    assert_eventually(fn ->
+      html = render(view)
+      html =~ "turn.delta" and html =~ "tool.completed"
+    end)
+  end
+
+  test "surfaces degraded-mode messaging when the conversation stream subscription fails", %{
+    conn: conn
+  } do
     managed_repo = managed_repo_fixture!("degraded")
 
     Application.put_env(:jido_code, :conversation_pubsub_subscriber, FailingSubscriber)
 
     {:ok, view, _html} =
-      live_isolated(conn, JidoCodeWeb.Demos.ChatLive, session: %{"managed_repo_id" => managed_repo.id})
+      live_isolated(conn, JidoCodeWeb.Demos.ChatLive,
+        session: %{"managed_repo_id" => managed_repo.id}
+      )
 
     render_hook(view, "client_ready", %{"after_sequence" => "0"})
     conversation_id = capture_data_attr(render(view), "conversation-id")
@@ -108,7 +161,12 @@ defmodule JidoCodeWeb.Demos.ChatLiveTest do
     end)
 
     assert has_element?(view, "#conversation-stream-degraded-alert", "Stream degraded mode")
-    assert has_element?(view, "#conversation-stream-degraded-alert", "Showing the latest conversation snapshot only")
+
+    assert has_element?(
+             view,
+             "#conversation-stream-degraded-alert",
+             "Showing the latest conversation snapshot only"
+           )
   end
 
   defp managed_repo_fixture!(suffix) do

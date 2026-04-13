@@ -85,17 +85,28 @@ defmodule JidoCode.ConversationsDriverTest do
     turn_id = initial_snapshot.active_turn_id
 
     assert {:ok, awaiting_input_snapshot} =
-             Driver.transition_turn(conversation.id, turn_id, :awaiting_input, actor: Actor.operator_actor())
+             Driver.transition_turn(conversation.id, turn_id, :awaiting_input,
+               actor: Actor.operator_actor()
+             )
 
     assert awaiting_input_snapshot.active_turn.state == :awaiting_input
 
     assert {:ok, completed_snapshot} =
-             Driver.transition_turn(conversation.id, turn_id, :completed, actor: Actor.operator_actor())
+             Driver.transition_turn(conversation.id, turn_id, :completed,
+               actor: Actor.operator_actor()
+             )
 
     completed_turn = Enum.find(completed_snapshot.turns, &(&1.id == turn_id))
 
     assert completed_turn.state == :completed
-    assert Enum.map(completed_turn.lifecycle, & &1["state"]) == ["queued", "running", "awaiting_input", "completed"]
+
+    assert Enum.map(completed_turn.lifecycle, & &1["state"]) == [
+             "queued",
+             "running",
+             "awaiting_input",
+             "completed"
+           ]
+
     assert completed_snapshot.active_turn == nil
 
     assert :ok = Driver.stop(conversation.id)
@@ -125,7 +136,9 @@ defmodule JidoCode.ConversationsDriverTest do
     assert running_snapshot.active_child_work.tool_call_id == "tool-driver-1"
 
     assert {:ok, cancellation_snapshot} =
-             Driver.cancel_child_work(conversation.id, child_work_id, actor: Actor.operator_actor())
+             Driver.cancel_child_work(conversation.id, child_work_id,
+               actor: Actor.operator_actor()
+             )
 
     assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
 
@@ -177,7 +190,10 @@ defmodule JidoCode.ConversationsDriverTest do
     {:ok, steering_snapshot} =
       Driver.handle_command(
         conversation.id,
-        %{type: "turn.steer", payload: %{instruction: "Replace the active turn with the narrowed objective."}},
+        %{
+          type: "turn.steer",
+          payload: %{instruction: "Replace the active turn with the narrowed objective."}
+        },
         actor: Actor.operator_actor()
       )
 
@@ -197,7 +213,8 @@ defmodule JidoCode.ConversationsDriverTest do
         actor: Actor.operator_actor()
       )
 
-    superseded_turn = Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn_id))
+    superseded_turn =
+      Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn_id))
 
     assert superseded_turn.state == :superseded
     assert superseded_snapshot.active_turn.id == replacement_turn.id
@@ -241,13 +258,131 @@ defmodule JidoCode.ConversationsDriverTest do
     assert stopping_snapshot.last_event_sequence > first_snapshot.last_event_sequence
 
     assert {:ok, replayed_events} =
-             Driver.events_since(conversation.id, first_snapshot.last_event_sequence, actor: Actor.operator_actor())
+             Driver.events_since(conversation.id, first_snapshot.last_event_sequence,
+               actor: Actor.operator_actor()
+             )
 
     assert Enum.map(replayed_events, & &1.name) == [
              "conversation.message_added",
              "turn.cancelling",
              "tool.cancel_requested",
              "tool.cancel_acknowledged"
+           ]
+
+    assert :ok = Driver.stop(conversation.id)
+  end
+
+  test "driver handles runtime tool-result updates and clarification resumes through canonical commands" do
+    managed_repo = managed_repo_fixture!("driver-runtime-updates")
+
+    {:ok, %{conversation: conversation}} =
+      Driver.start_conversation(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Exercise runtime tool-result handling."
+      })
+
+    {:ok, running_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{type: "turn.submit", payload: %{instruction: "Work through a clarification loop."}},
+        actor: Actor.operator_actor(%{"id" => "operator-runtime"})
+      )
+
+    child_work_id = running_snapshot.active_child_work_id
+    turn_id = running_snapshot.active_turn_id
+
+    {:ok, progress_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{
+          type: "tool_result.submit",
+          payload: %{
+            child_work_id: child_work_id,
+            kind: "progress",
+            summary: "Inspecting the runtime update flow.",
+            percent: 40
+          }
+        },
+        actor: Actor.operator_actor(%{"id" => "operator-runtime"})
+      )
+
+    assert progress_snapshot.active_child_work.result["latest_progress"]["percent"] == 40
+
+    {:ok, awaiting_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{
+          type: "tool_result.submit",
+          payload: %{
+            child_work_id: child_work_id,
+            kind: "needs_input",
+            prompt: "Which test should this turn narrow to?"
+          }
+        },
+        actor: Actor.operator_actor(%{"id" => "operator-runtime"})
+      )
+
+    assert awaiting_snapshot.active_turn.state == :awaiting_input
+
+    {:ok, resumed_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{
+          type: "turn.resume",
+          payload: %{
+            turn_id: turn_id,
+            response: "Focus on the conversation driver tests."
+          }
+        },
+        actor: Actor.operator_actor(%{"id" => "operator-runtime"})
+      )
+
+    assert resumed_snapshot.active_turn.id == turn_id
+    assert resumed_snapshot.active_turn.state == :running
+
+    {:ok, delta_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{
+          type: "tool_result.submit",
+          payload: %{
+            child_work_id: child_work_id,
+            kind: "delta",
+            text: "Narrowing the active turn to the requested tests."
+          }
+        },
+        actor: Actor.operator_actor(%{"id" => "operator-runtime"})
+      )
+
+    assert List.last(delta_snapshot.events).name == "turn.delta"
+
+    {:ok, completed_snapshot} =
+      Driver.handle_command(
+        conversation.id,
+        %{
+          type: "tool_result.submit",
+          payload: %{
+            child_work_id: child_work_id,
+            kind: "completed",
+            result: %{summary: "Runtime clarification flow completed cleanly."}
+          }
+        },
+        actor: Actor.operator_actor(%{"id" => "operator-runtime"})
+      )
+
+    assert completed_snapshot.active_turn == nil
+    assert completed_snapshot.active_child_work == nil
+
+    assert Enum.any?(
+             completed_snapshot.shared_context["accepted_tool_results"],
+             &(&1["child_work_id"] == child_work_id)
+           )
+
+    assert Enum.map(Enum.take(completed_snapshot.events, -3), & &1.name) == [
+             "turn.delta",
+             "tool.completed",
+             "turn.completed"
            ]
 
     assert :ok = Driver.stop(conversation.id)

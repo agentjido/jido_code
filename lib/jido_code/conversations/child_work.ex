@@ -10,7 +10,16 @@ defmodule JidoCode.Conversations.ChildWork do
 
   alias JidoCode.Conversations.{Conversation, Turn}
 
-  @states [:queued, :running, :cancel_requested, :cancel_acknowledged, :completed, :cancelled, :cancel_failed, :failed]
+  @states [
+    :queued,
+    :running,
+    :cancel_requested,
+    :cancel_acknowledged,
+    :completed,
+    :cancelled,
+    :cancel_failed,
+    :failed
+  ]
   @terminal_states [:completed, :cancelled, :cancel_failed, :failed]
   @settlement_states [:completed, :cancelled, :cancel_failed, :failed]
   @transitions %{
@@ -67,8 +76,11 @@ defmodule JidoCode.Conversations.ChildWork do
       work_item_id: conversation.work_item_id,
       actor: normalize_map(Map.get(turn, :actor)),
       turn_id: turn.id,
-      tool_call_id: optional_string(map_get(attrs, :tool_call_id) || map_get(payload, :tool_call_id)) || Ecto.UUID.generate(),
-      kind: optional_string(map_get(attrs, :kind) || map_get(payload, :execution_kind)) || "tool_call",
+      tool_call_id:
+        optional_string(map_get(attrs, :tool_call_id) || map_get(payload, :tool_call_id)) ||
+          Ecto.UUID.generate(),
+      kind:
+        optional_string(map_get(attrs, :kind) || map_get(payload, :execution_kind)) || "tool_call",
       state: :queued,
       inserted_at: inserted_at,
       lifecycle: [lifecycle_entry(:queued, inserted_at)]
@@ -104,7 +116,8 @@ defmodule JidoCode.Conversations.ChildWork do
     transition(child_work, :running)
   end
 
-  @spec request_cancel(t()) :: {:ok, t()} | {:error, :child_work_already_settled | :invalid_child_work_transition}
+  @spec request_cancel(t()) ::
+          {:ok, t()} | {:error, :child_work_already_settled | :invalid_child_work_transition}
   def request_cancel(%__MODULE__{state: state}) when state in @terminal_states,
     do: {:error, :child_work_already_settled}
 
@@ -117,11 +130,13 @@ defmodule JidoCode.Conversations.ChildWork do
     transition(child_work, :cancel_acknowledged)
   end
 
-  @spec settle(t(), settlement(), map()) :: {:ok, t()} | {:error, :child_work_already_settled | :invalid_child_work_transition}
+  @spec settle(t(), settlement(), map()) ::
+          {:ok, t()} | {:error, :child_work_already_settled | :invalid_child_work_transition}
   def settle(%__MODULE__{state: state}, _outcome, _attrs) when state in @terminal_states,
     do: {:error, :child_work_already_settled}
 
-  def settle(%__MODULE__{} = child_work, outcome, attrs \\ %{}) when outcome in @settlement_states do
+  def settle(%__MODULE__{} = child_work, outcome, attrs \\ %{})
+      when outcome in @settlement_states do
     with {:ok, transitioned} <- transition(child_work, outcome) do
       {:ok,
        %{
@@ -134,6 +149,29 @@ defmodule JidoCode.Conversations.ChildWork do
 
   def settle(%__MODULE__{}, _outcome, _attrs), do: {:error, :invalid_child_work_transition}
 
+  @spec record_update(t(), :progress | :stdout | :needs_input | :delta, map()) ::
+          {:ok, t()} | {:error, :child_work_already_settled}
+  def record_update(%__MODULE__{state: state}, _kind, _attrs) when state in @terminal_states,
+    do: {:error, :child_work_already_settled}
+
+  def record_update(%__MODULE__{} = child_work, kind, attrs)
+      when kind in [:progress, :stdout, :needs_input, :delta] and is_map(attrs) do
+    {:ok, %{child_work | result: merge_runtime_update(child_work.result, kind, attrs)}}
+  end
+
+  def record_update(%__MODULE__{}, _kind, _attrs), do: {:error, :invalid_child_work_transition}
+
+  @spec clear_pending_input(t()) :: {:ok, t()}
+  def clear_pending_input(%__MODULE__{} = child_work) do
+    result =
+      child_work.result
+      |> normalize_optional_map()
+      |> Map.delete("needs_input")
+      |> empty_to_nil()
+
+    {:ok, %{child_work | result: result}}
+  end
+
   defp transition(%__MODULE__{} = child_work, next_state) when next_state in @states do
     if next_state in Map.get(@transitions, child_work.state, []) do
       at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
@@ -142,7 +180,9 @@ defmodule JidoCode.Conversations.ChildWork do
        %{
          child_work
          | state: next_state,
-           started_at: child_work.started_at || if(next_state == :running, do: at, else: child_work.started_at),
+           started_at:
+             child_work.started_at ||
+               if(next_state == :running, do: at, else: child_work.started_at),
            completed_at: if(terminal_state?(next_state), do: at, else: child_work.completed_at),
            lifecycle: child_work.lifecycle ++ [lifecycle_entry(next_state, at)]
        }}
@@ -153,13 +193,49 @@ defmodule JidoCode.Conversations.ChildWork do
 
   defp transition(_child_work, _next_state), do: {:error, :invalid_child_work_transition}
 
-  defp lifecycle_entry(state, at), do: %{"state" => Atom.to_string(state), "at" => DateTime.to_iso8601(at)}
+  defp lifecycle_entry(state, at),
+    do: %{"state" => Atom.to_string(state), "at" => DateTime.to_iso8601(at)}
 
   defp normalize_error(outcome, attrs) when outcome in [:failed, :cancel_failed] do
     normalize_map(map_get(attrs, :error))
   end
 
   defp normalize_error(_outcome, _attrs), do: nil
+
+  defp merge_runtime_update(result, :progress, attrs) do
+    result
+    |> normalize_optional_map()
+    |> Map.put("latest_progress", normalize_map(attrs))
+  end
+
+  defp merge_runtime_update(result, :stdout, attrs) do
+    text =
+      optional_string(map_get(attrs, :text) || map_get(attrs, :chunk) || map_get(attrs, :line))
+
+    stdout =
+      result
+      |> normalize_optional_map()
+      |> Map.get("stdout", [])
+      |> normalize_string_list()
+      |> maybe_append_string(text)
+      |> Enum.take(-20)
+
+    result
+    |> normalize_optional_map()
+    |> Map.put("stdout", stdout)
+  end
+
+  defp merge_runtime_update(result, :needs_input, attrs) do
+    result
+    |> normalize_optional_map()
+    |> Map.put("needs_input", normalize_map(attrs))
+  end
+
+  defp merge_runtime_update(result, :delta, attrs) do
+    result
+    |> normalize_optional_map()
+    |> Map.put("last_delta", normalize_map(attrs))
+  end
 
   defp normalize_map(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
@@ -177,7 +253,10 @@ defmodule JidoCode.Conversations.ChildWork do
   defp normalize_map(_value), do: %{}
 
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
-  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+
+  defp normalize_nested_value(value) when is_list(value),
+    do: Enum.map(value, &normalize_nested_value/1)
+
   defp normalize_nested_value(value), do: value
 
   defp map_get(map, key) when is_map(map) do
@@ -201,7 +280,9 @@ defmodule JidoCode.Conversations.ChildWork do
     end
   end
 
-  defp optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> optional_string()
+  defp optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> optional_string()
+
   defp optional_string(_value), do: nil
 
   defp normalize_optional_string(value), do: optional_string(value)
@@ -243,4 +324,18 @@ defmodule JidoCode.Conversations.ChildWork do
 
   defp normalize_lifecycle(value) when is_list(value), do: Enum.filter(value, &is_map/1)
   defp normalize_lifecycle(_value), do: []
+
+  defp normalize_string_list(value) when is_list(value) do
+    value
+    |> Enum.map(&optional_string/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp normalize_string_list(_value), do: []
+
+  defp maybe_append_string(values, nil), do: values
+  defp maybe_append_string(values, value), do: values ++ [value]
+
+  defp empty_to_nil(map) when map == %{}, do: nil
+  defp empty_to_nil(map), do: map
 end

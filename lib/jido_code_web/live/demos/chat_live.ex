@@ -14,7 +14,13 @@ defmodule JidoCodeWeb.Demos.ChatLive do
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Conversations.{Driver, PubSub}
 
-  @completion_delay_ms 120
+  @progress_delay_ms 60
+  @stdout_delay_ms 100
+  @clarification_delay_ms 140
+  @delta_delay_ms 180
+  @completion_delay_ms 240
+  @resume_delta_delay_ms 80
+  @resume_completion_delay_ms 160
   @cancellation_settle_delay_ms 80
   @degraded_mode_message "Live conversation stream unavailable. Showing the latest conversation snapshot only."
 
@@ -68,6 +74,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
 
   def handle_event("send", _params, socket) do
     input = String.trim(socket.assigns.input)
+    submit_as_resume? = awaiting_input?(socket.assigns.snapshot)
 
     cond do
       input == "" ->
@@ -82,7 +89,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
       true ->
         case Driver.handle_command(
                socket.assigns.conversation_id,
-               %{type: "turn.submit", payload: %{instruction: input}},
+               input_command(socket, input),
                actor: current_actor(socket)
              ) do
           {:ok, snapshot} ->
@@ -91,7 +98,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
               |> assign(:input, "")
               |> assign(:error, nil)
               |> assign_from_snapshot(snapshot)
-              |> maybe_schedule_completion(input)
+              |> maybe_schedule_runtime_flow(input, submit_as_resume?)
 
             {:noreply, socket}
 
@@ -102,7 +109,9 @@ defmodule JidoCodeWeb.Demos.ChatLive do
   end
 
   def handle_event("pause", _params, socket) do
-    dispatch_control_command(socket, "session.pause", %{reason: "Operator paused the conversation."})
+    dispatch_control_command(socket, "session.pause", %{
+      reason: "Operator paused the conversation."
+    })
   end
 
   def handle_event("resume", _params, socket) do
@@ -147,7 +156,9 @@ defmodule JidoCodeWeb.Demos.ChatLive do
           |> subscribe_to_conversation_stream(bootstrap.conversation_id)
           |> assign_from_snapshot(bootstrap.snapshot)
           |> assign(:error, nil)
-          |> assign(:stream_notices, [%{id: gen_id(), kind: :info, text: "Started a fresh demo conversation."}])
+          |> assign(:stream_notices, [
+            %{id: gen_id(), kind: :info, text: "Started a fresh demo conversation."}
+          ])
 
         {:noreply, socket}
 
@@ -178,50 +189,22 @@ defmodule JidoCodeWeb.Demos.ChatLive do
     end
   end
 
-  def handle_info({:simulate_completion, conversation_id, child_work_id, instruction}, socket) do
+  def handle_info({:simulate_tool_result, conversation_id, child_work_id, payload}, socket) do
     if socket.assigns.conversation_id == conversation_id do
       case Driver.snapshot(conversation_id) do
         {:ok, snapshot} ->
-          if child_work_running?(snapshot, child_work_id) do
-            case Driver.settle_child_work(
+          if child_work_open?(snapshot, child_work_id) or
+               child_work_cancelling?(snapshot, child_work_id) do
+            case Driver.handle_command(
                    conversation_id,
-                   child_work_id,
-                   :completed,
-                   %{result: %{summary: "Completed the requested demo work: #{instruction}"}},
+                   %{
+                     type: "tool_result.submit",
+                     payload: Map.put(payload, :child_work_id, child_work_id)
+                   },
                    actor: current_actor(socket)
                  ) do
-              {:ok, settled_snapshot} ->
-                {:noreply, assign_from_snapshot(socket, settled_snapshot)}
-
-              {:error, _reason} ->
-                {:noreply, socket}
-            end
-          else
-            {:noreply, socket}
-          end
-
-        {:error, _reason} ->
-          {:noreply, socket}
-      end
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_info({:simulate_cancel_settlement, conversation_id, child_work_id}, socket) do
-    if socket.assigns.conversation_id == conversation_id do
-      case Driver.snapshot(conversation_id) do
-        {:ok, snapshot} ->
-          if child_work_cancelling?(snapshot, child_work_id) do
-            case Driver.settle_child_work(
-                   conversation_id,
-                   child_work_id,
-                   :cancelled,
-                   %{result: %{reason: "The active demo work was cancelled before completion."}},
-                   actor: current_actor(socket)
-                 ) do
-              {:ok, settled_snapshot} ->
-                {:noreply, assign_from_snapshot(socket, settled_snapshot)}
+              {:ok, updated_snapshot} ->
+                {:noreply, assign_from_snapshot(socket, updated_snapshot)}
 
               {:error, _reason} ->
                 {:noreply, socket}
@@ -250,7 +233,8 @@ defmodule JidoCodeWeb.Demos.ChatLive do
         {:noreply, socket |> assign(:error, nil) |> assign_from_snapshot(snapshot)}
 
       {:error, reason} ->
-        {:noreply, assign(socket, :error, "Failed to update the conversation: #{inspect(reason)}")}
+        {:noreply,
+         assign(socket, :error, "Failed to update the conversation: #{inspect(reason)}")}
     end
   end
 
@@ -343,7 +327,10 @@ defmodule JidoCodeWeb.Demos.ChatLive do
 
           socket
           |> assign(:stream_discontinuity_count, socket.assigns.stream_discontinuity_count + 1)
-          |> append_stream_notice(continuity_gap_message(missing_from, missing_to, socket.assigns.last_event_sequence), :warning)
+          |> append_stream_notice(
+            continuity_gap_message(missing_from, missing_to, socket.assigns.last_event_sequence),
+            :warning
+          )
         else
           append_stream_notice(socket, "Conversation stream is current after reconnect.", :info)
         end
@@ -352,11 +339,18 @@ defmodule JidoCodeWeb.Demos.ChatLive do
         first_sequence = map_get(hd(replayed_events), :sequence)
 
         if first_sequence == after_sequence + 1 do
-          append_stream_notice(socket, "Conversation stream resumed from event sequence #{first_sequence}.", :info)
+          append_stream_notice(
+            socket,
+            "Conversation stream resumed from event sequence #{first_sequence}.",
+            :info
+          )
         else
           socket
           |> assign(:stream_discontinuity_count, socket.assigns.stream_discontinuity_count + 1)
-          |> append_stream_notice(continuity_gap_message(after_sequence + 1, first_sequence - 1, first_sequence), :warning)
+          |> append_stream_notice(
+            continuity_gap_message(after_sequence + 1, first_sequence - 1, first_sequence),
+            :warning
+          )
         end
 
       {:error, reason} ->
@@ -384,7 +378,10 @@ defmodule JidoCodeWeb.Demos.ChatLive do
         socket
         |> assign_from_snapshot(snapshot)
         |> assign(:stream_discontinuity_count, socket.assigns.stream_discontinuity_count + 1)
-        |> append_stream_notice(continuity_gap_message(missing_from, missing_to, resumed_at), :warning)
+        |> append_stream_notice(
+          continuity_gap_message(missing_from, missing_to, resumed_at),
+          :warning
+        )
 
       {:error, reason} ->
         mark_stream_degraded(socket, reason)
@@ -398,14 +395,93 @@ defmodule JidoCodeWeb.Demos.ChatLive do
     |> assign(:last_event_sequence, snapshot.last_event_sequence || 0)
   end
 
-  defp maybe_schedule_completion(socket, instruction) do
+  defp input_command(socket, input) do
+    case socket.assigns.snapshot do
+      %{active_turn_id: turn_id} = snapshot
+      when is_binary(turn_id) and awaiting_input?(snapshot) ->
+        %{type: "turn.resume", payload: %{turn_id: turn_id, response: input}}
+
+      _other ->
+        %{type: "turn.submit", payload: %{instruction: input}}
+    end
+  end
+
+  defp maybe_schedule_runtime_flow(socket, input, true) do
     case active_child_work_id(socket.assigns.snapshot) do
       child_work_id when is_binary(child_work_id) ->
         Process.send_after(
           self(),
-          {:simulate_completion, socket.assigns.conversation_id, child_work_id, instruction},
-          @completion_delay_ms
+          {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+           %{
+             kind: "delta",
+             text: "Continuing with the clarified instruction: #{input}"
+           }},
+          @resume_delta_delay_ms
         )
+
+        Process.send_after(
+          self(),
+          {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+           %{
+             kind: "completed",
+             result: %{summary: "Completed the clarified demo work: #{input}"}
+           }},
+          @resume_completion_delay_ms
+        )
+
+        socket
+
+      _other ->
+        socket
+    end
+  end
+
+  defp maybe_schedule_runtime_flow(socket, instruction, false) do
+    case active_child_work_id(socket.assigns.snapshot) do
+      child_work_id when is_binary(child_work_id) ->
+        Process.send_after(
+          self(),
+          {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+           %{
+             kind: "progress",
+             summary: "Inspecting the requested conversation scope.",
+             percent: 35
+           }},
+          @progress_delay_ms
+        )
+
+        Process.send_after(
+          self(),
+          {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+           %{kind: "stdout", text: simulated_stdout(instruction)}},
+          @stdout_delay_ms
+        )
+
+        if requires_clarification?(instruction) do
+          Process.send_after(
+            self(),
+            {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+             %{kind: "needs_input", prompt: "Which file should I inspect first?"}},
+            @clarification_delay_ms
+          )
+        else
+          Process.send_after(
+            self(),
+            {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+             %{kind: "delta", text: "Applying the requested scope: #{instruction}"}},
+            @delta_delay_ms
+          )
+
+          Process.send_after(
+            self(),
+            {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+             %{
+               kind: "completed",
+               result: %{summary: "Completed the requested demo work: #{instruction}"}
+             }},
+            @completion_delay_ms
+          )
+        end
 
         socket
 
@@ -419,7 +495,11 @@ defmodule JidoCodeWeb.Demos.ChatLive do
       child_work_id when is_binary(child_work_id) ->
         Process.send_after(
           self(),
-          {:simulate_cancel_settlement, socket.assigns.conversation_id, child_work_id},
+          {:simulate_tool_result, socket.assigns.conversation_id, child_work_id,
+           %{
+             kind: "cancelled",
+             result: %{reason: "The active demo work was cancelled before completion."}
+           }},
           @cancellation_settle_delay_ms
         )
 
@@ -449,11 +529,20 @@ defmodule JidoCodeWeb.Demos.ChatLive do
   defp active_child_work_id(nil), do: nil
   defp active_child_work_id(snapshot), do: snapshot.active_child_work_id
 
-  defp child_work_running?(snapshot, child_work_id) do
+  defp awaiting_input?(%{active_turn: %{state: :awaiting_input}}), do: true
+
+  defp awaiting_input?(%{
+         shared_context: %{"pending_clarification" => %{} = _pending_clarification}
+       }),
+       do: true
+
+  defp awaiting_input?(_snapshot), do: false
+
+  defp child_work_open?(snapshot, child_work_id) do
     snapshot.child_works
     |> Enum.find(&(&1.id == child_work_id))
     |> case do
-      %{state: :running} -> true
+      %{state: state} when state in [:running, :cancel_requested, :cancel_acknowledged] -> true
       _other -> false
     end
   end
@@ -465,6 +554,52 @@ defmodule JidoCodeWeb.Demos.ChatLive do
       %{state: state} when state in [:cancel_requested, :cancel_acknowledged] -> true
       _other -> false
     end
+  end
+
+  defp pending_clarification(%{
+         shared_context: %{"pending_clarification" => %{} = pending_clarification}
+       }),
+       do: pending_clarification
+
+  defp pending_clarification(_snapshot), do: nil
+
+  defp clarification_prompt(snapshot) do
+    snapshot
+    |> pending_clarification()
+    |> case do
+      %{"prompt" => %{"prompt" => prompt}} -> prompt
+      %{"prompt" => %{"details" => %{"prompt" => prompt}}} -> prompt
+      %{"prompt" => prompt} when is_binary(prompt) -> prompt
+      _other -> nil
+    end
+  end
+
+  defp latest_progress(%{active_child_work: %{result: %{} = result}}) do
+    case result do
+      %{"latest_progress" => %{} = latest_progress} -> latest_progress
+      _other -> nil
+    end
+  end
+
+  defp latest_progress(_snapshot), do: nil
+
+  defp stdout_preview(%{active_child_work: %{result: %{"stdout" => stdout}}})
+       when is_list(stdout),
+       do: Enum.take(stdout, -4)
+
+  defp stdout_preview(_snapshot), do: []
+
+  defp requires_clarification?(instruction) when is_binary(instruction) do
+    normalized = String.downcase(instruction)
+
+    String.contains?(normalized, "clarify") or String.contains?(normalized, "input") or
+      String.contains?(normalized, "question")
+  end
+
+  defp requires_clarification?(_instruction), do: false
+
+  defp simulated_stdout(instruction) do
+    "rg --context 2 #{String.slice(instruction, 0, 32)}"
   end
 
   defp append_stream_notice(socket, text, kind) do
@@ -496,7 +631,8 @@ defmodule JidoCodeWeb.Demos.ChatLive do
     "Create or import a managed repository before opening the conversation demo."
   end
 
-  defp bootstrap_error_message(reason), do: "Failed to bootstrap the conversation demo: #{inspect(reason)}"
+  defp bootstrap_error_message(reason),
+    do: "Failed to bootstrap the conversation demo: #{inspect(reason)}"
 
   defp map_get(map, key) when is_map(map) do
     string_key = Atom.to_string(key)
@@ -515,7 +651,9 @@ defmodule JidoCodeWeb.Demos.ChatLive do
     end
   end
 
-  defp normalize_optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> normalize_optional_string()
+  defp normalize_optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_string()
+
   defp normalize_optional_string(_value), do: nil
 
   defp normalize_sequence(value) when is_integer(value) and value >= 0, do: value
@@ -555,7 +693,11 @@ defmodule JidoCodeWeb.Demos.ChatLive do
     case map_get(event, :name) do
       "conversation.message_added" ->
         command_payload = map_get(event_payload(event), :payload) || %{}
-        instruction = map_get(command_payload, :instruction) || map_get(command_payload, :reason)
+
+        instruction =
+          map_get(command_payload, :instruction) || map_get(command_payload, :response) ||
+            map_get(command_payload, :reason)
+
         command_type = map_get(event_payload(event), :command_type) || "conversation.update"
         instruction || "Recorded #{command_type}."
 
@@ -570,6 +712,12 @@ defmodule JidoCodeWeb.Demos.ChatLive do
 
       "turn.started" ->
         "Started the active turn."
+
+      "turn.awaiting_input" ->
+        map_get(event_payload(event), :prompt) || "Waiting for clarification before continuing."
+
+      "turn.delta" ->
+        map_get(event_payload(event), :text) || "Streaming turn update received."
 
       "turn.cancelling" ->
         "Stopping the active turn."
@@ -588,6 +736,17 @@ defmodule JidoCodeWeb.Demos.ChatLive do
 
       "tool.started" ->
         "Started a child tool execution."
+
+      "tool.progress" ->
+        map_get(event_payload(event), :summary) ||
+          "Progress update: #{map_get(event_payload(event), :percent) || "?"}%."
+
+      "tool.stdout" ->
+        map_get(event_payload(event), :text) || map_get(event_payload(event), :chunk) ||
+          "Tool output received."
+
+      "tool.needs_input" ->
+        map_get(event_payload(event), :prompt) || "The active tool requested more input."
 
       "tool.cancel_requested" ->
         "Requested cancellation for the active tool."
@@ -618,13 +777,17 @@ defmodule JidoCodeWeb.Demos.ChatLive do
   defp event_excerpt(event) do
     actor_id = map_get(map_get(event, :actor) || %{}, :id)
     tool_call_id = map_get(event, :tool_call_id)
-    kind = map_get(event_payload(event), :kind)
+    payload = event_payload(event)
+    kind = map_get(payload, :kind)
 
     %{}
     |> maybe_put("actor", actor_id)
     |> maybe_put("tool_call_id", tool_call_id)
     |> maybe_put("kind", kind)
-    |> maybe_put("state", map_get(event_payload(event), :state))
+    |> maybe_put("state", map_get(payload, :state))
+    |> maybe_put("summary", map_get(payload, :summary))
+    |> maybe_put("prompt", map_get(payload, :prompt))
+    |> maybe_put("text", map_get(payload, :text) || map_get(payload, :chunk))
     |> case do
       empty when empty == %{} -> nil
       details -> inspect(details, pretty: false)
@@ -648,12 +811,22 @@ defmodule JidoCodeWeb.Demos.ChatLive do
     ready? = is_binary(assigns.conversation_id)
     paused? = assigns.snapshot && assigns.snapshot.status == :paused
     active_turn? = assigns.snapshot && is_binary(assigns.snapshot.active_turn_id)
+    pending_clarification = pending_clarification(assigns.snapshot)
+    clarification_prompt = clarification_prompt(assigns.snapshot)
+    resume_mode? = awaiting_input?(assigns.snapshot)
+    latest_progress = latest_progress(assigns.snapshot)
+    stdout_preview = stdout_preview(assigns.snapshot)
 
     assigns =
       assign(assigns,
         ready?: ready?,
         paused?: paused?,
-        active_turn?: active_turn?
+        active_turn?: active_turn?,
+        pending_clarification: pending_clarification,
+        clarification_prompt: clarification_prompt,
+        resume_mode?: resume_mode?,
+        latest_progress: latest_progress,
+        stdout_preview: stdout_preview
       )
 
     ~H"""
@@ -756,6 +929,15 @@ defmodule JidoCodeWeb.Demos.ChatLive do
             </div>
 
             <div class="border-t border-zinc-200 px-6 py-4">
+              <div
+                :if={@pending_clarification}
+                id="conversation-pending-clarification"
+                class="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+              >
+                <p class="font-semibold">Input Required</p>
+                <p class="mt-1">{@clarification_prompt || "The active turn is waiting on clarification."}</p>
+              </div>
+
               <form id="chat-form" phx-submit="send" class="flex flex-col gap-3 sm:flex-row">
                 <input
                   id="chat-input"
@@ -763,7 +945,13 @@ defmodule JidoCodeWeb.Demos.ChatLive do
                   name="input"
                   value={@input}
                   phx-change="update_input"
-                  placeholder="Describe the work you want this conversation to coordinate…"
+                  placeholder={
+                    if @resume_mode? do
+                      @clarification_prompt || "Provide the missing clarification…"
+                    else
+                      "Describe the work you want this conversation to coordinate…"
+                    end
+                  }
                   class="flex-1 rounded-2xl border border-zinc-300 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
                   disabled={not @ready?}
                   autocomplete="off"
@@ -777,7 +965,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
                   ]}
                   disabled={not @ready? or String.trim(@input) == "" or @paused?}
                 >
-                  Submit Turn
+                  {if @resume_mode?, do: "Resume Turn", else: "Submit Turn"}
                 </button>
               </form>
             </div>
@@ -824,6 +1012,31 @@ defmodule JidoCodeWeb.Demos.ChatLive do
                   <dd class="font-medium text-zinc-900">{length(@events)}</dd>
                 </div>
               </dl>
+
+              <div
+                :if={@latest_progress}
+                id="conversation-latest-progress"
+                class="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"
+              >
+                <p class="font-semibold">Latest Progress</p>
+                <p class="mt-1">
+                  {@latest_progress["summary"] || "Runtime progress update received."}
+                </p>
+                <p :if={@latest_progress["percent"]} class="mt-1 text-xs text-sky-700">
+                  {@latest_progress["percent"]}% complete
+                </p>
+              </div>
+
+              <div
+                :if={@stdout_preview != []}
+                id="conversation-stdout-preview"
+                class="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800"
+              >
+                <p class="font-semibold">Recent Tool Output</p>
+                <pre class="mt-2 whitespace-pre-wrap font-mono text-xs text-zinc-700">
+    <%= for line <- @stdout_preview do %>{line}
+    <% end %></pre>
+              </div>
 
               <div class="mt-4 flex flex-wrap gap-2">
                 <button

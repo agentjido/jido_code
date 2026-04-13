@@ -22,14 +22,20 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     actor = %{"id" => "operator-1", "actor_class" => "operator"}
 
     assert {:ok, work_command} =
-             Command.normalize(%{type: "turn.submit", payload: %{instruction: "Plan the next step."}}, actor)
+             Command.normalize(
+               %{type: "turn.submit", payload: %{instruction: "Plan the next step."}},
+               actor
+             )
 
     assert work_command.class == :work
     assert work_command.type == :turn_submit
     assert work_command.payload["instruction"] == "Plan the next step."
 
     assert {:ok, control_command} =
-             Command.normalize(%{type: "session.pause", payload: %{reason: "Operator paused."}}, actor)
+             Command.normalize(
+               %{type: "session.pause", payload: %{reason: "Operator paused."}},
+               actor
+             )
 
     assert control_command.class == :control
     assert control_command.type == :session_pause
@@ -80,7 +86,11 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert Enum.any?(paused_snapshot.control_history, &(&1.type == "session.pause"))
 
     assert {:ok, completed_snapshot} =
-             Coordinator.transition_turn(conversation.id, first_snapshot.active_turn.id, :completed)
+             Coordinator.transition_turn(
+               conversation.id,
+               first_snapshot.active_turn.id,
+               :completed
+             )
 
     assert completed_snapshot.active_turn == nil
     assert completed_snapshot.queued_turn_ids == [List.first(second_snapshot.queued_turn_ids)]
@@ -112,7 +122,10 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert {:ok, running_snapshot} =
              Coordinator.admit_command(
                conversation.id,
-               %{type: "turn.submit", payload: %{instruction: "Inspect the current event stream."}},
+               %{
+                 type: "turn.submit",
+                 payload: %{instruction: "Inspect the current event stream."}
+               },
                actor
              )
 
@@ -143,6 +156,110 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert Enum.map(replayed_events, & &1.name) == ["turn.started", "tool.started"]
   end
 
+  test "coordinator routes tool-result updates and turn resumes through explicit runtime events" do
+    conversation = conversation_fixture()
+    start_supervised!({Coordinator, conversation})
+
+    actor = %{"id" => "operator-runtime", "actor_class" => "operator"}
+
+    assert {:ok, running_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the clarification loop."}},
+               actor
+             )
+
+    child_work_id = running_snapshot.active_child_work_id
+    turn_id = running_snapshot.active_turn_id
+
+    assert {:ok, progress_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{
+                 type: "tool_result.submit",
+                 payload: %{
+                   child_work_id: child_work_id,
+                   kind: "progress",
+                   summary: "Scanning the conversation runtime.",
+                   percent: 25
+                 }
+               },
+               actor
+             )
+
+    assert progress_snapshot.active_child_work.result["latest_progress"]["summary"] ==
+             "Scanning the conversation runtime."
+
+    assert List.last(progress_snapshot.events).name == "tool.progress"
+
+    assert {:ok, stdout_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{
+                 type: "tool_result.submit",
+                 payload: %{
+                   child_work_id: child_work_id,
+                   kind: "stdout",
+                   text: "rg turn.resume lib/jido_code/conversations"
+                 }
+               },
+               actor
+             )
+
+    assert stdout_snapshot.active_child_work.result["stdout"] == [
+             "rg turn.resume lib/jido_code/conversations"
+           ]
+
+    assert List.last(stdout_snapshot.events).name == "tool.stdout"
+
+    assert {:ok, awaiting_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{
+                 type: "tool_result.submit",
+                 payload: %{
+                   child_work_id: child_work_id,
+                   kind: "needs_input",
+                   prompt: "Which file should the tool inspect first?"
+                 }
+               },
+               actor
+             )
+
+    assert awaiting_snapshot.active_turn.state == :awaiting_input
+
+    assert awaiting_snapshot.shared_context["pending_clarification"]["prompt"]["prompt"] ==
+             "Which file should the tool inspect first?"
+
+    assert Enum.map(Enum.take(awaiting_snapshot.events, -2), & &1.name) == [
+             "tool.needs_input",
+             "turn.awaiting_input"
+           ]
+
+    assert {:ok, resumed_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{
+                 type: "turn.resume",
+                 payload: %{
+                   turn_id: turn_id,
+                   response: "Start with the coordinator module."
+                 }
+               },
+               actor
+             )
+
+    assert resumed_snapshot.active_turn.id == turn_id
+    assert resumed_snapshot.active_turn.state == :running
+    assert resumed_snapshot.shared_context["pending_clarification"] == nil
+    refute Map.has_key?(resumed_snapshot.active_child_work.result || %{}, "needs_input")
+
+    assert Enum.map(Enum.take(resumed_snapshot.events, -2), & &1.name) == [
+             "conversation.message_added",
+             "turn.started"
+           ]
+  end
+
   test "coordinator tracks child work ownership, cancellation, and settled outcomes explicitly" do
     conversation = conversation_fixture()
     start_supervised!({Coordinator, conversation})
@@ -168,7 +285,8 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert child_work.tool_call_id == "tool-call-1"
     assert child_work.kind == "tool_call"
 
-    assert {:ok, cancellation_snapshot} = Coordinator.cancel_child_work(conversation.id, child_work.id)
+    assert {:ok, cancellation_snapshot} =
+             Coordinator.cancel_child_work(conversation.id, child_work.id)
 
     assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
 
@@ -225,7 +343,9 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
     assert completed_child_work.state == :completed
     assert completed_turn.state == :completed
-    assert {:error, :child_work_already_settled} = Coordinator.cancel_child_work(conversation.id, child_work_id)
+
+    assert {:error, :child_work_already_settled} =
+             Coordinator.cancel_child_work(conversation.id, child_work_id)
   end
 
   test "turn stop marks the active turn as cancelling before it settles cancelled" do
@@ -292,7 +412,10 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert {:ok, steering_snapshot} =
              Coordinator.admit_command(
                conversation.id,
-               %{type: "turn.steer", payload: %{instruction: "Narrow the scope to the failing test only."}},
+               %{
+                 type: "turn.steer",
+                 payload: %{instruction: "Narrow the scope to the failing test only."}
+               },
                actor
              )
 
@@ -313,7 +436,9 @@ defmodule JidoCode.ConversationsCoordinatorTest do
                %{result: %{reason: "Steering replaced the previous turn."}}
              )
 
-    superseded_turn = Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn.id))
+    superseded_turn =
+      Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn.id))
+
     replacement_turn = Enum.find(superseded_snapshot.turns, &(&1.id == replacement_turn.id))
 
     assert superseded_turn.state == :superseded
@@ -338,7 +463,13 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert {:ok, awaiting_input_turn} = Turn.transition(running_turn, :awaiting_input)
     assert {:ok, completed_turn} = Turn.transition(awaiting_input_turn, :completed)
 
-    assert Enum.map(completed_turn.lifecycle, & &1["state"]) == ["queued", "running", "awaiting_input", "completed"]
+    assert Enum.map(completed_turn.lifecycle, & &1["state"]) == [
+             "queued",
+             "running",
+             "awaiting_input",
+             "completed"
+           ]
+
     assert completed_turn.completed_at != nil
   end
 

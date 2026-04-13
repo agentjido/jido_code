@@ -40,7 +40,7 @@ Jido.Code currently centers on a few concrete areas:
 
 - a Phoenix web app with AshAuthentication-backed sign-in, settings, setup, and dashboard/workbench routes
 - a repo-scoped conversation orchestration layer with interruptible turns, durable event history, bounded shared context, and governed work steering
-- Forge, an OTP subsystem for isolated execution sessions with observable events and a LiveView terminal UI
+- Forge, an OTP subsystem for isolated execution sessions with observable events
 - GitHub integration primitives for repos, webhook deliveries, analyses, and automation-oriented workflows
 - Jido-oriented command, skill, and workflow task surfaces for local operator and developer use
 - a Tauri desktop packaging path that wraps the Phoenix backend as a sidecar application

@@ -96,7 +96,6 @@ config :jido_code,
     JidoCode.Operations,
     JidoCode.Orchestration,
     JidoCode.Forge.Domain,
-    JidoCode.Folio,
     JidoCode.Security,
     JidoCode.Setup
   ],

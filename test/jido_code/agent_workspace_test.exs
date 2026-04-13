@@ -225,6 +225,91 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert result.changes =~ "deterministic coder response"
     end
 
+    test "execute_work injects bounded memory context into the coder request" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+      previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
+
+      Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+      on_exit(fn ->
+        Application.put_env(:jido_code, :memory_graph_enabled, previous)
+        File.rm_rf!(workspace_path)
+      end)
+
+      memory_graph = %{
+        workflow: :execute,
+        graph: %{
+          ready?: true,
+          stale?: false,
+          state: :ready,
+          current_revision: "rev-45-execute"
+        },
+        freshness: %{
+          state: :ready,
+          label: "Memory graph ready"
+        },
+        policy: %{
+          intent: :implementation_constraints,
+          follow_up_intent: :work_item,
+          memory_kinds: [:decision, :invariant, :convention, :known_issue, :pattern],
+          provenance_kinds: [:plan, :review, :patch]
+        },
+        selection: %{
+          governed_references: [
+            %{kind: :run, id: "run-45", iri: "https://example.test/run-45", label: "Run 45"}
+          ],
+          memory_resources: ["https://example.test/memory#decision-45"],
+          provenance_resources: ["https://example.test/workflow_provenance#plan-45"],
+          related_resources: [
+            "https://example.test/memory#decision-45",
+            "https://example.test/workflow_provenance#plan-45"
+          ],
+          selected_items: %{
+            memories: [
+              %{
+                memory_kind: "Decision",
+                content: "Keep greet/1 behavior stable."
+              }
+            ],
+            provenance: [
+              %{
+                provenance_kind: "Plan",
+                content: "Refactor through a helper and preserve nil handling."
+              }
+            ]
+          }
+        }
+      }
+
+      assert {:ok, result} =
+               AgentWorkspace.execute_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Implement function with bounded memory context",
+                 workspace_path: workspace_path,
+                 memory_graph: memory_graph
+               )
+
+      assert result.workflow_provenance.workflow == :execute
+      assert result.memory_context.workflow == :execute
+      assert result.memory_context.graph["ready?"] == true
+      assert result.memory_context.policy["intent"] == "implementation_constraints"
+      assert result.memory_context.selection["governed_references"] == [
+               %{
+                 "kind" => "run",
+                 "id" => "run-45",
+                 "iri" => "https://example.test/run-45",
+                 "label" => "Run 45"
+               }
+             ]
+      assert result.changes =~ "Memory context:"
+      assert result.changes =~ "workflow: :execute"
+      assert result.changes =~ "\"intent\" => \"implementation_constraints\""
+      assert result.changes =~ "Keep greet/1 behavior stable."
+    end
+
     test "review_work returns ok with feedback map" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"

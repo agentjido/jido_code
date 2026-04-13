@@ -10,7 +10,7 @@ workflow entrypoints.
 id: architecture.memory_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract.
+summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes and later dashboard or governed-surface expansions, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, coding, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -33,6 +33,7 @@ surface:
   - lib/jido_code/memory_graph/materialization.ex
   - lib/jido_code/memory_graph/workflow_service.ex
   - lib/jido_code/memory_graph/governed_adoption.ex
+  - .spec/planning/phase-45-memory-aware-execute-workflow-adoption.md
   - lib/jido_code/workbench/
   - lib/jido_code/workbench/project_memory_inspection.ex
   - lib/jido_code_web/live/project_detail_live.ex
@@ -68,7 +69,7 @@ surface:
   stability: proposed
 
 - id: architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
-  statement: Planning, review, and explanation workflows shall request memory context explicitly through product-owned options or service calls rather than assuming ambient memory-graph availability.
+  statement: Planning, coding, review, and explanation workflows shall request memory context explicitly through product-owned options or service calls rather than assuming ambient memory-graph availability.
   priority: should
   stability: proposed
 
@@ -125,7 +126,7 @@ surface:
     - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
     - architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
   given:
-    - A planning, review, or explanation workflow may benefit from repository memory and provenance.
+    - A planning, coding, review, or explanation workflow may benefit from repository memory and provenance.
   when:
     - The workflow opts into memory context.
   then:
@@ -217,6 +218,12 @@ surface:
     - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
     - architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
     - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
+
+- kind: source_file
+  target: .spec/planning/phase-45-memory-aware-execute-workflow-adoption.md
+  covers:
+    - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
+    - architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
 
 - kind: source_file
   target: lib/jido_code/memory_graph/governed_adoption.ex

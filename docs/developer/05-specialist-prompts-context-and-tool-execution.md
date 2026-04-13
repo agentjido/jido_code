@@ -1,0 +1,271 @@
+# 05. Specialist Prompts, Context, And Tool Execution
+
+This guide explains how context is handled inside `CodingPod` specialists and
+what actually reaches the LLM.
+
+Current truth for this area lives in:
+
+- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
+- [`../../lib/jido_code/agents/`](../../lib/jido_code/agents/)
+- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/strategy.ex`](../../deps/jido_ai/lib/jido_ai/reasoning/react/strategy.ex)
+- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex`](../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex)
+
+## The Three Context Layers
+
+There are three different kinds of context in play.
+
+| Context kind | Owner | Lifetime | Reaches the LLM directly? |
+| --- | --- | --- | --- |
+| Pod collaboration state | `task_board`, `project_context` | lifetime of the work-item pod | No, not automatically |
+| Specialist AI context | each AI specialist node | lifetime of that specialist node within the pod | Yes |
+| Tool execution context | workspace-built `tool_context` map | one specialist request | Indirectly, through tools |
+
+This distinction is the most important thing to keep straight.
+
+## Big Picture Flow
+
+```mermaid
+flowchart TD
+  A["AgentWorkspace.plan/execute/review/explain"]
+  B["Build semantic context and memory context"]
+  C["Build user instruction text"]
+  D["Build tool_context map"]
+  E["Specialist.ask_sync"]
+  F["ReAct strategy"]
+  G["AIContext<br/>system prompt + prior turns + current user turn"]
+  H["LLM request<br/>messages + tools + llm_opts"]
+  I["Tool execution using tool_context"]
+
+  A --> B
+  B --> C
+  B --> D
+  C --> E
+  D --> E
+  E --> F
+  F --> G
+  G --> H
+  H --> I
+  I --> G
+```
+
+## What The Workspace Adds Before Calling The Specialist
+
+For `plan_work`, `execute_work`, `review_work`, and `explain_work`,
+`AgentWorkspace` prepares three important inputs:
+
+1. a user instruction string
+2. a `tool_context` map
+3. workflow provenance wrappers around the run
+
+### 1. User Instruction Text
+
+The workspace builds the actual user prompt text with `agent_instruction`.
+
+If semantic and memory context are empty, the instruction can be just the raw
+instruction string.
+
+If semantic or memory context exist, the workspace turns them into prompt text
+like:
+
+```text
+Workflow: review
+Instruction: Review the login implementation
+
+Semantic context:
+%{...}
+
+Memory context:
+%{...}
+```
+
+So semantic and memory context become part of the user message.
+
+### 2. Tool Context Map
+
+The workspace separately builds a `tool_context` map that can include:
+
+- `managed_repo_id`
+- `workspace_path`
+- source-code graph readiness and revision info
+- memory graph context
+
+This map is not automatically appended to the prompt. It is mainly for tools.
+
+### 3. Provenance Wrapping
+
+The workspace also wraps the run with:
+
+- work-session provenance
+- prompt-turn capture
+- specialist run capture
+- artifact capture for plans, patches, and reviews
+
+That matters for memory and workflow-provenance behavior, but it is not prompt
+content by itself.
+
+## What A Specialist Adds
+
+Each AI specialist is declared with `use Jido.AI.Agent`, which means each
+specialist contributes its own:
+
+- system prompt
+- tool list
+- model selection
+- iteration limit
+- accumulated AI turn history
+
+### Specialist Differences
+
+| Specialist | Model | Main prompt focus | Typical tools |
+| --- | --- | --- | --- |
+| Planner | `:reasoning` | produce a grounded implementation plan | file reads, code search, git status, semantic discovery |
+| Coder | `:fast` | implement correct code changes | read/write files, tests, git status, git diff |
+| Reviewer | `:fast` | critique correctness and risk | reads, git diff, tests, semantic/runtime-pattern lookup |
+| Refactorer | `:reasoning` | improve structure without changing behavior | reads, writes, diff, tests |
+| Explainer | `:fast` | explain code and changes clearly | reads, search, semantic relationship lookup |
+
+Each of those specialists has its own system prompt in its module definition.
+
+## Do All Agents Inject Their Own System Prompt?
+
+No.
+
+Only the AI specialists do:
+
+- `planner`
+- `coder`
+- `reviewer`
+- `refactorer`
+- `explainer`
+
+The eager coordination agents do not:
+
+- `task_board`
+- `project_context`
+
+Those two are plain `Jido.Agent`s, not `Jido.AI.Agent`s. They maintain state
+and respond to signals, but they do not create LLM requests.
+
+## What The ReAct Layer Does
+
+When `ask_sync` is called:
+
+1. ReAct receives the query and request-scoped `tool_context`.
+2. It merges request `tool_context` with any base tool context configured on the
+   agent.
+3. It starts from the specialist's existing `AIContext`.
+4. It appends the current user message.
+5. It projects the `AIContext` into LLM messages.
+6. It prepends the specialist system prompt as the `system` message.
+7. It sends the message list plus the specialist tool list to the model.
+
+The actual LLM request is built from:
+
+- `AIContext.to_messages(state.context)`
+- the specialist's configured tool registry
+- request-scoped `llm_opts`
+
+## What The Model Sees Directly vs Indirectly
+
+### Directly
+
+The model directly sees:
+
+- the specialist system prompt
+- prior messages already stored in that specialist's AI context
+- the current user instruction text
+- tool results that get appended back into the conversation
+
+### Indirectly
+
+The model indirectly benefits from:
+
+- `workspace_path`
+- repo ids
+- graph readiness
+- memory graph metadata
+- runtime state snapshot
+
+Those do not become prompt text automatically. Tools can use them when
+executing actions like `ReadFile`, `GitDiff`, or semantic graph helpers.
+
+## How Tools Use Tool Context
+
+Many workspace tools resolve inputs from `tool_context`. For example:
+
+- file actions use `workspace_path`
+- source-code graph support uses repo id, workspace path, and graph revision
+- memory graph helpers use repo and graph context
+
+So the path is:
+
+```text
+tool_context -> tool execution environment -> tool result -> appended tool result message
+```
+
+That is why tool context affects model behavior without necessarily being prompt
+text.
+
+## Shared Pod State vs Prompt State
+
+The pod has eager collaboration state in `task_board` and `project_context`, but
+that state is not automatically injected into every LLM call.
+
+Today the real bridges are:
+
+- the workspace explicitly seeding project bindings into `project_context`
+- the workspace carrying `workspace_path` and related values into `tool_context`
+- the workspace recording task-board artifacts and events around specialist runs
+
+So the pod has coordination state, but prompt injection is still mostly
+workspace-authored rather than pod-state-derived.
+
+## Persistence And Reuse Of Specialist Context
+
+Each specialist keeps its own ReAct context across calls while its node stays
+alive.
+
+That means:
+
+- same repo + same work item + same specialist -> context persists
+- same repo + same work item + different specialist -> different context
+- different work item -> different pod, so no shared specialist context
+
+This is why it makes sense to say the retained context is work-item-scoped in
+practice, but specialist-local inside that work item.
+
+## Important Nuances
+
+### `full_workflow` Is Not Prompt Chaining
+
+The workspace does not automatically feed the planner's result text into the
+coder and reviewer as a new explicit prompt. The stages are orchestrated
+sequentially, but prompt chaining is not the main contract.
+
+### Relatedness Is Not Semantic Today
+
+If you send two unrelated prompts to the same specialist on the same work item,
+the existing specialist context is still there. The system does not currently
+decide whether a new request is "about the same subtask" and reset context on
+its own.
+
+### Context Ends With Pod Lifetime
+
+When the work item completes and the pod is torn down, that specialist context
+is no longer active in memory.
+
+## Mental Model To Keep
+
+Use this model when debugging or designing specialist behavior:
+
+- workspace builds the request
+- specialist defines the role
+- ReAct owns the conversational thread
+- tools consume runtime context
+- task board and project context coordinate the work item around the run
+
+## Read Next
+
+Continue with
+[`06-conversation-orchestration.md`](06-conversation-orchestration.md).
+

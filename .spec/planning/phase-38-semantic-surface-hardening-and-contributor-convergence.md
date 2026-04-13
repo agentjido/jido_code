@@ -32,7 +32,7 @@ Back to index: [README](./README.md)
 - This phase does not attempt the broader dashboard and remaining governed-surface rollout already scoped elsewhere; it hardens and converges the surfaces and verification paths that already depend on the stronger semantic model.
 - Repositories may need bounded graph revalidation or rebuild after the ontology cutover, and that experience must remain product-owned and explainable.
 
-[ ] 38 Phase 38 - Semantic Surface Hardening And Contributor Convergence
+[x] 38 Phase 38 - Semantic Surface Hardening And Contributor Convergence
   Harden the current memory-aware surfaces, verification flows, and contributor guidance around the stronger semantic model so the typed governed links become the durable default instead of a hidden implementation detail.
 
   [x] 38.1 Section - Product Surface Hardening For Typed Governed Semantics

@@ -14,6 +14,10 @@ decisions:
   - jido_code.interruptible_conversation_orchestration
 surface:
   - lib/jido_code/conversations.ex
+  - lib/jido_code/conversations/command.ex
+  - lib/jido_code/conversations/conversation.ex
+  - lib/jido_code/conversations/coordinator.ex
+  - lib/jido_code/conversations/driver.ex
   - .spec/decisions/jido_code.interruptible_conversation_orchestration.md
   - lib/jido_code/conversations/event.ex
   - lib/jido_code/conversations/event_record.ex
@@ -21,6 +25,7 @@ surface:
   - lib/jido_code/conversations/pub_sub.ex
   - lib/jido_code/conversations/snapshot.ex
   - lib/jido_code/conversations/snapshot_record.ex
+  - lib/jido_code/conversations/turn.ex
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/workbench/project_conversation.ex
@@ -29,6 +34,7 @@ surface:
   - lib/jido_code_web/live/forge/show_live.ex
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
+  - test/jido_code/phase_thirty_nine_integration_test.exs
   - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
@@ -309,6 +315,13 @@ surface:
     - architecture.conversation_orchestration.active_turns_can_be_superseded
     - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
     - architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+
+- kind: source_file
+  target: test/jido_code/phase_thirty_nine_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+    - architecture.conversation_orchestration.control_and_work_commands_are_distinct
 
 - kind: source_file
   target: test/jido_code/phase_forty_one_integration_test.exs

@@ -28,7 +28,7 @@ Back to index: [README](./README.md)
 - AgentWorkspace remains the runtime boundary that hides kernel and pod topology from LiveView or controller callers even if a new conversation driver is introduced beside it.
 - The polling-oriented demo chat surface is transitional and may continue to exist temporarily while the canonical conversation foundation is introduced.
 
-[ ] 39 Phase 39 - Conversation Coordinator And Command Foundation
+[x] 39 Phase 39 - Conversation Coordinator And Command Foundation
   Establish the canonical conversation scope, coordinator boundary, and command-admission model so productive coding conversations become governed runtime objects rather than ad hoc chat turns.
 
   [x] 39.1 Section - Canonical Conversation Scope And Identity
@@ -72,19 +72,19 @@ Back to index: [README](./README.md)
       [x] 39.2.3.2 Subtask - Preserve supersedes and superseded references so later steering behavior can remain explainable and auditable.
       [x] 39.2.3.3 Subtask - Keep turn lifecycle shaping product-readable and detached from any one provider or model runtime.
 
-  [ ] 39.3 Section - Phase 39 Integration Tests
+  [x] 39.3 Section - Phase 39 Integration Tests
     Verify the new conversation foundation produces bounded scope, canonical command handling, and explainable turn lifecycle behavior before interruption semantics build on it.
 
-    [ ] 39.3.1 Task - Scope and entrypoint scenarios
+    [x] 39.3.1 Task - Scope and entrypoint scenarios
       Prove conversations bind to the correct repo and work context through product-owned entrypoints.
 
-      [ ] 39.3.1.1 Subtask - Add coverage proving conversation start and resume preserve managed-repository scope and actor attribution.
-      [ ] 39.3.1.2 Subtask - Add coverage proving actionable conversations can steer existing `WorkItem` context instead of always spawning unrelated work.
-      [ ] 39.3.1.3 Subtask - Add coverage proving LiveView and workflow callers stay insulated from kernel and pod topology.
+      [x] 39.3.1.1 Subtask - Add coverage proving conversation start and resume preserve managed-repository scope and actor attribution.
+      [x] 39.3.1.2 Subtask - Add coverage proving actionable conversations can steer existing `WorkItem` context instead of always spawning unrelated work.
+      [x] 39.3.1.3 Subtask - Add coverage proving LiveView and workflow callers stay insulated from kernel and pod topology.
 
-    [ ] 39.3.2 Task - Command and lifecycle scenarios
+    [x] 39.3.2 Task - Command and lifecycle scenarios
       Prove the coordinator recognizes the new command vocabulary and turn-state model cleanly.
 
-      [ ] 39.3.2.1 Subtask - Add coverage proving work and control commands are normalized through distinct product-owned shapes.
-      [ ] 39.3.2.2 Subtask - Add coverage proving baseline turn lifecycle transitions remain explicit and auditable.
-      [ ] 39.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 39 introduces the conversation foundation.
+      [x] 39.3.2.1 Subtask - Add coverage proving work and control commands are normalized through distinct product-owned shapes.
+      [x] 39.3.2.2 Subtask - Add coverage proving baseline turn lifecycle transitions remain explicit and auditable.
+      [x] 39.3.2.3 Subtask - Verify the spec workspace remains coherent after Phase 39 introduces the conversation foundation.

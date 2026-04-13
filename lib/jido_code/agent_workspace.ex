@@ -25,6 +25,8 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
   # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
   # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+  # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+  # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
   # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
@@ -52,6 +54,8 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.AgentOS.Manager
   alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
   alias JidoCode.Control.Actor
+  alias JidoCode.Conversations
+  alias JidoCode.Conversations.Driver, as: ConversationDriver
   alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
   alias JidoCode.Pods.{CodingPod, RepoPod}
@@ -241,6 +245,67 @@ defmodule JidoCode.AgentWorkspace do
     |> Enum.map(&get_in(&1, [:metadata, :work_item_id]))
     |> Enum.reject(&is_nil/1)
     |> Enum.sort()
+  end
+
+  ## Conversation Coordination
+
+  @doc """
+  Returns the latest repo-scoped conversation for the managed repository, if any.
+  """
+  @spec latest_repo_conversation(managed_repo_id(), keyword()) ::
+          {:ok, Conversations.Conversation.t() | nil} | {:error, term()}
+  def latest_repo_conversation(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    Conversations.latest_for_managed_repo(managed_repo_id, actor: conversation_actor(opts))
+  end
+
+  @doc """
+  Opens a repo-scoped conversation and returns its initial snapshot.
+  """
+  @spec open_repo_conversation(managed_repo_id(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def open_repo_conversation(managed_repo_id, attrs \\ %{}, opts \\ [])
+      when is_binary(managed_repo_id) and is_map(attrs) and is_list(opts) do
+    ConversationDriver.start_conversation(
+      attrs
+      |> Map.put("managed_repo_id", managed_repo_id)
+      |> Map.put_new("actor", conversation_actor(opts))
+    )
+  end
+
+  @doc """
+  Returns the current snapshot for a conversation.
+  """
+  @spec conversation_snapshot(String.t()) :: {:ok, map()} | {:error, term()}
+  def conversation_snapshot(conversation_id) when is_binary(conversation_id) do
+    ConversationDriver.snapshot(conversation_id)
+  end
+
+  @doc """
+  Replays conversation events after the provided sequence.
+  """
+  @spec conversation_events_since(String.t(), non_neg_integer(), keyword()) ::
+          {:ok, [map()]} | {:error, term()}
+  def conversation_events_since(conversation_id, after_sequence, opts \\ [])
+      when is_binary(conversation_id) and is_integer(after_sequence) and after_sequence >= 0 and
+             is_list(opts) do
+    ConversationDriver.events_since(conversation_id, after_sequence, actor: conversation_actor(opts))
+  end
+
+  @doc """
+  Admits a conversation command through the product-owned driver.
+  """
+  @spec handle_conversation_command(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def handle_conversation_command(conversation_id, command, opts \\ [])
+      when is_binary(conversation_id) and is_map(command) and is_list(opts) do
+    ConversationDriver.handle_command(conversation_id, command, actor: conversation_actor(opts))
+  end
+
+  @doc """
+  Stops a running conversation coordinator if one exists.
+  """
+  @spec stop_conversation(String.t()) :: :ok
+  def stop_conversation(conversation_id) when is_binary(conversation_id) do
+    ConversationDriver.stop(conversation_id)
   end
 
   ## Work Execution
@@ -2927,6 +2992,15 @@ defmodule JidoCode.AgentWorkspace do
            fun.(params)
          end}
       ]
+  end
+
+  defp conversation_actor(opts) when is_list(opts) do
+    opts
+    |> Keyword.get(:actor)
+    |> case do
+      %{} = actor -> Actor.operator_actor(actor)
+      _other -> Actor.operator_actor()
+    end
   end
 
   defp source_code_graph_params(opts, allowed_keys \\ [:revision]) do

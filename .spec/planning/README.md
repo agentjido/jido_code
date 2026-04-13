@@ -74,6 +74,7 @@ The plan aligns to:
 35. [Phase 41 - Evented Conversation UI And Stream Recovery](./phase-41-evented-conversation-ui-and-stream-recovery.md): replace polling-oriented conversation updates with sequenced conversation events, PubSub delivery, LiveView streams, and reconnect or degraded recovery behavior.
 36. [Phase 42 - Conversation Persistence And Product Convergence](./phase-42-conversation-persistence-and-product-convergence.md): persist append-only conversation history and snapshots, preserve bounded short-term context across steering, and converge the conversation model with factory work, docs, and rollout defaults.
 37. [Phase 43 - Conversation Runtime Deltas And Clarification Recovery](./phase-43-conversation-runtime-deltas-and-clarification-recovery.md): make `tool_result.submit` and `turn.resume` first-class coordinator behaviors, surface progressive tool and turn updates, and keep clarification loops recoverable through the event-driven conversation model.
+38. [Phase 44 - Managed Repo Conversation Surface Adoption](./phase-44-managed-repo-conversation-surface-adoption.md): adopt the durable conversation model into the managed-repository detail route through product-owned workspace helpers, bounded repo-detail interaction, and current-truth coverage.
 
 ## Shared Conventions
 - Numbering:

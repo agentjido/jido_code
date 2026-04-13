@@ -244,7 +244,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert %{fix: 0, triage: 0} = Agent.get(launcher_invocations, & &1)
   end
 
-  test "renders project overview without conversation controls", %{conn: _conn} do
+  test "renders project overview with a repo conversation entrypoint", %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -276,8 +276,85 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert vue.props["launchReady"] == true
     assert length(vue.props["workflowCards"]) == 2
 
-    refute has_element?(view, "#project-detail-conversation-panel")
+    assert has_element?(view, "#project-detail-conversation-panel")
+    assert has_element?(view, "#project-detail-conversation-open", "Open repo conversation")
     refute render(view) =~ "Start conversation"
+  end
+
+  test "hosts repo conversation interaction inside the managed repo detail route", %{conn: _conn} do
+    register_owner("conversation-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("conversation-owner@example.com", "owner-password-123")
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-conversation-ui",
+        github_full_name: "owner/repo-conversation-ui",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    on_exit(fn ->
+      case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: Actor.operator_actor()) do
+        {:ok, %{id: conversation_id}} -> :ok = AgentWorkspace.stop_conversation(conversation_id)
+        _other -> :ok
+      end
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    view
+    |> element("#project-detail-conversation-open")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-conversation-id")
+    assert has_element?(view, "#project-detail-conversation-status", "active")
+
+    html =
+      view
+      |> form("#project-detail-conversation-form", %{
+        "input" => "Inspect the repo detail conversation flow."
+      })
+      |> render_submit()
+
+    assert html =~ "Inspect the repo detail conversation flow."
+    assert has_element?(view, "#project-detail-conversation-events")
+
+    _html =
+      view
+      |> form("#project-detail-conversation-form", %{
+        "input" => "Clarify which file needs input."
+      })
+      |> render_submit()
+
+    assert_eventually(fn ->
+      has_element?(view, "#project-detail-conversation-pending-clarification")
+    end)
+
+    _html =
+      view
+      |> form("#project-detail-conversation-form", %{
+        "input" => "lib/jido_code_web/live/project_detail_live.ex"
+      })
+      |> render_submit()
+
+    assert_eventually(fn ->
+      render(view) =~
+        "Completed the clarified repository work: lib/jido_code_web/live/project_detail_live.ex"
+    end)
   end
 
   test "hosts bounded semantic inspection inside the managed repo detail route", %{conn: _conn} do
@@ -673,5 +750,22 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                ),
                revision: revision
              )
+  end
+
+  defp assert_eventually(fun, attempts \\ 20)
+
+  defp assert_eventually(fun, attempts) when attempts <= 1 do
+    assert fun.()
+  end
+
+  defp assert_eventually(fun, attempts) do
+    if fun.() do
+      assert true
+    else
+      receive do
+      after
+        25 -> assert_eventually(fun, attempts - 1)
+      end
+    end
   end
 end

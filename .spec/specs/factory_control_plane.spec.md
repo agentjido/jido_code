@@ -125,6 +125,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+  statement: When productive repository conversations create or attach governed work, Workbench, repo detail, and governed run detail should project that conversation linkage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane.
+  priority: should
+  stability: evolving
+
 - id: architecture.factory_control_plane.runtime_overlay_preserves_product_truth
   statement: Even as `jido_os` grows richer admitted runtime services and authority-backed facades, those services shall remain runtime overlays whose typed outcomes rejoin managed-repository governance rather than displacing product-owned control-plane truth.
   priority: must
@@ -181,6 +186,7 @@ surface:
 - id: architecture.factory_control_plane.scenario_operator_surfaces_use_canonical_repo_and_run_routes
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   given:
     - Managed repositories and governed runs already exist as the canonical control-plane records.
   when:
@@ -188,6 +194,7 @@ surface:
   then:
     - The product resolves and presents canonical managed-repository and governed-run records directly.
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
+    - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
 
 ```
 

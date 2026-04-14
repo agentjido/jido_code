@@ -79,6 +79,25 @@ defmodule JidoCode.Conversations do
     end
   end
 
+  @spec latest_for_work_item(String.t(), keyword()) :: {:ok, Conversation.t() | nil} | {:error, term()}
+  def latest_for_work_item(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    case Conversation.read(
+           query: [
+             filter: [work_item_id: work_item_id],
+             sort: [last_activity_at: :desc, inserted_at: :desc],
+             limit: 1
+           ],
+           actor: actor
+         ) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @spec steer_work(Conversation.t(), map(), keyword()) :: {:ok, steer_result()} | {:error, term()}
   def steer_work(%Conversation{} = conversation, %{} = payload, opts \\ []) when is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
@@ -387,6 +406,7 @@ defmodule JidoCode.Conversations do
        ) do
     current_metadata = normalize_map(conversation.conversation_metadata)
     instruction = optional_string(payload, :instruction) || optional_string(payload, :reason)
+
     resolution_command =
       optional_string(payload, :resolution_command_type) || "turn.steer"
 
@@ -541,7 +561,8 @@ defmodule JidoCode.Conversations do
   end
 
   defp steering_attachment_mode(conversation, work_item_id) do
-    if conversation.work_item_id == work_item_id and conversation.attachment_mode in [:existing_work_item, :synthesized_work_item] do
+    if conversation.work_item_id == work_item_id and
+         conversation.attachment_mode in [:existing_work_item, :synthesized_work_item] do
       conversation.attachment_mode
     else
       :existing_work_item

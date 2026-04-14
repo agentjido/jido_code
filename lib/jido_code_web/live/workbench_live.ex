@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -427,6 +428,64 @@ defmodule JidoCodeWeb.WorkbenchLive do
                     href={memory_graph_hint_recovery_path(project, @filter_values)}
                   >
                     {memory_graph_hint(project).remediation}
+                  </.link>
+                </div>
+                <div
+                  :if={repo_conversation_summary(project)}
+                  id={"workbench-project-conversation-hint-#{project.id}"}
+                  class="space-y-1 pt-2"
+                >
+                  <span
+                    id={"workbench-project-conversation-hint-badge-#{project.id}"}
+                    class={repo_conversation_badge_class(project)}
+                  >
+                    {repo_conversation_badge_label(project)}
+                  </span>
+                  <p
+                    id={"workbench-project-conversation-hint-detail-#{project.id}"}
+                    class="text-[11px] text-base-content/65"
+                  >
+                    {repo_conversation_detail(project)}
+                  </p>
+                  <p
+                    :if={repo_conversation_work_item(project)}
+                    id={"workbench-project-conversation-work-item-#{project.id}"}
+                    class="text-[11px] text-base-content/70"
+                  >
+                    Governed work: {repo_conversation_work_item(project).summary} ( {repo_conversation_work_item(project).status
+                    |> conversation_status_label()})
+                  </p>
+                  <.link
+                    id={"workbench-project-conversation-link-#{project.id}"}
+                    class="link link-primary text-[11px]"
+                    navigate={project_detail_path(project, @filter_values)}
+                  >
+                    {repo_conversation_action_label(project)}
+                  </.link>
+                </div>
+                <div
+                  :if={repo_conversation_notice(project)}
+                  id={"workbench-project-conversation-notice-#{project.id}"}
+                  class="space-y-1 pt-2"
+                >
+                  <span
+                    id={"workbench-project-conversation-notice-label-#{project.id}"}
+                    class="badge badge-warning badge-outline"
+                  >
+                    Conversation state unavailable
+                  </span>
+                  <p
+                    id={"workbench-project-conversation-notice-detail-#{project.id}"}
+                    class="text-[11px] text-base-content/65"
+                  >
+                    {repo_conversation_notice(project).detail}
+                  </p>
+                  <.link
+                    id={"workbench-project-conversation-notice-link-#{project.id}"}
+                    class="link link-primary text-[11px]"
+                    navigate={project_detail_path(project, @filter_values)}
+                  >
+                    Open repo detail
                   </.link>
                 </div>
               </td>
@@ -1423,6 +1482,84 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp recent_run_outcome(_outcomes, _project_id), do: nil
+
+  defp repo_conversation_projection(project) when is_map(project) do
+    case Map.get(project, :repo_conversation) do
+      %{} = projection -> projection
+      _other -> nil
+    end
+  end
+
+  defp repo_conversation_projection(_project), do: nil
+
+  defp repo_conversation_summary(project) do
+    project
+    |> repo_conversation_projection()
+    |> repo_conversation_projection_value(:conversation)
+  end
+
+  defp repo_conversation_work_item(project) do
+    project
+    |> repo_conversation_projection()
+    |> repo_conversation_projection_value(:work_item)
+  end
+
+  defp repo_conversation_notice(project) do
+    project
+    |> repo_conversation_projection()
+    |> repo_conversation_projection_value(:notice)
+  end
+
+  defp repo_conversation_action_label(project) do
+    project
+    |> repo_conversation_projection()
+    |> repo_conversation_projection_value(:action_label, "Open repo conversation")
+  end
+
+  defp repo_conversation_detail(project) do
+    conversation = repo_conversation_summary(project)
+
+    work_resolution =
+      conversation
+      |> repo_conversation_projection_value(:work_resolution, %{})
+
+    normalize_optional_string(repo_conversation_projection_value(work_resolution, :detail)) ||
+      normalize_optional_string(repo_conversation_projection_value(conversation, :objective)) ||
+      "Repository conversation is available from repo detail."
+  end
+
+  defp repo_conversation_badge_label(project) do
+    conversation =
+      repo_conversation_summary(project)
+
+    "Repo conversation #{conversation |> repo_conversation_projection_value(:status) |> conversation_status_label()}"
+  end
+
+  defp repo_conversation_badge_class(project) do
+    case repo_conversation_summary(project) |> repo_conversation_projection_value(:status) do
+      :active -> "badge badge-success badge-outline"
+      :paused -> "badge badge-warning badge-outline"
+      :completed -> "badge badge-info badge-outline"
+      :cancelled -> "badge badge-error badge-outline"
+      "active" -> "badge badge-success badge-outline"
+      "paused" -> "badge badge-warning badge-outline"
+      "completed" -> "badge badge-info badge-outline"
+      "cancelled" -> "badge badge-error badge-outline"
+      _other -> "badge badge-outline"
+    end
+  end
+
+  defp conversation_status_label(status) when is_binary(status), do: status
+  defp conversation_status_label(status) when is_atom(status), do: Atom.to_string(status)
+  defp conversation_status_label(_status), do: "unknown"
+
+  defp repo_conversation_projection_value(projection, key, default \\ nil)
+
+  defp repo_conversation_projection_value(%{} = projection, key, default) when is_atom(key) do
+    Map.get(projection, key, Map.get(projection, Atom.to_string(key), default))
+  end
+
+  defp repo_conversation_projection_value(_projection, _key, default), do: default
 
   defp semantic_graph_hint(project) when is_map(project) do
     case Map.get(project, :semantic_graph_hint) do

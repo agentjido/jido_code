@@ -1,13 +1,20 @@
 defmodule JidoCode.Workbench.Inventory do
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
   @moduledoc """
   Loads managed-repo-first workbench inventory rows and stale-state warnings.
   """
 
   alias JidoCode.Setup.SystemConfig
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Workbench.{IssueTriageWorkflowKickoff, ProjectMemoryInspection, ProjectSemanticInspection}
+
+  alias JidoCode.Workbench.{
+    IssueTriageWorkflowKickoff,
+    ProjectConversation,
+    ProjectMemoryInspection,
+    ProjectSemanticInspection
+  }
 
   @default_fetch_error_type "workbench_inventory_fetch_failed"
 
@@ -30,7 +37,8 @@ defmodule JidoCode.Workbench.Inventory do
           recent_activity_at: DateTime.t() | nil,
           issue_triage_policy: map(),
           semantic_graph_hint: map() | nil,
-          memory_graph_hint: map() | nil
+          memory_graph_hint: map() | nil,
+          repo_conversation: map() | nil
         }
 
   @type stale_warning :: %{
@@ -353,6 +361,11 @@ defmodule JidoCode.Workbench.Inventory do
     row
     |> Map.put(:semantic_graph_hint, ProjectSemanticInspection.status_hint(row))
     |> Map.put(:memory_graph_hint, ProjectMemoryInspection.status_hint(row))
+    |> Map.put(
+      :repo_conversation,
+      managed_repo_id &&
+        ProjectConversation.load_managed_repo(managed_repo_id, actor: Actor.operator_actor())
+    )
   end
 
   defp resolve_recent_activity_summary(
@@ -482,7 +495,11 @@ defmodule JidoCode.Workbench.Inventory do
         row
         |> map_get(:memory_graph_hint, "memory_graph_hint")
         |> normalize_memory_graph_hint() ||
-          ProjectMemoryInspection.status_hint(row)
+          ProjectMemoryInspection.status_hint(row),
+      repo_conversation:
+        row
+        |> map_get(:repo_conversation, "repo_conversation")
+        |> normalize_repo_conversation_projection()
     }
   end
 
@@ -504,9 +521,13 @@ defmodule JidoCode.Workbench.Inventory do
       recent_activity_at: nil,
       issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(%{}),
       semantic_graph_hint: nil,
-      memory_graph_hint: nil
+      memory_graph_hint: nil,
+      repo_conversation: nil
     }
   end
+
+  defp normalize_repo_conversation_projection(value) when is_map(value), do: value
+  defp normalize_repo_conversation_projection(_value), do: nil
 
   defp normalize_warning(nil), do: nil
 

@@ -4,15 +4,18 @@ defmodule JidoCode.Workbench.ProjectConversation do
   # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
   @moduledoc """
-  Product-owned conversation shaping for managed-repository detail surfaces.
+  Product-owned conversation shaping for managed-repository and governed-work
+  surfaces.
 
-  This boundary keeps repo detail LiveViews focused on managed-repository
-  behavior rather than conversation persistence lookups or driver topology.
+  This boundary keeps operator LiveViews focused on product behavior rather
+  than conversation persistence lookups or driver topology.
   """
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.Actor
+  alias JidoCode.Conversations
   alias JidoCode.Conversations.{Conversation, WorkResolution}
   alias JidoCode.Operations.WorkItem
 
@@ -41,6 +44,17 @@ defmodule JidoCode.Workbench.ProjectConversation do
           resumed?: boolean()
         }
 
+  @type work_item_projection :: %{
+          managed_repo_id: String.t() | nil,
+          conversation: map() | nil,
+          work_item: map() | nil,
+          origin: map() | nil,
+          snapshot: map() | nil,
+          recent_events: [map()],
+          notice: notice() | nil,
+          action_label: String.t()
+        }
+
   @spec load_attached_work_item(String.t() | nil, keyword()) :: map() | nil
   def load_attached_work_item(work_item_id, opts \\ [])
 
@@ -65,6 +79,35 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
       {:error, notice} ->
         unavailable_projection(notice)
+    end
+  end
+
+  @spec load_managed_repo(String.t(), keyword()) :: projection()
+  def load_managed_repo(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    load_projection(managed_repo_id, actor)
+  end
+
+  @spec load_work_item_linkage(WorkItem.t() | map() | String.t() | nil, keyword()) :: work_item_projection()
+  def load_work_item_linkage(work_item_like, opts \\ []) when is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    case work_item_reference(work_item_like, actor) do
+      {:ok, reference} ->
+        projection_for_work_item(reference, actor)
+
+      :none ->
+        %{
+          managed_repo_id: nil,
+          conversation: nil,
+          work_item: nil,
+          origin: nil,
+          snapshot: nil,
+          recent_events: [],
+          notice: nil,
+          action_label: "Open repo conversation"
+        }
     end
   end
 
@@ -208,6 +251,72 @@ defmodule JidoCode.Workbench.ProjectConversation do
     }
   end
 
+  defp projection_for_work_item(reference, actor) do
+    conversation_result =
+      reference.origin_conversation_id
+      |> fetch_conversation(actor)
+      |> case do
+        {:ok, %Conversation{} = conversation} ->
+          {:ok, conversation}
+
+        _other ->
+          Conversations.latest_for_work_item(reference.work_item_id, actor: actor)
+      end
+
+    case conversation_result do
+      {:ok, %Conversation{} = conversation} ->
+        case AgentWorkspace.conversation_snapshot(conversation.id) do
+          {:ok, snapshot} ->
+            %{
+              managed_repo_id: reference.managed_repo_id,
+              conversation: conversation_summary(conversation, snapshot),
+              work_item: reference.work_item,
+              origin: reference.origin,
+              snapshot: snapshot,
+              recent_events: recent_events(snapshot),
+              notice: nil,
+              action_label: action_label(conversation)
+            }
+
+          {:error, reason} ->
+            %{
+              managed_repo_id: reference.managed_repo_id,
+              conversation: conversation_summary(conversation, nil),
+              work_item: reference.work_item,
+              origin: reference.origin,
+              snapshot: nil,
+              recent_events: [],
+              notice: snapshot_unavailable_notice(reason),
+              action_label: action_label(conversation)
+            }
+        end
+
+      {:ok, nil} ->
+        %{
+          managed_repo_id: reference.managed_repo_id,
+          conversation: nil,
+          work_item: reference.work_item,
+          origin: reference.origin,
+          snapshot: nil,
+          recent_events: [],
+          notice: nil,
+          action_label: "Open repo conversation"
+        }
+
+      {:error, reason} ->
+        %{
+          managed_repo_id: reference.managed_repo_id,
+          conversation: nil,
+          work_item: reference.work_item,
+          origin: reference.origin,
+          snapshot: nil,
+          recent_events: [],
+          notice: load_error_notice(reason),
+          action_label: "Open repo conversation"
+        }
+    end
+  end
+
   defp conversation_summary(%Conversation{} = conversation, snapshot) do
     %{
       id: conversation.id,
@@ -219,8 +328,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       source: conversation.source,
       work_item_id: attached_work_item_id(conversation, snapshot),
       last_activity_at: conversation.last_activity_at,
-      work_resolution:
-        snapshot_value(snapshot, :work_resolution, WorkResolution.summary(conversation))
+      work_resolution: snapshot_value(snapshot, :work_resolution, WorkResolution.summary(conversation))
     }
   end
 
@@ -247,6 +355,78 @@ defmodule JidoCode.Workbench.ProjectConversation do
   defp normalize_actor(nil), do: Actor.operator_actor()
   defp normalize_actor(%{} = actor), do: Actor.operator_actor(actor)
 
+  defp work_item_reference(%WorkItem{} = work_item, _actor) do
+    {:ok,
+     %{
+       work_item_id: work_item.id,
+       managed_repo_id: work_item.managed_repo_id,
+       work_item: work_item_summary(work_item),
+       origin: work_item_origin(work_item),
+       origin_conversation_id: origin_conversation_id(work_item)
+     }}
+  end
+
+  defp work_item_reference(%{} = work_item, actor) do
+    case normalize_optional_string(map_get(work_item, :id, "id")) do
+      nil ->
+        :none
+
+      work_item_id ->
+        with {:ok, %WorkItem{} = persisted_work_item} <- fetch_work_item(work_item_id, actor) do
+          work_item_reference(persisted_work_item, actor)
+        else
+          _other ->
+            {:ok,
+             %{
+               work_item_id: work_item_id,
+               managed_repo_id:
+                 work_item
+                 |> map_get(:managed_repo_id, "managed_repo_id")
+                 |> normalize_optional_string(),
+               work_item: normalize_work_item_map(work_item),
+               origin: work_item_origin(work_item),
+               origin_conversation_id: origin_conversation_id(work_item)
+             }}
+        end
+    end
+  end
+
+  defp work_item_reference(work_item_id, actor) when is_binary(work_item_id) do
+    with {:ok, %WorkItem{} = work_item} <- fetch_work_item(work_item_id, actor) do
+      work_item_reference(work_item, actor)
+    else
+      _other ->
+        {:ok,
+         %{
+           work_item_id: work_item_id,
+           managed_repo_id: nil,
+           work_item: placeholder_work_item_summary(work_item_id),
+           origin: nil,
+           origin_conversation_id: nil
+         }}
+    end
+  end
+
+  defp work_item_reference(_work_item_like, _actor), do: :none
+
+  defp fetch_work_item(work_item_id, actor) when is_binary(work_item_id) do
+    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: actor) do
+      {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
+      {:ok, []} -> {:error, :work_item_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp fetch_conversation(nil, _actor), do: {:ok, nil}
+
+  defp fetch_conversation(conversation_id, actor) when is_binary(conversation_id) do
+    case Conversation.read(query: [filter: [id: conversation_id], limit: 1], actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:error, :conversation_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp unavailable_projection(notice) do
     %{
       available?: false,
@@ -257,6 +437,59 @@ defmodule JidoCode.Workbench.ProjectConversation do
       recent_events: [],
       notice: notice,
       action_label: "Open repo conversation"
+    }
+  end
+
+  defp work_item_origin(%WorkItem{} = work_item) do
+    work_item
+    |> Map.get(:work_metadata, %{})
+    |> work_item_origin()
+  end
+
+  defp work_item_origin(%{} = work_item) do
+    work_item
+    |> map_get(:work_metadata, "work_metadata", %{})
+    |> normalize_map()
+    |> Map.get("conversation_origin")
+    |> normalize_map()
+    |> case do
+      origin when map_size(origin) == 0 -> nil
+      origin -> origin
+    end
+  end
+
+  defp work_item_origin(_work_item), do: nil
+
+  defp origin_conversation_id(work_item) do
+    work_item
+    |> work_item_origin()
+    |> case do
+      %{} = origin -> normalize_optional_string(Map.get(origin, "conversation_id"))
+      _other -> nil
+    end
+  end
+
+  defp normalize_work_item_map(%{} = work_item) do
+    %{
+      id: work_item |> map_get(:id, "id") |> normalize_optional_string(),
+      status: work_item |> map_get(:status, "status") || :open,
+      priority: work_item |> map_get(:priority, "priority") || :medium,
+      summary:
+        work_item
+        |> map_get(:summary, "summary")
+        |> normalize_optional_string() ||
+          "Governed work item",
+      category:
+        work_item
+        |> map_get(:category, "category")
+        |> normalize_optional_string() ||
+          "operator_work_request",
+      recommended_action:
+        work_item
+        |> map_get(:recommended_action, "recommended_action")
+        |> normalize_optional_string() ||
+          "review_operator_request",
+      updated_at: work_item |> map_get(:updated_at, "updated_at")
     }
   end
 

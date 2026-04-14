@@ -6,6 +6,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
   # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
   use JidoCodeWeb.ConnCase, async: false
@@ -367,7 +368,13 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       rendered = render(view)
 
       rendered =~ "deterministic explainer response" and
+        rendered =~ "Queue review operator request work for the managed repository." and
+        rendered =~ "canonical WorkItem scope" and
         rendered =~ "lib/jido_code_web/live/project_detail_live.ex" and
+        has_element?(view, "#project-detail-conversation-work-resolution", "created") and
+        has_element?(view, "#project-detail-conversation-governed-work") and
+        has_element?(view, "#project-detail-conversation-governed-work-status", "open") and
+        has_element?(view, "#project-detail-conversation-open-workbench", "Open in Workbench") and
         not has_element?(view, "#project-detail-conversation-pending-clarification")
     end)
 

@@ -1,6 +1,7 @@
 defmodule JidoCode.Conversations.Coordinator do
   # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
   # covers: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+  # covers: architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
   @moduledoc """
   Coordinator process for one active conversation.
 

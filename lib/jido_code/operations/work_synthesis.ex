@@ -1,6 +1,8 @@
 defmodule JidoCode.Operations.WorkSynthesis do
   # covers: architecture.work_synthesis.work_item_is_canonical_operational_record
+  # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
   # covers: architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
+  # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   # covers: architecture.work_synthesis.work_item_creation_can_stop_before_execution
   # covers: architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
   # covers: architecture.work_synthesis.work_item_auditability_preserved

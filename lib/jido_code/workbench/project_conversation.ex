@@ -3,6 +3,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
   # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
   # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   @moduledoc """
   Product-owned conversation shaping for managed-repository detail surfaces.
 

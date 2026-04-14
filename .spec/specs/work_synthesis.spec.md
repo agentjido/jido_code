@@ -14,13 +14,17 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
 surface:
+  - lib/jido_code/conversations.ex
+  - lib/jido_code/conversations/work_resolution.ex
   - lib/jido_code/operations/work_item.ex
   - lib/jido_code/operations/work_synthesis.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/ingress.ex
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
+  - test/jido_code/conversations_test.exs
   - test/jido_code/operations/work_synthesis_test.exs
   - test/jido_code/operations/phase_two_integration_test.exs
+  - test/jido_code/phase_forty_seven_integration_test.exs
 ```
 
 ## Requirements
@@ -130,10 +134,23 @@ surface:
   target: lib/jido_code/operations/work_synthesis.ex
   covers:
     - architecture.work_synthesis.work_item_is_canonical_operational_record
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
     - architecture.work_synthesis.work_item_creation_can_stop_before_execution
     - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
     - architecture.work_synthesis.work_item_auditability_preserved
+
+- kind: source_file
+  target: lib/jido_code/conversations/work_resolution.ex
+  covers:
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+
+- kind: source_file
+  target: lib/jido_code/conversations.ex
+  covers:
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
 
 - kind: source_file
   target: lib/jido_code/operations/synthesis.ex
@@ -178,5 +195,18 @@ surface:
   covers:
     - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+
+- kind: source_file
+  target: test/jido_code/conversations_test.exs
+  covers:
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+
+- kind: source_file
+  target: test/jido_code/phase_forty_seven_integration_test.exs
+  covers:
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+    - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
 
 ```

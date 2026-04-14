@@ -27,7 +27,9 @@ surface:
   - lib/jido_code/conversations/snapshot_record.ex
   - lib/jido_code/conversations/turn.ex
   - lib/jido_code/conversations/runtime.ex
+  - lib/jido_code/conversations/work_resolution.ex
   - lib/jido_code/agent_workspace.ex
+  - lib/jido_code/operations/work_item.ex
   - lib/jido_code/agent_workspace/runtime_specialist_runner.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/pods/coding_pod.ex
@@ -44,6 +46,7 @@ surface:
   - test/jido_code/phase_thirty_nine_integration_test.exs
   - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_six_integration_test.exs
+  - test/jido_code/phase_forty_seven_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
@@ -354,6 +357,7 @@ surface:
     - architecture.conversation_orchestration.active_turns_can_be_superseded
     - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
     - architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
 
 - kind: source_file
   target: lib/jido_code/conversations/driver.ex
@@ -419,6 +423,11 @@ surface:
     - architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
 
 - kind: source_file
+  target: lib/jido_code/conversations/work_resolution.ex
+  covers:
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+
+- kind: source_file
   target: lib/jido_code/conversations.ex
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
@@ -436,6 +445,7 @@ surface:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
 
 - kind: source_file
   target: test/jido_code/phase_forty_integration_test.exs
@@ -490,11 +500,18 @@ surface:
     - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
+  target: test/jido_code/phase_forty_seven_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+
+- kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
 
 - kind: source_file
@@ -503,6 +520,7 @@ surface:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
 

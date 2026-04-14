@@ -1,4 +1,6 @@
 defmodule JidoCode.Conversations.WorkResolution do
+  # covers: architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+  # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
   @moduledoc """
   Product-owned boundary for resolving repository conversation turns onto
   canonical governed work before durable specialist execution continues.

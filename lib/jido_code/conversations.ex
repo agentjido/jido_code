@@ -1,5 +1,7 @@
 defmodule JidoCode.Conversations do
   # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+  # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
+  # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
 
   alias JidoCode.Control.Actor

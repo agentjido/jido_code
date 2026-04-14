@@ -172,10 +172,15 @@ defmodule JidoCode.Conversations.Persistence do
   end
 
   defp snapshot_from_record(%SnapshotRecord{} = record) do
+    shared_context = record.shared_context || %{}
+
     %{
       conversation_id: record.conversation_id,
       managed_repo_id: record.managed_repo_id,
       work_item_id: record.work_item_id,
+      scope: map_get(shared_context, "scope"),
+      attachment_mode: map_get(shared_context, "attachment_mode"),
+      work_resolution: map_get(shared_context, "work_resolution"),
       status: record.status,
       admission_paused: record.admission_paused,
       child_execution_paused: record.child_execution_paused,
@@ -194,7 +199,7 @@ defmodule JidoCode.Conversations.Persistence do
       last_event_sequence: record.last_event_sequence,
       event_count: record.event_count,
       events: record.events,
-      shared_context: record.shared_context
+      shared_context: shared_context
     }
   end
 

@@ -299,12 +299,22 @@ defmodule JidoCode.Conversations do
     |> maybe_put("instruction", optional_string(payload, :instruction))
     |> maybe_put("reason", optional_string(payload, :reason))
     |> maybe_put("workflow_name", optional_string(payload, :workflow_name))
+    |> maybe_put("turn_id", optional_string(payload, :turn_id))
+    |> maybe_put("command_id", optional_string(payload, :command_id))
+    |> maybe_put("resolution_reason", optional_string(payload, :resolution_reason))
+    |> maybe_put(
+      "resolution_command_type",
+      optional_string(payload, :resolution_command_type)
+    )
     |> maybe_put("shared_context", shared_context)
     |> Map.put("context_item", %{
       "type" => "conversation",
       "conversation_id" => conversation.id,
+      "conversation_turn_id" => optional_string(payload, :turn_id),
+      "conversation_command_id" => optional_string(payload, :command_id),
       "conversation_scope" => Atom.to_string(conversation.scope),
       "attachment_mode" => Atom.to_string(conversation.attachment_mode),
+      "workflow" => optional_string(payload, :workflow_name),
       "shared_context_summary" => shared_context_summary(shared_context)
     })
   end
@@ -313,12 +323,19 @@ defmodule JidoCode.Conversations do
     %{}
     |> Map.put("conversation_entry", true)
     |> Map.put("conversation_id", conversation.id)
-    |> Map.put("conversation_control_command", "turn.steer")
+    |> Map.put(
+      "conversation_control_command",
+      optional_string(payload, :resolution_command_type) || "turn.steer"
+    )
     |> Map.put("conversation_scope", Atom.to_string(conversation.scope))
     |> Map.put("conversation_attachment_mode", Atom.to_string(conversation.attachment_mode))
     |> Map.put("steering_intent", intent)
     |> maybe_put("target_work_item_id", work_item_id)
     |> maybe_put("instruction", optional_string(payload, :instruction))
+    |> maybe_put("conversation_turn_id", optional_string(payload, :turn_id))
+    |> maybe_put("conversation_command_id", optional_string(payload, :command_id))
+    |> maybe_put("conversation_workflow", optional_string(payload, :workflow_name))
+    |> maybe_put("conversation_resolution_reason", optional_string(payload, :resolution_reason))
     |> maybe_put("shared_context_summary", shared_context_summary(shared_context))
   end
 
@@ -368,28 +385,67 @@ defmodule JidoCode.Conversations do
        ) do
     current_metadata = normalize_map(conversation.conversation_metadata)
     instruction = optional_string(payload, :instruction) || optional_string(payload, :reason)
+    resolution_command =
+      optional_string(payload, :resolution_command_type) || "turn.steer"
+
+    workflow_name = optional_string(payload, :workflow_name)
+    work_item_id = optional_id(work_item) || conversation.work_item_id
+    resolved_at = DateTime.to_iso8601(now)
 
     steering_entry =
       %{
-        "at" => DateTime.to_iso8601(now),
-        "command" => "turn.steer",
-        "work_item_id" => optional_id(work_item) || conversation.work_item_id,
+        "at" => resolved_at,
+        "command" => resolution_command,
+        "work_item_id" => work_item_id,
         "attachment_mode" => Atom.to_string(attachment_mode),
         "scope" => Atom.to_string(scope)
       }
       |> maybe_put("work_action", work_action && Atom.to_string(work_action))
       |> maybe_put("instruction", instruction)
+      |> maybe_put("turn_id", optional_string(payload, :turn_id))
+      |> maybe_put("command_id", optional_string(payload, :command_id))
+      |> maybe_put("workflow", workflow_name)
+
+    work_resolution =
+      %{
+        "action" =>
+          normalize_work_resolution_action(
+            work_action,
+            work_item_id,
+            attachment_mode,
+            scope
+          ),
+        "detail" =>
+          work_resolution_detail(
+            work_action,
+            work_item_id,
+            attachment_mode,
+            scope,
+            workflow_name,
+            payload
+          ),
+        "resolved_at" => resolved_at,
+        "command" => resolution_command,
+        "scope" => Atom.to_string(scope),
+        "attachment_mode" => Atom.to_string(attachment_mode)
+      }
+      |> maybe_put("work_action", work_action && Atom.to_string(work_action))
+      |> maybe_put("work_item_id", work_item_id)
+      |> maybe_put("turn_id", optional_string(payload, :turn_id))
+      |> maybe_put("command_id", optional_string(payload, :command_id))
+      |> maybe_put("workflow", workflow_name)
+      |> maybe_put("reason", optional_string(payload, :resolution_reason))
 
     current_metadata
     |> Map.put("canonical_work_surface", "work_item")
     |> Map.put("shared_context_contract", "bounded")
-    |> Map.put("active_work_item_id", optional_id(work_item) || conversation.work_item_id)
-    |> Map.put("last_steer_command", "turn.steer")
-    |> Map.put("last_steered_at", DateTime.to_iso8601(now))
-    |> maybe_put("last_steer_instruction", instruction)
+    |> Map.put("active_work_item_id", work_item_id)
+    |> Map.put("last_work_resolution", work_resolution)
+    |> Map.put("last_work_resolved_at", resolved_at)
     |> maybe_put("last_work_action", work_action && Atom.to_string(work_action))
     |> Map.put("shared_context_summary", shared_context_summary(shared_context))
-    |> Map.put("steering_history", steering_history(current_metadata, steering_entry))
+    |> Map.put("work_resolution_history", work_resolution_history(current_metadata, work_resolution))
+    |> maybe_update_steering_metadata(resolution_command, resolved_at, instruction, steering_entry)
   end
 
   defp steering_history(current_metadata, steering_entry) do
@@ -400,6 +456,71 @@ defmodule JidoCode.Conversations do
     |> Kernel.++([steering_entry])
     |> Enum.take(-10)
   end
+
+  defp work_resolution_history(current_metadata, work_resolution) do
+    current_metadata
+    |> Map.get("work_resolution_history", [])
+    |> List.wrap()
+    |> Enum.filter(&is_map/1)
+    |> Kernel.++([work_resolution])
+    |> Enum.take(-10)
+  end
+
+  defp maybe_update_steering_metadata(metadata, "turn.steer", resolved_at, instruction, steering_entry) do
+    metadata
+    |> Map.put("last_steer_command", "turn.steer")
+    |> Map.put("last_steered_at", resolved_at)
+    |> maybe_put("last_steer_instruction", instruction)
+    |> Map.put("steering_history", steering_history(metadata, steering_entry))
+  end
+
+  defp maybe_update_steering_metadata(metadata, _resolution_command, _resolved_at, _instruction, _entry),
+    do: metadata
+
+  defp normalize_work_resolution_action(work_action, work_item_id, attachment_mode, scope) do
+    cond do
+      is_atom(work_action) ->
+        Atom.to_string(work_action)
+
+      is_binary(work_item_id) and attachment_mode == :synthesized_work_item ->
+        "created"
+
+      is_binary(work_item_id) ->
+        "attached"
+
+      scope == :repo_scoped ->
+        "repo_scoped"
+
+      true ->
+        "attached"
+    end
+  end
+
+  defp work_resolution_detail(work_action, work_item_id, attachment_mode, scope, workflow_name, payload) do
+    optional_string(payload, :resolution_reason) ||
+      cond do
+        is_binary(work_item_id) and attachment_mode == :synthesized_work_item ->
+          "Created governed #{workflow_label(workflow_name)} work item #{work_item_id} for conversation execution."
+
+        is_binary(work_item_id) and is_atom(work_action) ->
+          "Updated governed work item #{work_item_id} through conversation work resolution."
+
+        is_binary(work_item_id) ->
+          "Attached conversation work to governed work item #{work_item_id}."
+
+        scope == :repo_scoped ->
+          "The conversation remains exploratory and repo-scoped."
+
+        true ->
+          "Conversation work resolution completed."
+      end
+  end
+
+  defp workflow_label("plan"), do: "planning"
+  defp workflow_label("execute"), do: "implementation"
+  defp workflow_label("review"), do: "review"
+  defp workflow_label("explain"), do: "follow-up"
+  defp workflow_label(_workflow_name), do: "governed"
 
   defp shared_context_summary(shared_context) do
     %{

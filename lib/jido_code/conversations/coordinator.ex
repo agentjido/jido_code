@@ -21,6 +21,7 @@ defmodule JidoCode.Conversations.Coordinator do
     Snapshot,
     Turn
   }
+  alias JidoCode.Conversations.WorkResolution
 
   @type state :: %{
           conversation: Conversation.t(),
@@ -331,19 +332,11 @@ defmodule JidoCode.Conversations.Coordinator do
     turn = Map.fetch!(state.turns, next_turn_id)
 
     if auto_runtime_enabled?(state.conversation) and is_nil(state.conversation.work_item_id) do
-      instruction =
-        Map.get(turn.payload, "instruction") ||
-          Map.get(turn.payload, "response") ||
-          Map.get(turn.payload, "reason")
-
-      case JidoCode.Conversations.steer_work(
+      case WorkResolution.ensure_turn_attachment(
              state.conversation,
-             %{
-               "attach_mode" => "synthesized_work_item",
-               "instruction" => instruction
-             },
-             actor: turn.actor,
-             shared_context: Snapshot.from_state(state).shared_context
+             turn,
+             Snapshot.from_state(state).shared_context,
+             actor: turn.actor
            ) do
         {:ok, %{conversation: %Conversation{} = updated_conversation}} ->
           {:ok, %{state | conversation: updated_conversation}}
@@ -819,6 +812,10 @@ defmodule JidoCode.Conversations.Coordinator do
       :work_action,
       map_get(state.conversation.conversation_metadata, "last_work_action")
     )
+    |> maybe_put(
+      :work_resolution,
+      map_get(state.conversation.conversation_metadata, "last_work_resolution")
+    )
     |> maybe_put(:attachment_mode, state.conversation.attachment_mode)
     |> maybe_put(:scope, state.conversation.scope)
   end
@@ -854,7 +851,8 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp steer_turn(state, normalized_command) do
     with {:ok, target_turn} <- target_turn(state, normalized_command.payload),
-         {:ok, state_after_work} <- apply_conversation_work_steering(state, normalized_command),
+         {:ok, state_after_work} <-
+           apply_conversation_work_steering(state, normalized_command, target_turn),
          {:ok, state_after_target} <-
            mark_turn_superseding(
              state_after_work,
@@ -870,10 +868,20 @@ defmodule JidoCode.Conversations.Coordinator do
     end
   end
 
-  defp apply_conversation_work_steering(state, %{type: :turn_steer} = normalized_command) do
+  defp apply_conversation_work_steering(
+         state,
+         %{type: :turn_steer} = normalized_command,
+         %Turn{} = target_turn
+       ) do
+    steering_payload =
+      normalized_command.payload
+      |> Map.put_new("turn_id", target_turn.id)
+      |> Map.put_new("command_id", normalized_command.id)
+      |> Map.put_new("resolution_command_type", normalized_command.raw_type)
+
     case JidoCode.Conversations.steer_work(
            state.conversation,
-           normalized_command.payload,
+           steering_payload,
            actor: normalized_command.actor,
            shared_context: Snapshot.from_state(state).shared_context
          ) do
@@ -885,7 +893,7 @@ defmodule JidoCode.Conversations.Coordinator do
     end
   end
 
-  defp apply_conversation_work_steering(state, _normalized_command), do: {:ok, state}
+  defp apply_conversation_work_steering(state, _normalized_command, _target_turn), do: {:ok, state}
 
   defp request_turn_cancellation(
          state,
@@ -1348,7 +1356,10 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp append_event(state, name, attrs) do
     sequence = state.event_sequence + 1
-    event = Event.new(state.conversation.id, sequence, name, attrs)
+    event =
+      attrs
+      |> merge_work_context(state.conversation)
+      |> then(&Event.new(state.conversation.id, sequence, name, &1))
 
     %{
       state
@@ -1365,6 +1376,38 @@ defmodule JidoCode.Conversations.Coordinator do
     end)
 
     :ok
+  end
+
+  defp merge_work_context(attrs, %Conversation{} = conversation) when is_map(attrs) do
+    work_resolution =
+      conversation.conversation_metadata
+      |> map_get("last_work_resolution")
+      |> normalize_map()
+
+    work_context =
+      %{
+        "work_item_id" => conversation.work_item_id,
+        "scope" => Atom.to_string(conversation.scope),
+        "attachment_mode" => Atom.to_string(conversation.attachment_mode)
+      }
+      |> maybe_put("work_action", map_get(conversation.conversation_metadata, "last_work_action"))
+      |> maybe_put("work_resolution", if(work_resolution == %{}, do: nil, else: work_resolution))
+
+    correlation =
+      attrs
+      |> map_get(:correlation)
+      |> normalize_map()
+      |> Map.merge(Map.drop(work_context, ["work_resolution"]))
+
+    payload =
+      attrs
+      |> map_get(:payload)
+      |> normalize_map()
+      |> Map.put_new("work_context", work_context)
+
+    attrs
+    |> Map.put(:correlation, correlation)
+    |> Map.put(:payload, payload)
   end
 
   defp fresh_state(%Conversation{} = conversation) do

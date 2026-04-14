@@ -7,11 +7,12 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository and usually work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption rather than snapshot polling, fake timer-driven turn simulation, or ad hoc FIFO chat handling.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption, repo-scoped pre-work intake, and multiple active work-item conversations per repository rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
   - jido_code.interruptible_conversation_orchestration
+  - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
   - lib/jido_code/conversations.ex
   - lib/jido_code/conversations/command.ex
@@ -44,6 +45,7 @@ surface:
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/setup/provider_credential_checks.ex
+  - .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
   - test/jido_code/phase_thirty_nine_integration_test.exs
@@ -62,7 +64,17 @@ surface:
 
 ```spec-requirements
 - id: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
-  statement: Coding conversations shall bind to explicit managed-repository scope and, when they act on durable factory work, shall attach to one existing or newly synthesized WorkItem rather than remaining free-floating page-local chat state.
+  statement: Coding conversations shall bind to explicit managed-repository scope and, when they act on durable factory work, shall attach to one existing or newly synthesized `WorkItem` rather than remaining free-floating page-local chat state, allowing one managed repository to host multiple active productive conversations when those threads map to distinct work items.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+  statement: The product shall enforce active productive conversation uniqueness per canonical `WorkItem` rather than per managed repository, so reopening conversation work for the same active work item resumes its active thread while different work items in the same repository may keep separate active conversations.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
+  statement: Repo-scoped conversations shall remain a bounded pre-work intake or triage path; once durable planning, implementation, review, or governed follow-up work begins, the canonical long-lived productive conversation shall attach to explicit `WorkItem` scope instead of continuing as a repo-global productive thread.
   priority: must
   stability: proposed
 
@@ -127,17 +139,17 @@ surface:
   stability: proposed
 
 - id: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
-  statement: Managed-repository operator routes should be able to open, resume, and guide bounded repo-scoped conversations through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.
+  statement: Managed-repository operator routes should be able to open bounded repo-scoped intake conversations, list active work-item conversations for the repository, and resume the canonical conversation for a selected `WorkItem` through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.
   priority: should
   stability: proposed
 
 - id: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
-  statement: Managed-repository and adjacent governed-work surfaces should show when a productive conversation is attached to a `WorkItem` and allow operators to follow or resume the canonical governed work loop from that linkage.
+  statement: Managed-repository and adjacent governed-work surfaces should show when a productive conversation is attached to a `WorkItem`, distinguish repo-scoped intake from active work-item conversations, and allow operators to follow or resume the canonical governed work loop from that linkage.
   priority: should
   stability: proposed
 
 - id: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
-  statement: Workbench and governed run detail should project bounded repo-conversation and governed-work linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.
+  statement: Workbench and governed run detail should project bounded repo-intake and work-item conversation linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.
   priority: should
   stability: proposed
 
@@ -253,6 +265,7 @@ surface:
 - id: architecture.conversation_orchestration.scenario_repo_conversation_creates_or_reuses_governed_work
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
     - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
     - architecture.conversation_orchestration.steering_preserves_short_term_context
   given:
@@ -262,35 +275,66 @@ surface:
     - The product admits that turn into the governed work loop.
   then:
     - A canonical `WorkItem` is created or an equivalent existing work item is reused through a product-owned work-resolution boundary before durable execution continues.
+    - The canonical productive conversation attaches to the resolved `WorkItem` instead of remaining a repo-global productive thread.
     - The conversation snapshot records the attached `work_item_id` and later turns reuse or steer that governed work explicitly rather than creating hidden conversation-local work state.
     - The product preserves the turn and actor context needed to explain why the conversation attached to that work item.
 
-- id: architecture.conversation_orchestration.scenario_managed_repo_route_reuses_repo_conversation
+- id: architecture.conversation_orchestration.scenario_managed_repo_route_lists_active_work_item_conversations
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   given:
-    - A managed-repository detail route needs to show the latest bounded conversation state for that repository.
+    - A managed repository has multiple active governed `WorkItem`s with productive conversations attached.
+    - The repository may also have a bounded repo-scoped intake conversation for pre-work triage.
   when:
-    - The operator opens or resumes the repository conversation from that route.
+    - The operator opens the managed-repository detail route.
   then:
-    - The product-owned route boundary reuses the latest active repo-scoped conversation when one already exists.
-    - The route loads the latest durable snapshot and recent events through bounded workspace helpers.
-    - Live delivery stays event-driven while degraded continuity still renders the latest durable conversation state.
+    - The route distinguishes repo-scoped intake from active work-item conversations instead of collapsing all active work onto one latest repo-global productive thread.
+    - The route loads active work-item conversation summaries, durable snapshots, and recent events through bounded workspace helpers.
+    - Live delivery stays event-driven while degraded continuity still renders the latest durable intake and work-item conversation state.
+
+- id: architecture.conversation_orchestration.scenario_reopening_same_work_item_reuses_active_conversation
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  given:
+    - A managed repository already has an active productive conversation attached to a canonical `WorkItem`.
+  when:
+    - The operator resumes conversation work for that same work item from repo detail, Workbench, or governed run detail.
+  then:
+    - The product resumes the active productive conversation for that work item instead of creating a second active conversation for the same governed work.
+    - Bounded short-term context, current turn state, and work-item linkage remain attached to the resumed thread.
+
+- id: architecture.conversation_orchestration.scenario_parallel_work_items_keep_separate_conversations
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+    - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+  given:
+    - A managed repository has two distinct governed `WorkItem`s that both require productive LLM-backed supervision.
+  when:
+    - Operators open or resume conversation work for those work items.
+  then:
+    - Each work item keeps its own productive conversation thread, bounded context, and runtime routing.
+    - The system does not merge those work streams into one repo-global productive conversation.
 
 - id: architecture.conversation_orchestration.scenario_operator_surfaces_expose_conversation_work_item_linkage
   covers:
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   given:
-    - A productive repository conversation is already attached to a canonical `WorkItem`.
+    - One or more productive repository conversations are already attached to canonical `WorkItem` scope.
   when:
     - An operator opens the managed-repository route or adjacent governed-work surface for that repository.
   then:
     - The product shows the attached `WorkItem` linkage and current governed work status without requiring the operator to infer it from raw conversation text.
-    - The operator can follow or resume the governed work loop from that surfaced linkage rather than reopening a separate ad hoc path.
+    - The operator can follow or resume each governed work loop from that surfaced linkage rather than reopening a separate ad hoc path.
 
 - id: architecture.conversation_orchestration.scenario_workbench_and_run_detail_project_conversation_linkage
   covers:
@@ -302,7 +346,7 @@ surface:
   when:
     - An operator opens Workbench or governed run detail.
   then:
-    - Workbench shows bounded repo-conversation status plus the attached governed work summary on the managed-repository row.
+    - Workbench shows bounded intake and work-item conversation status plus the attached governed work summary on the managed-repository row.
     - Governed run detail shows the bounded relationship between run execution, canonical `WorkItem` scope, and any preserved productive conversation origin or latest linked conversation.
     - Both surfaces route operators back to the managed-repository conversation host surface instead of inventing page-local or run-local chat state.
 
@@ -369,6 +413,13 @@ surface:
     - architecture.conversation_orchestration.expensive_work_announces_intent
 
 - kind: source_file
+  target: .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
+
+- kind: source_file
   target: lib/jido_code/conversations/child_work.ex
   covers:
     - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
@@ -403,6 +454,32 @@ surface:
   covers:
     - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+
+- kind: source_file
+  target: .spec/planning/phase-49-work-item-conversation-identity-and-canonical-admission.md
+  covers:
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+
+- kind: source_file
+  target: .spec/planning/phase-50-managed-repo-workbench-and-dashboard-multi-conversation-adoption.md
+  covers:
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+
+- kind: source_file
+  target: .spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md
+  covers:
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code/phase_forty_nine_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
 
 - kind: source_file
   target: lib/jido_code/conversations/event.ex

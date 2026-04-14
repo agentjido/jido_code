@@ -22,6 +22,7 @@ decisions:
   - jido_code.memory_graph_workflow_and_operator_expansion
   - jido_code.source_code_graph_product_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
+  - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
@@ -29,6 +30,7 @@ surface:
   - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  - .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
   - lib/jido_code/control.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
@@ -128,7 +130,12 @@ surface:
   stability: evolving
 
 - id: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
-  statement: When productive repository conversations create or attach governed work, Workbench, repo detail, and governed run detail should project that conversation linkage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane.
+  statement: When productive repository conversations create or attach governed work, repo detail, Workbench, dashboard summaries, and governed run detail should project repo intake and work-item conversation linkage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane or collapsing active governed work onto one repo-global conversation.
+  priority: should
+  stability: evolving
+
+- id: architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
+  statement: Operator surfaces shall distinguish bounded repo-scoped intake from canonical work-item-scoped productive conversations so repositories with multiple open work items can expose parallel governed conversation threads through product-owned records without inventing a second browser truth lane.
   priority: should
   stability: evolving
 
@@ -189,6 +196,7 @@ surface:
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+    - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
   given:
     - Managed repositories and governed runs already exist as the canonical control-plane records.
   when:
@@ -197,6 +205,7 @@ surface:
     - The product resolves and presents canonical managed-repository and governed-run records directly.
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
     - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
+    - Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.
 
 ```
 
@@ -316,6 +325,29 @@ surface:
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+    - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
+
+- kind: source_file
+  target: .spec/planning/phase-50-managed-repo-workbench-and-dashboard-multi-conversation-adoption.md
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+    - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
+
+- kind: source_file
+  target: .spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+
+- kind: source_file
+  target: test/jido_code/phase_forty_nine_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+    - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
 
 - kind: source_file
   target: lib/jido_code/operations/repo_native_state.ex

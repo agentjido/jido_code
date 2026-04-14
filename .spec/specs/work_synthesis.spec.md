@@ -9,10 +9,11 @@ records before execution begins.
 id: architecture.work_synthesis
 kind: feature
 status: active
-summary: Jido.Code turns durable assessments and productive conversation demand into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.
+summary: Jido.Code turns durable assessments and productive conversation demand into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, and make `WorkItem` the canonical anchor for active productive conversation identity when governed work is conversationally supervised, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
   - lib/jido_code/conversations.ex
   - lib/jido_code/conversations/work_resolution.ex
@@ -20,6 +21,7 @@ surface:
   - lib/jido_code/operations/work_synthesis.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/ingress.ex
+  - .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
   - test/jido_code/conversations_test.exs
   - test/jido_code/operations/work_synthesis_test.exs
@@ -48,6 +50,11 @@ surface:
 - id: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   statement: When governed work originates from a productive conversation, the synthesized or reused `WorkItem` shall preserve enough conversation, turn, and initiating actor linkage for later steering, runtime routing, and governance to explain that origin without reconstructing it from transcript text.
   priority: should
+  stability: evolving
+
+- id: architecture.work_synthesis.active_conversation_identity_rejoins_work_item
+  statement: When governed work is supervised through productive conversation, the canonical active conversation identity shall rejoin the `WorkItem` so separate work items in the same managed repository can keep separate productive threads without collapsing continuation onto one repo-global conversation.
+  priority: must
   stability: evolving
 
 - id: architecture.work_synthesis.work_item_creation_can_stop_before_execution
@@ -108,6 +115,7 @@ surface:
     - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
     - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
   given:
     - A managed repository has a productive conversation turn that should become durable planning, implementation, review, or follow-up work.
   when:
@@ -115,6 +123,19 @@ surface:
   then:
     - A canonical open `WorkItem` is created or an equivalent existing work item is reused instead of keeping the work implicit in conversation-only runtime state.
     - The durable work record preserves repo scope, actor context, and enough conversation linkage to explain the work origin and later steering behavior.
+
+- id: architecture.work_synthesis.scenario_parallel_work_items_keep_separate_conversation_identity
+  covers:
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
+  given:
+    - A managed repository has multiple open `WorkItem`s that each originated from or are supervised through productive conversation.
+  when:
+    - Operators resume governed conversation work on those work items.
+  then:
+    - Each work item preserves separate productive conversation linkage and continuation identity.
+    - The product does not require operators to route that resumed work through one repo-global latest conversation.
 
 ```
 
@@ -151,6 +172,11 @@ surface:
   covers:
     - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+
+- kind: source_file
+  target: .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
+  covers:
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
 
 - kind: source_file
   target: lib/jido_code/operations/synthesis.ex
@@ -195,6 +221,16 @@ surface:
   covers:
     - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+
+- kind: source_file
+  target: .spec/planning/phase-49-work-item-conversation-identity-and-canonical-admission.md
+  covers:
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
+
+- kind: source_file
+  target: test/jido_code/phase_forty_nine_integration_test.exs
+  covers:
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
 
 - kind: source_file
   target: test/jido_code/conversations_test.exs

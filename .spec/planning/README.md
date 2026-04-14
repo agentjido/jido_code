@@ -77,6 +77,7 @@ The plan aligns to:
 38. [Phase 44 - Managed Repo Conversation Surface Adoption](./phase-44-managed-repo-conversation-surface-adoption.md): adopt the durable conversation model into the managed-repository detail route through product-owned workspace helpers, bounded repo-detail interaction, and current-truth coverage.
 39. [Phase 45 - Memory-Aware Execute Workflow Adoption](./phase-45-memory-aware-execute-workflow-adoption.md): add a product-owned memory-aware execute workflow so coder paths can request bounded, freshness-aware durable memory and provenance context through the canonical workspace boundary.
 40. [Phase 46 - Real LLM Conversation Runtime Cutover](./phase-46-real-llm-conversation-runtime-cutover.md): replace the remaining fake managed-repository conversation runtime with a real LLM-backed execution path routed through product-owned conversation, workspace, and specialist boundaries.
+41. [Phase 47 - Conversation To Governed Work Convergence](./phase-47-conversation-to-governed-work-convergence.md): make productive repository conversations create, attach, and surface canonical WorkItem scope so governed work stops living implicitly inside repo-scoped conversation runtime state.
 
 ## Shared Conventions
 - Numbering:

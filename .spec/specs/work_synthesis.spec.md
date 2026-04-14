@@ -9,7 +9,7 @@ records before execution begins.
 id: architecture.work_synthesis
 kind: feature
 status: active
-summary: Jido.Code turns durable assessments into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.
+summary: Jido.Code turns durable assessments and productive conversation demand into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
@@ -31,9 +31,19 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.work_synthesis.productive_conversations_route_through_work_resolution
+  statement: Productive repository conversations that transition into durable planning, implementation, review, or governed follow-up shall create, attach, or reuse canonical `WorkItem` records through work synthesis or an equivalent product-owned work-resolution boundary instead of launching hidden work directly from conversation-local state.
+  priority: must
+  stability: evolving
+
 - id: architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
   statement: Each `WorkItem` shall preserve managed-repository scope, originating assessment and event links, initiating demand references, category, priority, status, recommended action, and initiating actor metadata.
   priority: must
+  stability: evolving
+
+- id: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+  statement: When governed work originates from a productive conversation, the synthesized or reused `WorkItem` shall preserve enough conversation, turn, and initiating actor linkage for later steering, runtime routing, and governance to explain that origin without reconstructing it from transcript text.
+  priority: should
   stability: evolving
 
 - id: architecture.work_synthesis.work_item_creation_can_stop_before_execution
@@ -87,6 +97,20 @@ surface:
     - The control plane synthesizes work from those assessments.
   then:
     - Existing open work is updated or duplicate demand is suppressed with an audit trail instead of spawning uncontrolled duplicate work items.
+
+- id: architecture.work_synthesis.scenario_productive_conversation_creates_or_reuses_work
+  covers:
+    - architecture.work_synthesis.work_item_is_canonical_operational_record
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+    - architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+  given:
+    - A managed repository has a productive conversation turn that should become durable planning, implementation, review, or follow-up work.
+  when:
+    - The product resolves that conversation turn into canonical governed work.
+  then:
+    - A canonical open `WorkItem` is created or an equivalent existing work item is reused instead of keeping the work implicit in conversation-only runtime state.
+    - The durable work record preserves repo scope, actor context, and enough conversation linkage to explain the work origin and later steering behavior.
 
 ```
 
@@ -148,5 +172,11 @@ surface:
     - architecture.work_synthesis.work_item_creation_can_stop_before_execution
     - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
     - architecture.work_synthesis.work_item_auditability_preserved
+
+- kind: source_file
+  target: .spec/planning/phase-47-conversation-to-governed-work-convergence.md
+  covers:
+    - architecture.work_synthesis.productive_conversations_route_through_work_resolution
+    - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
 
 ```

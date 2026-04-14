@@ -262,16 +262,18 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     on_exit(fn ->
-      case AgentWorkspace.latest_repo_conversation(managed_repo.id, actor: Actor.operator_actor()) do
-        {:ok, %{id: conversation_id}} ->
-          _ = AgentWorkspace.stop_conversation(conversation_id)
-          _ = AgentWorkspace.shutdown_kernel(managed_repo.id)
-          :ok
+      case AgentWorkspace.active_work_item_conversations(managed_repo.id, actor: Actor.operator_actor()) do
+        {:ok, conversations} ->
+          Enum.each(conversations, fn conversation ->
+            _ = AgentWorkspace.stop_conversation(conversation.id)
+          end)
 
         _other ->
-          _ = AgentWorkspace.shutdown_kernel(managed_repo.id)
           :ok
       end
+
+      _ = AgentWorkspace.shutdown_kernel(managed_repo.id)
+      :ok
     end)
 
     {:ok, detail_view, _html} =
@@ -342,8 +344,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
     assert has_element?(
              view,
-             "#run-detail-conversation-open-repo[href='/repos/#{project.id}']",
-             "Continue repo conversation"
+             "#run-detail-conversation-open-repo[href='/repos/#{project.id}?work_item_id=#{work_item_id}#project-detail-conversation-panel']",
+             "Resume governed conversation"
            )
   end
 

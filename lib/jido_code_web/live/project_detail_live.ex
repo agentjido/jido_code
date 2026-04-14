@@ -46,6 +46,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:conversation_stream_degraded_reason, nil)
      |> assign(:conversation_stream_discontinuity_count, 0)
      |> assign(:conversation_degraded_mode_message, @conversation_degraded_mode_message)
+     |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
@@ -55,6 +56,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   def handle_params(params, _uri, socket) do
     project_id = Map.get(params, "id")
     return_to_path = normalize_return_to_path(Map.get(params, "return_to"))
+    selected_work_item_id = present_optional_string(Map.get(params, "work_item_id"))
 
     socket =
       socket
@@ -72,7 +74,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               |> assign(:memory_action_feedback, nil)
               |> assign(:conversation_action_feedback, nil)
               |> assign(:conversation_action_feedback_kind, :info)
-              |> assign_project_conversation(project_detail)
+              |> assign(:selected_work_item_id, selected_work_item_id)
+              |> assign_project_conversation(project_detail, selected_work_item_id)
 
             {:error, project_load_error} ->
               socket
@@ -146,17 +149,32 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   @impl true
   def handle_event("open_repo_conversation", _params, socket) do
-    case ProjectConversation.open_repo_detail(
-           socket.assigns.project_detail,
-           actor: initiating_actor(socket)
-         ) do
+    open_result =
+      case socket.assigns.selected_work_item_id do
+        work_item_id when is_binary(work_item_id) ->
+          ProjectConversation.open_work_item_detail(
+            work_item_id,
+            actor: initiating_actor(socket)
+          )
+
+        _other ->
+          ProjectConversation.open_repo_detail(
+            socket.assigns.project_detail,
+            actor: initiating_actor(socket)
+          )
+      end
+
+    case open_result do
       {:ok, %{conversation: _conversation, snapshot: _snapshot}} ->
         {:noreply,
          socket
          |> assign(:conversation_action_feedback, nil)
          |> assign(:conversation_action_feedback_kind, :info)
          |> assign(:conversation_input, "")
-         |> assign_project_conversation(socket.assigns.project_detail)}
+         |> assign_project_conversation(
+           socket.assigns.project_detail,
+           socket.assigns.selected_work_item_id
+         )}
 
       {:error, notice} ->
         {:noreply,
@@ -345,6 +363,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             <h2 class="text-lg font-semibold">Repository conversation</h2>
             <p class="text-sm text-base-content/70">
               Repository conversations stay product-owned on this managed-repository route, promote durable work onto governed WorkItems, and recover from the latest durable snapshot when live delivery degrades.
+            </p>
+            <p
+              :if={@selected_work_item_id && @conversation_surface.work_item}
+              id="project-detail-selected-work-item"
+              class="text-xs text-base-content/70"
+            >
+              Following governed conversation for WorkItem {@selected_work_item_id}.
             </p>
           </div>
 
@@ -982,6 +1007,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       available?: false,
       managed_repo_id: nil,
       conversation: nil,
+      historical_conversation: nil,
       work_item: nil,
       snapshot: nil,
       recent_events: [],
@@ -990,8 +1016,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     }
   end
 
-  defp assign_project_conversation(socket, project_detail) do
-    projection = ProjectConversation.load_repo_detail(project_detail, actor: initiating_actor(socket))
+  defp assign_project_conversation(socket, project_detail, selected_work_item_id) do
+    projection =
+      ProjectConversation.load_repo_detail(
+        project_detail,
+        actor: initiating_actor(socket),
+        selected_work_item_id: selected_work_item_id
+      )
 
     socket
     |> assign_conversation_surface(projection)
@@ -1769,4 +1800,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(value) when is_float(value), do: :erlang.float_to_binary(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp present_optional_string(value) do
+    case normalize_optional_string(value) do
+      "nil" -> nil
+      normalized -> normalized
+    end
+  end
 end

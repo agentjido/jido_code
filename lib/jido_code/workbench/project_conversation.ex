@@ -45,8 +45,10 @@ defmodule JidoCode.Workbench.ProjectConversation do
         }
 
   @type work_item_projection :: %{
+          available?: boolean(),
           managed_repo_id: String.t() | nil,
           conversation: map() | nil,
+          historical_conversation: map() | nil,
           work_item: map() | nil,
           origin: map() | nil,
           snapshot: map() | nil,
@@ -72,10 +74,14 @@ defmodule JidoCode.Workbench.ProjectConversation do
   @spec load_repo_detail(map() | nil, keyword()) :: projection()
   def load_repo_detail(project_like, opts \\ []) do
     actor = normalize_actor(Keyword.get(opts, :actor))
+    selected_work_item_id =
+      opts
+      |> Keyword.get(:selected_work_item_id)
+      |> present_optional_string()
 
     case scope(project_like) do
       {:ok, managed_repo_id} ->
-        load_projection(managed_repo_id, actor)
+        load_projection(managed_repo_id, actor, selected_work_item_id)
 
       {:error, notice} ->
         unavailable_projection(notice)
@@ -86,7 +92,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
   def load_managed_repo(managed_repo_id, opts \\ [])
       when is_binary(managed_repo_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
-    load_projection(managed_repo_id, actor)
+    load_projection(managed_repo_id, actor, nil)
   end
 
   @spec load_work_item_linkage(WorkItem.t() | map() | String.t() | nil, keyword()) :: work_item_projection()
@@ -99,14 +105,16 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
       :none ->
         %{
+          available?: false,
           managed_repo_id: nil,
           conversation: nil,
+          historical_conversation: nil,
           work_item: nil,
           origin: nil,
           snapshot: nil,
           recent_events: [],
           notice: nil,
-          action_label: "Open repo conversation"
+          action_label: "Open governed conversation"
         }
     end
   end
@@ -124,13 +132,39 @@ defmodule JidoCode.Workbench.ProjectConversation do
     end
   end
 
-  defp load_projection(managed_repo_id, actor) do
-    case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
+  @spec open_work_item_detail(WorkItem.t() | map() | String.t() | nil, keyword()) ::
+          {:ok, open_result()} | {:error, notice()}
+  def open_work_item_detail(work_item_like, opts \\ []) when is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    attrs = Keyword.get(opts, :conversation_attrs, %{})
+
+    with {:ok, reference} <- work_item_reference(work_item_like, actor),
+         {:ok, %{conversation: %Conversation{} = conversation, snapshot: snapshot, resumed?: resumed?}} <-
+           AgentWorkspace.open_work_item_conversation(
+             reference.work_item_id,
+             work_item_open_attrs(reference, attrs),
+             actor: actor
+           ) do
+      {:ok, %{conversation: conversation, snapshot: snapshot, resumed?: resumed?}}
+    else
+      :none -> {:error, unavailable_notice()}
+      {:error, reason} -> {:error, load_error_notice(reason)}
+    end
+  end
+
+  defp load_projection(managed_repo_id, actor, selected_work_item_id) do
+    if is_binary(selected_work_item_id) do
+      load_work_item_linkage(selected_work_item_id, actor: actor)
+      |> Map.put(:available?, true)
+      |> Map.put(:managed_repo_id, managed_repo_id)
+    else
+      case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
       {:ok, nil} ->
         %{
           available?: true,
           managed_repo_id: managed_repo_id,
           conversation: nil,
+          historical_conversation: nil,
           work_item: nil,
           snapshot: nil,
           recent_events: [],
@@ -148,6 +182,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
               available?: true,
               managed_repo_id: managed_repo_id,
               conversation: conversation_summary(conversation, nil),
+              historical_conversation: nil,
               work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
               snapshot: nil,
               recent_events: [],
@@ -159,6 +194,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       {:error, reason} ->
         unavailable_projection(load_error_notice(reason))
         |> Map.put(:managed_repo_id, managed_repo_id)
+      end
     end
   end
 
@@ -239,6 +275,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       available?: true,
       managed_repo_id: managed_repo_id,
       conversation: conversation_summary(conversation, snapshot),
+      historical_conversation: nil,
       work_item:
         load_attached_work_item(
           attached_work_item_id(conversation, snapshot),
@@ -252,19 +289,25 @@ defmodule JidoCode.Workbench.ProjectConversation do
   end
 
   defp projection_for_work_item(reference, actor) do
+    origin_conversation =
+      reference.origin_conversation_id
+      |> fetch_conversation(actor)
+      |> case do
+        {:ok, %Conversation{} = conversation} -> conversation
+        _other -> nil
+      end
+
     conversation_result =
       case AgentWorkspace.active_work_item_conversation(reference.work_item_id, actor: actor) do
         {:ok, %Conversation{} = conversation} ->
           {:ok, conversation}
 
         {:ok, nil} ->
-          reference.origin_conversation_id
-          |> fetch_conversation(actor)
-          |> case do
-            {:ok, %Conversation{} = conversation} ->
+          case origin_conversation do
+            %Conversation{} = conversation ->
               {:ok, conversation}
 
-            _other ->
+            nil ->
               Conversations.latest_for_work_item(reference.work_item_id, actor: actor)
           end
 
@@ -277,51 +320,61 @@ defmodule JidoCode.Workbench.ProjectConversation do
         case AgentWorkspace.conversation_snapshot(conversation.id) do
           {:ok, snapshot} ->
             %{
+              available?: true,
               managed_repo_id: reference.managed_repo_id,
               conversation: conversation_summary(conversation, snapshot),
+              historical_conversation:
+                historical_lineage_conversation(conversation, origin_conversation),
               work_item: reference.work_item,
               origin: reference.origin,
               snapshot: snapshot,
               recent_events: recent_events(snapshot),
-              notice: nil,
-              action_label: action_label(conversation)
+              notice: work_item_lineage_notice(conversation, origin_conversation),
+              action_label: work_item_action_label(conversation)
             }
 
           {:error, reason} ->
             %{
+              available?: true,
               managed_repo_id: reference.managed_repo_id,
               conversation: conversation_summary(conversation, nil),
+              historical_conversation:
+                historical_lineage_conversation(conversation, origin_conversation),
               work_item: reference.work_item,
               origin: reference.origin,
               snapshot: nil,
               recent_events: [],
               notice: snapshot_unavailable_notice(reason),
-              action_label: action_label(conversation)
+              action_label: work_item_action_label(conversation)
             }
         end
 
       {:ok, nil} ->
         %{
+          available?: true,
           managed_repo_id: reference.managed_repo_id,
           conversation: nil,
+          historical_conversation: nil,
           work_item: reference.work_item,
           origin: reference.origin,
           snapshot: nil,
           recent_events: [],
-          notice: nil,
-          action_label: "Open repo conversation"
+          notice: no_active_work_item_notice(reference.origin),
+          action_label: "Open governed conversation"
         }
 
       {:error, reason} ->
         %{
+          available?: true,
           managed_repo_id: reference.managed_repo_id,
           conversation: nil,
+          historical_conversation: nil,
           work_item: reference.work_item,
           origin: reference.origin,
           snapshot: nil,
           recent_events: [],
           notice: load_error_notice(reason),
-          action_label: "Open repo conversation"
+          action_label: "Open governed conversation"
         }
     end
   end
@@ -356,6 +409,11 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp repo_action_label(%Conversation{scope: :work_item_scoped}), do: "Open repo conversation"
   defp repo_action_label(%Conversation{} = conversation), do: action_label(conversation)
+
+  defp work_item_action_label(%Conversation{status: status}) when status in [:active, :paused],
+    do: "Resume governed conversation"
+
+  defp work_item_action_label(%Conversation{}), do: "Open governed conversation"
 
   defp start_source_metadata(attrs) do
     attrs
@@ -445,6 +503,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       available?: false,
       managed_repo_id: nil,
       conversation: nil,
+      historical_conversation: nil,
       work_item: nil,
       snapshot: nil,
       recent_events: [],
@@ -581,6 +640,71 @@ defmodule JidoCode.Workbench.ProjectConversation do
     }
   end
 
+  defp work_item_open_attrs(reference, attrs) do
+    source_metadata =
+      attrs
+      |> map_get(:source_metadata, "source_metadata", %{})
+      |> normalize_map()
+      |> Map.put_new("entry_surface", "project_detail")
+      |> Map.put_new("channel", "managed_repo_detail_work_item")
+      |> Map.put_new("work_item_id", reference.work_item_id)
+
+    attrs
+    |> normalize_map()
+    |> Map.put_new("source", "project_detail_work_item")
+    |> Map.put_new("objective", Map.get(reference.work_item || %{}, :summary))
+    |> Map.put("source_metadata", source_metadata)
+  end
+
+  defp work_item_lineage_notice(%Conversation{} = conversation, %Conversation{} = origin_conversation) do
+    if conversation.id == origin_conversation.id do
+      nil
+    else
+      %{
+        error_type: "work_item_conversation_origin_historical",
+        detail:
+          "This governed run originated from historical conversation #{origin_conversation.id}. Conversation #{conversation.id} is the current productive thread for the same work item.",
+        remediation:
+          "Resume the governed conversation from this work item path to continue the active thread."
+      }
+    end
+  end
+
+  defp work_item_lineage_notice(%Conversation{status: status} = conversation, _origin_conversation)
+       when status in [:completed, :cancelled] do
+    %{
+      error_type: "work_item_conversation_historical_only",
+      detail:
+        "Conversation #{conversation.id} is preserved as historical lineage for this work item and is no longer the active productive thread.",
+      remediation:
+        "Open a governed conversation for this work item to continue with a fresh active thread."
+    }
+  end
+
+  defp work_item_lineage_notice(_conversation, _origin_conversation), do: nil
+
+  defp no_active_work_item_notice(%{} = origin) when map_size(origin) > 0 do
+    %{
+      error_type: "work_item_conversation_origin_only",
+      detail:
+        "This work item preserves conversation origin metadata, but no active productive conversation is currently attached.",
+      remediation:
+        "Open a governed conversation for this work item to continue the governed loop."
+    }
+  end
+
+  defp no_active_work_item_notice(_origin), do: nil
+
+  defp historical_lineage_conversation(%Conversation{} = current, %Conversation{} = origin_conversation) do
+    if current.id == origin_conversation.id do
+      nil
+    else
+      conversation_summary(origin_conversation, nil)
+    end
+  end
+
+  defp historical_lineage_conversation(_current, _origin_conversation), do: nil
+
   defp map_get(map, atom_key, string_key, default \\ nil)
 
   defp map_get(map, atom_key, string_key, default) when is_map(map) do
@@ -616,6 +740,13 @@ defmodule JidoCode.Workbench.ProjectConversation do
     do: value |> Atom.to_string() |> normalize_optional_string()
 
   defp normalize_optional_string(_value), do: nil
+
+  defp present_optional_string(value) do
+    case normalize_optional_string(value) do
+      "nil" -> nil
+      normalized -> normalized
+    end
+  end
 
   defp normalize_map(value) when is_map(value) and not is_struct(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->

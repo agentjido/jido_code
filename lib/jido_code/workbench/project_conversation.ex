@@ -12,7 +12,8 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.Actor
-  alias JidoCode.Conversations.Conversation
+  alias JidoCode.Conversations.{Conversation, WorkResolution}
+  alias JidoCode.Operations.WorkItem
 
   @default_objective "Coordinate repository work from the managed repository detail route."
 
@@ -26,6 +27,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
           available?: boolean(),
           managed_repo_id: String.t() | nil,
           conversation: map() | nil,
+          work_item: map() | nil,
           snapshot: map() | nil,
           recent_events: [map()],
           notice: notice() | nil,
@@ -37,6 +39,20 @@ defmodule JidoCode.Workbench.ProjectConversation do
           snapshot: map(),
           resumed?: boolean()
         }
+
+  @spec load_attached_work_item(String.t() | nil, keyword()) :: map() | nil
+  def load_attached_work_item(work_item_id, opts \\ [])
+
+  def load_attached_work_item(work_item_id, opts) when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: actor) do
+      {:ok, [%WorkItem{} = work_item | _rest]} -> work_item_summary(work_item)
+      _other -> placeholder_work_item_summary(work_item_id)
+    end
+  end
+
+  def load_attached_work_item(_work_item_id, _opts), do: nil
 
   @spec load_repo_detail(map() | nil, keyword()) :: projection()
   def load_repo_detail(project_like, opts \\ []) do
@@ -71,6 +87,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
           available?: true,
           managed_repo_id: managed_repo_id,
           conversation: nil,
+          work_item: nil,
           snapshot: nil,
           recent_events: [],
           notice: nil,
@@ -80,21 +97,14 @@ defmodule JidoCode.Workbench.ProjectConversation do
       {:ok, %Conversation{} = conversation} ->
         case AgentWorkspace.conversation_snapshot(conversation.id) do
           {:ok, snapshot} ->
-            %{
-              available?: true,
-              managed_repo_id: managed_repo_id,
-              conversation: conversation_summary(conversation),
-              snapshot: snapshot,
-              recent_events: recent_events(snapshot),
-              notice: nil,
-              action_label: action_label(conversation)
-            }
+            projection_for(conversation, snapshot, managed_repo_id, actor)
 
           {:error, reason} ->
             %{
               available?: true,
               managed_repo_id: managed_repo_id,
-              conversation: conversation_summary(conversation),
+              conversation: conversation_summary(conversation, nil),
+              work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
               snapshot: nil,
               recent_events: [],
               notice: snapshot_unavailable_notice(reason),
@@ -180,18 +190,41 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp scope(_project_like), do: {:error, unavailable_notice()}
 
-  defp conversation_summary(%Conversation{} = conversation) do
+  defp projection_for(%Conversation{} = conversation, snapshot, managed_repo_id, actor) do
+    %{
+      available?: true,
+      managed_repo_id: managed_repo_id,
+      conversation: conversation_summary(conversation, snapshot),
+      work_item:
+        load_attached_work_item(
+          attached_work_item_id(conversation, snapshot),
+          actor: actor
+        ),
+      snapshot: snapshot,
+      recent_events: recent_events(snapshot),
+      notice: nil,
+      action_label: action_label(conversation)
+    }
+  end
+
+  defp conversation_summary(%Conversation{} = conversation, snapshot) do
     %{
       id: conversation.id,
-      status: conversation.status,
-      scope: conversation.scope,
-      attachment_mode: conversation.attachment_mode,
+      status: snapshot_value(snapshot, :status, conversation.status),
+      scope: snapshot_value(snapshot, :scope, conversation.scope),
+      attachment_mode: snapshot_value(snapshot, :attachment_mode, conversation.attachment_mode),
       title: conversation.title,
       objective: conversation.objective,
       source: conversation.source,
-      work_item_id: conversation.work_item_id,
-      last_activity_at: conversation.last_activity_at
+      work_item_id: attached_work_item_id(conversation, snapshot),
+      last_activity_at: conversation.last_activity_at,
+      work_resolution:
+        snapshot_value(snapshot, :work_resolution, WorkResolution.summary(conversation))
     }
+  end
+
+  defp attached_work_item_id(%Conversation{} = conversation, snapshot) do
+    normalize_optional_string(snapshot_value(snapshot, :work_item_id, conversation.work_item_id))
   end
 
   defp recent_events(%{events: events}) when is_list(events), do: Enum.take(events, -10)
@@ -218,10 +251,35 @@ defmodule JidoCode.Workbench.ProjectConversation do
       available?: false,
       managed_repo_id: nil,
       conversation: nil,
+      work_item: nil,
       snapshot: nil,
       recent_events: [],
       notice: notice,
       action_label: "Open repo conversation"
+    }
+  end
+
+  defp work_item_summary(%WorkItem{} = work_item) do
+    %{
+      id: work_item.id,
+      status: work_item.status,
+      priority: work_item.priority,
+      summary: work_item.summary,
+      category: work_item.category,
+      recommended_action: work_item.recommended_action,
+      updated_at: work_item.updated_at
+    }
+  end
+
+  defp placeholder_work_item_summary(work_item_id) when is_binary(work_item_id) do
+    %{
+      id: work_item_id,
+      status: :open,
+      priority: :medium,
+      summary: "Governed work item #{work_item_id}",
+      category: "operator_work_request",
+      recommended_action: "review_operator_request",
+      updated_at: nil
     }
   end
 
@@ -260,6 +318,18 @@ defmodule JidoCode.Workbench.ProjectConversation do
   end
 
   defp map_get(_map, _atom_key, _string_key, default), do: default
+
+  defp snapshot_value(snapshot, atom_key, default) when is_map(snapshot) do
+    string_key = Atom.to_string(atom_key)
+
+    cond do
+      Map.has_key?(snapshot, atom_key) -> Map.get(snapshot, atom_key)
+      Map.has_key?(snapshot, string_key) -> Map.get(snapshot, string_key)
+      true -> default
+    end
+  end
+
+  defp snapshot_value(_snapshot, _atom_key, default), do: default
 
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do

@@ -149,14 +149,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
            socket.assigns.project_detail,
            actor: initiating_actor(socket)
          ) do
-      {:ok, %{conversation: conversation, snapshot: snapshot}} ->
+      {:ok, %{conversation: _conversation, snapshot: _snapshot}} ->
         {:noreply,
          socket
          |> assign(:conversation_action_feedback, nil)
          |> assign(:conversation_action_feedback_kind, :info)
          |> assign(:conversation_input, "")
-         |> assign_opened_conversation(conversation, snapshot)
-         |> maybe_subscribe_conversation()}
+         |> assign_project_conversation(socket.assigns.project_detail)}
 
       {:error, notice} ->
         {:noreply,
@@ -344,7 +343,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           <div class="space-y-1">
             <h2 class="text-lg font-semibold">Repository conversation</h2>
             <p class="text-sm text-base-content/70">
-              Repository-scoped conversations stay product-owned on this managed-repository route and recover from the latest durable snapshot when live delivery degrades.
+              Repository conversations stay product-owned on this managed-repository route, promote durable work onto governed WorkItems, and recover from the latest durable snapshot when live delivery degrades.
             </p>
           </div>
 
@@ -520,12 +519,68 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       </dd>
                     </div>
                     <div class="flex justify-between gap-3">
+                      <dt class="text-base-content/70">Resolution</dt>
+                      <dd id="project-detail-conversation-work-resolution" class="font-medium">
+                        {conversation_work_resolution_action(@conversation_surface)}
+                      </dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
                       <dt class="text-base-content/70">Active turn</dt>
                       <dd class="font-medium">
                         {conversation_turn_state(@conversation_snapshot)}
                       </dd>
                     </div>
                   </dl>
+
+                  <section
+                    :if={@conversation_surface.work_item}
+                    id="project-detail-conversation-governed-work"
+                    class="mt-4 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="space-y-1">
+                        <p class="text-xs uppercase tracking-wide text-base-content/60">
+                          Governed work item
+                        </p>
+                        <p
+                          id="project-detail-conversation-governed-work-summary"
+                          class="font-semibold"
+                        >
+                          {Map.get(@conversation_surface.work_item, :summary)}
+                        </p>
+                        <p
+                          id="project-detail-conversation-governed-work-id"
+                          class="text-xs font-mono text-base-content/60"
+                        >
+                          {Map.get(@conversation_surface.work_item, :id)}
+                        </p>
+                      </div>
+                      <span
+                        id="project-detail-conversation-governed-work-status"
+                        class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
+                      >
+                        {Map.get(@conversation_surface.work_item, :status)}
+                      </span>
+                    </div>
+
+                    <p
+                      id="project-detail-conversation-work-resolution-detail"
+                      class="mt-2 text-sm text-base-content/70"
+                    >
+                      {conversation_work_resolution_detail(@conversation_surface)}
+                    </p>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <.link
+                        :if={conversation_workbench_path(@project_detail)}
+                        id="project-detail-conversation-open-workbench"
+                        class="btn btn-xs btn-outline"
+                        navigate={conversation_workbench_path(@project_detail)}
+                      >
+                        Open in Workbench
+                      </.link>
+                    </div>
+                  </section>
                 </section>
 
                 <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
@@ -926,6 +981,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       available?: false,
       managed_repo_id: nil,
       conversation: nil,
+      work_item: nil,
       snapshot: nil,
       recent_events: [],
       notice: nil,
@@ -955,30 +1011,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_stream_discontinuity_count, 0)
   end
 
-  defp assign_opened_conversation(socket, conversation, snapshot) do
-    projection = %{
-      available?: true,
-      managed_repo_id: conversation.managed_repo_id,
-      conversation: %{
-        id: conversation.id,
-        status: conversation.status,
-        scope: conversation.scope,
-        attachment_mode: conversation.attachment_mode,
-        title: conversation.title,
-        objective: conversation.objective,
-        source: conversation.source,
-        work_item_id: conversation.work_item_id,
-        last_activity_at: conversation.last_activity_at
-      },
-      snapshot: snapshot,
-      recent_events: Enum.take(snapshot.events || [], -10),
-      notice: nil,
-      action_label: "Continue repo conversation"
-    }
-
-    assign_conversation_surface(socket, projection)
-  end
-
   defp assign_conversation_surface(socket, projection) do
     snapshot = Map.get(projection, :snapshot)
     recent_events = Map.get(projection, :recent_events, [])
@@ -995,6 +1027,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp assign_conversation_snapshot(socket, snapshot) do
     recent_events = Enum.take(snapshot.events || [], -10)
+    work_item =
+      ProjectConversation.load_attached_work_item(
+        Map.get(snapshot, :work_item_id),
+        actor: initiating_actor(socket)
+      )
 
     socket
     |> assign(:conversation_snapshot, snapshot)
@@ -1003,6 +1040,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> update(:conversation_surface, fn surface ->
       surface
       |> Map.put(:snapshot, snapshot)
+      |> Map.put(:work_item, work_item)
       |> Map.put(:recent_events, recent_events)
       |> update_conversation_summary(snapshot)
     end)
@@ -1014,7 +1052,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       :conversation,
       conversation
       |> Map.put(:status, snapshot.status)
+      |> Map.put(:scope, Map.get(snapshot, :scope))
+      |> Map.put(:attachment_mode, Map.get(snapshot, :attachment_mode))
       |> Map.put(:work_item_id, snapshot.work_item_id)
+      |> Map.put(:work_resolution, Map.get(snapshot, :work_resolution))
     )
   end
 
@@ -1186,6 +1227,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp conversation_turn_state(%{active_turn: %{state: state}}), do: state
   defp conversation_turn_state(_snapshot), do: "none"
+
+  defp conversation_work_resolution_action(%{conversation: %{work_resolution: %{} = work_resolution}}) do
+    Map.get(work_resolution, "action", "repo_scoped")
+  end
+
+  defp conversation_work_resolution_action(_surface), do: "repo_scoped"
+
+  defp conversation_work_resolution_detail(%{conversation: %{work_resolution: %{} = work_resolution}}) do
+    Map.get(work_resolution, "detail")
+  end
+
+  defp conversation_work_resolution_detail(_surface), do: nil
+
+  defp conversation_workbench_path(%{id: project_id}) when is_binary(project_id) do
+    "/workbench?" <> URI.encode_query(%{"project_id" => project_id})
+  end
+
+  defp conversation_workbench_path(_project_detail), do: nil
 
   defp conversation_awaiting_input?(%{active_turn: %{state: :awaiting_input}}), do: true
 

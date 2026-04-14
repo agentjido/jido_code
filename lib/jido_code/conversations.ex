@@ -128,6 +128,31 @@ defmodule JidoCode.Conversations do
     end
   end
 
+  @spec active_repo_intake_for_managed_repo(String.t(), keyword()) ::
+          {:ok, Conversation.t() | nil} | {:error, term()}
+  def active_repo_intake_for_managed_repo(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    active_statuses = @active_statuses
+
+    query =
+      Conversation
+      |> Ash.Query.filter(
+        managed_repo_id == ^managed_repo_id and
+          scope == :repo_scoped and
+          attachment_mode == :pre_work and
+          status in ^active_statuses
+      )
+      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
+      |> Ash.Query.limit(1)
+
+    case Ash.read(query, domain: __MODULE__, actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @spec active_work_item_conversations_for_managed_repo(String.t(), keyword()) ::
           {:ok, [Conversation.t()]} | {:error, term()}
   def active_work_item_conversations_for_managed_repo(managed_repo_id, opts \\ [])
@@ -487,6 +512,18 @@ defmodule JidoCode.Conversations do
     work_item_id = optional_id(work_item) || conversation.work_item_id
     resolved_at = DateTime.to_iso8601(now)
 
+    intake_handoff =
+      repo_intake_handoff(
+        conversation,
+        work_item_id,
+        attachment_mode,
+        scope,
+        workflow_name,
+        resolution_command,
+        payload,
+        resolved_at
+      )
+
     steering_entry =
       %{
         "at" => resolved_at,
@@ -538,8 +575,10 @@ defmodule JidoCode.Conversations do
     |> Map.put("last_work_resolution", work_resolution)
     |> Map.put("last_work_resolved_at", resolved_at)
     |> maybe_put("last_work_action", work_action && Atom.to_string(work_action))
+    |> maybe_put("last_intake_handoff", intake_handoff)
     |> Map.put("shared_context_summary", shared_context_summary(shared_context))
     |> Map.put("work_resolution_history", work_resolution_history(current_metadata, work_resolution))
+    |> maybe_put("intake_handoff_history", intake_handoff_history(current_metadata, intake_handoff))
     |> maybe_update_steering_metadata(resolution_command, resolved_at, instruction, steering_entry)
   end
 
@@ -560,6 +599,17 @@ defmodule JidoCode.Conversations do
     |> Kernel.++([work_resolution])
     |> Enum.take(-10)
   end
+
+  defp intake_handoff_history(current_metadata, %{} = intake_handoff) do
+    current_metadata
+    |> Map.get("intake_handoff_history", [])
+    |> List.wrap()
+    |> Enum.filter(&is_map/1)
+    |> Kernel.++([intake_handoff])
+    |> Enum.take(-10)
+  end
+
+  defp intake_handoff_history(_current_metadata, _intake_handoff), do: nil
 
   defp maybe_update_steering_metadata(metadata, "turn.steer", resolved_at, instruction, steering_entry) do
     metadata
@@ -610,6 +660,46 @@ defmodule JidoCode.Conversations do
           "Conversation work resolution completed."
       end
   end
+
+  defp repo_intake_handoff(
+         %Conversation{scope: :repo_scoped, attachment_mode: :pre_work} = conversation,
+         work_item_id,
+         attachment_mode,
+         :work_item_scoped,
+         workflow_name,
+         resolution_command,
+         payload,
+         resolved_at
+       )
+       when is_binary(work_item_id) do
+    %{
+      "handoff_kind" => "repo_intake_to_work_item",
+      "conversation_id" => conversation.id,
+      "from_scope" => "repo_scoped",
+      "from_attachment_mode" => "pre_work",
+      "to_scope" => "work_item_scoped",
+      "to_attachment_mode" => Atom.to_string(attachment_mode),
+      "work_item_id" => work_item_id,
+      "workflow" => workflow_name,
+      "command" => resolution_command,
+      "at" => resolved_at
+    }
+    |> maybe_put("turn_id", optional_string(payload, :turn_id))
+    |> maybe_put("command_id", optional_string(payload, :command_id))
+    |> maybe_put("reason", optional_string(payload, :resolution_reason))
+  end
+
+  defp repo_intake_handoff(
+         _conversation,
+         _work_item_id,
+         _attachment_mode,
+         _scope,
+         _workflow_name,
+         _resolution_command,
+         _payload,
+         _resolved_at
+       ),
+       do: nil
 
   defp workflow_label("plan"), do: "planning"
   defp workflow_label("execute"), do: "implementation"

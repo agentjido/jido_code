@@ -6,7 +6,7 @@ defmodule JidoCode.PhaseFortyFourIntegrationTest do
   alias JidoCode.Projects.Project
   alias JidoCode.Workbench.{ProjectConversation, ProjectDetail}
 
-  test "repo detail conversation boundaries reuse the active repo conversation and expose snapshots through agent workspace" do
+  test "repo detail keeps intake bounded once productive work hands off to canonical work-item conversation identity" do
     {project, managed_repo} = managed_repo_fixture!("repo-detail-conversation")
 
     assert {:ok, project_detail} = ProjectDetail.load(project.id)
@@ -45,27 +45,44 @@ defmodule JidoCode.PhaseFortyFourIntegrationTest do
 
     assert updated_snapshot.conversation_id == conversation.id
     assert is_binary(updated_snapshot.active_turn_id)
+    assert is_binary(updated_snapshot.work_item_id)
+    assert updated_snapshot.scope == :work_item_scoped
 
     projection_after_turn =
       ProjectConversation.load_repo_detail(project_detail, actor: Actor.operator_actor())
 
     assert projection_after_turn.conversation.id == conversation.id
     assert projection_after_turn.snapshot.conversation_id == conversation.id
+    assert projection_after_turn.conversation.intake_handoff["handoff_kind"] == "repo_intake_to_work_item"
+    assert projection_after_turn.action_label == "Open repo conversation"
+
     assert Enum.any?(
              projection_after_turn.recent_events,
              &(&1.name == "conversation.message_added")
            )
 
-    assert {:ok, %{conversation: reopened_conversation, snapshot: reopened_snapshot, resumed?: true}} =
+    assert {:ok, %{conversation: reopened_conversation, snapshot: reopened_snapshot, resumed?: false}} =
              ProjectConversation.open_repo_detail(
                project_detail,
                actor: Actor.operator_actor(%{"id" => "operator-phase44-reopen"})
              )
 
-    assert reopened_conversation.id == conversation.id
-    assert reopened_snapshot.conversation_id == conversation.id
+    refute reopened_conversation.id == conversation.id
+    assert reopened_snapshot.conversation_id == reopened_conversation.id
+    assert reopened_snapshot.work_item_id == nil
+    assert reopened_snapshot.scope == :repo_scoped
+
+    assert {:ok, %{conversation: resumed_work_item_conversation, resumed?: true}} =
+             AgentWorkspace.open_work_item_conversation(
+               updated_snapshot.work_item_id,
+               %{},
+               actor: Actor.operator_actor(%{"id" => "operator-phase44-work-item"})
+             )
+
+    assert resumed_work_item_conversation.id == conversation.id
 
     assert :ok = AgentWorkspace.stop_conversation(conversation.id)
+    assert :ok = AgentWorkspace.stop_conversation(reopened_conversation.id)
     assert :ok = AgentWorkspace.shutdown_kernel(managed_repo.id)
   end
 

@@ -260,6 +260,19 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Returns the active repo-scoped intake conversation for the managed repository, if any.
+  """
+  @spec active_repo_intake_conversation(managed_repo_id(), keyword()) ::
+          {:ok, Conversations.Conversation.t() | nil} | {:error, term()}
+  def active_repo_intake_conversation(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    Conversations.active_repo_intake_for_managed_repo(
+      managed_repo_id,
+      actor: conversation_actor(opts)
+    )
+  end
+
+  @doc """
   Opens a repo-scoped conversation and returns its initial snapshot.
   """
   @spec open_repo_conversation(managed_repo_id(), map(), keyword()) :: {:ok, map()} | {:error, term()}

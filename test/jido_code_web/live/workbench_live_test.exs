@@ -292,7 +292,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(
              view,
              "#workbench-project-conversation-link-#{route_id}[href='/repos/#{route_id}']",
-             "Continue repo conversation"
+             "Open repo conversation"
            )
   end
 

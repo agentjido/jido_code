@@ -152,7 +152,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
               snapshot: nil,
               recent_events: [],
               notice: snapshot_unavailable_notice(reason),
-              action_label: action_label(conversation)
+              action_label: repo_action_label(conversation)
             }
         end
 
@@ -166,7 +166,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
     if restart? do
       start_repo_conversation(managed_repo_id, attrs, actor)
     else
-      case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
+      case AgentWorkspace.active_repo_intake_conversation(managed_repo_id, actor: actor) do
         {:ok, %Conversation{} = conversation} ->
           maybe_reuse_conversation(conversation, managed_repo_id, attrs, actor)
 
@@ -247,20 +247,29 @@ defmodule JidoCode.Workbench.ProjectConversation do
       snapshot: snapshot,
       recent_events: recent_events(snapshot),
       notice: nil,
-      action_label: action_label(conversation)
+      action_label: repo_action_label(conversation)
     }
   end
 
   defp projection_for_work_item(reference, actor) do
     conversation_result =
-      reference.origin_conversation_id
-      |> fetch_conversation(actor)
-      |> case do
+      case AgentWorkspace.active_work_item_conversation(reference.work_item_id, actor: actor) do
         {:ok, %Conversation{} = conversation} ->
           {:ok, conversation}
 
-        _other ->
-          Conversations.latest_for_work_item(reference.work_item_id, actor: actor)
+        {:ok, nil} ->
+          reference.origin_conversation_id
+          |> fetch_conversation(actor)
+          |> case do
+            {:ok, %Conversation{} = conversation} ->
+              {:ok, conversation}
+
+            _other ->
+              Conversations.latest_for_work_item(reference.work_item_id, actor: actor)
+          end
+
+        {:error, reason} ->
+          {:error, reason}
       end
 
     case conversation_result do
@@ -328,6 +337,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       source: conversation.source,
       work_item_id: attached_work_item_id(conversation, snapshot),
       last_activity_at: conversation.last_activity_at,
+      intake_handoff: intake_handoff(conversation, snapshot),
       work_resolution: snapshot_value(snapshot, :work_resolution, WorkResolution.summary(conversation))
     }
   end
@@ -343,6 +353,9 @@ defmodule JidoCode.Workbench.ProjectConversation do
     do: "Continue repo conversation"
 
   defp action_label(_conversation), do: "Open fresh repo conversation"
+
+  defp repo_action_label(%Conversation{scope: :work_item_scoped}), do: "Open repo conversation"
+  defp repo_action_label(%Conversation{} = conversation), do: action_label(conversation)
 
   defp start_source_metadata(attrs) do
     attrs
@@ -467,6 +480,26 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp conversation_origin_from_metadata(_metadata), do: nil
 
+  defp intake_handoff(%Conversation{} = conversation, snapshot) do
+    snapshot
+    |> snapshot_value(:shared_context, %{})
+    |> normalize_map()
+    |> Map.get("intake_handoff")
+    |> normalize_map()
+    |> case do
+      handoff when map_size(handoff) == 0 ->
+        conversation
+        |> Map.get(:conversation_metadata, %{})
+        |> normalize_map()
+        |> Map.get("last_intake_handoff")
+        |> normalize_map()
+        |> empty_map_to_nil()
+
+      handoff ->
+        empty_map_to_nil(handoff)
+    end
+  end
+
   defp origin_conversation_id(work_item) do
     work_item
     |> work_item_origin()
@@ -584,7 +617,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp normalize_optional_string(_value), do: nil
 
-  defp normalize_map(value) when is_map(value) do
+  defp normalize_map(value) when is_map(value) and not is_struct(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       normalized_key =
         case key do
@@ -599,7 +632,14 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp normalize_map(_value), do: %{}
 
+  defp normalize_nested_value(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  defp normalize_nested_value(%NaiveDateTime{} = value), do: NaiveDateTime.to_iso8601(value)
+  defp normalize_nested_value(%Date{} = value), do: Date.to_iso8601(value)
+  defp normalize_nested_value(%Time{} = value), do: Time.to_iso8601(value)
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
+
+  defp empty_map_to_nil(map) when is_map(map) and map_size(map) == 0, do: nil
+  defp empty_map_to_nil(map), do: map
 end

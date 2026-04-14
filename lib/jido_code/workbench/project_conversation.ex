@@ -102,11 +102,11 @@ defmodule JidoCode.Workbench.ProjectConversation do
     end
   end
 
-  @spec load_managed_repo(String.t(), keyword()) :: projection()
+  @spec load_managed_repo(String.t(), keyword()) :: repo_detail_projection()
   def load_managed_repo(managed_repo_id, opts \\ [])
       when is_binary(managed_repo_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
-    load_projection(managed_repo_id, actor)
+    load_repo_detail_projection(managed_repo_id, actor, nil)
   end
 
   @spec load_work_item_linkage(WorkItem.t() | map() | String.t() | nil, keyword()) :: work_item_projection()
@@ -251,44 +251,6 @@ defmodule JidoCode.Workbench.ProjectConversation do
     |> Map.put(:recent_events, [])
     |> Map.put(:notice, nil)
     |> Map.put(:action_label, "Open repo intake")
-  end
-
-  defp load_projection(managed_repo_id, actor) do
-    case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
-      {:ok, nil} ->
-        %{
-          available?: true,
-          managed_repo_id: managed_repo_id,
-          conversation: nil,
-          work_item: nil,
-          snapshot: nil,
-          recent_events: [],
-          notice: nil,
-          action_label: "Open repo conversation"
-        }
-
-      {:ok, %Conversation{} = conversation} ->
-        case AgentWorkspace.conversation_snapshot(conversation.id) do
-          {:ok, snapshot} ->
-            projection_for(conversation, snapshot, managed_repo_id, actor)
-
-          {:error, reason} ->
-            %{
-              available?: true,
-              managed_repo_id: managed_repo_id,
-              conversation: conversation_summary(conversation, nil),
-              work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
-              snapshot: nil,
-              recent_events: [],
-              notice: snapshot_unavailable_notice(reason),
-              action_label: repo_action_label(conversation)
-            }
-        end
-
-      {:error, reason} ->
-        unavailable_projection(load_error_notice(reason))
-        |> Map.put(:managed_repo_id, managed_repo_id)
-    end
   end
 
   defp conversation_projection(%Conversation{} = conversation, managed_repo_id, actor, kind) do

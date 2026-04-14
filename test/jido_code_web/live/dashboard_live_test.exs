@@ -23,10 +23,14 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     original_memory_loader =
       Application.get_env(:jido_code, :dashboard_memory_summary_loader, :__missing__)
 
+    original_conversation_loader =
+      Application.get_env(:jido_code, :dashboard_conversation_summary_loader, :__missing__)
+
     on_exit(fn ->
       restore_env(:dashboard_run_summary_loader, original_loader)
       restore_env(:dashboard_runtime_evidence_loader, original_runtime_loader)
       restore_env(:dashboard_memory_summary_loader, original_memory_loader)
+      restore_env(:dashboard_conversation_summary_loader, original_conversation_loader)
     end)
 
     :ok
@@ -362,6 +366,92 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              view,
              "#dashboard-memory-summary-link-memory-summary-1[href=\"/repos/repo-memory-dashboard#project-detail-memory-inspection\"]",
              "Validate memory graph"
+           )
+  end
+
+  test "renders active governed conversation summaries with canonical repo-detail routing", %{
+    conn: _conn
+  } do
+    register_owner("conversation-dashboard-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("conversation-dashboard-owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :dashboard_conversation_summary_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "conversation-summary-1",
+           route_id: "repo-conversation-dashboard",
+           managed_repo_id: Ecto.UUID.generate(),
+           repo_label: "owner/repo-conversation-dashboard",
+           label: "2 governed conversations active",
+           detail: "Two governed conversations are active for this managed repository.",
+           route: "/repos/repo-conversation-dashboard#project-detail-conversation-panel",
+           action_label: "Open repo detail",
+           primary_route: "/repos/repo-conversation-dashboard?work_item_id=work-32#project-detail-conversation-panel",
+           primary_action_label: "Continue governed conversation",
+           active_work_item_count: 2,
+           repo_intake_active?: true,
+           multiple_active?: true,
+           work_items: [
+             %{id: "work-32", summary: "Coordinate review follow-up", status: "active", route: nil},
+             %{id: "work-33", summary: "Explain runtime posture", status: "paused", route: nil}
+           ]
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-conversation-summaries")
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-note",
+             "active work-item conversations"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-repo-conversation-summary-1",
+             "owner/repo-conversation-dashboard"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-state-conversation-summary-1",
+             "2 governed conversations active"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-counts-conversation-summary-1",
+             "Active governed conversations: 2"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-work-items-conversation-summary-1",
+             "Coordinate review follow-up"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-multiple-conversation-summary-1",
+             "multiple active governed conversations"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-link-conversation-summary-1[href=\"/repos/repo-conversation-dashboard#project-detail-conversation-panel\"]",
+             "Open repo detail"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-primary-link-conversation-summary-1[href=\"/repos/repo-conversation-dashboard?work_item_id=work-32#project-detail-conversation-panel\"]",
+             "Continue governed conversation"
            )
   end
 

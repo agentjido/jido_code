@@ -9,6 +9,7 @@ defmodule JidoCodeWeb.DashboardLive do
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
+  alias JidoCode.Conversations.DashboardSummaryFeed, as: ConversationDashboardSummaryFeed
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
@@ -39,13 +40,20 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:memory_summary_rows, [])
       |> assign(:memory_summary_warning, nil)
       |> assign(:memory_summary_last_refreshed_at, nil)
+      |> assign(:conversation_summary_count, 0)
+      |> assign(:conversation_summary_rows, [])
+      |> assign(:conversation_summary_warning, nil)
+      |> assign(:conversation_summary_last_refreshed_at, nil)
       |> stream_configure(:memory_summaries, dom_id: &memory_summary_dom_id/1)
       |> stream(:memory_summaries, [], reset: true)
+      |> stream_configure(:conversation_summaries, dom_id: &conversation_summary_dom_id/1)
+      |> stream(:conversation_summaries, [], reset: true)
       |> stream_configure(:runtime_evidence_summaries, dom_id: &runtime_evidence_dom_id/1)
       |> stream(:runtime_evidence_summaries, [], reset: true)
       |> stream_configure(:run_summaries, dom_id: &run_summary_dom_id/1)
       |> stream(:run_summaries, [], reset: true)
       |> load_run_summaries()
+      |> load_conversation_summaries()
       |> load_memory_summaries()
       |> load_runtime_evidence_summaries()
       |> maybe_subscribe_run_events()
@@ -81,6 +89,11 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("refresh_conversation_summaries", _params, socket) do
+    {:noreply, load_conversation_summaries(socket)}
+  end
+
+  @impl true
   def handle_info({:run_event, payload}, socket) do
     event_name =
       payload
@@ -91,6 +104,7 @@ defmodule JidoCodeWeb.DashboardLive do
       {:noreply,
        socket
        |> load_run_summaries()
+       |> load_conversation_summaries()
        |> load_memory_summaries()
        |> load_runtime_evidence_summaries()}
     else
@@ -204,6 +218,122 @@ defmodule JidoCodeWeb.DashboardLive do
               </table>
             </div>
           </details>
+        </section>
+
+        <section
+          id="dashboard-conversation-summaries"
+          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Active governed conversations</h2>
+              <p id="dashboard-conversation-summary-note" class="text-sm text-base-content/80">
+                Dashboard stays bounded: it highlights repositories with active work-item conversations and routes operators back to canonical repo-detail supervision.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <p id="dashboard-conversation-summary-last-refreshed" class="text-xs text-base-content/70">
+                Last refreshed: {summary_refreshed_label(@conversation_summary_last_refreshed_at)}
+              </p>
+              <button
+                id="dashboard-conversation-summary-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_conversation_summaries"
+              >
+                Refresh conversation summaries
+              </button>
+            </div>
+          </div>
+
+          <.operator_state_notice
+            :if={@conversation_summary_warning}
+            id="dashboard-conversation-summary-warning"
+            title="Conversation summaries may be stale"
+            state={@conversation_summary_warning}
+            compact={true}
+          />
+
+          <%= if @conversation_summary_count == 0 do %>
+            <p id="dashboard-conversation-summary-empty" class="text-sm text-base-content/70">
+              No active work-item conversations are currently highlighted on the dashboard.
+            </p>
+          <% else %>
+            <ol id="dashboard-conversation-summary-list" class="space-y-3" phx-update="stream">
+              <li
+                :for={{dom_id, summary} <- @streams.conversation_summaries}
+                id={dom_id}
+                class="rounded border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <p
+                      id={"dashboard-conversation-summary-repo-#{run_summary_dom_token(summary.id)}"}
+                      class="text-sm font-medium"
+                    >
+                      {summary.repo_label}
+                    </p>
+                    <p
+                      id={"dashboard-conversation-summary-detail-#{run_summary_dom_token(summary.id)}"}
+                      class="text-xs text-base-content/80"
+                    >
+                      {summary.detail}
+                    </p>
+                  </div>
+                  <span
+                    id={"dashboard-conversation-summary-state-#{run_summary_dom_token(summary.id)}"}
+                    class={conversation_summary_badge_class(summary)}
+                  >
+                    {summary.label}
+                  </span>
+                </div>
+
+                <p
+                  id={"dashboard-conversation-summary-counts-#{run_summary_dom_token(summary.id)}"}
+                  class="text-xs text-base-content/70"
+                >
+                  Active governed conversations: {summary.active_work_item_count}
+                </p>
+
+                <ul
+                  :if={summary.work_items != []}
+                  id={"dashboard-conversation-summary-work-items-#{run_summary_dom_token(summary.id)}"}
+                  class="space-y-1 text-xs text-base-content/70"
+                >
+                  <li :for={item <- summary.work_items}>
+                    {item.summary} ({item.status})
+                  </li>
+                </ul>
+
+                <span
+                  :if={summary.multiple_active?}
+                  id={"dashboard-conversation-summary-multiple-#{run_summary_dom_token(summary.id)}"}
+                  class="badge badge-warning badge-outline"
+                >
+                  multiple active governed conversations
+                </span>
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <.link
+                    :if={summary.route && summary.action_label}
+                    id={"dashboard-conversation-summary-link-#{run_summary_dom_token(summary.id)}"}
+                    class="link link-primary text-sm"
+                    navigate={summary.route}
+                  >
+                    {summary.action_label}
+                  </.link>
+                  <.link
+                    :if={summary.primary_route && summary.primary_action_label}
+                    id={"dashboard-conversation-summary-primary-link-#{run_summary_dom_token(summary.id)}"}
+                    class="link link-primary text-sm"
+                    navigate={summary.primary_route}
+                  >
+                    {summary.primary_action_label}
+                  </.link>
+                </div>
+              </li>
+            </ol>
+          <% end %>
         </section>
 
         <section
@@ -516,6 +646,10 @@ defmodule JidoCodeWeb.DashboardLive do
     "dashboard-memory-summary-#{run_summary_dom_token(summary.id)}"
   end
 
+  defp conversation_summary_dom_id(summary) do
+    "dashboard-conversation-summary-#{run_summary_dom_token(summary.id)}"
+  end
+
   defp run_summary_dom_token(value) do
     value
     |> normalize_optional_string()
@@ -547,6 +681,11 @@ defmodule JidoCodeWeb.DashboardLive do
   defp memory_summary_badge_class(:not_ready), do: "badge badge-outline"
   defp memory_summary_badge_class(:disabled), do: "badge badge-outline"
   defp memory_summary_badge_class(_state), do: "badge badge-outline"
+
+  defp conversation_summary_badge_class(%{multiple_active?: true}), do: "badge badge-info"
+  defp conversation_summary_badge_class(%{repo_intake_active?: true}), do: "badge badge-warning"
+  defp conversation_summary_badge_class(%{active_work_item_count: count}) when count > 0, do: "badge badge-success"
+  defp conversation_summary_badge_class(_summary), do: "badge badge-outline"
 
   defp runtime_evidence_status_label(status) do
     case normalize_optional_string(status) do
@@ -667,6 +806,28 @@ defmodule JidoCodeWeb.DashboardLive do
         |> assign(:memory_summary_warning, warning)
         |> assign(:memory_summary_last_refreshed_at, now)
         |> stream(:memory_summaries, [], reset: true)
+    end
+  end
+
+  defp load_conversation_summaries(socket) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    case ConversationDashboardSummaryFeed.load() do
+      {:ok, summaries, warning} ->
+        socket
+        |> assign(:conversation_summary_count, length(summaries))
+        |> assign(:conversation_summary_rows, summaries)
+        |> assign(:conversation_summary_warning, warning)
+        |> assign(:conversation_summary_last_refreshed_at, now)
+        |> stream(:conversation_summaries, summaries, reset: true)
+
+      {:error, warning} ->
+        socket
+        |> assign(:conversation_summary_count, 0)
+        |> assign(:conversation_summary_rows, [])
+        |> assign(:conversation_summary_warning, warning)
+        |> assign(:conversation_summary_last_refreshed_at, now)
+        |> stream(:conversation_summaries, [], reset: true)
     end
   end
 

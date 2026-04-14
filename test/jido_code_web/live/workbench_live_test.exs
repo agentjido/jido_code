@@ -211,7 +211,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(view, "#workbench-project-memory-hint-#{route_id}")
   end
 
-  test "shows active repo conversation linkage on workbench rows", %{conn: _conn} do
+  test "shows repo intake and governed conversation linkage on workbench rows", %{conn: _conn} do
     register_owner("workbench-conversation-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -274,25 +274,37 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(
              view,
              "#workbench-project-conversation-hint-badge-#{route_id}",
-             "Repo conversation active"
+             "Governed conversation active"
            )
 
     assert has_element?(
              view,
              "#workbench-project-conversation-hint-detail-#{route_id}",
-             "Governed follow-up"
+             "One governed conversation is active"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-conversation-work-item-#{route_id}",
+             "#workbench-project-conversation-count-#{route_id}",
+             "Active governed conversations: 1"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-work-items-#{route_id}",
              "Queue review operator request work for the managed repository."
            )
 
     assert has_element?(
              view,
              "#workbench-project-conversation-link-#{route_id}[href='/repos/#{route_id}']",
-             "Open repo conversation"
+             "Open repo detail"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-primary-link-#{route_id}[href^='/repos/#{route_id}?work_item_id=']",
+             "Continue governed conversation"
            )
   end
 

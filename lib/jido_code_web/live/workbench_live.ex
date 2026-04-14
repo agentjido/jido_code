@@ -431,7 +431,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
                   </.link>
                 </div>
                 <div
-                  :if={repo_conversation_summary(project)}
+                  :if={repo_conversation_visible?(project)}
                   id={"workbench-project-conversation-hint-#{project.id}"}
                   class="space-y-1 pt-2"
                 >
@@ -448,20 +448,52 @@ defmodule JidoCodeWeb.WorkbenchLive do
                     {repo_conversation_detail(project)}
                   </p>
                   <p
-                    :if={repo_conversation_work_item(project)}
-                    id={"workbench-project-conversation-work-item-#{project.id}"}
+                    :if={repo_conversation_intake_active?(project)}
+                    id={"workbench-project-conversation-intake-#{project.id}"}
                     class="text-[11px] text-base-content/70"
                   >
-                    Governed work: {repo_conversation_work_item(project).summary} ( {repo_conversation_work_item(project).status
-                    |> conversation_status_label()})
+                    Repo intake remains active for bounded pre-work triage.
                   </p>
-                  <.link
-                    id={"workbench-project-conversation-link-#{project.id}"}
-                    class="link link-primary text-[11px]"
-                    navigate={project_detail_path(project, @filter_values)}
+                  <p
+                    :if={repo_conversation_active_count(project) > 0}
+                    id={"workbench-project-conversation-count-#{project.id}"}
+                    class="text-[11px] text-base-content/70"
                   >
-                    {repo_conversation_action_label(project)}
-                  </.link>
+                    Active governed conversations: {repo_conversation_active_count(project)}
+                  </p>
+                  <ul
+                    :if={repo_conversation_active_items(project) != []}
+                    id={"workbench-project-conversation-work-items-#{project.id}"}
+                    class="space-y-1 text-[11px] text-base-content/70"
+                  >
+                    <li :for={item <- repo_conversation_active_items(project)}>
+                      {item.summary} ({item.status |> conversation_status_label()})
+                    </li>
+                  </ul>
+                  <p
+                    :if={repo_conversation_multiple_active?(project)}
+                    id={"workbench-project-conversation-multiple-#{project.id}"}
+                    class="text-[11px] text-warning"
+                  >
+                    Multiple active governed conversations are open for this repository.
+                  </p>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <.link
+                      id={"workbench-project-conversation-link-#{project.id}"}
+                      class="link link-primary text-[11px]"
+                      navigate={project_detail_path(project, @filter_values)}
+                    >
+                      Open repo detail
+                    </.link>
+                    <.link
+                      :if={repo_conversation_primary_path(project, @filter_values)}
+                      id={"workbench-project-conversation-primary-link-#{project.id}"}
+                      class="link link-primary text-[11px]"
+                      navigate={repo_conversation_primary_path(project, @filter_values)}
+                    >
+                      Continue governed conversation
+                    </.link>
+                  </div>
                 </div>
                 <div
                   :if={repo_conversation_notice(project)}
@@ -1492,66 +1524,155 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   defp repo_conversation_projection(_project), do: nil
 
-  defp repo_conversation_summary(project) do
+  defp repo_conversation_visible?(project) do
     project
     |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:conversation)
+    |> case do
+      %{} = projection ->
+        repo_conversation_intake_active?(projection) or
+          repo_conversation_active_count(projection) > 0
+
+      _other ->
+        false
+    end
   end
 
-  defp repo_conversation_work_item(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:work_item)
+  defp repo_conversation_intake_active?(%{} = project_or_projection) do
+    project_or_projection
+    |> repo_conversation_projection_or_self()
+    |> repo_conversation_projection_value(:repo_intake)
+    |> repo_conversation_projection_value(:conversation)
+    |> repo_conversation_projection_value(:status)
+    |> case do
+      :active -> true
+      :paused -> true
+      "active" -> true
+      "paused" -> true
+      _other -> false
+    end
   end
+
+  defp repo_conversation_intake_active?(_project_or_projection), do: false
+
+  defp repo_conversation_active_items(project_or_projection) do
+    project_or_projection
+    |> repo_conversation_projection_or_self()
+    |> repo_conversation_projection_value(:active_work_items, [])
+    |> Enum.map(fn projection ->
+      %{
+        id:
+          projection
+          |> repo_conversation_projection_value(:work_item)
+          |> repo_conversation_projection_value(:id),
+        summary:
+          projection
+          |> repo_conversation_projection_value(:work_item)
+          |> repo_conversation_projection_value(:summary, "Governed work item"),
+        status:
+          projection
+          |> repo_conversation_projection_value(:conversation)
+          |> repo_conversation_projection_value(:status),
+        action_label: repo_conversation_projection_value(projection, :action_label)
+      }
+    end)
+    |> Enum.take(2)
+  end
+
+  defp repo_conversation_active_count(project_or_projection) do
+    project_or_projection
+    |> repo_conversation_projection_or_self()
+    |> repo_conversation_projection_value(:active_work_items, [])
+    |> length()
+  end
+
+  defp repo_conversation_multiple_active?(project_or_projection),
+    do: repo_conversation_active_count(project_or_projection) > 1
 
   defp repo_conversation_notice(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:notice)
-  end
+    projection = repo_conversation_projection(project)
 
-  defp repo_conversation_action_label(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:action_label, "Open repo conversation")
+    repo_conversation_projection_value(projection, :active_work_item_notice) ||
+      repo_conversation_projection_value(projection, :notice)
   end
 
   defp repo_conversation_detail(project) do
-    conversation = repo_conversation_summary(project)
+    projection = repo_conversation_projection(project)
+    intake_active? = repo_conversation_intake_active?(projection)
+    active_count = repo_conversation_active_count(projection)
 
-    work_resolution =
-      conversation
-      |> repo_conversation_projection_value(:work_resolution, %{})
+    cond do
+      intake_active? and active_count > 0 ->
+        "Repo intake is open and #{active_count} governed conversation(s) are attached to canonical WorkItems."
 
-    normalize_optional_string(repo_conversation_projection_value(work_resolution, :detail)) ||
-      normalize_optional_string(repo_conversation_projection_value(conversation, :objective)) ||
-      "Repository conversation is available from repo detail."
+      active_count > 1 ->
+        "#{active_count} governed conversations are active for this managed repository."
+
+      active_count == 1 ->
+        "One governed conversation is active for this managed repository."
+
+      intake_active? ->
+        "Repo intake is active and ready to hand off durable work onto a canonical WorkItem."
+
+      true ->
+        "No active repository conversation state is currently projected."
+    end
   end
 
   defp repo_conversation_badge_label(project) do
-    conversation =
-      repo_conversation_summary(project)
+    intake_active? = repo_conversation_intake_active?(project)
+    active_count = repo_conversation_active_count(project)
 
-    "Repo conversation #{conversation |> repo_conversation_projection_value(:status) |> conversation_status_label()}"
+    cond do
+      intake_active? and active_count > 0 -> "Repo intake + governed conversations"
+      active_count > 1 -> "#{active_count} governed conversations active"
+      active_count == 1 -> "Governed conversation active"
+      intake_active? -> "Repo intake active"
+      true -> "Conversation state available"
+    end
   end
 
   defp repo_conversation_badge_class(project) do
-    case repo_conversation_summary(project) |> repo_conversation_projection_value(:status) do
-      :active -> "badge badge-success badge-outline"
-      :paused -> "badge badge-warning badge-outline"
-      :completed -> "badge badge-info badge-outline"
-      :cancelled -> "badge badge-error badge-outline"
-      "active" -> "badge badge-success badge-outline"
-      "paused" -> "badge badge-warning badge-outline"
-      "completed" -> "badge badge-info badge-outline"
-      "cancelled" -> "badge badge-error badge-outline"
-      _other -> "badge badge-outline"
+    cond do
+      repo_conversation_multiple_active?(project) -> "badge badge-info badge-outline"
+      repo_conversation_active_count(project) == 1 -> "badge badge-success badge-outline"
+      repo_conversation_intake_active?(project) -> "badge badge-warning badge-outline"
+      true -> "badge badge-outline"
     end
   end
 
   defp conversation_status_label(status) when is_binary(status), do: status
   defp conversation_status_label(status) when is_atom(status), do: Atom.to_string(status)
   defp conversation_status_label(_status), do: "unknown"
+
+  defp repo_conversation_primary_path(project, filter_values) do
+    base_path = project_detail_path(project, filter_values)
+
+    work_item_id =
+      project
+      |> repo_conversation_active_items()
+      |> List.first()
+      |> map_get(:id, "id")
+      |> normalize_optional_string()
+
+    case {base_path, work_item_id} do
+      {nil, _work_item_id} ->
+        nil
+
+      {_path, nil} ->
+        nil
+
+      {path, work_item_id} ->
+        separator = if String.contains?(path, "?"), do: "&", else: "?"
+        "#{path}#{separator}work_item_id=#{URI.encode_www_form(work_item_id)}"
+    end
+  end
+
+  defp repo_conversation_projection_or_self(%{} = projection) do
+    case Map.get(projection, :repo_conversation) do
+      %{} = nested_projection -> nested_projection
+      _other -> projection
+    end
+  end
 
   defp repo_conversation_projection_value(projection, key, default \\ nil)
 

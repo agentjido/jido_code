@@ -48,22 +48,22 @@ Back to index: [README](./README.md)
       [x] 48.1.2.2 Subtask - Keep Workbench routing product-owned by linking operators back to repo detail for continued conversation work.
       [x] 48.1.2.3 Subtask - Preserve explicit degraded messaging when conversation projection data is unavailable instead of silently hiding that state.
 
-  [ ] 48.2 Section - Governed Run Conversation Lineage
+  [x] 48.2 Section - Governed Run Conversation Lineage
     Project conversation lineage onto governed run detail so operators can tell when governed execution came from productive repo conversation work and where to continue it.
 
-    [ ] 48.2.1 Task - Resolve conversation lineage from canonical governed work
+    [x] 48.2.1 Task - Resolve conversation lineage from canonical governed work
       Load the relevant conversation projection from `WorkItem` scope and preserved conversation-origin metadata instead of inventing a run-local conversation model.
 
-      [ ] 48.2.1.1 Subtask - Add a product-owned way to resolve the latest or originating conversation for a canonical `WorkItem`.
-      [ ] 48.2.1.2 Subtask - Reuse preserved work-item conversation-origin metadata so governed run detail can explain where the work came from even when the runtime is idle.
-      [ ] 48.2.1.3 Subtask - Keep missing or stale conversation lineage explicit instead of implying the run has no conversation relationship.
+      [x] 48.2.1.1 Subtask - Add a product-owned way to resolve the latest or originating conversation for a canonical `WorkItem`.
+      [x] 48.2.1.2 Subtask - Reuse preserved work-item conversation-origin metadata so governed run detail can explain where the work came from even when the runtime is idle.
+      [x] 48.2.1.3 Subtask - Keep missing or stale conversation lineage explicit instead of implying the run has no conversation relationship.
 
-    [ ] 48.2.2 Task - Surface conversation lineage on governed run detail
+    [x] 48.2.2 Task - Surface conversation lineage on governed run detail
       Show the bounded relationship between governed run execution, the attached `WorkItem`, and any productive repo conversation that created or continues that work.
 
-      [ ] 48.2.2.1 Subtask - Add a governed-run panel that shows conversation identity, status, route-level action, and preserved origin metadata when available.
-      [ ] 48.2.2.2 Subtask - Let operators follow governed run conversation lineage back to the managed-repository detail surface instead of inventing a separate run-chat route.
-      [ ] 48.2.2.3 Subtask - Preserve clear empty-state messaging when a governed run has no linked work item or no productive conversation origin.
+      [x] 48.2.2.1 Subtask - Add a governed-run panel that shows conversation identity, status, route-level action, and preserved origin metadata when available.
+      [x] 48.2.2.2 Subtask - Let operators follow governed run conversation lineage back to the managed-repository detail surface instead of inventing a separate run-chat route.
+      [x] 48.2.2.3 Subtask - Preserve clear empty-state messaging when a governed run has no linked work item or no productive conversation origin.
 
   [ ] 48.3 Section - Integration Coverage And Current-Truth Convergence
     Prove the new operator projections end to end and keep the current-truth spec and contributor guidance aligned with the adopted surface model.

@@ -50,6 +50,7 @@ surface:
   - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_six_integration_test.exs
   - test/jido_code/phase_forty_seven_integration_test.exs
+  - test/jido_code/phase_forty_eight_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
@@ -470,6 +471,7 @@ surface:
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
 
 - kind: source_file
   target: test/jido_code/phase_forty_integration_test.exs
@@ -530,6 +532,11 @@ surface:
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
 
 - kind: source_file
+  target: test/jido_code/phase_forty_eight_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
@@ -547,6 +554,26 @@ surface:
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+
+- kind: source_file
+  target: lib/jido_code_web/live/workbench_live.ex
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code_web/live/workbench_live_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
 
 - kind: source_file
   target: lib/jido_code/forge/pubsub.ex

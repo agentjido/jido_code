@@ -443,12 +443,19 @@ defmodule JidoCode.Workbench.ProjectConversation do
   defp work_item_origin(%WorkItem{} = work_item) do
     work_item
     |> Map.get(:work_metadata, %{})
-    |> work_item_origin()
+    |> conversation_origin_from_metadata()
   end
 
   defp work_item_origin(%{} = work_item) do
     work_item
     |> map_get(:work_metadata, "work_metadata", %{})
+    |> conversation_origin_from_metadata()
+  end
+
+  defp work_item_origin(_work_item), do: nil
+
+  defp conversation_origin_from_metadata(metadata) when is_map(metadata) do
+    metadata
     |> normalize_map()
     |> Map.get("conversation_origin")
     |> normalize_map()
@@ -458,7 +465,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
     end
   end
 
-  defp work_item_origin(_work_item), do: nil
+  defp conversation_origin_from_metadata(_metadata), do: nil
 
   defp origin_conversation_id(work_item) do
     work_item

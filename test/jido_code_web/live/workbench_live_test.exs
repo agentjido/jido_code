@@ -4,6 +4,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

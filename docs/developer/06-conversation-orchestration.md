@@ -120,6 +120,36 @@ specialist execution continues:
 - repo detail surfaces show the attached governed work item, current resolution
   action, and a product-owned path back to Workbench
 
+## Operator Surface Projections
+
+Once a productive conversation has attached canonical work, the UI should not
+invent separate chat-only lineage models per page.
+
+The current projection model is:
+
+- repo detail shows the active repo conversation, its current `WorkItem`, and
+  the latest work-resolution state
+- Workbench shows the same repo-conversation and governed-work linkage at the
+  managed-repository row level so operators can avoid starting redundant work
+- governed run detail resolves conversation lineage back from canonical
+  `WorkItem` scope, showing either the latest linked conversation or preserved
+  conversation-origin metadata from work synthesis
+
+That means conversation lineage is expected to travel through product-owned
+records:
+
+```mermaid
+flowchart LR
+  RD["Repo detail"] --> C["Conversation"]
+  C --> WI["Canonical WorkItem"]
+  WI --> WB["Workbench row projection"]
+  WI --> RUN["Governed run detail projection"]
+```
+
+Contributors should prefer `ProjectConversation` and other product-owned
+projection helpers over teaching each LiveView to inspect conversation
+persistence, snapshots, or work metadata directly.
+
 ## Relationship To AgentWorkspace
 
 The conversation layer should still go through product-owned boundaries rather

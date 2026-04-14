@@ -28,7 +28,7 @@ Back to index: [README](./README.md)
 - Governed run detail already projects work-item, evidence, decision, and memory context, so it should also make conversation lineage legible when a run is executing work that originated from or remains attached to productive conversation scope.
 - The project remains greenfield: operator surfaces should adopt the canonical conversation and work model directly instead of preserving a separate compatibility-era “chat metadata” interpretation layer.
 
-[ ] 48 Phase 48 - Operator Conversation Surface Adoption
+[x] 48 Phase 48 - Operator Conversation Surface Adoption
   Project canonical repo-conversation, governed-work, and governed-run linkage across the remaining operator surfaces so operators can follow active conversation-driven work without reconstructing it from transcript text or raw work metadata.
 
   [x] 48.1 Section - Workbench Conversation Projection
@@ -65,19 +65,19 @@ Back to index: [README](./README.md)
       [x] 48.2.2.2 Subtask - Let operators follow governed run conversation lineage back to the managed-repository detail surface instead of inventing a separate run-chat route.
       [x] 48.2.2.3 Subtask - Preserve clear empty-state messaging when a governed run has no linked work item or no productive conversation origin.
 
-  [ ] 48.3 Section - Integration Coverage And Current-Truth Convergence
+  [x] 48.3 Section - Integration Coverage And Current-Truth Convergence
     Prove the new operator projections end to end and keep the current-truth spec and contributor guidance aligned with the adopted surface model.
 
-    [ ] 48.3.1 Task - Add operator-surface coverage for conversation projections
+    [x] 48.3.1 Task - Add operator-surface coverage for conversation projections
       Verify Workbench and governed run detail now project canonical conversation linkage rather than leaving operators to infer it from internal metadata.
 
-      [ ] 48.3.1.1 Subtask - Add Workbench coverage proving a managed-repository row shows active repo conversation status and attached governed work after productive conversation execution.
-      [ ] 48.3.1.2 Subtask - Add run-detail coverage proving preserved conversation origin and current conversation linkage appear when a governed run executes conversation-driven work.
-      [ ] 48.3.1.3 Subtask - Add integration coverage proving work-item-scoped conversation lineage remains product-owned and explainable across repo detail, Workbench, and governed run surfaces.
+      [x] 48.3.1.1 Subtask - Add Workbench coverage proving a managed-repository row shows active repo conversation status and attached governed work after productive conversation execution.
+      [x] 48.3.1.2 Subtask - Add run-detail coverage proving preserved conversation origin and current conversation linkage appear when a governed run executes conversation-driven work.
+      [x] 48.3.1.3 Subtask - Add integration coverage proving work-item-scoped conversation lineage remains product-owned and explainable across repo detail, Workbench, and governed run surfaces.
 
-    [ ] 48.3.2 Task - Converge specs, planning, and contributor guidance
+    [x] 48.3.2 Task - Converge specs, planning, and contributor guidance
       Keep the spec and documentation layers coherent once Workbench and governed run detail adopt the canonical conversation projection model.
 
-      [ ] 48.3.2.1 Subtask - Update current-truth conversation and factory-control-plane specs to describe Workbench and governed run conversation projections.
-      [ ] 48.3.2.2 Subtask - Mark Phase 48 complete in planning once all operator-surface adoption work lands without leaving implied compatibility lanes.
-      [ ] 48.3.2.3 Subtask - Update contributor-facing developer guidance so conversation linkage expectations across repo detail, Workbench, and run detail stay clear.
+      [x] 48.3.2.1 Subtask - Update current-truth conversation and factory-control-plane specs to describe Workbench and governed run conversation projections.
+      [x] 48.3.2.2 Subtask - Mark Phase 48 complete in planning once all operator-surface adoption work lands without leaving implied compatibility lanes.
+      [x] 48.3.2.3 Subtask - Update contributor-facing developer guidance so conversation linkage expectations across repo detail, Workbench, and run detail stay clear.

@@ -13,6 +13,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
   # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
   # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

@@ -33,6 +33,7 @@ The plan aligns to:
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.interruptible_conversation_orchestration.md`
+- `../decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
 - `../decisions/jido_code.jido_os_deprecation.md`
 
@@ -79,6 +80,9 @@ The plan aligns to:
 40. [Phase 46 - Real LLM Conversation Runtime Cutover](./phase-46-real-llm-conversation-runtime-cutover.md): replace the remaining fake managed-repository conversation runtime with a real LLM-backed execution path routed through product-owned conversation, workspace, and specialist boundaries.
 41. [Phase 47 - Conversation To Governed Work Convergence](./phase-47-conversation-to-governed-work-convergence.md): make productive repository conversations create, attach, and surface canonical WorkItem scope so governed work stops living implicitly inside repo-scoped conversation runtime state.
 42. [Phase 48 - Operator Conversation Surface Adoption](./phase-48-operator-conversation-surface-adoption.md): project canonical repo-conversation and governed-work linkage across Workbench and governed run detail so operators can follow active work without reconstructing it from transcript or metadata internals.
+43. [Phase 49 - Work-Item Conversation Identity And Canonical Admission](./phase-49-work-item-conversation-identity-and-canonical-admission.md): correct the conversation model so active productive threads are unique per WorkItem, parallel across different work items in the same repository, and no longer treated as one repo-global productive conversation.
+44. [Phase 50 - Managed Repo, Workbench, And Dashboard Multi-Conversation Adoption](./phase-50-managed-repo-workbench-and-dashboard-multi-conversation-adoption.md): adopt the new repo-intake plus work-item conversation roster model across the main managed-repository operator surfaces.
+45. [Phase 51 - Work-Item Conversation Runtime Lifecycle And Convergence](./phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md): harden governed run routing, runtime lifecycle, and contributor guidance so per-work-item productive conversations become the durable default without residual repo-global assumptions.
 
 ## Shared Conventions
 - Numbering:

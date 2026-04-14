@@ -25,6 +25,7 @@ defmodule JidoCode.AgentWorkspaceTest do
   alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
 
   describe "kernel lifecycle" do
@@ -296,6 +297,7 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert result.memory_context.workflow == :execute
       assert result.memory_context.graph["ready?"] == true
       assert result.memory_context.policy["intent"] == "implementation_constraints"
+
       assert result.memory_context.selection["governed_references"] == [
                %{
                  "kind" => "run",
@@ -304,6 +306,7 @@ defmodule JidoCode.AgentWorkspaceTest do
                  "label" => "Run 45"
                }
              ]
+
       assert result.changes =~ "Memory context:"
       assert result.changes =~ "workflow: :execute"
       assert result.changes =~ "\"intent\" => \"implementation_constraints\""
@@ -569,6 +572,71 @@ defmodule JidoCode.AgentWorkspaceTest do
 
       assert :ok = AgentWorkspace.stop_conversation(conversation.id)
     end
+
+    test "workspace exposes work-item conversation boundaries without falling back to repo-global lookup" do
+      managed_repo = managed_repo_fixture!("workspace-work-item-conversation")
+      first_work_item = work_item_fixture!(managed_repo, "workspace-work-item-one")
+      second_work_item = work_item_fixture!(managed_repo, "workspace-work-item-two")
+
+      assert {:ok, %{conversation: first_conversation, snapshot: first_snapshot, resumed?: false}} =
+               AgentWorkspace.open_work_item_conversation(
+                 first_work_item.id,
+                 %{
+                   source: "agent_workspace_test",
+                   objective: "Continue the first governed work item through the workspace boundary."
+                 },
+                 actor: Actor.operator_actor(%{"id" => "operator-workspace-work-item-first"})
+               )
+
+      assert first_snapshot.conversation_id == first_conversation.id
+      assert first_snapshot.managed_repo_id == managed_repo.id
+      assert first_snapshot.work_item_id == first_work_item.id
+      assert first_snapshot.scope == :work_item_scoped
+      assert first_snapshot.attachment_mode == :existing_work_item
+
+      assert {:ok, active_first_conversation} =
+               AgentWorkspace.active_work_item_conversation(first_work_item.id,
+                 actor: Actor.operator_actor()
+               )
+
+      assert active_first_conversation.id == first_conversation.id
+
+      assert {:ok, %{conversation: resumed_first_conversation, resumed?: true}} =
+               AgentWorkspace.open_work_item_conversation(
+                 first_work_item.id,
+                 %{},
+                 actor: Actor.operator_actor(%{"id" => "operator-workspace-work-item-resume"})
+               )
+
+      assert resumed_first_conversation.id == first_conversation.id
+
+      assert {:ok, %{conversation: second_conversation, snapshot: second_snapshot, resumed?: false}} =
+               AgentWorkspace.open_work_item_conversation(
+                 second_work_item.id,
+                 %{
+                   source: "agent_workspace_test",
+                   objective: "Continue the second governed work item through the workspace boundary."
+                 },
+                 actor: Actor.operator_actor(%{"id" => "operator-workspace-work-item-second"})
+               )
+
+      assert second_snapshot.work_item_id == second_work_item.id
+      refute second_conversation.id == first_conversation.id
+
+      assert {:ok, active_conversations} =
+               AgentWorkspace.active_work_item_conversations(managed_repo.id,
+                 actor: Actor.operator_actor()
+               )
+
+      active_ids = Enum.map(active_conversations, & &1.id)
+
+      assert first_conversation.id in active_ids
+      assert second_conversation.id in active_ids
+      assert Enum.all?(active_conversations, &(&1.scope == :work_item_scoped))
+
+      assert :ok = AgentWorkspace.stop_conversation(first_conversation.id)
+      assert :ok = AgentWorkspace.stop_conversation(second_conversation.id)
+    end
   end
 
   describe "source code graph workflow adoption" do
@@ -710,5 +778,24 @@ defmodule JidoCode.AgentWorkspaceTest do
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     managed_repo
+  end
+
+  defp work_item_fixture!(managed_repo, actor_id) do
+    {:ok, %{work_item: work_item}} =
+      Ingress.record_operator_intake(%{
+        managed_repo_id: managed_repo.id,
+        channel: "workbench",
+        intent: "fix_workflow_kickoff",
+        actor: %{id: actor_id, email: "#{actor_id}@example.com"},
+        payload: %{
+          "workflow_name" => "fix_failing_tests_#{actor_id}",
+          "context_item" => %{"type" => "issue", "id" => actor_id}
+        },
+        source_metadata: %{
+          "trigger" => %{"source" => "workbench", "mode" => "manual"}
+        }
+      })
+
+    work_item
   end
 end

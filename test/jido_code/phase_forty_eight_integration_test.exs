@@ -49,7 +49,7 @@ defmodule JidoCode.PhaseFortyEightIntegrationTest do
     assert repo_detail_projection.conversation.work_item_id == work_item_id
     assert repo_detail_projection.conversation.work_resolution["action"] == "created"
     assert repo_detail_projection.work_item.id == work_item_id
-    assert repo_detail_projection.action_label == "Continue repo conversation"
+    assert repo_detail_projection.action_label == "Open repo conversation"
 
     assert {:ok, rows, _warning} = Inventory.load()
     row = Enum.find(rows, &(&1.managed_repo_id == managed_repo.id))
@@ -59,7 +59,7 @@ defmodule JidoCode.PhaseFortyEightIntegrationTest do
     assert row.repo_conversation.conversation.work_item_id == work_item_id
     assert row.repo_conversation.conversation.work_resolution["action"] == "created"
     assert row.repo_conversation.work_item.id == work_item_id
-    assert row.repo_conversation.action_label == "Continue repo conversation"
+    assert row.repo_conversation.action_label == "Open repo conversation"
 
     run_id = "phase-forty-eight-run-#{System.unique_integer([:positive])}"
 

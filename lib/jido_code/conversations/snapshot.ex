@@ -129,10 +129,8 @@ defmodule JidoCode.Conversations.Snapshot do
               conversation.work_item_id
       },
       status: status,
-      admission_paused:
-        normalize_boolean(map_get(snapshot, :admission_paused, status == :paused)),
-      child_execution_paused:
-        normalize_boolean(map_get(snapshot, :child_execution_paused, false)),
+      admission_paused: normalize_boolean(map_get(snapshot, :admission_paused, status == :paused)),
+      child_execution_paused: normalize_boolean(map_get(snapshot, :child_execution_paused, false)),
       active_turn_id: active_turn_id,
       work_queue: normalize_string_list(map_get(snapshot, :queued_turn_ids, [])),
       turns: turns_by_id,
@@ -199,6 +197,7 @@ defmodule JidoCode.Conversations.Snapshot do
       "referenced_files" => [],
       "accepted_tool_results" => []
     }
+    |> maybe_put("intake_handoff", latest_intake_handoff(conversation))
   end
 
   defp shared_context_from_state(state) do
@@ -214,9 +213,22 @@ defmodule JidoCode.Conversations.Snapshot do
     |> Map.put("work_resolution", WorkResolution.summary(state.conversation))
     |> Map.put("referenced_files", referenced_files(turns, state))
     |> Map.put("accepted_tool_results", accepted_tool_results(state))
+    |> maybe_put("intake_handoff", latest_intake_handoff(state.conversation))
     |> maybe_put("latest_turn_id", latest_turn_id(turns))
     |> maybe_put("latest_instruction", latest_instruction(turns))
     |> maybe_put("pending_clarification", pending_clarification(turns, state))
+  end
+
+  defp latest_intake_handoff(%Conversation{} = conversation) do
+    conversation
+    |> Map.get(:conversation_metadata, %{})
+    |> normalize_map()
+    |> Map.get("last_intake_handoff")
+    |> normalize_map()
+    |> case do
+      handoff when map_size(handoff) == 0 -> nil
+      handoff -> handoff
+    end
   end
 
   defp referenced_files(turns, state) do
@@ -368,7 +380,8 @@ defmodule JidoCode.Conversations.Snapshot do
           when state in [:running, :awaiting_input, :cancelling, :superseding] ->
             active_turn_id
 
-          _other -> nil
+          _other ->
+            nil
         end
     end
   end

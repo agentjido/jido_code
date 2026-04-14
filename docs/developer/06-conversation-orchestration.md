@@ -11,8 +11,10 @@ Current truth for this area lives in:
 
 ## What A Conversation Is
 
-A conversation is a managed-repository-scoped and usually work-item-scoped
-productive session.
+A conversation is a managed-repository-hosted session with two distinct modes:
+
+- bounded `repo_scoped` intake before durable work is admitted
+- canonical `work_item_scoped` productive supervision once governed work exists
 
 The important part is "productive":
 
@@ -98,8 +100,8 @@ They are not meant to be the primary steady-state delivery mechanism.
 
 ## Relationship To Work Items
 
-Conversations are repo-scoped first, but when they are doing durable factory
-work they usually attach to one canonical `WorkItem`.
+Conversations are hosted from the repo surface, but durable productive identity
+is canonical per `WorkItem`, not per repository.
 
 That means conversation state can preserve:
 
@@ -117,8 +119,10 @@ specialist execution continues:
 - exploratory conversation can remain `repo_scoped`
 - productive plan/execute/review/explain turns promote into canonical `WorkItem`
   scope through `WorkResolution`
-- repo detail surfaces show the attached governed work item, current resolution
-  action, and a product-owned path back to Workbench
+- reopening the same governed work should resume its active work-item
+  conversation rather than creating a duplicate active thread
+- different work items in the same repository can keep separate active
+  productive conversations in parallel
 
 ## Operator Surface Projections
 
@@ -127,10 +131,11 @@ invent separate chat-only lineage models per page.
 
 The current projection model is:
 
-- repo detail shows the active repo conversation, its current `WorkItem`, and
-  the latest work-resolution state
-- Workbench shows the same repo-conversation and governed-work linkage at the
-  managed-repository row level so operators can avoid starting redundant work
+- repo detail hosts bounded repo intake and oversight of the latest productive
+  conversation state, but opening a repo conversation after handoff starts a
+  fresh intake path instead of reusing the work-item thread
+- Workbench and governed run detail should follow canonical work-item
+  conversation linkage instead of assuming one repo-global productive thread
 - governed run detail resolves conversation lineage back from canonical
   `WorkItem` scope, showing either the latest linked conversation or preserved
   conversation-origin metadata from work synthesis

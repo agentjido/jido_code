@@ -38,6 +38,21 @@ defmodule JidoCode.Workbench.ProjectConversation do
           action_label: String.t()
         }
 
+  @type repo_detail_projection :: %{
+          available?: boolean(),
+          managed_repo_id: String.t() | nil,
+          conversation: map() | nil,
+          work_item: map() | nil,
+          snapshot: map() | nil,
+          recent_events: [map()],
+          notice: notice() | nil,
+          action_label: String.t(),
+          repo_intake: projection() | nil,
+          active_work_items: [projection()],
+          active_work_item_notice: notice() | nil,
+          selected_work_item_id: String.t() | nil
+        }
+
   @type open_result :: %{
           conversation: Conversation.t(),
           snapshot: map(),
@@ -69,16 +84,21 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   def load_attached_work_item(_work_item_id, _opts), do: nil
 
-  @spec load_repo_detail(map() | nil, keyword()) :: projection()
+  @spec load_repo_detail(map() | nil, keyword()) :: repo_detail_projection()
   def load_repo_detail(project_like, opts \\ []) do
     actor = normalize_actor(Keyword.get(opts, :actor))
 
+    selected_work_item_id =
+      opts
+      |> Keyword.get(:selected_work_item_id)
+      |> normalize_optional_string()
+
     case scope(project_like) do
       {:ok, managed_repo_id} ->
-        load_projection(managed_repo_id, actor)
+        load_repo_detail_projection(managed_repo_id, actor, selected_work_item_id)
 
       {:error, notice} ->
-        unavailable_projection(notice)
+        unavailable_repo_detail_projection(notice)
     end
   end
 
@@ -124,6 +144,115 @@ defmodule JidoCode.Workbench.ProjectConversation do
     end
   end
 
+  @spec open_work_item_detail(map() | nil, WorkItem.t() | map() | String.t() | nil, keyword()) ::
+          {:ok, open_result()} | {:error, notice()}
+  def open_work_item_detail(project_like, work_item_like, opts \\ []) when is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    attrs = Keyword.get(opts, :conversation_attrs, %{})
+
+    with {:ok, managed_repo_id} <- scope(project_like),
+         {:ok, reference} <- work_item_reference(work_item_like, actor),
+         :ok <- validate_repo_detail_work_item(reference, managed_repo_id),
+         {:ok, %{conversation: %Conversation{} = conversation, snapshot: snapshot, resumed?: resumed?}} <-
+           AgentWorkspace.open_work_item_conversation(
+             reference.work_item_id,
+             work_item_source_attrs(reference, attrs),
+             actor: actor
+           ) do
+      {:ok, %{conversation: conversation, snapshot: snapshot, resumed?: resumed?}}
+    else
+      :none -> {:error, invalid_work_item_notice()}
+      {:error, %{} = notice} -> {:error, notice}
+      {:error, reason} -> {:error, load_error_notice(reason)}
+    end
+  end
+
+  defp load_repo_detail_projection(managed_repo_id, actor, selected_work_item_id) do
+    repo_intake = load_repo_intake_projection(managed_repo_id, actor)
+    {active_work_items, active_work_item_notice} = load_active_work_item_projections(managed_repo_id, actor)
+
+    %{
+      available?: true,
+      managed_repo_id: managed_repo_id,
+      repo_intake: repo_intake,
+      active_work_items: active_work_items,
+      active_work_item_notice: active_work_item_notice,
+      selected_work_item_id: selected_work_item_id
+    }
+    |> merge_selected_projection(select_repo_detail_projection(repo_intake, active_work_items, selected_work_item_id))
+  end
+
+  defp load_repo_intake_projection(managed_repo_id, actor) do
+    case AgentWorkspace.active_repo_intake_conversation(managed_repo_id, actor: actor) do
+      {:ok, %Conversation{} = conversation} ->
+        conversation_projection(conversation, managed_repo_id, actor, :repo_intake)
+
+      {:ok, nil} ->
+        nil
+
+      {:error, reason} ->
+        %{
+          available?: true,
+          managed_repo_id: managed_repo_id,
+          conversation: nil,
+          work_item: nil,
+          snapshot: nil,
+          recent_events: [],
+          notice: load_error_notice(reason),
+          action_label: "Open repo intake"
+        }
+    end
+  end
+
+  defp load_active_work_item_projections(managed_repo_id, actor) do
+    case AgentWorkspace.active_work_item_conversations(managed_repo_id, actor: actor) do
+      {:ok, conversations} ->
+        {Enum.map(conversations, &conversation_projection(&1, managed_repo_id, actor, :work_item)), nil}
+
+      {:error, reason} ->
+        {[],
+         %{
+           error_type: "project_detail_active_conversations_unavailable",
+           detail: "Active governed conversation roster could not be loaded (#{inspect(reason)}).",
+           remediation: "Retry the repository route after managed-repository conversation services recover."
+         }}
+    end
+  end
+
+  defp select_repo_detail_projection(repo_intake, active_work_items, selected_work_item_id)
+       when is_binary(selected_work_item_id) do
+    Enum.find(active_work_items, fn projection ->
+      projection
+      |> Map.get(:work_item)
+      |> map_get(:id, "id")
+      |> normalize_optional_string() == selected_work_item_id
+    end) || repo_intake || List.first(active_work_items)
+  end
+
+  defp select_repo_detail_projection(repo_intake, active_work_items, _selected_work_item_id) do
+    repo_intake || List.first(active_work_items)
+  end
+
+  defp merge_selected_projection(base, %{} = projection) do
+    base
+    |> Map.put(:conversation, Map.get(projection, :conversation))
+    |> Map.put(:work_item, Map.get(projection, :work_item))
+    |> Map.put(:snapshot, Map.get(projection, :snapshot))
+    |> Map.put(:recent_events, Map.get(projection, :recent_events, []))
+    |> Map.put(:notice, Map.get(projection, :notice))
+    |> Map.put(:action_label, Map.get(projection, :action_label, "Open repo intake"))
+  end
+
+  defp merge_selected_projection(base, _projection) do
+    base
+    |> Map.put(:conversation, nil)
+    |> Map.put(:work_item, nil)
+    |> Map.put(:snapshot, nil)
+    |> Map.put(:recent_events, [])
+    |> Map.put(:notice, nil)
+    |> Map.put(:action_label, "Open repo intake")
+  end
+
   defp load_projection(managed_repo_id, actor) do
     case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
       {:ok, nil} ->
@@ -159,6 +288,26 @@ defmodule JidoCode.Workbench.ProjectConversation do
       {:error, reason} ->
         unavailable_projection(load_error_notice(reason))
         |> Map.put(:managed_repo_id, managed_repo_id)
+    end
+  end
+
+  defp conversation_projection(%Conversation{} = conversation, managed_repo_id, actor, kind) do
+    case AgentWorkspace.conversation_snapshot(conversation.id) do
+      {:ok, snapshot} ->
+        projection_for(conversation, snapshot, managed_repo_id, actor)
+        |> Map.put(:action_label, conversation_action_label(conversation, kind))
+
+      {:error, reason} ->
+        %{
+          available?: true,
+          managed_repo_id: managed_repo_id,
+          conversation: conversation_summary(conversation, nil),
+          work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
+          snapshot: nil,
+          recent_events: [],
+          notice: snapshot_unavailable_notice(reason),
+          action_label: conversation_action_label(conversation, kind)
+        }
     end
   end
 
@@ -354,6 +503,19 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp action_label(_conversation), do: "Open fresh repo conversation"
 
+  defp conversation_action_label(%Conversation{status: status}, :repo_intake) when status in [:active, :paused],
+    do: "Continue repo intake"
+
+  defp conversation_action_label(%Conversation{}, :repo_intake), do: "Open repo intake"
+
+  defp conversation_action_label(%Conversation{status: status}, :work_item)
+       when status in [:active, :paused],
+       do: "Resume governed conversation"
+
+  defp conversation_action_label(%Conversation{}, :work_item), do: "Open governed conversation"
+
+  defp conversation_action_label(%Conversation{} = conversation, _kind), do: action_label(conversation)
+
   defp repo_action_label(%Conversation{scope: :work_item_scoped}), do: "Open repo conversation"
   defp repo_action_label(%Conversation{} = conversation), do: action_label(conversation)
 
@@ -451,6 +613,63 @@ defmodule JidoCode.Workbench.ProjectConversation do
       notice: notice,
       action_label: "Open repo conversation"
     }
+  end
+
+  defp unavailable_repo_detail_projection(notice) do
+    unavailable_projection(notice)
+    |> Map.put(:repo_intake, nil)
+    |> Map.put(:active_work_items, [])
+    |> Map.put(:active_work_item_notice, nil)
+    |> Map.put(:selected_work_item_id, nil)
+    |> Map.put(:action_label, "Open repo intake")
+  end
+
+  defp validate_repo_detail_work_item(%{work_item_id: work_item_id, managed_repo_id: managed_repo_id}, expected_repo_id)
+       when is_binary(work_item_id) do
+    if is_binary(managed_repo_id) and managed_repo_id != expected_repo_id do
+      {:error,
+       %{
+         error_type: "project_detail_conversation_work_item_scope_invalid",
+         detail: "That governed work item does not belong to this managed repository route.",
+         remediation: "Return to the repository that owns the governed work item and continue the conversation there."
+       }}
+    else
+      :ok
+    end
+  end
+
+  defp validate_repo_detail_work_item(_reference, _expected_repo_id),
+    do: {:error, invalid_work_item_notice()}
+
+  defp invalid_work_item_notice do
+    %{
+      error_type: "project_detail_conversation_work_item_missing",
+      detail: "A governed work item is required before the selected conversation can continue.",
+      remediation: "Choose an active governed work item from the repository roster and then retry."
+    }
+  end
+
+  defp work_item_source_attrs(reference, attrs) do
+    summary =
+      reference
+      |> Map.get(:work_item, %{})
+      |> map_get(:summary, "summary")
+      |> normalize_optional_string()
+
+    attrs
+    |> normalize_map()
+    |> Map.put_new("source", "project_detail")
+    |> Map.put_new("objective", summary || "Continue governed repository work from repo detail.")
+    |> Map.put("source_metadata", work_item_source_metadata(attrs))
+  end
+
+  defp work_item_source_metadata(attrs) do
+    attrs
+    |> map_get(:source_metadata, "source_metadata", %{})
+    |> normalize_map()
+    |> Map.put_new("entry_surface", "project_detail")
+    |> Map.put_new("channel", "managed_repo_detail")
+    |> Map.put_new("selection", "work_item")
   end
 
   defp work_item_origin(%WorkItem{} = work_item) do

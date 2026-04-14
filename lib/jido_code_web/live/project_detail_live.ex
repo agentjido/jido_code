@@ -39,6 +39,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:conversation_snapshot, nil)
      |> assign(:conversation_events, [])
      |> assign(:conversation_last_event_sequence, 0)
+     |> assign(:selected_work_item_id, nil)
      |> assign(:conversation_input, "")
      |> assign(:conversation_action_feedback, nil)
      |> assign(:conversation_action_feedback_kind, :info)
@@ -56,6 +57,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     project_id = Map.get(params, "id")
     return_to_path = normalize_return_to_path(Map.get(params, "return_to"))
 
+    selected_work_item_id =
+      params
+      |> Map.get("work_item_id")
+      |> normalize_optional_string()
+
     socket =
       socket
       |> maybe_unsubscribe_conversation()
@@ -72,7 +78,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               |> assign(:memory_action_feedback, nil)
               |> assign(:conversation_action_feedback, nil)
               |> assign(:conversation_action_feedback_kind, :info)
-              |> assign_project_conversation(project_detail)
+              |> assign_project_conversation(
+                project_detail,
+                selected_work_item_id: selected_work_item_id
+              )
 
             {:error, project_load_error} ->
               socket
@@ -89,7 +98,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     {:noreply,
      socket
      |> assign(:workflow_launch_states, %{})
-     |> assign(:return_to_path, return_to_path)}
+     |> assign(:return_to_path, return_to_path)
+     |> assign(:selected_work_item_id, selected_work_item_id)}
   end
 
   @impl true
@@ -156,7 +166,43 @@ defmodule JidoCodeWeb.ProjectDetailLive do
          |> assign(:conversation_action_feedback, nil)
          |> assign(:conversation_action_feedback_kind, :info)
          |> assign(:conversation_input, "")
-         |> assign_project_conversation(socket.assigns.project_detail)}
+         |> push_patch(
+           to:
+             conversation_repo_detail_path(
+               socket.assigns.project_detail,
+               socket.assigns.return_to_path,
+               nil
+             )
+         )}
+
+      {:error, notice} ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, notice)
+         |> assign(:conversation_action_feedback_kind, :error)}
+    end
+  end
+
+  def handle_event("open_work_item_conversation", %{"work_item_id" => work_item_id}, socket) do
+    case ProjectConversation.open_work_item_detail(
+           socket.assigns.project_detail,
+           work_item_id,
+           actor: initiating_actor(socket)
+         ) do
+      {:ok, %{conversation: _conversation, snapshot: _snapshot}} ->
+        {:noreply,
+         socket
+         |> assign(:conversation_action_feedback, nil)
+         |> assign(:conversation_action_feedback_kind, :info)
+         |> assign(:conversation_input, "")
+         |> push_patch(
+           to:
+             conversation_repo_detail_path(
+               socket.assigns.project_detail,
+               socket.assigns.return_to_path,
+               work_item_id
+             )
+         )}
 
       {:error, notice} ->
         {:noreply,
@@ -342,9 +388,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
         <section id="project-detail-conversation-panel" class="space-y-4">
           <div class="space-y-1">
-            <h2 class="text-lg font-semibold">Repository conversation</h2>
+            <h2 class="text-lg font-semibold">Repository intake and governed conversations</h2>
             <p class="text-sm text-base-content/70">
-              Repository conversations stay product-owned on this managed-repository route, promote durable work onto governed WorkItems, and recover from the latest durable snapshot when live delivery degrades.
+              Repo-scoped intake stays bounded on this managed-repository route, while active governed work keeps one canonical conversation per WorkItem so parallel threads remain legible.
             </p>
           </div>
 
@@ -359,7 +405,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           <.operator_state_notice
             :if={conversation_notice_visible?(@conversation_surface)}
             id="project-detail-conversation-notice"
-            title="Repository conversation status"
+            title="Selected conversation status"
             state={@conversation_surface.notice}
             kind={:warning}
           />
@@ -373,294 +419,453 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             <p class="mt-1">{@conversation_degraded_mode_message}</p>
           </div>
 
-          <%= if @conversation_surface.snapshot do %>
-            <div class="grid gap-3 lg:grid-cols-[2fr,1fr]">
-              <section class="rounded-lg border border-base-300/70 bg-base-100">
-                <div class="border-b border-base-300/70 px-4 py-3">
-                  <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 class="font-semibold">Conversation transcript</h3>
-                      <p
-                        id="project-detail-conversation-id"
-                        class="text-xs font-mono text-base-content/60"
-                      >
-                        {@conversation_surface.conversation.id}
-                      </p>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2 text-xs">
-                      <span
-                        id="project-detail-conversation-stream-mode"
-                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
-                      >
-                        {@conversation_stream_mode}
-                      </span>
-                      <span
-                        id="project-detail-conversation-sequence"
-                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
-                      >
-                        seq {@conversation_last_event_sequence}
-                      </span>
-                      <span
-                        id="project-detail-conversation-discontinuities"
-                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
-                      >
-                        discontinuities: {@conversation_stream_discontinuity_count}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div id="project-detail-conversation-events" class="max-h-96 space-y-3 overflow-y-auto px-4 py-4">
-                  <%= for event <- @conversation_events do %>
-                    <article
-                      id={"project-detail-conversation-event-#{map_get(event, :id, "id")}"}
-                      class="rounded-md border border-base-300/70 bg-base-200/30 p-3"
-                    >
-                      <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                          <span class="font-mono text-xs text-base-content/60">
-                            #{map_get(event, :sequence, "sequence")}
-                          </span>
-                          <span class="rounded-full bg-base-200 px-2.5 py-1 text-xs font-semibold">
-                            {conversation_event_label(event)}
-                          </span>
-                          <span class="text-xs text-base-content/60">
-                            {map_get(event, :name, "name")}
-                          </span>
-                        </div>
-                        <time class="text-xs text-base-content/60">
-                          {format_time(map_get(event, :occurred_at, "occurred_at"))}
-                        </time>
-                      </div>
-                      <p class="mt-2 text-sm font-medium">
-                        {conversation_event_title(event)}
-                      </p>
-                      <p
-                        :if={conversation_event_excerpt(event)}
-                        class="mt-1 whitespace-pre-wrap text-xs text-base-content/70"
-                      >
-                        {conversation_event_excerpt(event)}
-                      </p>
-                    </article>
-                  <% end %>
-                </div>
-
-                <div class="border-t border-base-300/70 px-4 py-4">
-                  <div
-                    :if={conversation_pending_clarification(@conversation_snapshot)}
-                    id="project-detail-conversation-pending-clarification"
-                    class="mb-3 rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm"
-                  >
-                    <p class="font-semibold">Input required</p>
-                    <p class="mt-1">
-                      {conversation_clarification_prompt(@conversation_snapshot) ||
-                        "The active turn is waiting on clarification."}
+          <div class="grid gap-3 xl:grid-cols-[22rem,1fr]">
+            <aside class="space-y-3">
+              <section
+                id="project-detail-conversation-intake"
+                class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <h3 class="font-semibold">Repo intake</h3>
+                    <p class="text-sm text-base-content/70">
+                      Use bounded repo intake before durable governed work is attached to a WorkItem.
                     </p>
                   </div>
-
-                  <form id="project-detail-conversation-form" phx-submit="send_conversation" class="flex flex-col gap-3 sm:flex-row">
-                    <input
-                      id="project-detail-conversation-input"
-                      type="text"
-                      name="input"
-                      value={@conversation_input}
-                      phx-change="update_conversation_input"
-                      placeholder={
-                        if conversation_awaiting_input?(@conversation_snapshot) do
-                          conversation_clarification_prompt(@conversation_snapshot) ||
-                            "Provide the missing clarification…"
-                        else
-                          "Describe the repository work this conversation should coordinate…"
-                        end
-                      }
-                      class="input input-bordered flex-1"
-                      autocomplete="off"
-                    />
-                    <button
-                      id="project-detail-conversation-submit"
-                      type="submit"
-                      class="btn btn-primary"
-                      disabled={String.trim(@conversation_input) == "" || conversation_paused?(@conversation_snapshot)}
-                    >
-                      {if conversation_awaiting_input?(@conversation_snapshot),
-                        do: "Resume turn",
-                        else: "Submit turn"}
-                    </button>
-                  </form>
+                  <span
+                    :if={repo_intake_summary(@conversation_surface)}
+                    id="project-detail-conversation-intake-status"
+                    class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
+                  >
+                    {repo_intake_summary(@conversation_surface).status}
+                  </span>
                 </div>
+
+                <%= if repo_intake_summary(@conversation_surface) do %>
+                  <p id="project-detail-conversation-intake-detail" class="text-sm text-base-content/80">
+                    {repo_intake_detail(@conversation_surface)}
+                  </p>
+                  <p
+                    :if={repo_intake_handoff(@conversation_surface)}
+                    id="project-detail-conversation-intake-handoff"
+                    class="text-xs text-base-content/70"
+                  >
+                    Latest intake handoff: {repo_intake_handoff(@conversation_surface)["handoff_kind"]} to{" "}
+                    {repo_intake_handoff(@conversation_surface)["work_item_id"]}.
+                  </p>
+                  <p id="project-detail-conversation-intake-activity" class="text-xs text-base-content/70">
+                    {conversation_last_activity_label(repo_intake_summary(@conversation_surface))}
+                  </p>
+                <% else %>
+                  <p id="project-detail-conversation-intake-empty" class="text-sm text-base-content/70">
+                    No active repo intake is open for this managed repository.
+                  </p>
+                <% end %>
+
+                <button
+                  id="project-detail-conversation-open"
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  phx-click="open_repo_conversation"
+                >
+                  {repo_intake_action_label(@conversation_surface)}
+                </button>
               </section>
 
-              <aside class="space-y-3">
-                <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
-                  <h3 class="font-semibold">Conversation state</h3>
-                  <dl class="mt-3 space-y-2 text-sm">
-                    <div class="flex justify-between gap-3">
-                      <dt class="text-base-content/70">Status</dt>
-                      <dd id="project-detail-conversation-status" class="font-medium">
-                        {Map.get(@conversation_surface.conversation, :status)}
-                      </dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                      <dt class="text-base-content/70">Scope</dt>
-                      <dd id="project-detail-conversation-scope" class="font-medium">
-                        {Map.get(@conversation_surface.conversation, :scope)}
-                      </dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                      <dt class="text-base-content/70">Attachment</dt>
-                      <dd id="project-detail-conversation-attachment" class="font-medium">
-                        {Map.get(@conversation_surface.conversation, :attachment_mode)}
-                      </dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                      <dt class="text-base-content/70">Work item</dt>
-                      <dd id="project-detail-conversation-work-item" class="font-medium">
-                        {Map.get(@conversation_snapshot, :work_item_id) || "repo-scoped"}
-                      </dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                      <dt class="text-base-content/70">Resolution</dt>
-                      <dd id="project-detail-conversation-work-resolution" class="font-medium">
-                        {conversation_work_resolution_action(@conversation_surface)}
-                      </dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                      <dt class="text-base-content/70">Active turn</dt>
-                      <dd class="font-medium">
-                        {conversation_turn_state(@conversation_snapshot)}
-                      </dd>
-                    </div>
-                  </dl>
+              <section
+                id="project-detail-active-conversations"
+                class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
+              >
+                <div class="space-y-1">
+                  <h3 class="font-semibold">Active governed conversations</h3>
+                  <p class="text-sm text-base-content/70">
+                    Each active WorkItem keeps its own productive conversation so parallel governed work stays distinct.
+                  </p>
+                </div>
 
-                  <section
-                    :if={@conversation_surface.work_item}
-                    id="project-detail-conversation-governed-work"
-                    class="mt-4 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
-                  >
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="space-y-1">
-                        <p class="text-xs uppercase tracking-wide text-base-content/60">
-                          Governed work item
-                        </p>
-                        <p
-                          id="project-detail-conversation-governed-work-summary"
-                          class="font-semibold"
+                <.operator_state_notice
+                  :if={@conversation_surface.active_work_item_notice}
+                  id="project-detail-active-conversations-notice"
+                  title="Active governed conversation roster"
+                  state={@conversation_surface.active_work_item_notice}
+                  kind={:warning}
+                  compact={true}
+                />
+
+                <%= if active_work_item_projections(@conversation_surface) == [] do %>
+                  <p id="project-detail-active-conversations-empty" class="text-sm text-base-content/70">
+                    No active governed conversations are currently attached to this managed repository.
+                  </p>
+                <% else %>
+                  <ol id="project-detail-active-conversation-list" class="space-y-3">
+                    <li
+                      :for={projection <- active_work_item_projections(@conversation_surface)}
+                      id={"project-detail-active-conversation-#{conversation_projection_dom_id(projection)}"}
+                      class={active_conversation_card_class(projection, @conversation_surface)}
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="space-y-1">
+                          <p
+                            id={"project-detail-active-conversation-summary-#{conversation_projection_dom_id(projection)}"}
+                            class="font-medium"
+                          >
+                            {conversation_projection_work_item_summary(projection)}
+                          </p>
+                          <p
+                            id={"project-detail-active-conversation-id-#{conversation_projection_dom_id(projection)}"}
+                            class="text-xs font-mono text-base-content/60"
+                          >
+                            {conversation_projection_work_item_id(projection)}
+                          </p>
+                        </div>
+                        <span
+                          id={"project-detail-active-conversation-status-#{conversation_projection_dom_id(projection)}"}
+                          class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
                         >
-                          {Map.get(@conversation_surface.work_item, :summary)}
-                        </p>
+                          {conversation_projection_status(projection)}
+                        </span>
+                      </div>
+
+                      <p
+                        id={"project-detail-active-conversation-detail-#{conversation_projection_dom_id(projection)}"}
+                        class="text-sm text-base-content/80"
+                      >
+                        {active_conversation_detail(projection)}
+                      </p>
+
+                      <p
+                        id={"project-detail-active-conversation-activity-#{conversation_projection_dom_id(projection)}"}
+                        class="text-xs text-base-content/70"
+                      >
+                        {conversation_last_activity_label(Map.get(projection, :conversation))}
+                      </p>
+
+                      <p
+                        :if={Map.get(projection, :notice)}
+                        id={"project-detail-active-conversation-notice-#{conversation_projection_dom_id(projection)}"}
+                        class="text-xs text-warning"
+                      >
+                        {Map.get(projection.notice, :detail)}
+                      </p>
+
+                      <button
+                        id={"project-detail-active-conversation-open-#{conversation_projection_dom_id(projection)}"}
+                        type="button"
+                        class="btn btn-xs btn-outline"
+                        phx-click="open_work_item_conversation"
+                        phx-value-work_item_id={conversation_projection_work_item_id(projection)}
+                      >
+                        {Map.get(projection, :action_label)}
+                      </button>
+                    </li>
+                  </ol>
+                <% end %>
+              </section>
+            </aside>
+
+            <%= if @conversation_surface.snapshot do %>
+              <div class="grid gap-3 lg:grid-cols-[2fr,1fr]">
+                <section class="rounded-lg border border-base-300/70 bg-base-100">
+                  <div class="border-b border-base-300/70 px-4 py-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 class="font-semibold">{selected_conversation_heading(@conversation_surface)}</h3>
                         <p
-                          id="project-detail-conversation-governed-work-id"
+                          id="project-detail-conversation-id"
                           class="text-xs font-mono text-base-content/60"
                         >
-                          {Map.get(@conversation_surface.work_item, :id)}
+                          {@conversation_surface.conversation.id}
                         </p>
                       </div>
-                      <span
-                        id="project-detail-conversation-governed-work-status"
-                        class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
+
+                      <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          id="project-detail-conversation-stream-mode"
+                          class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                        >
+                          {@conversation_stream_mode}
+                        </span>
+                        <span
+                          id="project-detail-conversation-sequence"
+                          class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                        >
+                          seq {@conversation_last_event_sequence}
+                        </span>
+                        <span
+                          id="project-detail-conversation-discontinuities"
+                          class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                        >
+                          discontinuities: {@conversation_stream_discontinuity_count}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="project-detail-conversation-events" class="max-h-96 space-y-3 overflow-y-auto px-4 py-4">
+                    <%= for event <- @conversation_events do %>
+                      <article
+                        id={"project-detail-conversation-event-#{map_get(event, :id, "id")}"}
+                        class="rounded-md border border-base-300/70 bg-base-200/30 p-3"
                       >
-                        {Map.get(@conversation_surface.work_item, :status)}
-                      </span>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <div class="flex items-center gap-2">
+                            <span class="font-mono text-xs text-base-content/60">
+                              #{map_get(event, :sequence, "sequence")}
+                            </span>
+                            <span class="rounded-full bg-base-200 px-2.5 py-1 text-xs font-semibold">
+                              {conversation_event_label(event)}
+                            </span>
+                            <span class="text-xs text-base-content/60">
+                              {map_get(event, :name, "name")}
+                            </span>
+                          </div>
+                          <time class="text-xs text-base-content/60">
+                            {format_time(map_get(event, :occurred_at, "occurred_at"))}
+                          </time>
+                        </div>
+                        <p class="mt-2 text-sm font-medium">
+                          {conversation_event_title(event)}
+                        </p>
+                        <p
+                          :if={conversation_event_excerpt(event)}
+                          class="mt-1 whitespace-pre-wrap text-xs text-base-content/70"
+                        >
+                          {conversation_event_excerpt(event)}
+                        </p>
+                      </article>
+                    <% end %>
+                  </div>
+
+                  <div class="border-t border-base-300/70 px-4 py-4">
+                    <div
+                      :if={conversation_pending_clarification(@conversation_snapshot)}
+                      id="project-detail-conversation-pending-clarification"
+                      class="mb-3 rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm"
+                    >
+                      <p class="font-semibold">Input required</p>
+                      <p class="mt-1">
+                        {conversation_clarification_prompt(@conversation_snapshot) ||
+                          "The active turn is waiting on clarification."}
+                      </p>
                     </div>
 
-                    <p
-                      id="project-detail-conversation-work-resolution-detail"
-                      class="mt-2 text-sm text-base-content/70"
+                    <form
+                      id="project-detail-conversation-form"
+                      phx-submit="send_conversation"
+                      class="flex flex-col gap-3 sm:flex-row"
                     >
-                      {conversation_work_resolution_detail(@conversation_surface)}
-                    </p>
-
-                    <div class="mt-3 flex flex-wrap gap-2">
-                      <.link
-                        :if={conversation_workbench_path(@project_detail)}
-                        id="project-detail-conversation-open-workbench"
-                        class="btn btn-xs btn-outline"
-                        navigate={conversation_workbench_path(@project_detail)}
+                      <input
+                        id="project-detail-conversation-input"
+                        type="text"
+                        name="input"
+                        value={@conversation_input}
+                        phx-change="update_conversation_input"
+                        placeholder={
+                          if conversation_awaiting_input?(@conversation_snapshot) do
+                            conversation_clarification_prompt(@conversation_snapshot) ||
+                              "Provide the missing clarification…"
+                          else
+                            "Describe the repository work this conversation should coordinate…"
+                          end
+                        }
+                        class="input input-bordered flex-1"
+                        autocomplete="off"
+                      />
+                      <button
+                        id="project-detail-conversation-submit"
+                        type="submit"
+                        class="btn btn-primary"
+                        disabled={String.trim(@conversation_input) == "" || conversation_paused?(@conversation_snapshot)}
                       >
-                        Open in Workbench
-                      </.link>
+                        {if conversation_awaiting_input?(@conversation_snapshot),
+                          do: "Resume turn",
+                          else: "Submit turn"}
+                      </button>
+                    </form>
+                  </div>
+                </section>
+
+                <aside class="space-y-3">
+                  <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                    <h3 class="font-semibold">Conversation state</h3>
+                    <dl class="mt-3 space-y-2 text-sm">
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-base-content/70">Status</dt>
+                        <dd id="project-detail-conversation-status" class="font-medium">
+                          {Map.get(@conversation_surface.conversation, :status)}
+                        </dd>
+                      </div>
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-base-content/70">Scope</dt>
+                        <dd id="project-detail-conversation-scope" class="font-medium">
+                          {Map.get(@conversation_surface.conversation, :scope)}
+                        </dd>
+                      </div>
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-base-content/70">Attachment</dt>
+                        <dd id="project-detail-conversation-attachment" class="font-medium">
+                          {Map.get(@conversation_surface.conversation, :attachment_mode)}
+                        </dd>
+                      </div>
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-base-content/70">Work item</dt>
+                        <dd id="project-detail-conversation-work-item" class="font-medium">
+                          {Map.get(@conversation_snapshot, :work_item_id) || "repo-scoped"}
+                        </dd>
+                      </div>
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-base-content/70">Resolution</dt>
+                        <dd id="project-detail-conversation-work-resolution" class="font-medium">
+                          {conversation_work_resolution_action(@conversation_surface)}
+                        </dd>
+                      </div>
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-base-content/70">Active turn</dt>
+                        <dd class="font-medium">
+                          {conversation_turn_state(@conversation_snapshot)}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <section
+                      :if={@conversation_surface.work_item}
+                      id="project-detail-conversation-governed-work"
+                      class="mt-4 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="space-y-1">
+                          <p class="text-xs uppercase tracking-wide text-base-content/60">
+                            Governed work item
+                          </p>
+                          <p
+                            id="project-detail-conversation-governed-work-summary"
+                            class="font-semibold"
+                          >
+                            {Map.get(@conversation_surface.work_item, :summary)}
+                          </p>
+                          <p
+                            id="project-detail-conversation-governed-work-id"
+                            class="text-xs font-mono text-base-content/60"
+                          >
+                            {Map.get(@conversation_surface.work_item, :id)}
+                          </p>
+                        </div>
+                        <span
+                          id="project-detail-conversation-governed-work-status"
+                          class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
+                        >
+                          {Map.get(@conversation_surface.work_item, :status)}
+                        </span>
+                      </div>
+
+                      <p
+                        id="project-detail-conversation-work-resolution-detail"
+                        class="mt-2 text-sm text-base-content/70"
+                      >
+                        {conversation_work_resolution_detail(@conversation_surface)}
+                      </p>
+
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <.link
+                          :if={conversation_workbench_path(@project_detail)}
+                          id="project-detail-conversation-open-workbench"
+                          class="btn btn-xs btn-outline"
+                          navigate={conversation_workbench_path(@project_detail)}
+                        >
+                          Open in Workbench
+                        </.link>
+                      </div>
+                    </section>
+                  </section>
+
+                  <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                    <h3 class="font-semibold">Execution</h3>
+                    <div
+                      :if={conversation_latest_progress(@conversation_snapshot)}
+                      id="project-detail-conversation-progress"
+                      class="mt-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm"
+                    >
+                      <p class="font-semibold">Latest progress</p>
+                      <p class="mt-1">
+                        {conversation_latest_progress(@conversation_snapshot)["summary"] ||
+                          "Runtime progress update received."}
+                      </p>
+                    </div>
+
+                    <div
+                      :if={conversation_stdout_preview(@conversation_snapshot) != []}
+                      id="project-detail-conversation-stdout"
+                      class="mt-3 rounded-lg border border-base-300/70 bg-base-200/30 p-3 text-sm"
+                    >
+                      <p class="font-semibold">Recent tool output</p>
+                      <pre class="mt-2 whitespace-pre-wrap font-mono text-xs">
+                        <%= for line <- conversation_stdout_preview(@conversation_snapshot) do %>
+                          {line}
+                        <% end %>
+                      </pre>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap gap-2">
+                      <button
+                        id="project-detail-conversation-pause"
+                        type="button"
+                        class="btn btn-sm btn-outline"
+                        phx-click="pause_conversation"
+                        disabled={
+                          conversation_paused?(@conversation_snapshot) ||
+                            !is_binary(Map.get(@conversation_surface.conversation || %{}, :id))
+                        }
+                      >
+                        Pause
+                      </button>
+                      <button
+                        id="project-detail-conversation-resume"
+                        type="button"
+                        class="btn btn-sm btn-outline"
+                        phx-click="resume_conversation"
+                        disabled={!conversation_paused?(@conversation_snapshot)}
+                      >
+                        Resume
+                      </button>
+                      <button
+                        id="project-detail-conversation-stop-turn"
+                        type="button"
+                        class="btn btn-sm btn-outline"
+                        phx-click="stop_conversation_turn"
+                        disabled={!conversation_active_turn?(@conversation_snapshot)}
+                      >
+                        Stop turn
+                      </button>
                     </div>
                   </section>
-                </section>
-
-                <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
-                  <h3 class="font-semibold">Execution</h3>
-                  <div
-                    :if={conversation_latest_progress(@conversation_snapshot)}
-                    id="project-detail-conversation-progress"
-                    class="mt-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm"
-                  >
-                    <p class="font-semibold">Latest progress</p>
-                    <p class="mt-1">
-                      {conversation_latest_progress(@conversation_snapshot)["summary"] ||
-                        "Runtime progress update received."}
-                    </p>
-                  </div>
-
-                  <div
-                    :if={conversation_stdout_preview(@conversation_snapshot) != []}
-                    id="project-detail-conversation-stdout"
-                    class="mt-3 rounded-lg border border-base-300/70 bg-base-200/30 p-3 text-sm"
-                  >
-                    <p class="font-semibold">Recent tool output</p>
-                    <pre class="mt-2 whitespace-pre-wrap font-mono text-xs">
-                      <%= for line <- conversation_stdout_preview(@conversation_snapshot) do %>
-                        {line}
-                      <% end %>
-                    </pre>
-                  </div>
-
-                  <div class="mt-4 flex flex-wrap gap-2">
-                    <button
-                      id="project-detail-conversation-pause"
-                      type="button"
-                      class="btn btn-sm btn-outline"
-                      phx-click="pause_conversation"
-                      disabled={
-                        conversation_paused?(@conversation_snapshot) ||
-                          !is_binary(Map.get(@conversation_surface.conversation || %{}, :id))
-                      }
-                    >
-                      Pause
-                    </button>
-                    <button
-                      id="project-detail-conversation-resume"
-                      type="button"
-                      class="btn btn-sm btn-outline"
-                      phx-click="resume_conversation"
-                      disabled={!conversation_paused?(@conversation_snapshot)}
-                    >
-                      Resume
-                    </button>
-                    <button
-                      id="project-detail-conversation-stop-turn"
-                      type="button"
-                      class="btn btn-sm btn-outline"
-                      phx-click="stop_conversation_turn"
-                      disabled={!conversation_active_turn?(@conversation_snapshot)}
-                    >
-                      Stop turn
-                    </button>
-                  </div>
-                </section>
-              </aside>
-            </div>
-          <% else %>
-            <div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 p-4 space-y-3">
-              <p class="text-sm text-base-content/70">
-                Open a repository conversation to coordinate repo-scoped work without leaving the managed-repository detail route.
-              </p>
-              <button
-                id="project-detail-conversation-open"
-                type="button"
-                class="btn btn-primary btn-sm"
-                phx-click="open_repo_conversation"
-              >
-                {@conversation_surface.action_label}
-              </button>
-            </div>
-          <% end %>
+                </aside>
+              </div>
+            <% else %>
+              <div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 p-4 space-y-3">
+                <p
+                  :if={Map.get(@conversation_surface, :conversation)}
+                  id="project-detail-conversation-selected-unavailable"
+                  class="text-sm text-base-content/70"
+                >
+                  The selected conversation is available in durable state, but its latest snapshot is temporarily unavailable.
+                </p>
+                <p
+                  :if={!Map.get(@conversation_surface, :conversation)}
+                  class="text-sm text-base-content/70"
+                >
+                  Open repo intake or resume one of the governed work-item conversations above to coordinate work without leaving the managed-repository detail route.
+                </p>
+                <button
+                  id="project-detail-conversation-empty-action"
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  phx-click="open_repo_conversation"
+                >
+                  {repo_intake_action_label(@conversation_surface)}
+                </button>
+              </div>
+            <% end %>
+          </div>
         </section>
 
         <section id="project-detail-semantic-inspection" class="space-y-4">
@@ -986,16 +1191,33 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       snapshot: nil,
       recent_events: [],
       notice: nil,
-      action_label: "Open repo conversation"
+      action_label: "Open repo intake",
+      repo_intake: nil,
+      active_work_items: [],
+      active_work_item_notice: nil,
+      selected_work_item_id: nil
     }
   end
 
-  defp assign_project_conversation(socket, project_detail) do
-    projection = ProjectConversation.load_repo_detail(project_detail, actor: initiating_actor(socket))
+  defp assign_project_conversation(socket, project_detail, opts) when is_list(opts) do
+    previous_conversation_id = conversation_id(socket)
+
+    selected_work_item_id =
+      opts
+      |> Keyword.get(:selected_work_item_id)
+      |> normalize_optional_string()
+
+    projection =
+      ProjectConversation.load_repo_detail(
+        project_detail,
+        actor: initiating_actor(socket),
+        selected_work_item_id: selected_work_item_id
+      )
 
     socket
+    |> assign(:selected_work_item_id, selected_work_item_id)
     |> assign_conversation_surface(projection)
-    |> maybe_subscribe_conversation()
+    |> maybe_sync_conversation_subscription(previous_conversation_id)
   end
 
   defp clear_project_conversation(socket) do
@@ -1004,6 +1226,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_snapshot, nil)
     |> assign(:conversation_events, [])
     |> assign(:conversation_last_event_sequence, 0)
+    |> assign(:selected_work_item_id, nil)
     |> assign(:conversation_input, "")
     |> assign(:conversation_action_feedback, nil)
     |> assign(:conversation_action_feedback_kind, :info)
@@ -1020,47 +1243,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_surface, projection)
     |> assign(:conversation_snapshot, snapshot)
     |> assign(:conversation_events, recent_events)
-    |> assign(:conversation_last_event_sequence, snapshot && snapshot.last_event_sequence || 0)
+    |> assign(:conversation_last_event_sequence, (snapshot && snapshot.last_event_sequence) || 0)
     |> assign(:conversation_stream_mode, conversation_stream_mode(projection))
     |> assign(:conversation_stream_degraded_reason, conversation_stream_reason(projection))
     |> assign(:conversation_stream_discontinuity_count, 0)
   end
 
   defp assign_conversation_snapshot(socket, snapshot) do
-    recent_events = Enum.take(snapshot.events || [], -10)
-    work_item =
-      ProjectConversation.load_attached_work_item(
-        Map.get(snapshot, :work_item_id),
-        actor: initiating_actor(socket)
-      )
-
     socket
-    |> assign(:conversation_snapshot, snapshot)
-    |> assign(:conversation_events, recent_events)
-    |> assign(:conversation_last_event_sequence, snapshot.last_event_sequence || 0)
-    |> update(:conversation_surface, fn surface ->
-      surface
-      |> Map.put(:snapshot, snapshot)
-      |> Map.put(:work_item, work_item)
-      |> Map.put(:recent_events, recent_events)
-      |> update_conversation_summary(snapshot)
-    end)
-  end
-
-  defp update_conversation_summary(%{conversation: %{} = conversation} = surface, snapshot) do
-    Map.put(
-      surface,
-      :conversation,
-      conversation
-      |> Map.put(:status, snapshot.status)
-      |> Map.put(:scope, Map.get(snapshot, :scope))
-      |> Map.put(:attachment_mode, Map.get(snapshot, :attachment_mode))
-      |> Map.put(:work_item_id, snapshot.work_item_id)
-      |> Map.put(:work_resolution, Map.get(snapshot, :work_resolution))
+    |> assign_project_conversation(
+      socket.assigns.project_detail,
+      selected_work_item_id: Map.get(snapshot, :work_item_id) || socket.assigns.selected_work_item_id
     )
   end
-
-  defp update_conversation_summary(surface, _snapshot), do: surface
 
   defp maybe_subscribe_conversation(socket) do
     if connected?(socket) do
@@ -1086,6 +1281,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         _other ->
           socket
       end
+    else
+      socket
+    end
+  end
+
+  defp maybe_sync_conversation_subscription(socket, previous_conversation_id) do
+    next_conversation_id = conversation_id(socket)
+
+    socket =
+      if is_binary(previous_conversation_id) and previous_conversation_id != next_conversation_id do
+        _ = ConversationPubSub.unsubscribe_conversation(previous_conversation_id)
+        socket
+      else
+        socket
+      end
+
+    if is_binary(next_conversation_id) and next_conversation_id != previous_conversation_id do
+      maybe_subscribe_conversation(socket)
     else
       socket
     end
@@ -1241,11 +1454,147 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp conversation_work_resolution_detail(_surface), do: nil
 
+  defp repo_intake_summary(%{repo_intake: %{conversation: %{} = conversation}}), do: conversation
+  defp repo_intake_summary(_surface), do: nil
+
+  defp repo_intake_detail(%{repo_intake: %{conversation: %{} = conversation}}) do
+    work_resolution =
+      conversation
+      |> Map.get(:work_resolution, %{})
+      |> normalize_map()
+
+    normalize_optional_string(Map.get(work_resolution, "detail")) ||
+      normalize_optional_string(Map.get(conversation, :objective)) ||
+      "Repo intake is available for pre-work triage."
+  end
+
+  defp repo_intake_detail(_surface), do: "Repo intake is available for pre-work triage."
+
+  defp repo_intake_handoff(%{repo_intake: %{conversation: %{intake_handoff: %{} = intake_handoff}}}),
+    do: intake_handoff
+
+  defp repo_intake_handoff(_surface), do: nil
+
+  defp repo_intake_action_label(%{repo_intake: %{action_label: action_label}})
+       when is_binary(action_label),
+       do: action_label
+
+  defp repo_intake_action_label(_surface), do: "Open repo intake"
+
+  defp active_work_item_projections(%{active_work_items: active_work_items})
+       when is_list(active_work_items),
+       do: active_work_items
+
+  defp active_work_item_projections(_surface), do: []
+
+  defp conversation_projection_work_item_id(%{work_item: %{} = work_item}) do
+    work_item
+    |> Map.get(:id)
+    |> normalize_optional_string()
+  end
+
+  defp conversation_projection_work_item_id(_projection), do: "unknown-work-item"
+
+  defp conversation_projection_work_item_summary(%{work_item: %{} = work_item}) do
+    normalize_optional_string(Map.get(work_item, :summary)) || "Governed work item"
+  end
+
+  defp conversation_projection_work_item_summary(_projection), do: "Governed work item"
+
+  defp conversation_projection_status(%{conversation: %{} = conversation}) do
+    conversation
+    |> Map.get(:status)
+    |> conversation_status_label()
+  end
+
+  defp conversation_projection_status(_projection), do: "unknown"
+
+  defp conversation_projection_dom_id(projection) do
+    conversation_projection_work_item_id(projection)
+    |> String.replace(~r/[^a-zA-Z0-9_-]/, "-")
+  end
+
+  defp active_conversation_detail(%{conversation: %{} = conversation}) do
+    work_resolution =
+      conversation
+      |> Map.get(:work_resolution, %{})
+      |> normalize_map()
+
+    normalize_optional_string(Map.get(work_resolution, "detail")) ||
+      normalize_optional_string(Map.get(conversation, :objective)) ||
+      "Governed conversation is available from repo detail."
+  end
+
+  defp active_conversation_detail(_projection), do: "Governed conversation is available from repo detail."
+
+  defp conversation_last_activity_label(%{} = conversation_or_summary) do
+    last_activity_at =
+      conversation_or_summary
+      |> Map.get(:last_activity_at)
+      |> normalize_optional_datetime()
+
+    case last_activity_at do
+      %DateTime{} = datetime -> "Last activity: #{format_time(datetime)}"
+      _other -> "Last activity unavailable."
+    end
+  end
+
+  defp conversation_last_activity_label(_conversation_or_summary), do: "Last activity unavailable."
+
+  defp active_conversation_card_class(projection, surface) do
+    selected_work_item_id =
+      surface
+      |> Map.get(:selected_work_item_id)
+      |> normalize_optional_string()
+
+    work_item_id = conversation_projection_work_item_id(projection)
+
+    if is_binary(selected_work_item_id) and selected_work_item_id == work_item_id do
+      "rounded-lg border border-primary/60 bg-primary/5 p-3 space-y-2"
+    else
+      "rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+    end
+  end
+
+  defp selected_conversation_heading(%{work_item: %{} = _work_item}),
+    do: "Selected governed conversation"
+
+  defp selected_conversation_heading(_surface), do: "Selected repo intake"
+
   defp conversation_workbench_path(%{id: project_id}) when is_binary(project_id) do
     "/workbench?" <> URI.encode_query(%{"project_id" => project_id})
   end
 
   defp conversation_workbench_path(_project_detail), do: nil
+
+  defp conversation_repo_detail_path(%{id: project_id}, return_to_path, selected_work_item_id)
+       when is_binary(project_id) do
+    query =
+      %{}
+      |> maybe_put_return_to(return_to_path)
+      |> maybe_put_work_item_id(selected_work_item_id)
+
+    if map_size(query) == 0 do
+      "/repos/#{project_id}"
+    else
+      "/repos/#{project_id}?" <> URI.encode_query(query)
+    end
+  end
+
+  defp conversation_repo_detail_path(_project_detail, _return_to_path, _selected_work_item_id),
+    do: "/workbench"
+
+  defp maybe_put_return_to(query, return_to_path) when is_binary(return_to_path) do
+    Map.put(query, "return_to", return_to_path)
+  end
+
+  defp maybe_put_return_to(query, _return_to_path), do: query
+
+  defp maybe_put_work_item_id(query, work_item_id) when is_binary(work_item_id) do
+    Map.put(query, "work_item_id", work_item_id)
+  end
+
+  defp maybe_put_work_item_id(query, _work_item_id), do: query
 
   defp conversation_awaiting_input?(%{active_turn: %{state: :awaiting_input}}), do: true
 
@@ -1769,4 +2118,41 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(value) when is_float(value), do: :erlang.float_to_binary(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp normalize_optional_datetime(%DateTime{} = value), do: value
+
+  defp normalize_optional_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      _other -> nil
+    end
+  end
+
+  defp normalize_optional_datetime(_value), do: nil
+
+  defp normalize_map(value) when is_map(value) and not is_struct(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      normalized_value =
+        cond do
+          is_map(nested_value) and not is_struct(nested_value) -> normalize_map(nested_value)
+          is_atom(nested_value) -> Atom.to_string(nested_value)
+          true -> nested_value
+        end
+
+      Map.put(acc, normalized_key, normalized_value)
+    end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
+  defp conversation_status_label(status) when is_binary(status), do: status
+  defp conversation_status_label(status) when is_atom(status), do: Atom.to_string(status)
+  defp conversation_status_label(_status), do: "unknown"
 end

@@ -250,7 +250,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert %{fix: 0, triage: 0} = Agent.get(launcher_invocations, & &1)
   end
 
-  test "renders project overview with a repo conversation entrypoint", %{conn: _conn} do
+  test "renders project overview with repo intake and governed conversation entrypoints", %{
+    conn: _conn
+  } do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -283,7 +285,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert length(vue.props["workflowCards"]) == 2
 
     assert has_element?(view, "#project-detail-conversation-panel")
-    assert has_element?(view, "#project-detail-conversation-open", "Open repo conversation")
+    assert has_element?(view, "#project-detail-conversation-intake")
+    assert has_element?(view, "#project-detail-conversation-open", "Open repo intake")
+    assert has_element?(view, "#project-detail-active-conversations-empty")
     refute render(view) =~ "Start conversation"
   end
 
@@ -333,6 +337,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-conversation-id")
     assert has_element?(view, "#project-detail-conversation-status", "active")
+    assert has_element?(view, "#project-detail-conversation-intake-status", "active")
 
     conversation_id = latest_repo_conversation_id!(managed_repo_id)
 
@@ -374,6 +379,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         has_element?(view, "#project-detail-conversation-work-resolution", "created") and
         has_element?(view, "#project-detail-conversation-governed-work") and
         has_element?(view, "#project-detail-conversation-governed-work-status", "open") and
+        has_element?(view, "#project-detail-active-conversation-list") and
         has_element?(view, "#project-detail-conversation-open-workbench", "Open in Workbench") and
         not has_element?(view, "#project-detail-conversation-pending-clarification")
     end)

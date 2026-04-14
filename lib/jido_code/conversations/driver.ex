@@ -22,6 +22,21 @@ defmodule JidoCode.Conversations.Driver do
     end
   end
 
+  @spec start_or_resume_work_item_conversation(String.t(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def start_or_resume_work_item_conversation(work_item_id, attrs \\ %{}, opts \\ [])
+      when is_binary(work_item_id) and is_map(attrs) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    with {:ok, %{conversation: %Conversation{} = conversation} = result} <-
+           Conversations.open_or_resume_for_work_item(work_item_id, actor: actor, attrs: attrs),
+         {:ok, _pid} <- ensure_coordinator(conversation),
+         {:ok, snapshot} <- Coordinator.snapshot(conversation.id) do
+      _ = Persistence.persist_snapshot(snapshot)
+      {:ok, Map.put(result, :snapshot, snapshot)}
+    end
+  end
+
   @spec handle_command(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def handle_command(conversation_id, command, opts \\ [])
       when is_binary(conversation_id) and is_map(command) and is_list(opts) do
@@ -124,8 +139,7 @@ defmodule JidoCode.Conversations.Driver do
 
         case DynamicSupervisor.start_child(
                @supervisor,
-               {Coordinator,
-                {conversation, starter_pid: self(), sandbox_owner: sandbox_owner}}
+               {Coordinator, {conversation, starter_pid: self(), sandbox_owner: sandbox_owner}}
              ) do
           {:ok, pid} -> {:ok, pid}
           {:error, {:already_started, pid}} -> {:ok, pid}

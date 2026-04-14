@@ -7,6 +7,7 @@ defmodule JidoCode.ConversationsTest do
 
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Conversations
+  alias JidoCode.Conversations.Conversation
   alias JidoCode.Operations.{Ingress, WorkItem}
   alias JidoCode.Projects.Project
 
@@ -103,6 +104,59 @@ defmodule JidoCode.ConversationsTest do
     assert DateTime.compare(resumed.last_activity_at, conversation.last_activity_at) in [:gt, :eq]
   end
 
+  test "open_or_resume_for_work_item reuses the active productive conversation for the same work item" do
+    managed_repo = managed_repo_fixture!("conversation-open-or-resume")
+    work_item = work_item_fixture!(managed_repo, "operator-open-or-resume")
+
+    assert {:ok, %{conversation: first_conversation, work_item: first_work_item, resumed?: false}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-open-or-resume-first"}),
+               attrs: %{
+                 source: "work_item_detail",
+                 objective: "Continue the governed work item from the work-item surface."
+               }
+             )
+
+    assert first_conversation.work_item_id == work_item.id
+    assert first_conversation.scope == :work_item_scoped
+    assert first_conversation.attachment_mode == :existing_work_item
+    assert first_work_item.id == work_item.id
+
+    assert {:ok, %Conversation{} = active_conversation} =
+             Conversations.active_for_work_item(work_item.id, actor: Actor.operator_actor())
+
+    assert active_conversation.id == first_conversation.id
+
+    assert {:ok, %{conversation: resumed_conversation, work_item: resumed_work_item, resumed?: true}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-open-or-resume-second"})
+             )
+
+    assert resumed_conversation.id == first_conversation.id
+    assert resumed_work_item.id == work_item.id
+
+    assert {:ok, completed_conversation} =
+             Conversation.update(
+               resumed_conversation,
+               %{status: :completed},
+               actor: Actor.operator_actor()
+             )
+
+    assert completed_conversation.status == :completed
+    assert {:ok, nil} = Conversations.active_for_work_item(work_item.id, actor: Actor.operator_actor())
+
+    assert {:ok, %{conversation: reopened_conversation, resumed?: false}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-open-or-resume-third"})
+             )
+
+    refute reopened_conversation.id == first_conversation.id
+    assert reopened_conversation.work_item_id == work_item.id
+  end
+
   test "latest_for_managed_repo returns the most recently active conversation" do
     managed_repo = managed_repo_fixture!("conversation-latest")
 
@@ -132,6 +186,53 @@ defmodule JidoCode.ConversationsTest do
              Conversations.latest_for_managed_repo(managed_repo.id, actor: Actor.operator_actor())
 
     assert latest_after_resume.id == refreshed_first_conversation.id
+  end
+
+  test "active_work_item_conversations_for_managed_repo lists active productive conversations without repo intake threads" do
+    managed_repo = managed_repo_fixture!("conversation-active-list")
+    work_item_one = work_item_fixture!(managed_repo, "operator-active-list-one")
+    work_item_two = work_item_fixture!(managed_repo, "operator-active-list-two")
+    other_repo = managed_repo_fixture!("conversation-active-list-other")
+    other_work_item = work_item_fixture!(other_repo, "operator-active-list-three")
+
+    assert {:ok, %{conversation: first_conversation}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item_one.id,
+               actor: Actor.operator_actor(%{"id" => "operator-active-list-open-one"})
+             )
+
+    assert {:ok, %{conversation: second_conversation}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item_two.id,
+               actor: Actor.operator_actor(%{"id" => "operator-active-list-open-two"})
+             )
+
+    assert {:ok, %{conversation: other_conversation}} =
+             Conversations.open_or_resume_for_work_item(
+               other_work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-active-list-open-three"})
+             )
+
+    assert {:ok, %{conversation: repo_scoped_conversation}} =
+             Conversations.start(%{
+               managed_repo_id: managed_repo.id,
+               source: "conversation",
+               objective: "Keep the repo intake path separate from productive work."
+             })
+
+    assert {:ok, conversations} =
+             Conversations.active_work_item_conversations_for_managed_repo(
+               managed_repo.id,
+               actor: Actor.operator_actor()
+             )
+
+    conversation_ids = Enum.map(conversations, & &1.id)
+
+    assert first_conversation.id in conversation_ids
+    assert second_conversation.id in conversation_ids
+    refute other_conversation.id in conversation_ids
+    refute repo_scoped_conversation.id in conversation_ids
+    assert Enum.all?(conversations, &(&1.scope == :work_item_scoped))
   end
 
   test "steer_work can keep a conversation repo-scoped while recording bounded steering context" do
@@ -328,8 +429,8 @@ defmodule JidoCode.ConversationsTest do
         intent: "fix_workflow_kickoff",
         actor: %{id: actor_id, email: "#{actor_id}@example.com"},
         payload: %{
-          "workflow_name" => "fix_failing_tests",
-          "context_item" => %{"type" => "issue"}
+          "workflow_name" => "fix_failing_tests_#{actor_id}",
+          "context_item" => %{"type" => "issue", "id" => actor_id}
         },
         source_metadata: %{
           "trigger" => %{"source" => "workbench", "mode" => "manual"}

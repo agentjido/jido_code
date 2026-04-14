@@ -273,6 +273,42 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Returns the active work-item-scoped conversation for the work item, if any.
+  """
+  @spec active_work_item_conversation(work_item_id(), keyword()) ::
+          {:ok, Conversations.Conversation.t() | nil} | {:error, term()}
+  def active_work_item_conversation(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    Conversations.active_for_work_item(work_item_id, actor: conversation_actor(opts))
+  end
+
+  @doc """
+  Lists the active productive conversations for a managed repository by work item.
+  """
+  @spec active_work_item_conversations(managed_repo_id(), keyword()) ::
+          {:ok, [Conversations.Conversation.t()]} | {:error, term()}
+  def active_work_item_conversations(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    Conversations.active_work_item_conversations_for_managed_repo(
+      managed_repo_id,
+      actor: conversation_actor(opts)
+    )
+  end
+
+  @doc """
+  Opens or resumes the active productive conversation for a work item and returns its current snapshot.
+  """
+  @spec open_work_item_conversation(work_item_id(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def open_work_item_conversation(work_item_id, attrs \\ %{}, opts \\ [])
+      when is_binary(work_item_id) and is_map(attrs) and is_list(opts) do
+    ConversationDriver.start_or_resume_work_item_conversation(
+      work_item_id,
+      attrs,
+      actor: conversation_actor(opts)
+    )
+  end
+
+  @doc """
   Returns the current snapshot for a conversation.
   """
   @spec conversation_snapshot(String.t()) :: {:ok, map()} | {:error, term()}

@@ -4,6 +4,8 @@ defmodule JidoCode.Conversations do
   # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
 
+  require Ash.Query
+
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations.{Conversation, EventRecord, SnapshotRecord}
   alias JidoCode.Operations.{Ingress, WorkItem}
@@ -18,6 +20,8 @@ defmodule JidoCode.Conversations do
     resource SnapshotRecord
   end
 
+  @active_statuses [:active, :paused]
+
   @type start_result :: %{
           conversation: Conversation.t(),
           work_item: WorkItem.t() | nil,
@@ -28,6 +32,12 @@ defmodule JidoCode.Conversations do
           conversation: Conversation.t(),
           work_item: WorkItem.t() | nil,
           work_action: :created | :reprioritized | :suppressed_duplicate | :steered | :unscoped | nil
+        }
+
+  @type work_item_conversation_result :: %{
+          conversation: Conversation.t(),
+          work_item: WorkItem.t(),
+          resumed?: boolean()
         }
 
   @spec start(map()) :: {:ok, start_result()} | {:error, term()}
@@ -95,6 +105,69 @@ defmodule JidoCode.Conversations do
       {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
       {:ok, []} -> {:ok, nil}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec active_for_work_item(String.t(), keyword()) ::
+          {:ok, Conversation.t() | nil} | {:error, term()}
+  def active_for_work_item(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    active_statuses = @active_statuses
+
+    query =
+      Conversation
+      |> Ash.Query.filter(work_item_id == ^work_item_id and status in ^active_statuses)
+      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
+      |> Ash.Query.limit(1)
+
+    case Ash.read(query, domain: __MODULE__, actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec active_work_item_conversations_for_managed_repo(String.t(), keyword()) ::
+          {:ok, [Conversation.t()]} | {:error, term()}
+  def active_work_item_conversations_for_managed_repo(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    active_statuses = @active_statuses
+
+    query =
+      Conversation
+      |> Ash.Query.filter(
+        managed_repo_id == ^managed_repo_id and
+          scope == :work_item_scoped and
+          status in ^active_statuses
+      )
+      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
+
+    Ash.read(query, domain: __MODULE__, actor: actor)
+  end
+
+  @spec open_or_resume_for_work_item(String.t(), keyword()) ::
+          {:ok, work_item_conversation_result()} | {:error, term()}
+  def open_or_resume_for_work_item(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    attrs = normalize_map(Keyword.get(opts, :attrs))
+
+    with {:ok, %WorkItem{} = work_item} <- fetch_work_item(work_item_id, actor),
+         :ok <- validate_work_item_open(work_item) do
+      case active_for_work_item(work_item_id, actor: actor) do
+        {:ok, %Conversation{} = conversation} ->
+          with {:ok, resumed} <- resume(conversation.id, actor: actor) do
+            {:ok, %{conversation: resumed, work_item: work_item, resumed?: true}}
+          end
+
+        {:ok, nil} ->
+          start_or_recover_work_item_conversation(work_item, attrs, actor)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -587,6 +660,56 @@ defmodule JidoCode.Conversations do
 
   defp validate_work_item_open(%WorkItem{status: :open}), do: :ok
   defp validate_work_item_open(%WorkItem{}), do: {:error, :work_item_not_open}
+
+  defp start_or_recover_work_item_conversation(%WorkItem{} = work_item, attrs, actor) do
+    start_attrs =
+      attrs
+      |> Map.put("managed_repo_id", work_item.managed_repo_id)
+      |> Map.put("work_item_id", work_item.id)
+      |> Map.put("actor", actor)
+      |> Map.put_new("attach_mode", "existing_work_item")
+      |> Map.put_new("source", "work_item_conversation")
+      |> Map.put_new("objective", work_item.summary)
+      |> Map.put("source_metadata", work_item_source_metadata(attrs, work_item))
+
+    case start(start_attrs) do
+      {:ok, %{conversation: %Conversation{} = conversation, work_item: %WorkItem{} = attached_work_item}} ->
+        {:ok, %{conversation: conversation, work_item: attached_work_item, resumed?: false}}
+
+      {:error, reason} ->
+        recover_active_work_item_conversation(reason, work_item, actor)
+    end
+  end
+
+  defp recover_active_work_item_conversation(reason, %WorkItem{} = work_item, actor) do
+    case active_for_work_item(work_item.id, actor: actor) do
+      {:ok, %Conversation{} = conversation} ->
+        with {:ok, resumed} <- resume(conversation.id, actor: actor) do
+          {:ok, %{conversation: resumed, work_item: work_item, resumed?: true}}
+        end
+
+      _other ->
+        {:error, reason}
+    end
+  end
+
+  defp work_item_source_metadata(attrs, %WorkItem{} = work_item) do
+    source_metadata =
+      case attrs do
+        %{} ->
+          Map.get(attrs, :source_metadata) || Map.get(attrs, "source_metadata") || %{}
+
+        _other ->
+          %{}
+      end
+
+    source_metadata
+    |> normalize_map()
+    |> Map.put_new("entry_surface", "work_item")
+    |> Map.put_new("channel", "work_item_detail")
+    |> Map.put_new("work_item_conversation", true)
+    |> Map.put_new("work_item_id", work_item.id)
+  end
 
   defp conversation_attrs(context) do
     %{

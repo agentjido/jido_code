@@ -131,11 +131,18 @@ invent separate chat-only lineage models per page.
 
 The current projection model is:
 
-- repo detail hosts bounded repo intake and oversight of the latest productive
-  conversation state, but opening a repo conversation after handoff starts a
-  fresh intake path instead of reusing the work-item thread
-- Workbench and governed run detail should follow canonical work-item
-  conversation linkage instead of assuming one repo-global productive thread
+- repo detail hosts bounded repo intake and an explicit roster of active
+  work-item conversations, with one selected conversation transcript or
+  execution pane at a time
+- opening repo intake after governed handoff starts or resumes bounded intake
+  instead of silently reusing the productive work-item thread
+- Workbench projects repo intake plus active work-item conversation counts and
+  bounded work-item summaries instead of one repo-global conversation badge
+- dashboard highlights managed repositories with active work-item
+  conversations and routes operators back into canonical repo-detail
+  supervision paths
+- governed run detail should follow canonical work-item conversation linkage
+  instead of assuming one repo-global productive thread
 - governed run detail resolves conversation lineage back from canonical
   `WorkItem` scope, showing either the latest linked conversation or preserved
   conversation-origin metadata from work synthesis

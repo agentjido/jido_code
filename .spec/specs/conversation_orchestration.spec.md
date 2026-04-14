@@ -22,6 +22,7 @@ surface:
   - .spec/decisions/jido_code.interruptible_conversation_orchestration.md
   - lib/jido_code/conversations/event.ex
   - lib/jido_code/conversations/event_record.ex
+  - lib/jido_code/conversations/dashboard_summary_feed.ex
   - lib/jido_code/conversations/persistence.ex
   - lib/jido_code/conversations/pub_sub.ex
   - lib/jido_code/conversations/snapshot.ex
@@ -43,6 +44,7 @@ surface:
   - lib/jido_code/workbench/inventory.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
+  - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/setup/provider_credential_checks.ex
   - .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
@@ -53,10 +55,12 @@ surface:
   - test/jido_code/phase_forty_six_integration_test.exs
   - test/jido_code/phase_forty_seven_integration_test.exs
   - test/jido_code/phase_forty_eight_integration_test.exs
+  - test/jido_code/phase_fifty_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
+  - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
 ```
 
@@ -149,7 +153,7 @@ surface:
   stability: proposed
 
 - id: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
-  statement: Workbench and governed run detail should project bounded repo-intake and work-item conversation linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.
+  statement: Workbench, dashboard summaries, and governed run detail should project bounded repo-intake and work-item conversation linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.
   priority: should
   stability: proposed
 
@@ -336,7 +340,7 @@ surface:
     - The product shows the attached `WorkItem` linkage and current governed work status without requiring the operator to infer it from raw conversation text.
     - The operator can follow or resume each governed work loop from that surfaced linkage rather than reopening a separate ad hoc path.
 
-- id: architecture.conversation_orchestration.scenario_workbench_and_run_detail_project_conversation_linkage
+- id: architecture.conversation_orchestration.scenario_workbench_dashboard_and_run_detail_project_conversation_linkage
   covers:
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
@@ -344,9 +348,10 @@ surface:
     - A productive repository conversation is attached to canonical governed `WorkItem` scope.
     - Governed execution has begun or completed against that work item.
   when:
-    - An operator opens Workbench or governed run detail.
+    - An operator opens Workbench, dashboard, or governed run detail.
   then:
     - Workbench shows bounded intake and work-item conversation status plus the attached governed work summary on the managed-repository row.
+    - Dashboard highlights managed repositories that have active work-item conversations and routes operators back into canonical repo-detail supervision paths.
     - Governed run detail shows the bounded relationship between run execution, canonical `WorkItem` scope, and any preserved productive conversation origin or latest linked conversation.
     - Both surfaces route operators back to the managed-repository conversation host surface instead of inventing page-local or run-local chat state.
 

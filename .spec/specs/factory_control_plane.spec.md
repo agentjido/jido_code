@@ -38,6 +38,7 @@ surface:
   - lib/jido_code/workbench/inventory.ex
   - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code/workbench/project_detail.ex
+  - lib/jido_code/conversations/dashboard_summary_feed.ex
   - lib/jido_code/workbench/run_outcomes.ex
   - lib/jido_code/governance.ex
   - lib/jido_code/governance/change_request.ex
@@ -83,6 +84,7 @@ surface:
   - test/jido_code/governance/posture_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_feed_test.exs
   - test/jido_code/phase_forty_eight_integration_test.exs
+  - test/jido_code/phase_fifty_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
@@ -206,6 +208,7 @@ surface:
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
     - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
     - Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.
+    - Dashboard and Workbench conversation summaries route operators back into canonical managed-repository detail or selected work-item continuation paths rather than inventing a second browser truth lane.
 
 ```
 

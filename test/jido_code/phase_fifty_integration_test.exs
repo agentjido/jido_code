@@ -1,94 +1,73 @@
-defmodule JidoCode.PhaseFortyNineIntegrationTest do
-  # covers: architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
-  # covers: architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
-  # covers: architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
-  # covers: architecture.work_synthesis.active_conversation_identity_rejoins_work_item
+defmodule JidoCode.PhaseFiftyIntegrationTest do
+  # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
   # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   # covers: architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Conversations.DashboardSummaryFeed, as: ConversationDashboardSummaryFeed
   alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
-  alias JidoCode.Workbench.{ProjectConversation, ProjectDetail}
+  alias JidoCode.Workbench.{Inventory, ProjectConversation, ProjectDetail}
 
-  test "repo intake hands off to work-item-scoped productive identity and distinct work items keep separate active conversations" do
-    {project, managed_repo} = managed_repo_fixture!("work-item-identity")
+  test "repo detail, workbench, and dashboard distinguish repo intake from active work-item conversations" do
+    {project, managed_repo} = managed_repo_fixture!("multi-surface-adoption")
     tracked_conversations = tracked_conversations!(managed_repo.id)
 
     assert {:ok, project_detail} = ProjectDetail.load(project.id)
 
-    assert {:ok, %{conversation: intake_conversation, snapshot: intake_snapshot, resumed?: false}} =
+    assert {:ok, %{conversation: first_conversation, snapshot: first_snapshot, resumed?: false}} =
              ProjectConversation.open_repo_detail(
                project_detail,
-               actor: Actor.operator_actor(%{"id" => "operator-phase49-intake"})
+               actor: Actor.operator_actor(%{"id" => "operator-phase50-intake"})
              )
 
-    track_conversation!(tracked_conversations, intake_conversation.id)
-
-    assert intake_snapshot.scope == :repo_scoped
-    assert intake_snapshot.work_item_id == nil
+    track_conversation!(tracked_conversations, first_conversation.id)
+    assert first_snapshot.scope == :repo_scoped
 
     assert {:ok, _running_snapshot} =
              AgentWorkspace.handle_conversation_command(
-               intake_conversation.id,
+               first_conversation.id,
                %{
                  type: "turn.submit",
                  payload: %{instruction: "Inspect the repo detail conversation flow."}
                },
-               actor: Actor.operator_actor(%{"id" => "operator-phase49-turn"})
+               actor: Actor.operator_actor(%{"id" => "operator-phase50-turn"})
              )
 
     attached_snapshot =
-      eventually_snapshot!(intake_conversation.id, fn snapshot ->
+      eventually_snapshot!(first_conversation.id, fn snapshot ->
         is_binary(snapshot.work_item_id) and
           snapshot.scope == :work_item_scoped and
           snapshot.active_turn == nil and snapshot.active_child_work == nil
       end)
 
     first_work_item_id = attached_snapshot.work_item_id
-    assert attached_snapshot.shared_context["intake_handoff"]["handoff_kind"] == "repo_intake_to_work_item"
-    assert attached_snapshot.shared_context["intake_handoff"]["work_item_id"] == first_work_item_id
 
-    repo_projection =
-      ProjectConversation.load_repo_detail(project_detail, actor: Actor.operator_actor())
-
-    assert repo_projection.conversation.id == intake_conversation.id
-    assert repo_projection.conversation.intake_handoff["work_item_id"] == first_work_item_id
-    assert repo_projection.action_label == "Resume governed conversation"
-
-    assert {:ok, %{conversation: fresh_intake_conversation, snapshot: fresh_intake_snapshot, resumed?: false}} =
+    assert {:ok, %{conversation: repo_intake, snapshot: repo_intake_snapshot, resumed?: false}} =
              ProjectConversation.open_repo_detail(
                project_detail,
-               actor: Actor.operator_actor(%{"id" => "operator-phase49-fresh-intake"})
+               actor: Actor.operator_actor(%{"id" => "operator-phase50-fresh-intake"})
              )
 
-    track_conversation!(tracked_conversations, fresh_intake_conversation.id)
+    track_conversation!(tracked_conversations, repo_intake.id)
 
-    refute fresh_intake_conversation.id == intake_conversation.id
-    assert fresh_intake_snapshot.scope == :repo_scoped
-    assert fresh_intake_snapshot.work_item_id == nil
+    assert repo_intake_snapshot.scope == :repo_scoped
+    assert repo_intake_snapshot.work_item_id == nil
 
-    assert {:ok, %{conversation: resumed_first_conversation, resumed?: true}} =
-             AgentWorkspace.open_work_item_conversation(
-               first_work_item_id,
-               %{},
-               actor: Actor.operator_actor(%{"id" => "operator-phase49-resume-first"})
-             )
-
-    assert resumed_first_conversation.id == intake_conversation.id
-
-    second_work_item = work_item_fixture!(managed_repo, "phase49-second")
+    second_work_item = work_item_fixture!(managed_repo, "phase50-second")
 
     assert {:ok, %{conversation: second_conversation, snapshot: second_snapshot, resumed?: false}} =
              AgentWorkspace.open_work_item_conversation(
                second_work_item.id,
                %{
-                 source: "phase_forty_nine_integration_test",
-                 objective: "Continue the second governed work item through the canonical work-item boundary."
+                 source: "phase_fifty_integration_test",
+                 objective: "Continue the second governed work item through repo-detail supervision."
                },
-               actor: Actor.operator_actor(%{"id" => "operator-phase49-second-open"})
+               actor: Actor.operator_actor(%{"id" => "operator-phase50-second-open"})
              )
 
     track_conversation!(tracked_conversations, second_conversation.id)
@@ -96,28 +75,54 @@ defmodule JidoCode.PhaseFortyNineIntegrationTest do
     assert second_snapshot.scope == :work_item_scoped
     assert second_snapshot.work_item_id == second_work_item.id
 
-    assert {:ok, active_conversations} =
-             AgentWorkspace.active_work_item_conversations(managed_repo.id,
-               actor: Actor.operator_actor()
-             )
+    repo_detail_projection =
+      ProjectConversation.load_repo_detail(project_detail, actor: Actor.operator_actor())
 
-    active_by_work_item =
-      Map.new(active_conversations, fn conversation ->
-        {conversation.work_item_id, conversation.id}
+    assert repo_detail_projection.repo_intake.conversation.id == repo_intake.id
+    assert repo_detail_projection.conversation.id == repo_intake.id
+    assert repo_detail_projection.action_label == "Continue repo intake"
+
+    active_work_item_ids =
+      repo_detail_projection.active_work_items
+      |> Enum.map(& &1.work_item.id)
+      |> Enum.sort()
+
+    assert active_work_item_ids == Enum.sort([first_work_item_id, second_work_item.id])
+
+    selected_work_item_projection =
+      ProjectConversation.load_repo_detail(
+        project_detail,
+        actor: Actor.operator_actor(),
+        selected_work_item_id: second_work_item.id
+      )
+
+    assert selected_work_item_projection.conversation.id == second_conversation.id
+    assert selected_work_item_projection.work_item.id == second_work_item.id
+    assert selected_work_item_projection.action_label == "Resume governed conversation"
+
+    assert {:ok, rows, _warning} = Inventory.load()
+    row = Enum.find(rows, &(&1.managed_repo_id == managed_repo.id))
+    refute is_nil(row)
+
+    assert row.repo_conversation.repo_intake.conversation.id == repo_intake.id
+    assert length(row.repo_conversation.active_work_items) == 2
+    assert row.repo_conversation.active_work_item_notice == nil
+
+    assert {:ok, summaries, _warning} = ConversationDashboardSummaryFeed.load()
+
+    summary =
+      Enum.find(summaries, fn dashboard_summary ->
+        dashboard_summary.managed_repo_id == managed_repo.id
       end)
 
-    assert active_by_work_item[first_work_item_id] == intake_conversation.id
-    assert active_by_work_item[second_work_item.id] == second_conversation.id
-    assert map_size(active_by_work_item) == 2
-
-    assert {:ok, %{conversation: resumed_second_conversation, resumed?: true}} =
-             AgentWorkspace.open_work_item_conversation(
-               second_work_item.id,
-               %{},
-               actor: Actor.operator_actor(%{"id" => "operator-phase49-second-resume"})
-             )
-
-    assert resumed_second_conversation.id == second_conversation.id
+    refute is_nil(summary)
+    assert summary.repo_intake_active? == true
+    assert summary.active_work_item_count == 2
+    assert summary.multiple_active? == true
+    assert summary.route == "/repos/#{managed_repo.id}#project-detail-conversation-panel"
+    assert summary.primary_route =~ "/repos/#{managed_repo.id}?work_item_id="
+    assert Enum.any?(summary.work_items, &(&1.id == first_work_item_id))
+    assert Enum.any?(summary.work_items, &(&1.id == second_work_item.id))
   end
 
   defp tracked_conversations!(managed_repo_id) do
@@ -151,8 +156,8 @@ defmodule JidoCode.PhaseFortyNineIntegrationTest do
   defp managed_repo_fixture!(suffix) do
     {:ok, project} =
       Project.create(%{
-        name: "phase-forty-nine-#{suffix}",
-        github_full_name: "owner/phase-forty-nine-#{suffix}",
+        name: "phase-fifty-#{suffix}",
+        github_full_name: "owner/phase-fifty-#{suffix}",
         default_branch: "main",
         settings: %{
           "workspace" => %{
@@ -194,7 +199,7 @@ defmodule JidoCode.PhaseFortyNineIntegrationTest do
     workspace_path =
       Path.join(
         System.tmp_dir!(),
-        "jido-code-phase-forty-nine-#{suffix}-#{System.unique_integer([:positive])}"
+        "jido-code-phase-fifty-#{suffix}-#{System.unique_integer([:positive])}"
       )
 
     File.mkdir_p!(workspace_path)
@@ -211,12 +216,14 @@ defmodule JidoCode.PhaseFortyNineIntegrationTest do
     if predicate.(snapshot) do
       snapshot
     else
-      Process.sleep(100)
-      eventually_snapshot!(conversation_id, predicate, attempts - 1)
+      receive do
+      after
+        25 -> eventually_snapshot!(conversation_id, predicate, attempts - 1)
+      end
     end
   end
 
-  defp eventually_snapshot!(conversation_id, predicate, 1) do
+  defp eventually_snapshot!(conversation_id, predicate, _attempts) do
     assert {:ok, snapshot} = AgentWorkspace.conversation_snapshot(conversation_id)
     assert predicate.(snapshot)
     snapshot

@@ -30,56 +30,56 @@ Back to index: [README](./README.md)
 - Workbench and dashboard are operator-facing control-plane surfaces, so they should project repo intake and active work-item conversation state through canonical records rather than through page-local chat assumptions.
 - The product remains greenfield: this adoption should replace repo-global productive conversation language rather than preserve a compatibility-era "latest repo conversation" mental model.
 
-[ ] 50 Phase 50 - Managed Repo, Workbench, And Dashboard Multi-Conversation Adoption
+[x] 50 Phase 50 - Managed Repo, Workbench, And Dashboard Multi-Conversation Adoption
   Adopt the corrected repo-intake plus work-item conversation roster model across the main managed-repository operator surfaces so operators can supervise parallel governed conversation work without reconstructing it from transcript history.
 
-  [ ] 50.1 Section - Managed Repo Detail Multi-Conversation Projection
+  [x] 50.1 Section - Managed Repo Detail Multi-Conversation Projection
     Replace the single-current-conversation repo-detail model with a product-owned surface that distinguishes intake from active work-item conversation supervision.
 
-    [ ] 50.1.1 Task - Project repo intake and active work-item conversations separately on repo detail
+    [x] 50.1.1 Task - Project repo intake and active work-item conversations separately on repo detail
       Make the managed-repository route show bounded intake state and an explicit roster of active work-item conversations instead of collapsing productive work into one current repo conversation card.
 
-      [ ] 50.1.1.1 Subtask - Add a repo-detail projection that distinguishes repo-scoped intake from active work-item-scoped productive conversations.
-      [ ] 50.1.1.2 Subtask - Show active work-item identity, status, latest activity, and bounded continuation context for each projected conversation.
-      [ ] 50.1.1.3 Subtask - Keep empty, degraded, and snapshot-unavailable states explicit rather than silently hiding missing conversation projections.
+      [x] 50.1.1.1 Subtask - Add a repo-detail projection that distinguishes repo-scoped intake from active work-item-scoped productive conversations.
+      [x] 50.1.1.2 Subtask - Show active work-item identity, status, latest activity, and bounded continuation context for each projected conversation.
+      [x] 50.1.1.3 Subtask - Keep empty, degraded, and snapshot-unavailable states explicit rather than silently hiding missing conversation projections.
 
-    [ ] 50.1.2 Task - Add product-owned repo-detail actions for opening and resuming specific conversations
+    [x] 50.1.2 Task - Add product-owned repo-detail actions for opening and resuming specific conversations
       Let operators start intake or continue a selected work-item conversation from the managed-repository route without inventing page-local routing semantics.
 
-      [ ] 50.1.2.1 Subtask - Add explicit actions to open bounded repo-scoped intake when no governed work item is selected yet.
-      [ ] 50.1.2.2 Subtask - Add explicit actions to resume the active productive conversation for a selected work item from the repo-detail route.
-      [ ] 50.1.2.3 Subtask - Preserve route and component behavior through product-owned helpers rather than direct conversation persistence inspection in LiveView code.
+      [x] 50.1.2.1 Subtask - Add explicit actions to open bounded repo-scoped intake when no governed work item is selected yet.
+      [x] 50.1.2.2 Subtask - Add explicit actions to resume the active productive conversation for a selected work item from the repo-detail route.
+      [x] 50.1.2.3 Subtask - Preserve route and component behavior through product-owned helpers rather than direct conversation persistence inspection in LiveView code.
 
-  [ ] 50.2 Section - Workbench And Dashboard Surface Adoption
+  [x] 50.2 Section - Workbench And Dashboard Surface Adoption
     Project the same canonical conversation model through Workbench and dashboard so parallel governed work becomes legible across the main control-plane supervision surfaces.
 
-    [ ] 50.2.1 Task - Project multi-conversation state onto Workbench rows
+    [x] 50.2.1 Task - Project multi-conversation state onto Workbench rows
       Show operators when one repository has multiple active governed conversation threads instead of flattening that state into one generic repo-conversation summary.
 
-      [ ] 50.2.1.1 Subtask - Extend Workbench conversation projection to surface repo intake plus active work-item conversation counts or summaries per managed-repository row.
-      [ ] 50.2.1.2 Subtask - Let Workbench route operators back to repo detail or a selected work-item conversation continuation path without inventing a second browser truth lane.
-      [ ] 50.2.1.3 Subtask - Keep explicit operator messaging when multiple active conversations exist so redundant work launches are easier to avoid.
+      [x] 50.2.1.1 Subtask - Extend Workbench conversation projection to surface repo intake plus active work-item conversation counts or summaries per managed-repository row.
+      [x] 50.2.1.2 Subtask - Let Workbench route operators back to repo detail or a selected work-item conversation continuation path without inventing a second browser truth lane.
+      [x] 50.2.1.3 Subtask - Keep explicit operator messaging when multiple active conversations exist so redundant work launches are easier to avoid.
 
-    [ ] 50.2.2 Task - Add bounded dashboard summaries for active work-item conversations
+    [x] 50.2.2 Task - Add bounded dashboard summaries for active work-item conversations
       Make dashboard supervision aware of repositories that have active conversation-driven governed work without turning dashboard into a freeform chat surface.
 
-      [ ] 50.2.2.1 Subtask - Add a bounded dashboard summary or widget feed that highlights managed repositories with active work-item conversations.
-      [ ] 50.2.2.2 Subtask - Surface enough work-item and conversation identity to let operators follow active conversation-driven work from dashboard into canonical routes.
-      [ ] 50.2.2.3 Subtask - Keep dashboard summaries aligned to canonical managed-repository and governed-work records rather than transcript-derived browser state.
+      [x] 50.2.2.1 Subtask - Add a bounded dashboard summary or widget feed that highlights managed repositories with active work-item conversations.
+      [x] 50.2.2.2 Subtask - Surface enough work-item and conversation identity to let operators follow active conversation-driven work from dashboard into canonical routes.
+      [x] 50.2.2.3 Subtask - Keep dashboard summaries aligned to canonical managed-repository and governed-work records rather than transcript-derived browser state.
 
-  [ ] 50.3 Section - Integration Coverage And Current-Truth Convergence
+  [x] 50.3 Section - Integration Coverage And Current-Truth Convergence
     Prove the new surface model across repo detail, Workbench, and dashboard and keep the current-truth architecture aligned with the adopted operator experience.
 
-    [ ] 50.3.1 Task - Add operator-surface coverage for repo-intake and work-item conversation projection
+    [x] 50.3.1 Task - Add operator-surface coverage for repo-intake and work-item conversation projection
       Verify the main managed-repository supervision surfaces now expose parallel work-item conversation state instead of a single repo-global productive thread.
 
-      [ ] 50.3.1.1 Subtask - Add repo-detail coverage proving active work-item conversations are listed separately from bounded repo intake.
-      [ ] 50.3.1.2 Subtask - Add Workbench coverage proving repositories with multiple active governed conversation threads surface that state explicitly.
-      [ ] 50.3.1.3 Subtask - Add dashboard coverage proving active work-item conversation summaries route operators into canonical managed-repository and governed-work surfaces.
+      [x] 50.3.1.1 Subtask - Add repo-detail coverage proving active work-item conversations are listed separately from bounded repo intake.
+      [x] 50.3.1.2 Subtask - Add Workbench coverage proving repositories with multiple active governed conversation threads surface that state explicitly.
+      [x] 50.3.1.3 Subtask - Add dashboard coverage proving active work-item conversation summaries route operators into canonical managed-repository and governed-work surfaces.
 
-    [ ] 50.3.2 Task - Converge specs, planning, and operator expectations
+    [x] 50.3.2 Task - Converge specs, planning, and operator expectations
       Keep the control-plane and conversation specs coherent once the main operator surfaces adopt the multi-conversation model.
 
-      [ ] 50.3.2.1 Subtask - Update current-truth conversation and factory-control-plane specs to describe repo intake plus active work-item conversation projection.
-      [ ] 50.3.2.2 Subtask - Verify the planning index remains coherent after Phase 50 introduces dashboard and multi-surface conversation adoption.
-      [ ] 50.3.2.3 Subtask - Keep contributor guidance explicit that dashboard, repo detail, and Workbench all project canonical conversation state through managed repositories and work items.
+      [x] 50.3.2.1 Subtask - Update current-truth conversation and factory-control-plane specs to describe repo intake plus active work-item conversation projection.
+      [x] 50.3.2.2 Subtask - Verify the planning index remains coherent after Phase 50 introduces dashboard and multi-surface conversation adoption.
+      [x] 50.3.2.3 Subtask - Keep contributor guidance explicit that dashboard, repo detail, and Workbench all project canonical conversation state through managed repositories and work items.

@@ -1011,7 +1011,7 @@
         "id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
         "priority": "should",
         "stability": "proposed",
-        "statement": "Workbench and governed run detail should project bounded repo-intake and work-item conversation linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.",
+        "statement": "Workbench, dashboard summaries, and governed run detail should project bounded repo-intake and work-item conversation linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.",
         "subject_id": "architecture.conversation_orchestration"
       },
       {
@@ -3941,15 +3941,16 @@
           "A productive repository conversation is attached to canonical governed `WorkItem` scope.",
           "Governed execution has begun or completed against that work item."
         ],
-        "id": "architecture.conversation_orchestration.scenario_workbench_and_run_detail_project_conversation_linkage",
+        "id": "architecture.conversation_orchestration.scenario_workbench_dashboard_and_run_detail_project_conversation_linkage",
         "subject_id": "architecture.conversation_orchestration",
         "then": [
           "Workbench shows bounded intake and work-item conversation status plus the attached governed work summary on the managed-repository row.",
+          "Dashboard highlights managed repositories that have active work-item conversations and routes operators back into canonical repo-detail supervision paths.",
           "Governed run detail shows the bounded relationship between run execution, canonical `WorkItem` scope, and any preserved productive conversation origin or latest linked conversation.",
           "Both surfaces route operators back to the managed-repository conversation host surface instead of inventing page-local or run-local chat state."
         ],
         "when": [
-          "An operator opens Workbench or governed run detail."
+          "An operator opens Workbench, dashboard, or governed run detail."
         ]
       },
       {
@@ -4158,7 +4159,8 @@
           "The product resolves and presents canonical managed-repository and governed-run records directly.",
           "Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.",
           "Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.",
-          "Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary."
+          "Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.",
+          "Dashboard and Workbench conversation summaries route operators back into canonical managed-repository detail or selected work-item continuation paths rather than inventing a second browser truth lane."
         ],
         "when": [
           "An operator opens workbench, repo detail, dashboard, or run detail."
@@ -6646,6 +6648,7 @@
             ".spec/decisions/jido_code.interruptible_conversation_orchestration.md",
             "lib/jido_code/conversations/event.ex",
             "lib/jido_code/conversations/event_record.ex",
+            "lib/jido_code/conversations/dashboard_summary_feed.ex",
             "lib/jido_code/conversations/persistence.ex",
             "lib/jido_code/conversations/pub_sub.ex",
             "lib/jido_code/conversations/snapshot.ex",
@@ -6667,6 +6670,7 @@
             "lib/jido_code/workbench/inventory.ex",
             "lib/jido_code_web/live/project_detail_live.ex",
             "lib/jido_code_web/live/workbench_live.ex",
+            "lib/jido_code_web/live/dashboard_live.ex",
             "lib/jido_code_web/live/run_detail_live.ex",
             "lib/jido_code/setup/provider_credential_checks.ex",
             ".spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md",
@@ -6677,10 +6681,12 @@
             "test/jido_code/phase_forty_six_integration_test.exs",
             "test/jido_code/phase_forty_seven_integration_test.exs",
             "test/jido_code/phase_forty_eight_integration_test.exs",
+            "test/jido_code/phase_fifty_integration_test.exs",
             "test/jido_code/phase_forty_one_integration_test.exs",
             "test/jido_code/phase_forty_two_integration_test.exs",
             "test/jido_code_web/live/project_detail_live_test.exs",
             "test/jido_code_web/live/workbench_live_test.exs",
+            "test/jido_code_web/live/dashboard_live_test.exs",
             "test/jido_code_web/live/run_detail_live_test.exs"
           ],
           "verification_minimum_strength": null
@@ -6834,6 +6840,7 @@
             "lib/jido_code/workbench/inventory.ex",
             "lib/jido_code/workbench/project_semantic_inspection.ex",
             "lib/jido_code/workbench/project_detail.ex",
+            "lib/jido_code/conversations/dashboard_summary_feed.ex",
             "lib/jido_code/workbench/run_outcomes.ex",
             "lib/jido_code/governance.ex",
             "lib/jido_code/governance/change_request.ex",
@@ -6879,6 +6886,7 @@
             "test/jido_code/governance/posture_bridge_test.exs",
             "test/jido_code/governance/runtime_evidence_feed_test.exs",
             "test/jido_code/phase_forty_eight_integration_test.exs",
+            "test/jido_code/phase_fifty_integration_test.exs",
             "test/jido_code_web/live/dashboard_live_test.exs",
             "test/jido_code_web/live/workbench_live_test.exs",
             "test/jido_code_web/live/phase_sixteen_integration_test.exs",

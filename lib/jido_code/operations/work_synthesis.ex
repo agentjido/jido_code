@@ -1,6 +1,8 @@
 defmodule JidoCode.Operations.WorkSynthesis do
   # covers: architecture.work_synthesis.work_item_is_canonical_operational_record
+  # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
   # covers: architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
+  # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   # covers: architecture.work_synthesis.work_item_creation_can_stop_before_execution
   # covers: architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
   # covers: architecture.work_synthesis.work_item_auditability_preserved
@@ -258,7 +260,64 @@ defmodule JidoCode.Operations.WorkSynthesis do
     |> maybe_put("external_reference", external_reference(external_object))
     |> maybe_put("observation_id", optional_id(observation))
     |> maybe_put("intake_id", optional_id(intake))
+    |> maybe_put("conversation_origin", conversation_origin(intake))
   end
+
+  defp conversation_origin(%Intake{} = intake) do
+    source_metadata = normalize_map(intake.source_metadata)
+
+    context_item =
+      intake.payload
+      |> map_get("context_item", :context_item, %{})
+      |> normalize_map()
+
+    if intake.channel == "conversation" or truthy?(source_metadata["conversation_entry"]) do
+      %{
+        "conversation_id" =>
+          normalize_optional_string(source_metadata["conversation_id"] || context_item["conversation_id"]),
+        "turn_id" =>
+          normalize_optional_string(
+            source_metadata["conversation_turn_id"] ||
+              context_item["conversation_turn_id"] ||
+              intake.payload |> map_get(:turn_id, "turn_id")
+          ),
+        "command_id" =>
+          normalize_optional_string(
+            source_metadata["conversation_command_id"] ||
+              context_item["conversation_command_id"] ||
+              intake.payload |> map_get(:command_id, "command_id")
+          ),
+        "workflow" =>
+          normalize_optional_string(
+            source_metadata["conversation_workflow"] ||
+              context_item["workflow"] ||
+              intake.payload |> map_get(:workflow_name, "workflow_name")
+          ),
+        "scope" =>
+          normalize_optional_string(
+            source_metadata["conversation_scope"] || context_item["conversation_scope"]
+          ),
+        "attachment_mode" =>
+          normalize_optional_string(
+            source_metadata["conversation_attachment_mode"] || context_item["attachment_mode"]
+          ),
+        "resolution_reason" =>
+          normalize_optional_string(
+            source_metadata["conversation_resolution_reason"] ||
+              intake.payload |> map_get(:resolution_reason, "resolution_reason")
+          )
+      }
+      |> reject_nil_values()
+      |> case do
+        origin when map_size(origin) == 0 -> nil
+        origin -> origin
+      end
+    else
+      nil
+    end
+  end
+
+  defp conversation_origin(_intake), do: nil
 
   defp source_record_type(%Observation{}, _intake), do: "observation"
   defp source_record_type(_observation, %Intake{}), do: "intake"
@@ -403,4 +462,18 @@ defmodule JidoCode.Operations.WorkSynthesis do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp truthy?(true), do: true
+  defp truthy?("true"), do: true
+  defp truthy?("TRUE"), do: true
+  defp truthy?("1"), do: true
+  defp truthy?(1), do: true
+  defp truthy?(_value), do: false
+
+  defp reject_nil_values(map) do
+    Enum.reduce(map, %{}, fn
+      {_key, nil}, acc -> acc
+      {key, value}, acc -> Map.put(acc, key, value)
+    end)
+  end
 end

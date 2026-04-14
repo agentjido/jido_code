@@ -30,6 +30,7 @@ It is not intended to be a free-floating page-local chat buffer.
 | `Conversations` | top-level product-facing API for reads and persistence lookups |
 | `Driver` | product-owned runtime boundary for opening conversations and handling commands |
 | `Coordinator` | active process that owns command admission, turn state, sequencing, and cancellation |
+| `WorkResolution` | promotes productive repo conversation turns into canonical governed `WorkItem` scope before durable specialist execution continues |
 | `Command` | typed control and work commands |
 | `Event` / `EventRecord` | append-only event stream and durable event persistence |
 | `Snapshot` / `SnapshotRecord` | current restorable view for bootstrap, reconnect, and degraded mode |
@@ -41,6 +42,8 @@ It is not intended to be a free-floating page-local chat buffer.
 flowchart TD
   UI["LiveView / product surfaces"] --> DRIVER["Conversation Driver"]
   DRIVER --> COORD["Conversation Coordinator"]
+  COORD --> RESOLVE["WorkResolution"]
+  RESOLVE --> WORKITEM["Canonical WorkItem"]
   COORD --> EVENTS["Append-only event log"]
   COORD --> SNAP["Durable snapshot"]
   COORD --> WORK["Work steering and runtime calls"]
@@ -108,6 +111,15 @@ That means conversation state can preserve:
 without inventing a second hidden work-management system outside the product
 plane.
 
+Productive repo-detail turns now resolve governed work before long-lived
+specialist execution continues:
+
+- exploratory conversation can remain `repo_scoped`
+- productive plan/execute/review/explain turns promote into canonical `WorkItem`
+  scope through `WorkResolution`
+- repo detail surfaces show the attached governed work item, current resolution
+  action, and a product-owned path back to Workbench
+
 ## Relationship To AgentWorkspace
 
 The conversation layer should still go through product-owned boundaries rather
@@ -152,4 +164,3 @@ Avoid:
 
 Continue with
 [`07-source-code-graph-and-semantic-services.md`](07-source-code-graph-and-semantic-services.md).
-

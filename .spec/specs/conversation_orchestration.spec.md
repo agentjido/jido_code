@@ -27,7 +27,9 @@ surface:
   - lib/jido_code/conversations/snapshot_record.ex
   - lib/jido_code/conversations/turn.ex
   - lib/jido_code/conversations/runtime.ex
+  - lib/jido_code/conversations/work_resolution.ex
   - lib/jido_code/agent_workspace.ex
+  - lib/jido_code/operations/work_item.ex
   - lib/jido_code/agent_workspace/runtime_specialist_runner.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/pods/coding_pod.ex
@@ -44,6 +46,7 @@ surface:
   - test/jido_code/phase_thirty_nine_integration_test.exs
   - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_six_integration_test.exs
+  - test/jido_code/phase_forty_seven_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
@@ -54,6 +57,11 @@ surface:
 ```spec-requirements
 - id: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
   statement: Coding conversations shall bind to explicit managed-repository scope and, when they act on durable factory work, shall attach to one existing or newly synthesized WorkItem rather than remaining free-floating page-local chat state.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+  statement: When a repository conversation turn becomes durable planning, implementation, review, or governed follow-up work, the product shall create, attach, or steer a canonical `WorkItem` through product-owned work-resolution boundaries instead of leaving governed work implicit in repo-scoped conversation state.
   priority: must
   stability: proposed
 
@@ -114,6 +122,11 @@ surface:
 
 - id: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   statement: Managed-repository operator routes should be able to open, resume, and guide bounded repo-scoped conversations through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.
+  priority: should
+  stability: proposed
+
+- id: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+  statement: Managed-repository and adjacent governed-work surfaces should show when a productive conversation is attached to a `WorkItem` and allow operators to follow or resume the canonical governed work loop from that linkage.
   priority: should
   stability: proposed
 
@@ -214,6 +227,7 @@ surface:
 - id: architecture.conversation_orchestration.scenario_steering_rejoins_canonical_work
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
     - architecture.conversation_orchestration.steering_preserves_short_term_context
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   given:
@@ -224,6 +238,21 @@ surface:
     - The durable conversation record reflects the updated work-item scope.
     - The governed work loop preserves actor attribution and steering auditability on the canonical `WorkItem`.
     - Persisted conversation snapshots retain the bounded shared context needed for the redirected work.
+
+- id: architecture.conversation_orchestration.scenario_repo_conversation_creates_or_reuses_governed_work
+  covers:
+    - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+  given:
+    - A managed-repository conversation has repo scope and no active governed work item yet.
+    - The operator submits a productive turn that should become durable planning, implementation, review, or follow-up work.
+  when:
+    - The product admits that turn into the governed work loop.
+  then:
+    - A canonical `WorkItem` is created or an equivalent existing work item is reused through a product-owned work-resolution boundary before durable execution continues.
+    - The conversation snapshot records the attached `work_item_id` and later turns reuse or steer that governed work explicitly rather than creating hidden conversation-local work state.
+    - The product preserves the turn and actor context needed to explain why the conversation attached to that work item.
 
 - id: architecture.conversation_orchestration.scenario_managed_repo_route_reuses_repo_conversation
   covers:
@@ -239,6 +268,18 @@ surface:
     - The product-owned route boundary reuses the latest active repo-scoped conversation when one already exists.
     - The route loads the latest durable snapshot and recent events through bounded workspace helpers.
     - Live delivery stays event-driven while degraded continuity still renders the latest durable conversation state.
+
+- id: architecture.conversation_orchestration.scenario_operator_surfaces_expose_conversation_work_item_linkage
+  covers:
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+  given:
+    - A productive repository conversation is already attached to a canonical `WorkItem`.
+  when:
+    - An operator opens the managed-repository route or adjacent governed-work surface for that repository.
+  then:
+    - The product shows the attached `WorkItem` linkage and current governed work status without requiring the operator to infer it from raw conversation text.
+    - The operator can follow or resume the governed work loop from that surfaced linkage rather than reopening a separate ad hoc path.
 
 - id: architecture.conversation_orchestration.scenario_repo_conversation_executes_real_llm_turns
   covers:
@@ -316,6 +357,7 @@ surface:
     - architecture.conversation_orchestration.active_turns_can_be_superseded
     - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
     - architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
 
 - kind: source_file
   target: lib/jido_code/conversations/driver.ex
@@ -330,6 +372,12 @@ surface:
     - architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
     - architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
+
+- kind: source_file
+  target: .spec/planning/phase-47-conversation-to-governed-work-convergence.md
+  covers:
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
 
 - kind: source_file
   target: lib/jido_code/conversations/event.ex
@@ -375,6 +423,11 @@ surface:
     - architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
 
 - kind: source_file
+  target: lib/jido_code/conversations/work_resolution.ex
+  covers:
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+
+- kind: source_file
   target: lib/jido_code/conversations.ex
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
@@ -392,6 +445,7 @@ surface:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
 
 - kind: source_file
   target: test/jido_code/phase_forty_integration_test.exs
@@ -446,11 +500,18 @@ surface:
     - architecture.conversation_orchestration.steering_preserves_short_term_context
 
 - kind: source_file
+  target: test/jido_code/phase_forty_seven_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+
+- kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
 
 - kind: source_file
@@ -459,6 +520,7 @@ surface:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
 

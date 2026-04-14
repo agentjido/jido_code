@@ -924,6 +924,22 @@
       },
       {
         "file": ".spec/specs/conversation_orchestration.spec.md",
+        "id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Managed-repository and adjacent governed-work surfaces should show when a productive conversation is attached to a `WorkItem` and allow operators to follow or resume the canonical governed work loop from that linkage.",
+        "subject_id": "architecture.conversation_orchestration"
+      },
+      {
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "When a repository conversation turn becomes durable planning, implementation, review, or governed follow-up work, the product shall create, attach, or steer a canonical `WorkItem` through product-owned work-resolution boundaries instead of leaving governed work implicit in repo-scoped conversation state.",
+        "subject_id": "architecture.conversation_orchestration"
+      },
+      {
+        "file": ".spec/specs/conversation_orchestration.spec.md",
         "id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
         "priority": "must",
         "stability": "proposed",
@@ -2292,6 +2308,14 @@
       },
       {
         "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Productive repository conversations that transition into durable planning, implementation, review, or governed follow-up shall create, attach, or reuse canonical `WorkItem` records through work synthesis or an equivalent product-owned work-resolution boundary instead of launching hidden work directly from conversation-local state.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
         "id": "architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity",
         "priority": "should",
         "stability": "evolving",
@@ -2336,6 +2360,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "Each `WorkItem` shall preserve managed-repository scope, originating assessment and event links, initiating demand references, category, priority, status, recommended action, and initiating actor metadata.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "When governed work originates from a productive conversation, the synthesized or reused `WorkItem` shall preserve enough conversation, turn, and initiating actor linkage for later steering, runtime routing, and governance to explain that origin without reconstructing it from transcript text.",
         "subject_id": "architecture.work_synthesis"
       },
       {
@@ -3629,6 +3661,25 @@
       },
       {
         "covers": [
+          "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
+          "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "given": [
+          "A productive repository conversation is already attached to a canonical `WorkItem`."
+        ],
+        "id": "architecture.conversation_orchestration.scenario_operator_surfaces_expose_conversation_work_item_linkage",
+        "subject_id": "architecture.conversation_orchestration",
+        "then": [
+          "The product shows the attached `WorkItem` linkage and current governed work status without requiring the operator to infer it from raw conversation text.",
+          "The operator can follow or resume the governed work loop from that surfaced linkage rather than reopening a separate ad hoc path."
+        ],
+        "when": [
+          "An operator opens the managed-repository route or adjacent governed-work surface for that repository."
+        ]
+      },
+      {
+        "covers": [
           "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
           "architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode"
         ],
@@ -3645,6 +3696,28 @@
         ],
         "when": [
           "The operator submits or resumes repository conversation work after the cutover."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
+          "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+          "architecture.conversation_orchestration.steering_preserves_short_term_context"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "given": [
+          "A managed-repository conversation has repo scope and no active governed work item yet.",
+          "The operator submits a productive turn that should become durable planning, implementation, review, or follow-up work."
+        ],
+        "id": "architecture.conversation_orchestration.scenario_repo_conversation_creates_or_reuses_governed_work",
+        "subject_id": "architecture.conversation_orchestration",
+        "then": [
+          "A canonical `WorkItem` is created or an equivalent existing work item is reused through a product-owned work-resolution boundary before durable execution continues.",
+          "The conversation snapshot records the attached `work_item_id` and later turns reuse or steer that governed work explicitly rather than creating hidden conversation-local work state.",
+          "The product preserves the turn and actor context needed to explain why the conversation attached to that work item."
+        ],
+        "when": [
+          "The product admits that turn into the governed work loop."
         ]
       },
       {
@@ -3712,6 +3785,7 @@
       {
         "covers": [
           "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
+          "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
           "architecture.conversation_orchestration.steering_preserves_short_term_context",
           "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state"
         ],
@@ -5438,6 +5512,27 @@
       },
       {
         "covers": [
+          "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "given": [
+          "A managed repository has a productive conversation turn that should become durable planning, implementation, review, or follow-up work."
+        ],
+        "id": "architecture.work_synthesis.scenario_productive_conversation_creates_or_reuses_work",
+        "subject_id": "architecture.work_synthesis",
+        "then": [
+          "A canonical open `WorkItem` is created or an equivalent existing work item is reused instead of keeping the work implicit in conversation-only runtime state.",
+          "The durable work record preserves repo scope, actor context, and enough conversation linkage to explain the work origin and later steering behavior."
+        ],
+        "when": [
+          "The product resolves that conversation turn into canonical governed work."
+        ]
+      },
+      {
+        "covers": [
           "auth.github_integration.readiness_feedback",
           "auth.github_integration.github_app_preferred"
         ],
@@ -6404,7 +6499,9 @@
             "lib/jido_code/conversations/snapshot_record.ex",
             "lib/jido_code/conversations/turn.ex",
             "lib/jido_code/conversations/runtime.ex",
+            "lib/jido_code/conversations/work_resolution.ex",
             "lib/jido_code/agent_workspace.ex",
+            "lib/jido_code/operations/work_item.ex",
             "lib/jido_code/agent_workspace/runtime_specialist_runner.ex",
             "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/pods/coding_pod.ex",
@@ -6421,6 +6518,7 @@
             "test/jido_code/phase_thirty_nine_integration_test.exs",
             "test/jido_code/phase_forty_four_integration_test.exs",
             "test/jido_code/phase_forty_six_integration_test.exs",
+            "test/jido_code/phase_forty_seven_integration_test.exs",
             "test/jido_code/phase_forty_one_integration_test.exs",
             "test/jido_code/phase_forty_two_integration_test.exs",
             "test/jido_code_web/live/project_detail_live_test.exs"
@@ -7665,15 +7763,19 @@
           "id": "architecture.work_synthesis",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code turns durable assessments into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.",
+          "summary": "Jido.Code turns durable assessments and productive conversation demand into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.",
           "surface": [
+            "lib/jido_code/conversations.ex",
+            "lib/jido_code/conversations/work_resolution.ex",
             "lib/jido_code/operations/work_item.ex",
             "lib/jido_code/operations/work_synthesis.ex",
             "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/operations/ingress.ex",
             "priv/repo/migrations/20260330195000_add_operations_work_items.exs",
+            "test/jido_code/conversations_test.exs",
             "test/jido_code/operations/work_synthesis_test.exs",
-            "test/jido_code/operations/phase_two_integration_test.exs"
+            "test/jido_code/operations/phase_two_integration_test.exs",
+            "test/jido_code/phase_forty_seven_integration_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -8112,7 +8214,8 @@
           "architecture.conversation_orchestration.control_lane_preempts_work_lane",
           "architecture.conversation_orchestration.active_turns_can_be_superseded",
           "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
-          "architecture.conversation_orchestration.cancellation_lifecycle_is_evented"
+          "architecture.conversation_orchestration.cancellation_lifecycle_is_evented",
+          "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items"
         ],
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -8140,6 +8243,16 @@
         "kind": "source_file",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-46-real-llm-conversation-runtime-cutover.md"
+      },
+      {
+        "covers": [
+          "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+          "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md"
       },
       {
         "covers": [
@@ -8214,6 +8327,15 @@
       },
       {
         "covers": [
+          "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations/work_resolution.ex"
+      },
+      {
+        "covers": [
           "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
           "architecture.conversation_orchestration.steering_preserves_short_term_context"
         ],
@@ -8236,7 +8358,8 @@
         "covers": [
           "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
           "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
-          "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations"
+          "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
+          "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage"
         ],
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -8325,9 +8448,20 @@
       },
       {
         "covers": [
+          "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+          "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs"
+      },
+      {
+        "covers": [
           "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
           "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
           "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
+          "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
           "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation"
         ],
         "file": ".spec/specs/conversation_orchestration.spec.md",
@@ -8340,6 +8474,7 @@
           "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
           "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
           "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
+          "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
           "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
           "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit"
         ],
@@ -11560,7 +11695,9 @@
       {
         "covers": [
           "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
           "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
           "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
           "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
           "architecture.work_synthesis.work_item_auditability_preserved"
@@ -11569,6 +11706,25 @@
         "kind": "source_file",
         "subject_id": "architecture.work_synthesis",
         "target": "lib/jido_code/operations/work_synthesis.ex"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/conversations/work_resolution.ex"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/conversations.ex"
       },
       {
         "covers": [
@@ -11627,6 +11783,37 @@
         "kind": "command",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/conversations_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs"
       },
       {
         "covers": [
@@ -14021,10 +14208,10 @@
     "decisions": 23,
     "exceptions": 0,
     "findings": 40,
-    "requirements": 330,
-    "scenarios": 156,
+    "requirements": 334,
+    "scenarios": 159,
     "subjects": 43,
-    "verifications": 622
+    "verifications": 630
   },
   "verification": {
     "claims": [
@@ -15283,6 +15470,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations/coordinator.ex",
+        "verification_index": 2
+      },
+      {
         "cover_id": "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -15360,6 +15558,28 @@
         "verification_index": 4
       },
       {
+        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md",
+        "verification_index": 5
+      },
+      {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -15368,7 +15588,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.expensive_work_announces_intent",
@@ -15379,7 +15599,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -15390,7 +15610,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event_record.ex",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -15401,7 +15621,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/pub_sub.ex",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15412,7 +15632,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/persistence.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -15423,7 +15643,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/persistence.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -15434,7 +15654,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/persistence.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15445,7 +15665,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/snapshot.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -15456,7 +15676,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/snapshot.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15467,7 +15687,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/snapshot_record.ex",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -15478,7 +15698,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/snapshot_record.ex",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary",
@@ -15489,7 +15709,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit",
@@ -15500,7 +15720,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -15511,7 +15731,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode",
@@ -15522,7 +15742,18 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 11
+        "verification_index": 12
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations/work_resolution.ex",
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -15533,7 +15764,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations.ex",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -15544,7 +15775,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations.ex",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -15555,7 +15786,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -15566,7 +15797,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -15577,7 +15808,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15588,7 +15819,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -15599,7 +15830,18 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 14
+        "verification_index": 16
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/workbench/project_conversation.ex",
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_turns_can_be_superseded",
@@ -15610,7 +15852,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.conversation_orchestration.cancellation_lifecycle_is_evented",
@@ -15621,7 +15863,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_lane_preempts_work_lane",
@@ -15632,7 +15874,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
@@ -15643,7 +15885,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_and_work_commands_are_distinct",
@@ -15654,7 +15896,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_thirty_nine_integration_test.exs",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -15665,7 +15907,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_thirty_nine_integration_test.exs",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -15676,7 +15918,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_thirty_nine_integration_test.exs",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15687,7 +15929,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -15698,7 +15940,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -15709,7 +15951,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -15720,7 +15962,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15731,7 +15973,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -15742,7 +15984,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -15753,7 +15995,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_and_work_commands_are_distinct",
@@ -15764,7 +16006,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15775,7 +16017,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -15786,7 +16028,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -15797,7 +16039,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -15808,7 +16050,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -15819,7 +16061,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -15830,7 +16072,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary",
@@ -15841,7 +16083,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_six_integration_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -15852,7 +16094,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_six_integration_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -15863,7 +16105,29 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_six_integration_test.exs",
-        "verification_index": 21
+        "verification_index": 23
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs",
+        "verification_index": 24
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs",
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15874,7 +16138,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 22
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -15885,7 +16149,18 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 22
+        "verification_index": 25
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -15896,7 +16171,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 22
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -15907,7 +16182,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 22
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -15918,7 +16193,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 23
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit",
@@ -15929,7 +16204,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 23
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -15940,7 +16215,18 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 23
+        "verification_index": 26
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -15951,7 +16237,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 23
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -15962,7 +16248,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 23
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -15973,7 +16259,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/forge/pubsub.ex",
-        "verification_index": 24
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -15984,7 +16270,7 @@
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/orchestration/run_pubsub.ex",
-        "verification_index": 25
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -24424,6 +24710,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
@@ -24468,6 +24765,17 @@
         "verification_index": 1
       },
       {
+        "cover_id": "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
@@ -24477,6 +24785,39 @@
         "subject_id": "architecture.work_synthesis",
         "target": "lib/jido_code/operations/work_synthesis.ex",
         "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/conversations/work_resolution.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/conversations.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/conversations.ex",
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity",
@@ -24487,7 +24828,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "lib/jido_code/operations/synthesis.ex",
-        "verification_index": 2
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity",
@@ -24498,7 +24839,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "lib/jido_code/operations/ingress.ex",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class",
@@ -24509,7 +24850,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "lib/jido_code/operations/ingress.ex",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
@@ -24520,7 +24861,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
@@ -24531,7 +24872,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
@@ -24542,7 +24883,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
@@ -24553,7 +24894,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
@@ -24564,7 +24905,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
@@ -24575,7 +24916,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
@@ -24586,7 +24927,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
@@ -24597,7 +24938,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
@@ -24608,7 +24949,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
@@ -24619,7 +24960,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
@@ -24630,7 +24971,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
@@ -24641,7 +24982,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
@@ -24652,7 +24993,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
@@ -24663,7 +25004,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
@@ -24674,7 +25015,84 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 6
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/conversations_test.exs",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/conversations_test.exs",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_forty_seven_integration_test.exs",
+        "verification_index": 11
       },
       {
         "cover_id": "auth.github_integration.github_app_preferred",
@@ -28741,7 +29159,7 @@
     "strength_summary": {
       "claimed": 99,
       "executed": 0,
-      "linked": 1238
+      "linked": 1259
     },
     "threshold_failures": 0
   },

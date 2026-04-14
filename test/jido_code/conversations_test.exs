@@ -1,6 +1,8 @@
 defmodule JidoCode.ConversationsTest do
   # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
   # covers: architecture.conversation_orchestration.steering_preserves_short_term_context
+  # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
+  # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}
@@ -232,6 +234,74 @@ defmodule JidoCode.ConversationsTest do
              WorkItem.read(query: [filter: [id: work_item.id], limit: 1], actor: Actor.operator_actor())
 
     assert persisted_work_item.initiating_actor["id"] == "operator-steer-existing"
+    assert List.last(persisted_work_item.audit_log)["action"] == "steered"
+  end
+
+  test "steer_work preserves attached governed work and conversation origin metadata" do
+    managed_repo = managed_repo_fixture!("conversation-steer-origin")
+
+    assert {:ok, %{conversation: conversation, work_item: work_item, work_action: :created}} =
+             Conversations.start(%{
+               managed_repo_id: managed_repo.id,
+               source: "conversation",
+               attach_mode: :synthesized_work_item,
+               objective: "Explain the managed repository conversation work."
+             })
+
+    assert {:ok,
+            %{
+              conversation: updated_conversation,
+              work_item: steered_work_item,
+              work_action: :steered
+            }} =
+             Conversations.steer_work(
+               conversation,
+               %{
+                 instruction: "Explain the governed work linkage for this conversation.",
+                 workflow_name: "explain",
+                 turn_id: "turn-steer-origin",
+                 command_id: "command-steer-origin",
+                 resolution_reason: "Keep the conversation attached to governed work."
+               },
+               actor: Actor.operator_actor(%{"id" => "operator-steer-origin"}),
+               shared_context: %{
+                 referenced_files: ["lib/jido_code/conversations/work_resolution.ex"],
+                 accepted_tool_results: [%{"child_work_id" => "tool-origin"}]
+               }
+             )
+
+    assert steered_work_item.id == work_item.id
+    assert updated_conversation.work_item_id == work_item.id
+    assert updated_conversation.scope == :work_item_scoped
+    assert updated_conversation.attachment_mode == :synthesized_work_item
+    assert updated_conversation.conversation_metadata["last_work_action"] == "steered"
+
+    assert updated_conversation.conversation_metadata["last_work_resolution"] == %{
+             "action" => "steered",
+             "attachment_mode" => "synthesized_work_item",
+             "command" => "turn.steer",
+             "command_id" => "command-steer-origin",
+             "detail" => "Keep the conversation attached to governed work.",
+             "reason" => "Keep the conversation attached to governed work.",
+             "scope" => "work_item_scoped",
+             "turn_id" => "turn-steer-origin",
+             "work_action" => "steered",
+             "work_item_id" => work_item.id,
+             "workflow" => "explain",
+             "resolved_at" => updated_conversation.conversation_metadata["last_work_resolved_at"]
+           }
+
+    assert {:ok, [persisted_work_item]} =
+             WorkItem.read(query: [filter: [id: work_item.id], limit: 1], actor: Actor.operator_actor())
+
+    origin = persisted_work_item.work_metadata["conversation_origin"]
+
+    assert origin["conversation_id"] == conversation.id
+    assert origin["turn_id"] == "turn-steer-origin"
+    assert origin["command_id"] == "command-steer-origin"
+    assert origin["workflow"] == "explain"
+    assert origin["resolution_reason"] == "Keep the conversation attached to governed work."
+
     assert List.last(persisted_work_item.audit_log)["action"] == "steered"
   end
 

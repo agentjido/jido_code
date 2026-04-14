@@ -6,6 +6,7 @@ defmodule JidoCode.Conversations.Snapshot do
   """
 
   alias JidoCode.Conversations.{ChildWork, Conversation, Event, Turn}
+  alias JidoCode.Conversations.WorkResolution
 
   @spec empty(Conversation.t()) :: map()
   def empty(%Conversation{} = conversation) do
@@ -13,6 +14,9 @@ defmodule JidoCode.Conversations.Snapshot do
       conversation_id: conversation.id,
       managed_repo_id: conversation.managed_repo_id,
       work_item_id: conversation.work_item_id,
+      scope: conversation.scope,
+      attachment_mode: conversation.attachment_mode,
+      work_resolution: WorkResolution.summary(conversation),
       status: conversation.status,
       admission_paused: conversation.status == :paused,
       child_execution_paused: false,
@@ -45,6 +49,9 @@ defmodule JidoCode.Conversations.Snapshot do
       conversation_id: state.conversation.id,
       managed_repo_id: state.conversation.managed_repo_id,
       work_item_id: state.conversation.work_item_id,
+      scope: state.conversation.scope,
+      attachment_mode: state.conversation.attachment_mode,
+      work_resolution: WorkResolution.summary(state.conversation),
       status: state.status,
       admission_paused: state.admission_paused,
       child_execution_paused: state.child_execution_paused,
@@ -105,6 +112,18 @@ defmodule JidoCode.Conversations.Snapshot do
       conversation: %{
         conversation
         | status: status,
+          scope:
+            normalize_scope(
+              map_get(snapshot, :scope) ||
+                map_get(map_get(snapshot, :shared_context, %{}), "scope") ||
+                conversation.scope
+            ),
+          attachment_mode:
+            normalize_attachment_mode(
+              map_get(snapshot, :attachment_mode) ||
+                map_get(map_get(snapshot, :shared_context, %{}), "attachment_mode") ||
+                conversation.attachment_mode
+            ),
           work_item_id:
             normalize_optional_string(map_get(snapshot, :work_item_id)) ||
               conversation.work_item_id
@@ -174,6 +193,9 @@ defmodule JidoCode.Conversations.Snapshot do
     %{
       "managed_repo_id" => conversation.managed_repo_id,
       "work_item_id" => conversation.work_item_id,
+      "scope" => Atom.to_string(conversation.scope),
+      "attachment_mode" => Atom.to_string(conversation.attachment_mode),
+      "work_resolution" => WorkResolution.summary(conversation),
       "referenced_files" => [],
       "accepted_tool_results" => []
     }
@@ -187,6 +209,9 @@ defmodule JidoCode.Conversations.Snapshot do
     %{}
     |> Map.put("managed_repo_id", state.conversation.managed_repo_id)
     |> Map.put("work_item_id", state.conversation.work_item_id)
+    |> Map.put("scope", Atom.to_string(state.conversation.scope))
+    |> Map.put("attachment_mode", Atom.to_string(state.conversation.attachment_mode))
+    |> Map.put("work_resolution", WorkResolution.summary(state.conversation))
     |> Map.put("referenced_files", referenced_files(turns, state))
     |> Map.put("accepted_tool_results", accepted_tool_results(state))
     |> maybe_put("latest_turn_id", latest_turn_id(turns))
@@ -371,6 +396,20 @@ defmodule JidoCode.Conversations.Snapshot do
   end
 
   defp normalize_status(_status), do: :active
+
+  defp normalize_scope(scope) when scope in [:repo_scoped, :work_item_scoped], do: scope
+  defp normalize_scope("repo_scoped"), do: :repo_scoped
+  defp normalize_scope("work_item_scoped"), do: :work_item_scoped
+  defp normalize_scope(_scope), do: :repo_scoped
+
+  defp normalize_attachment_mode(mode)
+       when mode in [:pre_work, :existing_work_item, :synthesized_work_item],
+       do: mode
+
+  defp normalize_attachment_mode("pre_work"), do: :pre_work
+  defp normalize_attachment_mode("existing_work_item"), do: :existing_work_item
+  defp normalize_attachment_mode("synthesized_work_item"), do: :synthesized_work_item
+  defp normalize_attachment_mode(_mode), do: :pre_work
 
   defp normalize_boolean(value) when is_boolean(value), do: value
   defp normalize_boolean(value) when value in ["true", "1"], do: true

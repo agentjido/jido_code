@@ -11,6 +11,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+  # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -21,14 +22,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Workbench.ProjectSemanticInspection
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
 
-  @conversation_progress_delay_ms 60
-  @conversation_stdout_delay_ms 100
-  @conversation_clarification_delay_ms 140
-  @conversation_delta_delay_ms 180
-  @conversation_completion_delay_ms 240
-  @conversation_resume_delta_delay_ms 80
-  @conversation_resume_completion_delay_ms 160
-  @conversation_cancellation_settle_delay_ms 80
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
 
   @impl true
@@ -184,7 +177,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       |> normalize_optional_string()
       |> Kernel.||("")
 
-    submit_as_resume? = conversation_awaiting_input?(socket.assigns.conversation_snapshot)
     conversation_id = conversation_id(socket)
 
     cond do
@@ -219,15 +211,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                actor: initiating_actor(socket)
              ) do
           {:ok, snapshot} ->
-            socket =
-              socket
-              |> assign(:conversation_input, "")
-              |> assign(:conversation_action_feedback, nil)
-              |> assign(:conversation_action_feedback_kind, :info)
-              |> assign_conversation_snapshot(snapshot)
-              |> maybe_schedule_conversation_runtime_flow(input, submit_as_resume?)
-
-            {:noreply, socket}
+            {:noreply,
+             socket
+             |> assign(:conversation_input, "")
+             |> assign(:conversation_action_feedback, nil)
+             |> assign(:conversation_action_feedback_kind, :info)
+             |> assign_conversation_snapshot(snapshot)}
 
           {:error, reason} ->
             {:noreply,
@@ -264,8 +253,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
            socket
            |> assign(:conversation_action_feedback, nil)
            |> assign(:conversation_action_feedback_kind, :info)
-           |> assign_conversation_snapshot(snapshot)
-           |> maybe_schedule_conversation_cancellation()}
+           |> assign_conversation_snapshot(snapshot)}
 
         {:error, reason} ->
           {:noreply,
@@ -295,41 +283,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           {:noreply, socket}
 
         event_sequence == socket.assigns.conversation_last_event_sequence + 1 ->
-          {:noreply, append_conversation_event(socket, event)}
+          {:noreply, sync_conversation_event(socket, event)}
 
         true ->
           {:noreply, recover_project_conversation_gap(socket)}
-      end
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_info({:project_detail_conversation_tool_result, conversation_id, child_work_id, payload}, socket) do
-    if conversation_id(socket) == conversation_id do
-      case JidoCode.AgentWorkspace.conversation_snapshot(conversation_id) do
-        {:ok, snapshot} ->
-          if child_work_open?(snapshot, child_work_id) or child_work_cancelling?(snapshot, child_work_id) do
-            case JidoCode.AgentWorkspace.handle_conversation_command(
-                   conversation_id,
-                   %{
-                     type: "tool_result.submit",
-                     payload: Map.put(payload, :child_work_id, child_work_id)
-                   },
-                   actor: initiating_actor(socket)
-                 ) do
-              {:ok, updated_snapshot} ->
-                {:noreply, assign_conversation_snapshot(socket, updated_snapshot)}
-
-              {:error, _reason} ->
-                {:noreply, socket}
-            end
-          else
-            {:noreply, socket}
-          end
-
-        {:error, _reason} ->
-          {:noreply, socket}
       end
     else
       {:noreply, socket}
@@ -1128,110 +1085,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     end
   end
 
-  defp maybe_schedule_conversation_runtime_flow(socket, input, true) do
-    case active_child_work_id(socket.assigns.conversation_snapshot) do
-      child_work_id when is_binary(child_work_id) ->
-        Process.send_after(
-          self(),
-          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-           %{
-             kind: "delta",
-             text: "Continuing with the clarified repository instruction: #{input}"
-           }},
-          @conversation_resume_delta_delay_ms
-        )
-
-        Process.send_after(
-          self(),
-          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-           %{
-             kind: "completed",
-             result: %{summary: "Completed the clarified repository work: #{input}"}
-           }},
-          @conversation_resume_completion_delay_ms
-        )
-
-        socket
-
-      _other ->
-        socket
-    end
-  end
-
-  defp maybe_schedule_conversation_runtime_flow(socket, instruction, false) do
-    case active_child_work_id(socket.assigns.conversation_snapshot) do
-      child_work_id when is_binary(child_work_id) ->
-        Process.send_after(
-          self(),
-          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-           %{
-             kind: "progress",
-             summary: "Inspecting the requested repository scope.",
-             percent: 35
-           }},
-          @conversation_progress_delay_ms
-        )
-
-        Process.send_after(
-          self(),
-          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-           %{kind: "stdout", text: simulated_conversation_stdout(instruction)}},
-          @conversation_stdout_delay_ms
-        )
-
-        if conversation_requires_clarification?(instruction) do
-          Process.send_after(
-            self(),
-            {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-             %{kind: "needs_input", prompt: "Which file should I inspect first?"}},
-            @conversation_clarification_delay_ms
-          )
-        else
-          Process.send_after(
-            self(),
-            {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-             %{kind: "delta", text: "Applying the requested repository scope: #{instruction}"}},
-            @conversation_delta_delay_ms
-          )
-
-          Process.send_after(
-            self(),
-            {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-             %{
-               kind: "completed",
-               result: %{summary: "Completed the requested repository work: #{instruction}"}
-             }},
-            @conversation_completion_delay_ms
-          )
-        end
-
-        socket
-
-      _other ->
-        socket
-    end
-  end
-
-  defp maybe_schedule_conversation_cancellation(socket) do
-    case active_child_work_id(socket.assigns.conversation_snapshot) do
-      child_work_id when is_binary(child_work_id) ->
-        Process.send_after(
-          self(),
-          {:project_detail_conversation_tool_result, conversation_id(socket), child_work_id,
-           %{
-             kind: "cancelled",
-             result: %{reason: "The active repository conversation work was cancelled before completion."}
-           }},
-          @conversation_cancellation_settle_delay_ms
-        )
-
-        socket
-
-      _other ->
-        socket
-    end
-  end
-
   defp recover_project_conversation_gap(socket) do
     case conversation_id(socket) do
       conversation_id when is_binary(conversation_id) ->
@@ -1265,6 +1118,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_events, updated_events)
     |> assign(:conversation_last_event_sequence, map_get(event, :sequence, "sequence"))
     |> update(:conversation_surface, &Map.put(&1, :recent_events, updated_events))
+  end
+
+  defp sync_conversation_event(socket, event) do
+    case conversation_id(socket) do
+      conversation_id when is_binary(conversation_id) ->
+        case JidoCode.AgentWorkspace.conversation_snapshot(conversation_id) do
+          {:ok, snapshot} ->
+            socket
+            |> assign_conversation_snapshot(snapshot)
+            |> assign(:conversation_stream_mode, :live)
+            |> assign(:conversation_stream_degraded_reason, nil)
+
+          {:error, _reason} ->
+            append_conversation_event(socket, event)
+        end
+
+      _other ->
+        append_conversation_event(socket, event)
+    end
   end
 
   defp conversation_event_applies?(socket, event) do
@@ -1305,24 +1177,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp active_child_work_id(nil), do: nil
   defp active_child_work_id(snapshot), do: snapshot.active_child_work_id
-
-  defp child_work_open?(snapshot, child_work_id) do
-    snapshot.child_works
-    |> Enum.find(&(&1.id == child_work_id))
-    |> case do
-      %{state: state} when state in [:running, :cancel_requested, :cancel_acknowledged] -> true
-      _other -> false
-    end
-  end
-
-  defp child_work_cancelling?(snapshot, child_work_id) do
-    snapshot.child_works
-    |> Enum.find(&(&1.id == child_work_id))
-    |> case do
-      %{state: state} when state in [:cancel_requested, :cancel_acknowledged] -> true
-      _other -> false
-    end
-  end
 
   defp conversation_active_turn?(%{active_turn_id: turn_id}) when is_binary(turn_id), do: true
   defp conversation_active_turn?(_snapshot), do: false
@@ -1374,19 +1228,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
        do: Enum.take(stdout, -4)
 
   defp conversation_stdout_preview(_snapshot), do: []
-
-  defp conversation_requires_clarification?(instruction) when is_binary(instruction) do
-    normalized = String.downcase(instruction)
-
-    String.contains?(normalized, "clarify") or String.contains?(normalized, "input") or
-      String.contains?(normalized, "question")
-  end
-
-  defp conversation_requires_clarification?(_instruction), do: false
-
-  defp simulated_conversation_stdout(instruction) do
-    "rg --context 2 #{String.slice(instruction, 0, 32)}"
-  end
 
   defp conversation_event_label(event) do
     event
@@ -1458,6 +1299,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       "tool.cancelled" ->
         conversation_result_summary(event) || "The active tool cancelled cleanly."
 
+      "tool.failed" ->
+        conversation_error_detail(event) || "The active tool failed."
+
+      "tool.cancel_failed" ->
+        conversation_error_detail(event) || "The active tool failed while cancelling."
+
       other when is_binary(other) ->
         other
 
@@ -1480,6 +1327,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> maybe_put("tool_call_id", tool_call_id)
     |> maybe_put("summary", map_get(payload, :summary, "summary"))
     |> maybe_put("prompt", map_get(payload, :prompt, "prompt"))
+    |> maybe_put("error", conversation_error_detail(event))
     |> maybe_put(
       "text",
       map_get(payload, :text, "text") || map_get(payload, :chunk, "chunk")
@@ -1499,6 +1347,15 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       |> map_get(:result, "result", %{})
 
     map_get(result, :summary, "summary") || map_get(result, :reason, "reason")
+  end
+
+  defp conversation_error_detail(event) do
+    error =
+      event
+      |> conversation_event_payload()
+      |> map_get(:error, "error", %{})
+
+    map_get(error, :detail, "detail") || map_get(error, :error_type, "error_type")
   end
 
   defp maybe_put(map, _key, nil), do: map

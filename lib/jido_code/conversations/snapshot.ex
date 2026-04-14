@@ -339,7 +339,10 @@ defmodule JidoCode.Conversations.Snapshot do
 
       active_turn_id ->
         case Map.get(turns_by_id, active_turn_id) do
-          %Turn{state: :awaiting_input} -> active_turn_id
+          %Turn{state: state}
+          when state in [:running, :awaiting_input, :cancelling, :superseding] ->
+            active_turn_id
+
           _other -> nil
         end
     end

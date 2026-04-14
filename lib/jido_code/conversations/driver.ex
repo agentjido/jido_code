@@ -7,7 +7,7 @@ defmodule JidoCode.Conversations.Driver do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
-  alias JidoCode.Conversations.{ChildWork, Conversation, Coordinator, Persistence}
+  alias JidoCode.Conversations.{ChildWork, Conversation, Coordinator, Persistence, Snapshot}
 
   @supervisor JidoCode.Conversations.DynamicSupervisor
   @registry JidoCode.Conversations.Registry
@@ -85,9 +85,16 @@ defmodule JidoCode.Conversations.Driver do
 
   @spec snapshot(String.t()) :: {:ok, map()} | {:error, term()}
   def snapshot(conversation_id) when is_binary(conversation_id) do
-    case Registry.lookup(@registry, conversation_id) do
-      [{_pid, _value}] -> Coordinator.snapshot(conversation_id)
-      [] -> Persistence.fetch_snapshot(conversation_id)
+    case live_registry_pid(conversation_id) do
+      {:ok, _pid} ->
+        try do
+          Coordinator.snapshot(conversation_id)
+        catch
+          :exit, _reason -> persisted_snapshot(conversation_id)
+        end
+
+      :error ->
+        persisted_snapshot(conversation_id)
     end
   end
 
@@ -95,7 +102,10 @@ defmodule JidoCode.Conversations.Driver do
   def stop(conversation_id) when is_binary(conversation_id) do
     case Registry.lookup(@registry, conversation_id) do
       [{pid, _value}] ->
-        DynamicSupervisor.terminate_child(@supervisor, pid)
+        wait_for_termination(pid, fn ->
+          DynamicSupervisor.terminate_child(@supervisor, pid)
+        end)
+
         :ok
 
       [] ->
@@ -125,12 +135,59 @@ defmodule JidoCode.Conversations.Driver do
   end
 
   defp fetch_events(%Conversation{} = conversation, after_sequence) do
-    case Registry.lookup(@registry, conversation.id) do
-      [{_pid, _value}] -> Coordinator.events_since(conversation.id, after_sequence)
-      [] -> Persistence.events_since(conversation.id, after_sequence)
+    case live_registry_pid(conversation.id) do
+      {:ok, _pid} ->
+        try do
+          Coordinator.events_since(conversation.id, after_sequence)
+        catch
+          :exit, _reason -> Persistence.events_since(conversation.id, after_sequence)
+        end
+
+      :error ->
+        Persistence.events_since(conversation.id, after_sequence)
+    end
+  end
+
+  defp persisted_snapshot(conversation_id) do
+    actor = Actor.operator_actor()
+
+    with {:ok, %Conversation{} = conversation} <- fetch_conversation(conversation_id, actor),
+         {:ok, snapshot} <- Persistence.fetch_snapshot(conversation_id, actor) do
+      {:ok, conversation |> Snapshot.restore_state(snapshot) |> Snapshot.from_state()}
+    end
+  end
+
+  defp fetch_conversation(conversation_id, actor) do
+    case Conversation.read(query: [filter: [id: conversation_id], limit: 1], actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:error, :conversation_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp live_registry_pid(conversation_id) do
+    case Registry.lookup(@registry, conversation_id) do
+      [{pid, _value}] when is_pid(pid) ->
+        if Process.alive?(pid), do: {:ok, pid}, else: :error
+
+      _other ->
+        :error
     end
   end
 
   defp normalize_actor(nil), do: Actor.operator_actor()
   defp normalize_actor(%{} = actor), do: Actor.operator_actor(actor)
+
+  defp wait_for_termination(pid, terminate_fun) when is_pid(pid) and is_function(terminate_fun, 0) do
+    ref = Process.monitor(pid)
+    _ = terminate_fun.()
+
+    receive do
+      {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+    after
+      1_000 ->
+        Process.demonitor(ref, [:flush])
+        :ok
+    end
+  end
 end

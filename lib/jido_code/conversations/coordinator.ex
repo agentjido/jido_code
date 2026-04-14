@@ -102,6 +102,17 @@ defmodule JidoCode.Conversations.Coordinator do
   def init(%Conversation{} = conversation), do: init({conversation, []})
 
   @impl true
+  def terminate(_reason, state) do
+    state
+    |> Map.get(:child_worker_pids, %{})
+    |> Map.values()
+    |> Enum.filter(&is_pid/1)
+    |> Enum.each(&maybe_terminate_child_worker/1)
+
+    :ok
+  end
+
+  @impl true
   def handle_call({:admit_command, command, actor}, _from, state) do
     with {:ok, normalized_command} <- Command.normalize(command, actor),
          {:ok, next_state} <- admit_normalized_command(state, normalized_command),
@@ -169,6 +180,16 @@ defmodule JidoCode.Conversations.Coordinator do
     {:reply, {:ok, Snapshot.from_state(state)}, state}
   end
 
+  @impl true
+  def handle_info({:begin_child_runtime, child_work_id}, state) when is_binary(child_work_id) do
+    case maybe_begin_child_runtime(state, child_work_id) do
+      {:ok, next_state} -> {:noreply, next_state}
+      {:error, _reason} -> {:noreply, state}
+    end
+  end
+
+  def handle_info(_message, state), do: {:noreply, state}
+
   defp admit_normalized_command(state, %{class: :work, type: :turn_submit} = normalized_command) do
     turn = Turn.new(state.conversation.id, normalized_command)
 
@@ -185,6 +206,8 @@ defmodule JidoCode.Conversations.Coordinator do
     with {:ok, resumable_turn} <- resumable_turn(state, normalized_command.payload),
          resume_state = append_command_message_event(state, normalized_command),
          {:ok, resumed_turn} <- Turn.transition(resumable_turn, :running),
+         resumed_turn =
+           with_resume_payload(resumed_turn, state, normalized_command.payload),
          next_state <-
            maybe_clear_child_work_pending_input(
              resume_state,
@@ -197,8 +220,9 @@ defmodule JidoCode.Conversations.Coordinator do
              resumed_turn,
              normalized_command.actor,
              normalized_command.payload
-           ) do
-      {:ok, applied_state}
+           ),
+         {:ok, resumed_state} <- maybe_schedule_runtime_for_turn(applied_state, resumed_turn.id) do
+      {:ok, resumed_state}
     end
   end
 
@@ -277,16 +301,16 @@ defmodule JidoCode.Conversations.Coordinator do
        when not is_nil(active_turn_id), do: {:ok, state}
 
   defp maybe_activate_next_turn(%{work_queue: [next_turn_id | remaining_turn_ids]} = state) do
-    %Turn{} = next_turn = Map.fetch!(state.turns, next_turn_id)
-
-    with {:ok, running_turn} <- Turn.transition(next_turn, :running),
-         child_work <- ChildWork.new(state.conversation, running_turn),
+    with {:ok, prepared_state} <- maybe_prepare_runtime_scope(state, next_turn_id),
+         %Turn{} = next_turn <- Map.fetch!(prepared_state.turns, next_turn_id),
+         {:ok, running_turn} <- Turn.transition(next_turn, :running),
+         child_work <- ChildWork.new(prepared_state.conversation, running_turn),
          {:ok, pid} <- ChildWorker.start(child_work),
          {:ok, running_child_work} <- ChildWorker.snapshot(pid) do
       running_turn = %{running_turn | child_work_id: running_child_work.id}
 
-      {:ok,
-       state
+      next_state =
+        prepared_state
        |> Map.put(:active_turn_id, next_turn_id)
        |> Map.put(:work_queue, remaining_turn_ids)
        |> update_in([:child_work_order], &(&1 ++ [running_child_work.id]))
@@ -295,11 +319,204 @@ defmodule JidoCode.Conversations.Coordinator do
        |> store_child_work(running_child_work,
          actor: running_child_work.actor,
          message_id: running_turn.command_id
-       )}
+       )
+
+      maybe_schedule_runtime_for_turn(next_state, running_turn.id)
     end
   end
 
   defp maybe_activate_next_turn(state), do: {:ok, state}
+
+  defp maybe_prepare_runtime_scope(state, next_turn_id) do
+    turn = Map.fetch!(state.turns, next_turn_id)
+
+    if auto_runtime_enabled?(state.conversation) and is_nil(state.conversation.work_item_id) do
+      instruction =
+        Map.get(turn.payload, "instruction") ||
+          Map.get(turn.payload, "response") ||
+          Map.get(turn.payload, "reason")
+
+      case JidoCode.Conversations.steer_work(
+             state.conversation,
+             %{
+               "attach_mode" => "synthesized_work_item",
+               "instruction" => instruction
+             },
+             actor: turn.actor,
+             shared_context: Snapshot.from_state(state).shared_context
+           ) do
+        {:ok, %{conversation: %Conversation{} = updated_conversation}} ->
+          {:ok, %{state | conversation: updated_conversation}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:ok, state}
+    end
+  end
+
+  defp maybe_schedule_runtime_for_turn(state, turn_id) when is_binary(turn_id) do
+    if auto_runtime_enabled?(state.conversation) do
+      case Map.get(state.turns, turn_id) do
+        %Turn{child_work_id: child_work_id, state: :running} when is_binary(child_work_id) ->
+          send(self(), {:begin_child_runtime, child_work_id})
+          {:ok, state}
+
+        _other ->
+          {:ok, state}
+      end
+    else
+      {:ok, state}
+    end
+  end
+
+  defp maybe_schedule_runtime_for_turn(state, _turn_id), do: {:ok, state}
+
+  defp maybe_begin_child_runtime(state, child_work_id) do
+    with {:ok, pid, next_state} <- ensure_child_worker_for_runtime(state, child_work_id),
+         %ChildWork{} = child_work <- Map.fetch!(next_state.child_works, child_work_id),
+         %Turn{} = turn <- Map.fetch!(next_state.turns, child_work.turn_id),
+         runtime_spec <- runtime_spec(next_state, turn, child_work),
+         {:ok, _child_work} <- ChildWorker.begin_runtime(pid, runtime_spec) do
+      {:ok, next_state}
+    end
+  end
+
+  defp ensure_child_worker_for_runtime(state, child_work_id) do
+    case Map.fetch(state.child_worker_pids, child_work_id) do
+      {:ok, pid} when is_pid(pid) ->
+        if Process.alive?(pid) do
+          {:ok, pid, state}
+        else
+          restart_child_worker_for_runtime(state, child_work_id)
+        end
+
+      {:ok, _stale_pid} ->
+        restart_child_worker_for_runtime(state, child_work_id)
+
+      :error ->
+        restart_child_worker_for_runtime(state, child_work_id)
+    end
+  end
+
+  defp restart_child_worker_for_runtime(state, child_work_id) do
+    case Map.fetch(state.child_works, child_work_id) do
+      {:ok, %ChildWork{} = child_work} ->
+        with {:ok, pid} <- ChildWorker.start(child_work) do
+          {:ok, pid, put_in(state, [:child_worker_pids, child_work_id], pid)}
+        end
+
+      :error ->
+        {:error, :child_work_not_found}
+    end
+  end
+
+  defp runtime_spec(state, turn, child_work) do
+    shared_context = Snapshot.from_state(state).shared_context
+
+    %{
+      conversation_id: state.conversation.id,
+      managed_repo_id: state.conversation.managed_repo_id,
+      work_item_id: state.conversation.work_item_id,
+      child_work_id: child_work.id,
+      turn_id: turn.id,
+      instruction: runtime_instruction(turn),
+      command_type: turn.command_type,
+      actor: turn.actor,
+      objective: state.conversation.objective,
+      source: state.conversation.source,
+      source_metadata: normalize_map(state.conversation.source_metadata),
+      conversation_metadata: normalize_map(state.conversation.conversation_metadata),
+      shared_context: shared_context,
+      turn_payload: normalize_map(turn.payload),
+      child_work_result: normalize_map(child_work.result),
+      sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner}),
+      starter_pid: self()
+    }
+  end
+
+  defp runtime_instruction(%Turn{payload: payload}) do
+    payload = normalize_map(payload)
+
+    case Map.get(payload, "clarification_resume") do
+      %{} = clarification_resume ->
+        Map.get(clarification_resume, "response") ||
+          Map.get(payload, "instruction") ||
+          Map.get(payload, "reason") ||
+          "Continue the repository conversation."
+
+      _other ->
+        Map.get(payload, "instruction") || Map.get(payload, "reason") || "Continue the repository conversation."
+    end
+  end
+
+  defp with_resume_payload(%Turn{} = turn, state, payload) when is_map(payload) do
+    clarification_resume =
+      %{}
+      |> maybe_put("response", optional_string(Map.get(payload, "response")))
+      |> maybe_put("prompt", resume_prompt(state, turn, payload))
+
+    if clarification_resume == %{} do
+      turn
+    else
+      %{turn | payload: Map.put(normalize_map(turn.payload), "clarification_resume", clarification_resume)}
+    end
+  end
+
+  defp with_resume_payload(%Turn{} = turn, _state, _payload), do: turn
+
+  defp resume_prompt(state, %Turn{} = turn, payload) when is_map(payload) do
+    case optional_string(Map.get(payload, "prompt")) do
+      nil ->
+        state
+        |> pending_clarification_for_turn(turn.id)
+        |> case do
+          %{"prompt" => %{"prompt" => prompt}} -> prompt
+          %{"prompt" => %{"details" => %{"prompt" => prompt}}} -> prompt
+          %{"prompt" => prompt} when is_binary(prompt) -> prompt
+          _other -> nil
+        end
+
+      prompt ->
+        prompt
+    end
+  end
+
+  defp pending_clarification_for_turn(state, turn_id) when is_binary(turn_id) do
+    state
+    |> Snapshot.from_state()
+    |> Map.get(:shared_context, %{})
+    |> Map.get("pending_clarification")
+    |> case do
+      %{"turn_id" => ^turn_id} = pending_clarification -> pending_clarification
+      _other -> nil
+    end
+  end
+
+  defp pending_clarification_for_turn(_state, _turn_id), do: nil
+
+  defp normalize_map(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      Map.put(acc, normalized_key, normalize_nested_value(nested_value))
+    end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
+  defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
+  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+  defp normalize_nested_value(value), do: value
+
+  defp auto_runtime_enabled?(%Conversation{source: "project_detail"}), do: true
+  defp auto_runtime_enabled?(_conversation), do: false
 
   defp apply_tool_result_command(state, normalized_command) do
     with {:ok, %ChildWork{} = child_work} <- target_child_work(state, normalized_command.payload),
@@ -515,16 +732,28 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp settle_child_work_runtime(state, child_work_id, outcome, attrs) do
     case Map.fetch(state.child_worker_pids, child_work_id) do
-      {:ok, pid} ->
-        ChildWorker.settle(pid, outcome, attrs)
+      {:ok, pid} when is_pid(pid) ->
+        if Process.alive?(pid) do
+          try do
+            ChildWorker.settle(pid, outcome, attrs)
+          catch
+            :exit, _reason -> fallback_child_work_settlement(state, child_work_id, outcome, attrs)
+          end
+        else
+          fallback_child_work_settlement(state, child_work_id, outcome, attrs)
+        end
 
       :error ->
-        state.child_works
-        |> Map.fetch(child_work_id)
-        |> case do
-          {:ok, %ChildWork{} = child_work} -> ChildWork.settle(child_work, outcome, attrs)
-          :error -> {:error, :child_work_not_found}
-        end
+        fallback_child_work_settlement(state, child_work_id, outcome, attrs)
+    end
+  end
+
+  defp fallback_child_work_settlement(state, child_work_id, outcome, attrs) do
+    state.child_works
+    |> Map.fetch(child_work_id)
+    |> case do
+      {:ok, %ChildWork{} = child_work} -> ChildWork.settle(child_work, outcome, attrs)
+      :error -> {:error, :child_work_not_found}
     end
   end
 
@@ -1156,6 +1385,26 @@ defmodule JidoCode.Conversations.Coordinator do
       events: []
     }
   end
+
+  defp maybe_terminate_child_worker(pid) when is_pid(pid) do
+    case Process.whereis(JidoCode.Conversations.ChildSupervisor) do
+      supervisor when is_pid(supervisor) ->
+        if Process.alive?(pid) do
+          try do
+            _ = DynamicSupervisor.terminate_child(JidoCode.Conversations.ChildSupervisor, pid)
+          catch
+            :exit, _reason -> :ok
+          end
+        else
+          :ok
+        end
+
+      _other ->
+        :ok
+    end
+  end
+
+  defp maybe_terminate_child_worker(_pid), do: :ok
 
   defp maybe_allow_test_sandbox(sandbox_owner, starter_pid) do
     [sandbox_owner, starter_pid]

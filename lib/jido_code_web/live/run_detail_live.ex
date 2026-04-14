@@ -12,6 +12,8 @@ defmodule JidoCodeWeb.RunDetailLive do
   # covers: architecture.run_governance.run_detail_can_host_bounded_memory_context
   # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
   # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.{Actor, RepoBridge}
@@ -20,6 +22,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
   alias JidoCode.Projects.Project
+  alias JidoCode.Workbench.ProjectConversation
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -450,6 +453,117 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p id="run-detail-work-item-empty" class="text-xs text-base-content/70">
                   No governed work item is linked to this run yet.
                 </p>
+              <% end %>
+            </section>
+
+            <section id="run-detail-conversation-linkage" class="space-y-2">
+              <p class="text-sm font-medium">Conversation lineage</p>
+
+              <%= cond do %>
+                <% @conversation_linkage && @conversation_linkage.conversation -> %>
+                  <div
+                    id="run-detail-conversation-entry"
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                  >
+                    <p id="run-detail-conversation-id" class="text-sm font-medium">
+                      Conversation: {@conversation_linkage.conversation.id}
+                    </p>
+                    <p id="run-detail-conversation-status" class="text-xs text-base-content/80">
+                      Status: {Map.get(@conversation_linkage.conversation, :status) |> status_label()}
+                    </p>
+                    <p
+                      :if={conversation_resolution_action(@conversation_linkage.conversation)}
+                      id="run-detail-conversation-resolution"
+                      class="text-xs text-base-content/80"
+                    >
+                      Work resolution: {conversation_resolution_action(@conversation_linkage.conversation)}
+                    </p>
+                    <p
+                      :if={conversation_resolution_detail(@conversation_linkage.conversation)}
+                      id="run-detail-conversation-detail"
+                      class="text-xs text-base-content/70"
+                    >
+                      {conversation_resolution_detail(@conversation_linkage.conversation)}
+                    </p>
+                    <p
+                      :if={@conversation_linkage.origin && @conversation_linkage.origin["workflow"]}
+                      id="run-detail-conversation-origin-workflow"
+                      class="text-xs text-base-content/70"
+                    >
+                      Origin workflow: {@conversation_linkage.origin["workflow"]}
+                    </p>
+                    <p
+                      :if={@conversation_linkage.origin && @conversation_linkage.origin["resolution_reason"]}
+                      id="run-detail-conversation-origin-reason"
+                      class="text-xs text-base-content/70"
+                    >
+                      {@conversation_linkage.origin["resolution_reason"]}
+                    </p>
+                    <.link
+                      id="run-detail-conversation-open-repo"
+                      class="link link-primary text-xs"
+                      navigate={~p"/repos/#{@project_id}"}
+                    >
+                      {@conversation_linkage.action_label}
+                    </.link>
+                  </div>
+                <% @conversation_linkage && @conversation_linkage.origin -> %>
+                  <div
+                    id="run-detail-conversation-origin-only"
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                  >
+                    <p id="run-detail-conversation-origin-label" class="text-sm font-medium">
+                      Productive conversation origin preserved on this work item.
+                    </p>
+                    <p
+                      :if={@conversation_linkage.origin["workflow"]}
+                      id="run-detail-conversation-origin-workflow"
+                      class="text-xs text-base-content/80"
+                    >
+                      Origin workflow: {@conversation_linkage.origin["workflow"]}
+                    </p>
+                    <p
+                      :if={@conversation_linkage.origin["resolution_reason"]}
+                      id="run-detail-conversation-origin-reason"
+                      class="text-xs text-base-content/70"
+                    >
+                      {@conversation_linkage.origin["resolution_reason"]}
+                    </p>
+                    <.link
+                      id="run-detail-conversation-open-repo"
+                      class="link link-primary text-xs"
+                      navigate={~p"/repos/#{@project_id}"}
+                    >
+                      {@conversation_linkage.action_label}
+                    </.link>
+                  </div>
+                <% @conversation_linkage && @conversation_linkage.notice -> %>
+                  <div
+                    id="run-detail-conversation-notice"
+                    class="rounded border border-warning/40 bg-warning/10 p-3 space-y-1"
+                  >
+                    <p id="run-detail-conversation-notice-label" class="text-sm font-medium">
+                      Conversation lineage is temporarily unavailable.
+                    </p>
+                    <p id="run-detail-conversation-notice-detail" class="text-xs text-base-content/70">
+                      {@conversation_linkage.notice.detail}
+                    </p>
+                    <.link
+                      id="run-detail-conversation-open-repo"
+                      class="link link-primary text-xs"
+                      navigate={~p"/repos/#{@project_id}"}
+                    >
+                      Open repo detail
+                    </.link>
+                  </div>
+                <% @work_item -> %>
+                  <p id="run-detail-conversation-empty" class="text-xs text-base-content/70">
+                    No productive repository conversation is linked to this governed work item yet.
+                  </p>
+                <% true -> %>
+                  <p id="run-detail-conversation-unavailable" class="text-xs text-base-content/70">
+                    No governed work item is linked to this run yet, so conversation lineage is unavailable.
+                  </p>
               <% end %>
             </section>
 
@@ -1274,6 +1388,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:run_id, run_id)
     |> assign(:run, nil)
     |> assign(:work_item, nil)
+    |> assign(:conversation_linkage, nil)
     |> assign(:evidence_records, [])
     |> assign(:change_request, nil)
     |> assign(:decisions, [])
@@ -1306,6 +1421,7 @@ defmodule JidoCodeWeb.RunDetailLive do
          %{
            run: run,
            work_item: work_item,
+           conversation_linkage: conversation_linkage,
            evidence_records: evidence_records,
            change_request: change_request,
            decisions: decisions,
@@ -1317,6 +1433,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     socket
     |> assign(:run, run)
     |> assign(:work_item, work_item)
+    |> assign(:conversation_linkage, conversation_linkage)
     |> assign(:evidence_records, evidence_records)
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
@@ -1363,6 +1480,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       evidence_records = load_evidence_records(run)
       decisions = load_decisions(run)
       work_item = load_work_item(run, evidence_records, decisions)
+      conversation_linkage = ProjectConversation.load_work_item_linkage(work_item, actor: Actor.operator_actor())
 
       managed_repo_id = memory_context_managed_repo_id(project_scope, run)
       workspace_path = load_project_workspace_path(project_id)
@@ -1382,6 +1500,7 @@ defmodule JidoCodeWeb.RunDetailLive do
        %{
          run: run,
          work_item: work_item,
+         conversation_linkage: conversation_linkage,
          evidence_records: evidence_records,
          change_request: load_change_request(run),
          decisions: decisions,
@@ -2712,6 +2831,28 @@ defmodule JidoCodeWeb.RunDetailLive do
       remediation: "Review workflow retry policy and retry from run detail."
     }
   end
+
+  defp conversation_resolution_action(%{} = conversation) do
+    conversation
+    |> Map.get(:work_resolution, %{})
+    |> conversation_resolution_value(:action)
+  end
+
+  defp conversation_resolution_action(_conversation), do: nil
+
+  defp conversation_resolution_detail(%{} = conversation) do
+    conversation
+    |> Map.get(:work_resolution, %{})
+    |> conversation_resolution_value(:detail)
+  end
+
+  defp conversation_resolution_detail(_conversation), do: nil
+
+  defp conversation_resolution_value(%{} = resolution, key) when is_atom(key) do
+    Map.get(resolution, key) || Map.get(resolution, Atom.to_string(key))
+  end
+
+  defp conversation_resolution_value(_resolution, _key), do: nil
 
   defp status_label(status) do
     status

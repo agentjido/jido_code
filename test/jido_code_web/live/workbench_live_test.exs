@@ -3,6 +3,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -207,6 +209,91 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
     assert has_element?(view, "#workbench-project-memory-hint-#{route_id}")
+  end
+
+  test "shows active repo conversation linkage on workbench rows", %{conn: _conn} do
+    register_owner("workbench-conversation-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workbench-conversation-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("WorkbenchConversation.Active")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-workbench-conversation",
+        github_full_name: "owner/repo-workbench-conversation",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    route_id = managed_repo_route_id!(project.id)
+
+    on_exit(fn ->
+      case AgentWorkspace.latest_repo_conversation(route_id, actor: Actor.operator_actor()) do
+        {:ok, %{id: conversation_id}} ->
+          _ = AgentWorkspace.stop_conversation(conversation_id)
+          _ = AgentWorkspace.shutdown_kernel(route_id)
+          :ok
+
+        _other ->
+          _ = AgentWorkspace.shutdown_kernel(route_id)
+          :ok
+      end
+    end)
+
+    {:ok, detail_view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    detail_view
+    |> element("#project-detail-conversation-open")
+    |> render_click()
+
+    detail_view
+    |> form("#project-detail-conversation-form", %{
+      "input" => "Inspect the repo detail conversation flow."
+    })
+    |> render_submit()
+
+    assert_eventually(fn ->
+      has_element?(detail_view, "#project-detail-conversation-work-resolution", "created") and
+        has_element?(detail_view, "#project-detail-conversation-governed-work")
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert has_element?(view, "#workbench-project-conversation-hint-#{route_id}")
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-hint-badge-#{route_id}",
+             "Repo conversation active"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-hint-detail-#{route_id}",
+             "Governed follow-up"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-work-item-#{route_id}",
+             "Queue review operator request work for the managed repository."
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-link-#{route_id}[href='/repos/#{route_id}']",
+             "Continue repo conversation"
+           )
   end
 
   test "surfaces stale memory hints on workbench rows and routes recovery back to repo detail", %{

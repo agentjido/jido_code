@@ -39,7 +39,10 @@ surface:
   - lib/jido_code/agents/refactorer.ex
   - lib/jido_code/agents/explainer.ex
   - lib/jido_code/workbench/project_conversation.ex
+  - lib/jido_code/workbench/inventory.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/workbench_live.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/setup/provider_credential_checks.ex
   - lib/jido_code/forge/pubsub.ex
   - lib/jido_code/orchestration/run_pubsub.ex
@@ -47,9 +50,12 @@ surface:
   - test/jido_code/phase_forty_four_integration_test.exs
   - test/jido_code/phase_forty_six_integration_test.exs
   - test/jido_code/phase_forty_seven_integration_test.exs
+  - test/jido_code/phase_forty_eight_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
+  - test/jido_code_web/live/workbench_live_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
 ```
 
 ## Requirements
@@ -127,6 +133,11 @@ surface:
 
 - id: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   statement: Managed-repository and adjacent governed-work surfaces should show when a productive conversation is attached to a `WorkItem` and allow operators to follow or resume the canonical governed work loop from that linkage.
+  priority: should
+  stability: proposed
+
+- id: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  statement: Workbench and governed run detail should project bounded repo-conversation and governed-work linkage through product-owned conversation projections so operators can follow active conversation-driven work without reconstructing it from transcript text, raw work metadata, or runtime internals.
   priority: should
   stability: proposed
 
@@ -280,6 +291,20 @@ surface:
   then:
     - The product shows the attached `WorkItem` linkage and current governed work status without requiring the operator to infer it from raw conversation text.
     - The operator can follow or resume the governed work loop from that surfaced linkage rather than reopening a separate ad hoc path.
+
+- id: architecture.conversation_orchestration.scenario_workbench_and_run_detail_project_conversation_linkage
+  covers:
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  given:
+    - A productive repository conversation is attached to canonical governed `WorkItem` scope.
+    - Governed execution has begun or completed against that work item.
+  when:
+    - An operator opens Workbench or governed run detail.
+  then:
+    - Workbench shows bounded repo-conversation status plus the attached governed work summary on the managed-repository row.
+    - Governed run detail shows the bounded relationship between run execution, canonical `WorkItem` scope, and any preserved productive conversation origin or latest linked conversation.
+    - Both surfaces route operators back to the managed-repository conversation host surface instead of inventing page-local or run-local chat state.
 
 - id: architecture.conversation_orchestration.scenario_repo_conversation_executes_real_llm_turns
   covers:
@@ -446,6 +471,7 @@ surface:
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
 
 - kind: source_file
   target: test/jido_code/phase_forty_integration_test.exs
@@ -506,6 +532,11 @@ surface:
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
 
 - kind: source_file
+  target: test/jido_code/phase_forty_eight_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
   covers:
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
@@ -523,6 +554,26 @@ surface:
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+
+- kind: source_file
+  target: lib/jido_code_web/live/workbench_live.ex
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code_web/live/workbench_live_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
 
 - kind: source_file
   target: lib/jido_code/forge/pubsub.ex

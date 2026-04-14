@@ -12,6 +12,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
   # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
   # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+  # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -76,6 +78,12 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-run-id", "run-detail-123")
     assert has_element?(view, "#run-detail-status", "awaiting_approval")
     assert has_element?(view, "#run-detail-current-step", "approval_gate")
+
+    assert has_element?(
+             view,
+             "#run-detail-conversation-unavailable",
+             "No governed work item is linked to this run yet"
+           )
 
     assert has_element?(view, "#run-detail-timeline-entry-1")
     assert has_element?(view, "#run-detail-timeline-transition-1", "pending")
@@ -224,6 +232,119 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-evidence-key-1")
     assert has_element?(view, "#run-detail-change-request-status", "open")
     assert has_element?(view, "#run-detail-decisions-empty")
+  end
+
+  test "shows productive conversation lineage for governed run work items", %{conn: _conn} do
+    register_owner("run-conversation-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("run-conversation-owner@example.com", "owner-password-123")
+
+    workspace_path = create_memory_workspace_path!("run_detail_conversation_linkage")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-run-conversation-linkage",
+        github_full_name: "owner/repo-run-conversation-linkage",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    on_exit(fn ->
+      case AgentWorkspace.latest_repo_conversation(managed_repo.id, actor: Actor.operator_actor()) do
+        {:ok, %{id: conversation_id}} ->
+          _ = AgentWorkspace.stop_conversation(conversation_id)
+          _ = AgentWorkspace.shutdown_kernel(managed_repo.id)
+          :ok
+
+        _other ->
+          _ = AgentWorkspace.shutdown_kernel(managed_repo.id)
+          :ok
+      end
+    end)
+
+    {:ok, detail_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    detail_view
+    |> element("#project-detail-conversation-open")
+    |> render_click()
+
+    detail_view
+    |> form("#project-detail-conversation-form", %{
+      "input" => "Inspect the repo detail conversation flow."
+    })
+    |> render_submit()
+
+    assert_eventually(fn ->
+      with {:ok, %{id: conversation_id}} <-
+             AgentWorkspace.latest_repo_conversation(managed_repo.id, actor: Actor.operator_actor()),
+           {:ok, snapshot} <- AgentWorkspace.conversation_snapshot(conversation_id) do
+        is_binary(snapshot.work_item_id)
+      else
+        _other -> false
+      end
+    end)
+
+    {:ok, %{id: conversation_id}} =
+      AgentWorkspace.latest_repo_conversation(managed_repo.id, actor: Actor.operator_actor())
+
+    {:ok, snapshot} = AgentWorkspace.conversation_snapshot(conversation_id)
+    work_item_id = snapshot.work_item_id
+
+    run_id = "run-conversation-linkage-#{System.unique_integer([:positive])}"
+
+    {:ok, run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        managed_repo_id: managed_repo.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{
+          "task_summary" => "Render conversation lineage",
+          "work_item_id" => work_item_id
+        },
+        input_metadata: %{
+          "task_summary" => %{required: true, source: "manual_workflows_ui"},
+          "work_item_id" => %{required: true, source: "conversation"}
+        },
+        initiating_actor: %{id: "owner-1", email: "run-conversation-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-12 19:00:00Z]
+      })
+
+    {:ok, _run} =
+      WorkflowRun.transition_status(run, %{
+        to_status: :running,
+        current_step: "plan_changes",
+        transitioned_at: ~U[2026-04-12 19:01:00Z]
+      })
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-conversation-entry")
+    assert has_element?(view, "#run-detail-conversation-status", "active")
+    assert has_element?(view, "#run-detail-conversation-resolution", "created")
+
+    assert has_element?(
+             view,
+             "#run-detail-conversation-open-repo[href='/repos/#{project.id}']",
+             "Continue repo conversation"
+           )
   end
 
   test "shows bounded memory context for governed run history", %{conn: _conn} do
@@ -433,13 +554,55 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, managed_repo} =
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
+    {:ok, event} =
+      Event.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          category: "memory_graph_recovery_requested",
+          summary: "Recovery was requested for stale run memory context.",
+          correlation_key: "run-memory-recovery-#{System.unique_integer([:positive])}",
+          payload: %{},
+          source_metadata: %{"source" => "run_detail_live_test"},
+          occurred_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, assessment} =
+      Assessment.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          event_id: event.id,
+          category: "memory_recovery",
+          summary: "Assess stale governed memory recovery for this run.",
+          priority: :medium,
+          urgency: :medium,
+          recommended_action: "recover_memory_context",
+          rationale: "Run detail should expose bounded recovery for invalidated memory state.",
+          inputs: %{},
+          assessment_metadata: %{},
+          assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
     {:ok, work_item} =
       WorkItem.create(
         %{
           managed_repo_id: managed_repo.id,
+          assessment_id: assessment.id,
+          event_id: event.id,
           summary: "Recover stale run memory context",
           status: :open,
-          category: "review_follow_up"
+          category: "review_follow_up",
+          priority: :medium,
+          recommended_action: "recover_memory_context",
+          dedup_key: "run-memory-recovery-work-item-#{System.unique_integer([:positive])}",
+          initiating_actor: %{"id" => "owner-3"},
+          work_metadata: %{},
+          audit_log: [],
+          opened_at: DateTime.utc_now() |> DateTime.truncate(:microsecond),
+          last_assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
         },
         actor: Actor.operator_actor()
       )
@@ -702,7 +865,12 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-memory-promote-1")
 
     render_click(element(view, "#run-detail-evidence-memory-#{evidence.id}-memory-validate-1"))
-    assert has_element?(view, "#run-detail-memory-action-feedback", "validation was recorded")
+
+    assert has_element?(
+             view,
+             "#run-detail-memory-action-feedback",
+             "Recorded durable memory validation"
+           )
 
     render_click(element(view, "#run-detail-evidence-memory-#{evidence.id}-memory-promote-1"))
     assert has_element?(view, "#run-detail-memory-action-feedback", "Created governed follow-up work item")
@@ -714,7 +882,11 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       )
     )
 
-    assert has_element?(view, "#run-detail-memory-action-feedback", "superseded using the latest governed decision")
+    assert has_element?(
+             view,
+             "#run-detail-memory-action-feedback",
+             "Superseded durable decision memory with the latest governed decision"
+           )
 
     {:ok, work_items} =
       WorkItem.read(

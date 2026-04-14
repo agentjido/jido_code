@@ -80,7 +80,9 @@ surface:
   - priv/repo/migrations/20260331143000_add_repo_posture_records.exs
   - test/jido_code/governance/posture_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_feed_test.exs
+  - test/jido_code/phase_forty_eight_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/workbench_live_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs
@@ -123,6 +125,11 @@ surface:
 - id: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   statement: Operator-facing workbench, repo-detail, dashboard, and run-detail surfaces shall use `ManagedRepo` and governed `Run` as their canonical product records, identifiers, and route shapes instead of preserving `Project`- or `WorkflowRun`-era compatibility vocabulary.
   priority: must
+  stability: evolving
+
+- id: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+  statement: When productive repository conversations create or attach governed work, Workbench, repo detail, and governed run detail should project that conversation linkage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane.
+  priority: should
   stability: evolving
 
 - id: architecture.factory_control_plane.runtime_overlay_preserves_product_truth
@@ -181,6 +188,7 @@ surface:
 - id: architecture.factory_control_plane.scenario_operator_surfaces_use_canonical_repo_and_run_routes
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   given:
     - Managed repositories and governed runs already exist as the canonical control-plane records.
   when:
@@ -188,6 +196,7 @@ surface:
   then:
     - The product resolves and presents canonical managed-repository and governed-run records directly.
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
+    - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
 
 ```
 
@@ -267,9 +276,20 @@ surface:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 
 - kind: source_file
+  target: test/jido_code_web/live/workbench_live_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+
+- kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+
+- kind: source_file
+  target: test/jido_code/phase_forty_eight_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
 
 - kind: source_file
   target: test/jido_code_web/live/phase_eleven_integration_test.exs
@@ -341,5 +361,6 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
 
 ```

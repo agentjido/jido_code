@@ -74,6 +74,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
   @spec load_repo_detail(map() | nil, keyword()) :: projection()
   def load_repo_detail(project_like, opts \\ []) do
     actor = normalize_actor(Keyword.get(opts, :actor))
+
     selected_work_item_id =
       opts
       |> Keyword.get(:selected_work_item_id)
@@ -158,42 +159,42 @@ defmodule JidoCode.Workbench.ProjectConversation do
       |> Map.put(:available?, true)
       |> Map.put(:managed_repo_id, managed_repo_id)
     else
-      case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
-      {:ok, nil} ->
-        %{
-          available?: true,
-          managed_repo_id: managed_repo_id,
-          conversation: nil,
-          historical_conversation: nil,
-          work_item: nil,
-          snapshot: nil,
-          recent_events: [],
-          notice: nil,
-          action_label: "Open repo conversation"
-        }
+      case latest_repo_intake_conversation(managed_repo_id, actor) do
+        {:ok, nil} ->
+          %{
+            available?: true,
+            managed_repo_id: managed_repo_id,
+            conversation: nil,
+            historical_conversation: nil,
+            work_item: nil,
+            snapshot: nil,
+            recent_events: [],
+            notice: nil,
+            action_label: "Open repo conversation"
+          }
 
-      {:ok, %Conversation{} = conversation} ->
-        case AgentWorkspace.conversation_snapshot(conversation.id) do
-          {:ok, snapshot} ->
-            projection_for(conversation, snapshot, managed_repo_id, actor)
+        {:ok, %Conversation{} = conversation} ->
+          case AgentWorkspace.conversation_snapshot(conversation.id) do
+            {:ok, snapshot} ->
+              projection_for(conversation, snapshot, managed_repo_id, actor)
 
-          {:error, reason} ->
-            %{
-              available?: true,
-              managed_repo_id: managed_repo_id,
-              conversation: conversation_summary(conversation, nil),
-              historical_conversation: nil,
-              work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
-              snapshot: nil,
-              recent_events: [],
-              notice: snapshot_unavailable_notice(reason),
-              action_label: repo_action_label(conversation)
-            }
-        end
+            {:error, reason} ->
+              %{
+                available?: true,
+                managed_repo_id: managed_repo_id,
+                conversation: conversation_summary(conversation, nil),
+                historical_conversation: nil,
+                work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
+                snapshot: nil,
+                recent_events: [],
+                notice: snapshot_unavailable_notice(reason),
+                action_label: repo_action_label(conversation)
+              }
+          end
 
-      {:error, reason} ->
-        unavailable_projection(load_error_notice(reason))
-        |> Map.put(:managed_repo_id, managed_repo_id)
+        {:error, reason} ->
+          unavailable_projection(load_error_notice(reason))
+          |> Map.put(:managed_repo_id, managed_repo_id)
       end
     end
   end
@@ -289,6 +290,8 @@ defmodule JidoCode.Workbench.ProjectConversation do
   end
 
   defp projection_for_work_item(reference, actor) do
+    reference = reconcile_reference_work_item(reference, actor)
+
     origin_conversation =
       reference.origin_conversation_id
       |> fetch_conversation(actor)
@@ -323,8 +326,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
               available?: true,
               managed_repo_id: reference.managed_repo_id,
               conversation: conversation_summary(conversation, snapshot),
-              historical_conversation:
-                historical_lineage_conversation(conversation, origin_conversation),
+              historical_conversation: historical_lineage_conversation(conversation, origin_conversation),
               work_item: reference.work_item,
               origin: reference.origin,
               snapshot: snapshot,
@@ -338,8 +340,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
               available?: true,
               managed_repo_id: reference.managed_repo_id,
               conversation: conversation_summary(conversation, nil),
-              historical_conversation:
-                historical_lineage_conversation(conversation, origin_conversation),
+              historical_conversation: historical_lineage_conversation(conversation, origin_conversation),
               work_item: reference.work_item,
               origin: reference.origin,
               snapshot: nil,
@@ -485,6 +486,31 @@ defmodule JidoCode.Workbench.ProjectConversation do
       {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
       {:ok, []} -> {:error, :work_item_not_found}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp latest_repo_intake_conversation(managed_repo_id, actor) do
+    case AgentWorkspace.active_repo_intake_conversation(managed_repo_id, actor: actor) do
+      {:ok, %Conversation{} = conversation} ->
+        {:ok, conversation}
+
+      {:ok, nil} ->
+        AgentWorkspace.latest_repo_intake_conversation(managed_repo_id, actor: actor)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp reconcile_reference_work_item(reference, actor) do
+    case Conversations.reconcile_work_item_conversation_lifecycle(reference.work_item_id, actor: actor) do
+      {:ok, %{work_item: %WorkItem{} = work_item}} ->
+        reference
+        |> Map.put(:managed_repo_id, work_item.managed_repo_id)
+        |> Map.put(:work_item, work_item_summary(work_item))
+
+      _other ->
+        reference
     end
   end
 
@@ -664,8 +690,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
         error_type: "work_item_conversation_origin_historical",
         detail:
           "This governed run originated from historical conversation #{origin_conversation.id}. Conversation #{conversation.id} is the current productive thread for the same work item.",
-        remediation:
-          "Resume the governed conversation from this work item path to continue the active thread."
+        remediation: "Resume the governed conversation from this work item path to continue the active thread."
       }
     end
   end
@@ -676,8 +701,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       error_type: "work_item_conversation_historical_only",
       detail:
         "Conversation #{conversation.id} is preserved as historical lineage for this work item and is no longer the active productive thread.",
-      remediation:
-        "Open a governed conversation for this work item to continue with a fresh active thread."
+      remediation: "Open a governed conversation for this work item to continue with a fresh active thread."
     }
   end
 
@@ -688,8 +712,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
       error_type: "work_item_conversation_origin_only",
       detail:
         "This work item preserves conversation origin metadata, but no active productive conversation is currently attached.",
-      remediation:
-        "Open a governed conversation for this work item to continue the governed loop."
+      remediation: "Open a governed conversation for this work item to continue the governed loop."
     }
   end
 
@@ -732,6 +755,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
+      "nil" -> nil
       normalized -> normalized
     end
   end

@@ -175,6 +175,23 @@ defmodule JidoCode.Conversations.Runtime do
     end
   end
 
+  defp maybe_request_clarification(%{
+         routing: %{ambiguous?: true} = routing,
+         context_source: context_source
+       }) do
+    {:awaiting_input,
+     %{
+       "kind" => "needs_input",
+       "prompt" => workflow_clarification_prompt(),
+       "workflow" => "clarify",
+       "context_source" => context_source_name(context_source),
+       "required_context" => %{
+         "workflow_choices" => Enum.map(WorkflowRouter.workflows(), &Atom.to_string/1)
+       },
+       "routing" => WorkflowRouter.metadata(routing)
+     }}
+  end
+
   defp maybe_request_clarification(
          %{
            user_instruction: instruction,
@@ -356,6 +373,8 @@ defmodule JidoCode.Conversations.Runtime do
          referenced_files,
          clarification_resume
        ) do
+    workflow_name = if(is_atom(workflow), do: Atom.to_string(workflow), else: "clarify")
+
     accepted_tool_results =
       shared_context
       |> Map.get("accepted_tool_results", [])
@@ -364,7 +383,7 @@ defmodule JidoCode.Conversations.Runtime do
 
     [
       "Repository conversation objective: #{normalize_optional_string(map_get(runtime_spec, :objective)) || "Coordinate managed repository work."}",
-      "Workflow: #{Atom.to_string(workflow)}",
+      "Workflow: #{workflow_name}",
       "Current request: #{normalize_optional_string(map_get(runtime_spec, :instruction)) || "Continue the repository conversation."}",
       "Repository scope:",
       "- managed_repo_id: #{managed_repo_id}",
@@ -384,14 +403,26 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp runtime_progress_event(request) do
-    %{
-      "kind" => "progress",
-      "summary" =>
-        "Routing the repository conversation through the #{Atom.to_string(request.workflow)} specialist using #{context_source_label(request.context_source)}.",
-      "workflow" => Atom.to_string(request.workflow),
-      "context_source" => context_source_name(request.context_source),
-      "referenced_files" => request.referenced_files
-    }
+    if request.routing.ambiguous? do
+      %{
+        "kind" => "progress",
+        "summary" =>
+          "Requesting clarification before choosing whether to plan, implement, review, or explain this repository work.",
+        "workflow" => "clarify",
+        "context_source" => context_source_name(request.context_source),
+        "referenced_files" => request.referenced_files,
+        "routing" => WorkflowRouter.metadata(request.routing)
+      }
+    else
+      %{
+        "kind" => "progress",
+        "summary" =>
+          "Routing the repository conversation through the #{Atom.to_string(request.workflow)} specialist using #{context_source_label(request.context_source)}.",
+        "workflow" => Atom.to_string(request.workflow),
+        "context_source" => context_source_name(request.context_source),
+        "referenced_files" => request.referenced_files
+      }
+    end
   end
 
   defp result_summary(result, workflow) do
@@ -420,7 +451,11 @@ defmodule JidoCode.Conversations.Runtime do
   defp clarification_prompt(_workflow),
     do: "Which file or module should I inspect first?"
 
-  defp select_context_source(nil), do: :workspace
+  defp workflow_clarification_prompt do
+    "Do you want me to plan, implement, review, or explain this request?"
+  end
+
+  defp select_context_source(nil), do: :workflow_clarification
 
   defp select_context_source(:execute) do
     cond do
@@ -444,6 +479,7 @@ defmodule JidoCode.Conversations.Runtime do
   defp context_source_label(:semantic_workflow), do: "the semantic workflow boundary"
   defp context_source_label(:memory_workflow), do: "the memory workflow boundary"
   defp context_source_label(:workspace_with_semantic), do: "AgentWorkspace with explicit semantic graph context"
+  defp context_source_label(:workflow_clarification), do: "workflow clarification"
   defp context_source_label(_other), do: "AgentWorkspace"
 
   defp context_source_name(context_source), do: Atom.to_string(context_source)

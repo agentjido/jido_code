@@ -10,33 +10,98 @@ defmodule JidoCode.Conversations.WorkflowRouter do
 
   @workflows [:plan, :execute, :review, :explain]
 
-  @plan_cues ["plan", "approach", "break down", "step-by-step", "roadmap", "outline"]
-  @review_cues ["review", "audit", "critique", "risk", "regression", "security"]
-
-  @execute_cues [
-    "implement",
-    "change",
-    "fix",
-    "update",
-    "edit",
-    "refactor",
-    "write",
-    "add",
-    "remove",
-    "patch"
-  ]
-
   @surface_intent_keys ["surface_workflow", "surface_intent", "workflow_hint", "workflow"]
+
+  @heuristic_rules %{
+    plan: %{
+      phrases: [
+        {"implementation plan", 14},
+        {"plan the fix", 15},
+        {"step by step", 12},
+        {"break down", 12},
+        {"outline the work", 12},
+        {"roadmap", 10}
+      ],
+      tokens: [{"plan", 8}, {"approach", 6}, {"outline", 6}, {"steps", 5}, {"roadmap", 6}]
+    },
+    execute: %{
+      phrases: [
+        {"fix failing tests", 18},
+        {"implement this", 16},
+        {"make the change", 14},
+        {"update the code", 14},
+        {"write the code", 16},
+        {"apply the patch", 16}
+      ],
+      tokens: [
+        {"implement", 8},
+        {"change", 6},
+        {"fix", 8},
+        {"update", 5},
+        {"edit", 5},
+        {"refactor", 6},
+        {"write", 5},
+        {"add", 4},
+        {"remove", 4},
+        {"patch", 6}
+      ]
+    },
+    review: %{
+      phrases: [
+        {"review this", 14},
+        {"code review", 16},
+        {"look for regressions", 16},
+        {"audit this", 16},
+        {"security review", 18},
+        {"review the diff", 18}
+      ],
+      tokens: [
+        {"review", 8},
+        {"audit", 7},
+        {"risk", 6},
+        {"regression", 7},
+        {"security", 7},
+        {"diff", 6},
+        {"critique", 7}
+      ]
+    },
+    explain: %{
+      phrases: [
+        {"explain this", 14},
+        {"why does", 16},
+        {"help me understand", 14},
+        {"what does this do", 16},
+        {"how does this work", 16},
+        {"inspect the", 12},
+        {"clarify which", 12}
+      ],
+      tokens: [
+        {"explain", 8},
+        {"why", 6},
+        {"how", 4},
+        {"understand", 5},
+        {"inspect", 6},
+        {"investigate", 6},
+        {"clarify", 8},
+        {"what", 3}
+      ]
+    }
+  }
 
   @type workflow :: :plan | :execute | :review | :explain
 
   @type decision :: %{
           workflow: workflow() | nil,
+          candidate_workflow: workflow() | nil,
           source: :explicit_payload | :routing_continuity | :surface_intent | :heuristic | :fallback,
           confidence: :high | :medium | :low,
           ambiguous?: boolean(),
-          reasons: [String.t()]
+          reasons: [String.t()],
+          scores: %{workflow() => non_neg_integer()}
         }
+
+  @spec workflows() :: [workflow()]
+  def workflows, do: @workflows
 
   @spec resolve(map()) :: decision()
   def resolve(input) when is_map(input) do
@@ -66,7 +131,7 @@ defmodule JidoCode.Conversations.WorkflowRouter do
                 ])
 
               _no_surface_intent ->
-                heuristic_decision(input, payload)
+                scored_decision(input, payload)
             end
         end
     end
@@ -84,10 +149,18 @@ defmodule JidoCode.Conversations.WorkflowRouter do
   def metadata(%{source: source} = decision) do
     %{}
     |> maybe_put("workflow", decision.workflow && Atom.to_string(decision.workflow))
+    |> maybe_put(
+      "candidate_workflow",
+      decision.candidate_workflow && Atom.to_string(decision.candidate_workflow)
+    )
     |> Map.put("source", Atom.to_string(source))
     |> Map.put("confidence", Atom.to_string(decision.confidence))
     |> Map.put("ambiguous", decision.ambiguous?)
     |> Map.put("reasons", List.wrap(decision.reasons))
+    |> Map.put(
+      "scores",
+      Enum.into(decision.scores, %{}, fn {workflow, score} -> {Atom.to_string(workflow), score} end)
+    )
   end
 
   @spec normalize_workflow(term()) :: workflow() | nil
@@ -105,7 +178,7 @@ defmodule JidoCode.Conversations.WorkflowRouter do
 
   def normalize_workflow(_value), do: nil
 
-  defp heuristic_decision(input, payload) do
+  defp scored_decision(input, payload) do
     text =
       [
         instruction_text(payload),
@@ -120,23 +193,49 @@ defmodule JidoCode.Conversations.WorkflowRouter do
       |> Enum.join("\n")
       |> String.downcase()
 
+    {scores, reasons_by_workflow} =
+      Enum.reduce(@workflows, {%{}, %{}}, fn workflow, {scores, reasons} ->
+        %{score: score, reasons: workflow_reasons} = score_workflow(text, workflow)
+
+        {
+          Map.put(scores, workflow, score),
+          Map.put(reasons, workflow, workflow_reasons)
+        }
+      end)
+
+    ranked =
+      scores
+      |> Enum.sort_by(fn {_workflow, score} -> -score end)
+
+    [{top_workflow, top_score} | rest] = ranked
+    {_second_workflow, second_score} = List.first(rest) || {nil, 0}
+
+    multi_intent? =
+      String.contains?(text, " and ") or String.contains?(text, " or ")
+
+    conflicting? = multi_intent? and top_score >= 8 and second_score >= 8
+    weak? = top_score < 8
+    close? = second_score > 0 and top_score - second_score < 4
+
     cond do
-      contains_any?(text, @plan_cues) ->
-        decision(:plan, :heuristic, :medium, ["Matched planning cues in the request text."])
+      conflicting? or weak? or close? ->
+        ambiguity_reasons =
+          []
+          |> maybe_add_reason(weak?, "The request does not provide a strong enough workflow signal.")
+          |> maybe_add_reason(close?, "The top workflow scores are too close to choose confidently.")
+          |> maybe_add_reason(conflicting?, "The request mixes multiple workflow intents in one turn.")
+          |> Kernel.++(Map.get(reasons_by_workflow, top_workflow, []))
 
-      contains_any?(text, @review_cues) ->
-        decision(:review, :heuristic, :medium, ["Matched review cues in the request text."])
-
-      contains_any?(text, @execute_cues) ->
-        decision(:execute, :heuristic, :medium, ["Matched implementation cues in the request text."])
-
-      contains_any?(text, ["explain", "inspect", "clarify", "understand", "how", "why", "what"]) ->
-        decision(:explain, :heuristic, :medium, ["Matched explanation cues in the request text."])
+        ambiguous_decision(top_workflow, ambiguity_reasons, scores)
 
       true ->
-        decision(:explain, :fallback, :low, [
-          "No explicit or continuity workflow signal was available, so the request falls back to explanation."
-        ])
+        decision(
+          top_workflow,
+          :heuristic,
+          heuristic_confidence(top_score),
+          Map.get(reasons_by_workflow, top_workflow, []),
+          scores
+        )
     end
   end
 
@@ -175,20 +274,64 @@ defmodule JidoCode.Conversations.WorkflowRouter do
   end
 
   defp decision(workflow, source, confidence, reasons) do
+    decision(workflow, source, confidence, reasons, default_scores(workflow))
+  end
+
+  defp decision(workflow, source, confidence, reasons, scores) do
     %{
       workflow: workflow,
+      candidate_workflow: workflow,
       source: source,
       confidence: confidence,
       ambiguous?: false,
-      reasons: reasons
+      reasons: reasons,
+      scores: scores
     }
   end
 
-  defp contains_any?(text, phrases) when is_binary(text) and is_list(phrases) do
-    Enum.any?(phrases, &String.contains?(text, &1))
+  defp ambiguous_decision(candidate_workflow, reasons, scores) do
+    %{
+      workflow: nil,
+      candidate_workflow: candidate_workflow,
+      source: :heuristic,
+      confidence: :low,
+      ambiguous?: true,
+      reasons: reasons,
+      scores: scores
+    }
   end
 
-  defp contains_any?(_text, _phrases), do: false
+  defp score_workflow(text, workflow) do
+    rules = Map.fetch!(@heuristic_rules, workflow)
+
+    phrase_matches =
+      Enum.filter(rules.phrases, fn {phrase, _weight} -> String.contains?(text, phrase) end)
+
+    token_matches =
+      Enum.filter(rules.tokens, fn {token, _weight} -> contains_token?(text, token) end)
+
+    score =
+      phrase_matches
+      |> Enum.concat(token_matches)
+      |> Enum.reduce(0, fn {_cue, weight}, acc -> acc + weight end)
+
+    reasons =
+      phrase_matches
+      |> Enum.map(fn {phrase, _weight} -> "Matched phrase cue: #{phrase}." end)
+      |> Kernel.++(Enum.map(token_matches, fn {token, _weight} -> "Matched token cue: #{token}." end))
+
+    %{score: score, reasons: reasons}
+  end
+
+  defp heuristic_confidence(score) when score >= 16, do: :high
+  defp heuristic_confidence(score) when score >= 8, do: :medium
+  defp heuristic_confidence(_score), do: :low
+
+  defp contains_token?(text, token) when is_binary(text) and is_binary(token) do
+    Regex.match?(~r/(^|[^a-z0-9_])#{Regex.escape(token)}([^a-z0-9_]|$)/, text)
+  end
+
+  defp contains_token?(_text, _token), do: false
 
   defp optional_string(value) when is_binary(value) do
     case String.trim(value) do
@@ -222,6 +365,14 @@ defmodule JidoCode.Conversations.WorkflowRouter do
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
+
+  defp default_scores(workflow) when workflow in @workflows,
+    do: Enum.into(@workflows, %{}, fn candidate -> {candidate, if(candidate == workflow, do: 100, else: 0)} end)
+
+  defp default_scores(_workflow), do: Enum.into(@workflows, %{}, fn workflow -> {workflow, 0} end)
+
+  defp maybe_add_reason(reasons, true, reason), do: reasons ++ [reason]
+  defp maybe_add_reason(reasons, false, _reason), do: reasons
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)

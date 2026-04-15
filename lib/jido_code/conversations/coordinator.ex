@@ -20,8 +20,10 @@ defmodule JidoCode.Conversations.Coordinator do
     Persistence,
     PubSub,
     Snapshot,
-    Turn
+    Turn,
+    WorkflowRouter
   }
+
   alias JidoCode.Conversations.WorkResolution
 
   @type state :: %{
@@ -193,7 +195,14 @@ defmodule JidoCode.Conversations.Coordinator do
   def handle_info(_message, state), do: {:noreply, state}
 
   defp admit_normalized_command(state, %{class: :work, type: :turn_submit} = normalized_command) do
-    turn = Turn.new(state.conversation.id, normalized_command)
+    turn =
+      state.conversation.id
+      |> Turn.new(normalized_command)
+      |> with_routing_payload(
+        state.conversation,
+        Snapshot.from_state(state).shared_context,
+        normalized_command.raw_type
+      )
 
     state
     |> append_command_message_event(normalized_command)
@@ -210,6 +219,13 @@ defmodule JidoCode.Conversations.Coordinator do
          {:ok, resumed_turn} <- Turn.transition(resumable_turn, :running),
          resumed_turn =
            with_resume_payload(resumed_turn, state, normalized_command.payload),
+         resumed_turn =
+           with_routing_payload(
+             resumed_turn,
+             state.conversation,
+             Snapshot.from_state(state).shared_context,
+             normalized_command.raw_type
+           ),
          next_state <-
            maybe_clear_child_work_pending_input(
              resume_state,
@@ -223,7 +239,8 @@ defmodule JidoCode.Conversations.Coordinator do
              normalized_command.actor,
              normalized_command.payload
            ),
-         {:ok, resumed_state} <- maybe_schedule_runtime_for_turn(applied_state, resumed_turn.id) do
+         {:ok, scoped_state} <- maybe_prepare_runtime_scope(applied_state, resumed_turn.id),
+         {:ok, resumed_state} <- maybe_schedule_runtime_for_turn(scoped_state, resumed_turn.id) do
       {:ok, resumed_state}
     end
   end
@@ -300,7 +317,8 @@ defmodule JidoCode.Conversations.Coordinator do
   defp maybe_activate_next_turn(%{admission_paused: true} = state), do: {:ok, state}
 
   defp maybe_activate_next_turn(%{active_turn_id: active_turn_id} = state)
-       when not is_nil(active_turn_id), do: {:ok, state}
+       when not is_nil(active_turn_id),
+       do: {:ok, state}
 
   defp maybe_activate_next_turn(%{work_queue: [next_turn_id | remaining_turn_ids]} = state) do
     with {:ok, prepared_state} <- maybe_prepare_runtime_scope(state, next_turn_id),
@@ -313,15 +331,15 @@ defmodule JidoCode.Conversations.Coordinator do
 
       next_state =
         prepared_state
-       |> Map.put(:active_turn_id, next_turn_id)
-       |> Map.put(:work_queue, remaining_turn_ids)
-       |> update_in([:child_work_order], &(&1 ++ [running_child_work.id]))
-       |> put_in([:child_worker_pids, running_child_work.id], pid)
-       |> store_turn(running_turn, actor: running_turn.actor, message_id: running_turn.command_id)
-       |> store_child_work(running_child_work,
-         actor: running_child_work.actor,
-         message_id: running_turn.command_id
-       )
+        |> Map.put(:active_turn_id, next_turn_id)
+        |> Map.put(:work_queue, remaining_turn_ids)
+        |> update_in([:child_work_order], &(&1 ++ [running_child_work.id]))
+        |> put_in([:child_worker_pids, running_child_work.id], pid)
+        |> store_turn(running_turn, actor: running_turn.actor, message_id: running_turn.command_id)
+        |> store_child_work(running_child_work,
+          actor: running_child_work.actor,
+          message_id: running_turn.command_id
+        )
 
       maybe_schedule_runtime_for_turn(next_state, running_turn.id)
     end
@@ -444,6 +462,23 @@ defmodule JidoCode.Conversations.Coordinator do
         Map.get(payload, "instruction") || Map.get(payload, "reason") || "Continue the repository conversation."
     end
   end
+
+  defp with_routing_payload(%Turn{} = turn, %Conversation{} = conversation, shared_context, command_type)
+       when is_map(shared_context) do
+    routing =
+      WorkflowRouter.resolve(%{
+        command_type: command_type,
+        payload: turn.payload,
+        objective: conversation.objective,
+        conversation_metadata: normalize_map(conversation.conversation_metadata),
+        source_metadata: normalize_map(conversation.source_metadata),
+        shared_context: shared_context
+      })
+
+    %{turn | payload: WorkflowRouter.attach_payload(normalize_map(turn.payload), routing)}
+  end
+
+  defp with_routing_payload(%Turn{} = turn, _conversation, _shared_context, _command_type), do: turn
 
   defp with_resume_payload(%Turn{} = turn, state, payload) when is_map(payload) do
     clarification_resume =
@@ -1018,8 +1053,7 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   defp build_replacement_turn(state, normalized_command, supersedes_turn_id) do
-    {:ok,
-     Turn.new(state.conversation.id, normalized_command, %{supersedes_turn_id: supersedes_turn_id})}
+    {:ok, Turn.new(state.conversation.id, normalized_command, %{supersedes_turn_id: supersedes_turn_id})}
   end
 
   defp enqueue_priority_turn(state, %Turn{} = turn) do
@@ -1357,6 +1391,7 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp append_event(state, name, attrs) do
     sequence = state.event_sequence + 1
+
     event =
       attrs
       |> merge_work_context(state.conversation)
@@ -1480,7 +1515,8 @@ defmodule JidoCode.Conversations.Coordinator do
   defp turn_event_name(nil, %Turn{state: :queued}), do: "turn.queued"
 
   defp turn_event_name(%Turn{state: previous_state}, %Turn{state: next_state})
-       when previous_state == next_state, do: nil
+       when previous_state == next_state,
+       do: nil
 
   defp turn_event_name(_previous_turn, %Turn{state: :running}), do: "turn.started"
   defp turn_event_name(_previous_turn, %Turn{state: :awaiting_input}), do: "turn.awaiting_input"
@@ -1495,7 +1531,8 @@ defmodule JidoCode.Conversations.Coordinator do
   defp child_work_event_name(nil, %ChildWork{state: :running}), do: "tool.started"
 
   defp child_work_event_name(%ChildWork{state: previous_state}, %ChildWork{state: next_state})
-       when previous_state == next_state, do: nil
+       when previous_state == next_state,
+       do: nil
 
   defp child_work_event_name(_previous_child_work, %ChildWork{state: :running}),
     do: "tool.started"

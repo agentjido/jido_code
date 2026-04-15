@@ -12,6 +12,7 @@ defmodule JidoCode.Conversations.Runtime do
   """
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.Conversations.RuntimeReadiness
   alias JidoCode.MemoryGraph.WorkflowService, as: MemoryWorkflowService
   alias JidoCode.SourceCodeGraph.WorkflowService, as: SemanticWorkflowService
@@ -102,12 +103,6 @@ defmodule JidoCode.Conversations.Runtime do
              runtime_spec[:managed_repo_id] || runtime_spec["managed_repo_id"],
              "conversation_runtime_repo_scope_invalid",
              "Managed repository scope is missing for real conversation runtime."
-           ),
-         {:ok, work_item_id} <-
-           required_string(
-             runtime_spec[:work_item_id] || runtime_spec["work_item_id"],
-             "conversation_runtime_work_item_unavailable",
-             "Work item scope is missing for real conversation runtime."
            ) do
       instruction =
         runtime_spec
@@ -121,11 +116,19 @@ defmodule JidoCode.Conversations.Runtime do
 
       shared_context = normalize_map(map_get(runtime_spec, :shared_context))
       turn_payload = normalize_map(map_get(runtime_spec, :turn_payload))
-      child_work_result = normalize_map(map_get(runtime_spec, :child_work_result))
 
-      workflow =
-        prior_workflow(turn_payload, child_work_result) ||
-          infer_workflow(instruction, objective, map_get(runtime_spec, :conversation_metadata))
+      routing =
+        WorkflowRouter.resolve(%{
+          command_type: map_get(runtime_spec, :command_type),
+          payload: turn_payload,
+          objective: objective,
+          conversation_metadata: normalize_map(map_get(runtime_spec, :conversation_metadata)),
+          source_metadata: normalize_map(map_get(runtime_spec, :source_metadata)),
+          shared_context: shared_context
+        })
+
+      workflow = routing.workflow
+      work_item_id = normalize_optional_string(runtime_spec[:work_item_id] || runtime_spec["work_item_id"])
 
       referenced_files =
         shared_context
@@ -139,39 +142,61 @@ defmodule JidoCode.Conversations.Runtime do
 
       context_source = select_context_source(workflow)
 
-      {:ok,
-       %{
-         managed_repo_id: managed_repo_id,
-         work_item_id: work_item_id,
-         user_instruction: instruction || "Continue the repository conversation.",
-         workflow: workflow,
-         context_source: context_source,
-         source: normalize_optional_string(map_get(runtime_spec, :source)),
-         objective: objective,
-         referenced_files: referenced_files,
-         shared_context: shared_context,
-         clarification_resume: clarification_resume,
-         instruction:
-           bounded_instruction(
-             runtime_spec,
-             workflow,
-             managed_repo_id,
-             work_item_id,
-             readiness.workspace_path,
-             shared_context,
-             referenced_files,
-             clarification_resume
-           )
-       }}
+      with {:ok, work_item_id} <- require_work_item_for_request(work_item_id, routing) do
+        {:ok,
+         %{
+           managed_repo_id: managed_repo_id,
+           work_item_id: work_item_id,
+           user_instruction: instruction || "Continue the repository conversation.",
+           workflow: workflow,
+           routing: routing,
+           context_source: context_source,
+           source: normalize_optional_string(map_get(runtime_spec, :source)),
+           objective: objective,
+           referenced_files: referenced_files,
+           shared_context: shared_context,
+           clarification_resume: clarification_resume,
+           instruction:
+             bounded_instruction(
+               runtime_spec,
+               workflow,
+               managed_repo_id,
+               work_item_id,
+               readiness.workspace_path,
+               shared_context,
+               referenced_files,
+               clarification_resume
+             )
+         }}
+      end
     end
   end
 
   defp maybe_request_clarification(%{
-         user_instruction: instruction,
-         clarification_resume: clarification_resume,
-         referenced_files: referenced_files,
-         workflow: workflow
-       } = request) do
+         routing: %{ambiguous?: true} = routing,
+         context_source: context_source
+       }) do
+    {:awaiting_input,
+     %{
+       "kind" => "needs_input",
+       "prompt" => workflow_clarification_prompt(),
+       "workflow" => "clarify",
+       "context_source" => context_source_name(context_source),
+       "required_context" => %{
+         "workflow_choices" => Enum.map(WorkflowRouter.workflows(), &Atom.to_string/1)
+       },
+       "routing" => WorkflowRouter.metadata(routing)
+     }}
+  end
+
+  defp maybe_request_clarification(
+         %{
+           user_instruction: instruction,
+           clarification_resume: clarification_resume,
+           referenced_files: referenced_files,
+           workflow: workflow
+         } = request
+       ) do
     needs_file_clarification? =
       clarification_resume == %{} and
         referenced_files == [] and clarification_phrase?(instruction, workflow)
@@ -345,6 +370,8 @@ defmodule JidoCode.Conversations.Runtime do
          referenced_files,
          clarification_resume
        ) do
+    workflow_name = if(is_atom(workflow), do: Atom.to_string(workflow), else: "clarify")
+
     accepted_tool_results =
       shared_context
       |> Map.get("accepted_tool_results", [])
@@ -353,7 +380,7 @@ defmodule JidoCode.Conversations.Runtime do
 
     [
       "Repository conversation objective: #{normalize_optional_string(map_get(runtime_spec, :objective)) || "Coordinate managed repository work."}",
-      "Workflow: #{Atom.to_string(workflow)}",
+      "Workflow: #{workflow_name}",
       "Current request: #{normalize_optional_string(map_get(runtime_spec, :instruction)) || "Continue the repository conversation."}",
       "Repository scope:",
       "- managed_repo_id: #{managed_repo_id}",
@@ -373,14 +400,26 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp runtime_progress_event(request) do
-    %{
-      "kind" => "progress",
-      "summary" =>
-        "Routing the repository conversation through the #{Atom.to_string(request.workflow)} specialist using #{context_source_label(request.context_source)}.",
-      "workflow" => Atom.to_string(request.workflow),
-      "context_source" => context_source_name(request.context_source),
-      "referenced_files" => request.referenced_files
-    }
+    if request.routing.ambiguous? do
+      %{
+        "kind" => "progress",
+        "summary" =>
+          "Requesting clarification before choosing whether to plan, implement, review, or explain this repository work.",
+        "workflow" => "clarify",
+        "context_source" => context_source_name(request.context_source),
+        "referenced_files" => request.referenced_files,
+        "routing" => WorkflowRouter.metadata(request.routing)
+      }
+    else
+      %{
+        "kind" => "progress",
+        "summary" =>
+          "Routing the repository conversation through the #{Atom.to_string(request.workflow)} specialist using #{context_source_label(request.context_source)}.",
+        "workflow" => Atom.to_string(request.workflow),
+        "context_source" => context_source_name(request.context_source),
+        "referenced_files" => request.referenced_files
+      }
+    end
   end
 
   defp result_summary(result, workflow) do
@@ -391,49 +430,6 @@ defmodule JidoCode.Conversations.Runtime do
       :explain -> Map.get(result, :explanation) || Map.get(result, "explanation")
     end
     |> normalize_summary()
-  end
-
-  defp prior_workflow(turn_payload, child_work_result) do
-    turn_workflow =
-      turn_payload
-      |> Map.get("conversation_runtime")
-      |> normalize_map()
-      |> Map.get("workflow")
-
-    child_work_workflow =
-      child_work_result
-      |> Map.get("latest_progress")
-      |> normalize_map()
-      |> Map.get("workflow") ||
-        child_work_result
-        |> Map.get("needs_input")
-        |> normalize_map()
-        |> Map.get("workflow")
-
-    normalize_workflow(turn_workflow || child_work_workflow)
-  end
-
-  defp infer_workflow(instruction, objective, conversation_metadata) do
-    text =
-      [instruction, objective, conversation_metadata && map_get(conversation_metadata, "last_work_action")]
-      |> Enum.map(&normalize_optional_string/1)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join("\n")
-      |> String.downcase()
-
-    cond do
-      contains_any?(text, ["plan", "approach", "break down", "step-by-step", "roadmap", "outline"]) ->
-        :plan
-
-      contains_any?(text, ["review", "audit", "critique", "risk", "regression", "security"]) ->
-        :review
-
-      contains_any?(text, ["implement", "change", "fix", "update", "edit", "refactor", "write", "add", "remove", "patch"]) ->
-        :execute
-
-      true ->
-        :explain
-    end
   end
 
   defp clarification_phrase?(instruction, workflow) do
@@ -451,6 +447,12 @@ defmodule JidoCode.Conversations.Runtime do
 
   defp clarification_prompt(_workflow),
     do: "Which file or module should I inspect first?"
+
+  defp workflow_clarification_prompt do
+    "Do you want me to plan, implement, review, or explain this request?"
+  end
+
+  defp select_context_source(nil), do: :workflow_clarification
 
   defp select_context_source(:execute) do
     cond do
@@ -474,6 +476,7 @@ defmodule JidoCode.Conversations.Runtime do
   defp context_source_label(:semantic_workflow), do: "the semantic workflow boundary"
   defp context_source_label(:memory_workflow), do: "the memory workflow boundary"
   defp context_source_label(:workspace_with_semantic), do: "AgentWorkspace with explicit semantic graph context"
+  defp context_source_label(:workflow_clarification), do: "workflow clarification"
   defp context_source_label(_other), do: "AgentWorkspace"
 
   defp context_source_name(context_source), do: Atom.to_string(context_source)
@@ -558,20 +561,6 @@ defmodule JidoCode.Conversations.Runtime do
 
   defp normalize_string_list(_value), do: []
 
-  defp normalize_workflow(value) when value in [:plan, :execute, :review, :explain], do: value
-
-  defp normalize_workflow(value) when is_binary(value) do
-    case String.trim(value) do
-      "plan" -> :plan
-      "execute" -> :execute
-      "review" -> :review
-      "explain" -> :explain
-      _other -> nil
-    end
-  end
-
-  defp normalize_workflow(_value), do: nil
-
   defp required_string(value, error_type, detail) do
     case normalize_optional_string(value) do
       nil ->
@@ -585,6 +574,16 @@ defmodule JidoCode.Conversations.Runtime do
       normalized ->
         {:ok, normalized}
     end
+  end
+
+  defp require_work_item_for_request(work_item_id, %{ambiguous?: true}), do: {:ok, work_item_id}
+
+  defp require_work_item_for_request(work_item_id, _routing) do
+    required_string(
+      work_item_id,
+      "conversation_runtime_work_item_unavailable",
+      "Work item scope is missing for real conversation runtime."
+    )
   end
 
   defp normalize_summary(value) when is_binary(value) do
@@ -642,7 +641,10 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp normalize_optional_string(nil), do: nil
-  defp normalize_optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> normalize_optional_string()
+
+  defp normalize_optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_string()
+
   defp normalize_optional_string(_value), do: nil
 
   defp normalize_error(error) when is_map(error) do

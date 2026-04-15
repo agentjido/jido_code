@@ -267,5 +267,6 @@ Use this model when debugging or designing specialist behavior:
 ## Read Next
 
 Continue with
+[`12-user-request-to-llm-message-path.md`](12-user-request-to-llm-message-path.md)
+for the exact transformation path from user text to final LLM messages, then
 [`06-conversation-orchestration.md`](06-conversation-orchestration.md).
-

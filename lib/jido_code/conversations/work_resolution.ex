@@ -8,6 +8,7 @@ defmodule JidoCode.Conversations.WorkResolution do
 
   alias JidoCode.Conversations
   alias JidoCode.Conversations.{Conversation, Turn}
+  alias JidoCode.Conversations.WorkflowRouter
 
   @governed_workflows [:plan, :execute, :review, :explain]
 
@@ -22,7 +23,15 @@ defmodule JidoCode.Conversations.WorkResolution do
           | {:error, term()}
   def ensure_turn_attachment(%Conversation{} = conversation, %Turn{} = turn, shared_context, opts \\ [])
       when is_map(shared_context) and is_list(opts) do
-    workflow = workflow_for_turn(turn, conversation)
+    workflow =
+      WorkflowRouter.resolve(%{
+        command_type: turn.command_type,
+        payload: turn.payload,
+        objective: conversation.objective,
+        conversation_metadata: normalize_map(conversation.conversation_metadata),
+        source_metadata: normalize_map(conversation.source_metadata),
+        shared_context: shared_context
+      }).workflow
 
     cond do
       is_binary(conversation.work_item_id) ->
@@ -51,8 +60,7 @@ defmodule JidoCode.Conversations.WorkResolution do
     workflow = normalize_workflow(Keyword.get(opts, :workflow) || Map.get(last_resolution, "workflow"))
 
     %{
-      "action" =>
-        normalize_optional_string(Map.get(last_resolution, "action")) || default_action(conversation),
+      "action" => normalize_optional_string(Map.get(last_resolution, "action")) || default_action(conversation),
       "detail" => resolution_detail(conversation, last_resolution, workflow),
       "scope" => Atom.to_string(conversation.scope),
       "attachment_mode" => Atom.to_string(conversation.attachment_mode),
@@ -153,36 +161,6 @@ defmodule JidoCode.Conversations.WorkResolution do
   defp workflow_resolution_reason(_workflow),
     do: "Conversation work should remain attached to canonical governed WorkItem scope."
 
-  defp workflow_for_turn(%Turn{} = turn, %Conversation{} = conversation) do
-    text =
-      [
-        instruction_for_turn(turn),
-        normalize_optional_string(conversation.objective),
-        conversation
-        |> Map.get(:conversation_metadata, %{})
-        |> normalize_map()
-        |> Map.get("last_work_action")
-      ]
-      |> Enum.map(&normalize_optional_string/1)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join("\n")
-      |> String.downcase()
-
-    cond do
-      contains_any?(text, ["plan", "approach", "break down", "step-by-step", "roadmap", "outline"]) ->
-        :plan
-
-      contains_any?(text, ["review", "audit", "critique", "risk", "regression", "security"]) ->
-        :review
-
-      contains_any?(text, ["implement", "change", "fix", "update", "edit", "refactor", "write", "add", "remove", "patch"]) ->
-        :execute
-
-      true ->
-        :explain
-    end
-  end
-
   defp instruction_for_turn(%Turn{payload: payload}) when is_map(payload) do
     payload = normalize_map(payload)
 
@@ -193,23 +171,7 @@ defmodule JidoCode.Conversations.WorkResolution do
       "Continue the repository conversation."
   end
 
-  defp contains_any?(text, phrases) when is_binary(text) and is_list(phrases) do
-    Enum.any?(phrases, &String.contains?(text, &1))
-  end
-
-  defp normalize_workflow(value) when value in @governed_workflows, do: value
-
-  defp normalize_workflow(value) when is_binary(value) do
-    case value do
-      "plan" -> :plan
-      "execute" -> :execute
-      "review" -> :review
-      "explain" -> :explain
-      _other -> nil
-    end
-  end
-
-  defp normalize_workflow(_value), do: nil
+  defp normalize_workflow(value), do: WorkflowRouter.normalize_workflow(value)
 
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do

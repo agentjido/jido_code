@@ -225,7 +225,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       true ->
         case JidoCode.AgentWorkspace.handle_conversation_command(
                conversation_id,
-               conversation_input_command(socket, input),
+               conversation_input_command(socket, input, params),
                actor: initiating_actor(socket)
              ) do
           {:ok, snapshot} ->
@@ -484,7 +484,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </p>
                   </div>
 
-                  <form id="project-detail-conversation-form" phx-submit="send_conversation" class="flex flex-col gap-3 sm:flex-row">
+                  <form
+                    id="project-detail-conversation-form"
+                    phx-submit="send_conversation"
+                    class="flex flex-col gap-3 sm:flex-row"
+                  >
                     <input
                       id="project-detail-conversation-input"
                       type="text"
@@ -1051,7 +1055,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_surface, projection)
     |> assign(:conversation_snapshot, snapshot)
     |> assign(:conversation_events, recent_events)
-    |> assign(:conversation_last_event_sequence, snapshot && snapshot.last_event_sequence || 0)
+    |> assign(:conversation_last_event_sequence, (snapshot && snapshot.last_event_sequence) || 0)
     |> assign(:conversation_stream_mode, conversation_stream_mode(projection))
     |> assign(:conversation_stream_degraded_reason, conversation_stream_reason(projection))
     |> assign(:conversation_stream_discontinuity_count, 0)
@@ -1059,6 +1063,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp assign_conversation_snapshot(socket, snapshot) do
     recent_events = Enum.take(snapshot.events || [], -10)
+
     work_item =
       ProjectConversation.load_attached_work_item(
         Map.get(snapshot, :work_item_id),
@@ -1234,17 +1239,30 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp conversation_id(_socket), do: nil
 
-  defp conversation_input_command(socket, input) do
+  defp conversation_input_command(socket, input, params) do
+    payload =
+      %{}
+      |> Map.put("instruction", input)
+      |> maybe_put("workflow", normalize_optional_string(Map.get(params, "workflow")))
+      |> maybe_put("workflow_name", normalize_optional_string(Map.get(params, "workflow_name")))
+
     case socket.assigns.conversation_snapshot do
       %{active_turn_id: turn_id} = snapshot when is_binary(turn_id) ->
         if conversation_awaiting_input?(snapshot) do
-          %{type: "turn.resume", payload: %{turn_id: turn_id, response: input}}
+          %{
+            type: "turn.resume",
+            payload:
+              payload
+              |> Map.take(["workflow", "workflow_name"])
+              |> Map.put("turn_id", turn_id)
+              |> Map.put("response", input)
+          }
         else
-          %{type: "turn.submit", payload: %{instruction: input}}
+          %{type: "turn.submit", payload: payload}
         end
 
       _other ->
-        %{type: "turn.submit", payload: %{instruction: input}}
+        %{type: "turn.submit", payload: payload}
     end
   end
 

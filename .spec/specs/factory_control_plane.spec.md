@@ -130,7 +130,7 @@ surface:
   stability: evolving
 
 - id: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
-  statement: When productive repository conversations create or attach governed work, repo detail, Workbench, dashboard summaries, and governed run detail should project repo intake and work-item conversation linkage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane or collapsing active governed work onto one repo-global conversation.
+  statement: When productive repository conversations create or attach governed work, repo detail, Workbench, dashboard summaries, and governed run detail should project repo intake, active work-item conversations, and preserved historical conversation lineage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane or collapsing active governed work onto one repo-global conversation.
   priority: should
   stability: evolving
 
@@ -340,6 +340,11 @@ surface:
 
 - kind: source_file
   target: .spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+
+- kind: source_file
+  target: test/jido_code/phase_fifty_one_integration_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
 

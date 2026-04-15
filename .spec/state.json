@@ -343,13 +343,6 @@
       "entity_id": "architecture.conversation_orchestration",
       "file": ".spec/specs/conversation_orchestration.spec.md",
       "level": "warning",
-      "message": "Verification target lib/jido_code/conversations.ex does not reference covered requirement: architecture.conversation_orchestration.steering_preserves_short_term_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
       "message": "Verification target lib/jido_code/conversations/coordinator.ex does not reference covered requirement: architecture.conversation_orchestration.active_turns_can_be_superseded"
     },
     {
@@ -1008,6 +1001,14 @@
       },
       {
         "file": ".spec/specs/conversation_orchestration.spec.md",
+        "id": "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Active work-item conversations shall remain resumable while governed work stays `open`, `in_progress`, or `blocked`, shall settle into terminal historical lineage when governed work becomes `completed`, `cancelled`, or `suppressed`, and reopening that work later shall create a fresh active productive thread without reviving the historical one as the active default.",
+        "subject_id": "architecture.conversation_orchestration"
+      },
+      {
+        "file": ".spec/specs/conversation_orchestration.spec.md",
         "id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
         "priority": "should",
         "stability": "proposed",
@@ -1251,7 +1252,7 @@
         "id": "architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records",
         "priority": "should",
         "stability": "evolving",
-        "statement": "When productive repository conversations create or attach governed work, repo detail, Workbench, dashboard summaries, and governed run detail should project repo intake and work-item conversation linkage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane or collapsing active governed work onto one repo-global conversation.",
+        "statement": "When productive repository conversations create or attach governed work, repo detail, Workbench, dashboard summaries, and governed run detail should project repo intake, active work-item conversations, and preserved historical conversation lineage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane or collapsing active governed work onto one repo-global conversation.",
         "subject_id": "architecture.factory_control_plane"
       },
       {
@@ -2364,6 +2365,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "When governed work is supervised through productive conversation, the canonical active conversation identity shall rejoin the `WorkItem` so separate work items in the same managed repository can keep separate productive threads without collapsing continuation onto one repo-global conversation.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "When governed work completes or later reopens, historical productive conversation lineage shall remain attached to the canonical `WorkItem` so operator surfaces can explain prior conversation-driven work without reviving the historical thread as the active default.",
         "subject_id": "architecture.work_synthesis"
       },
       {
@@ -3929,6 +3938,27 @@
         ],
         "when": [
           "The event subscription drops or the page reconnects mid-turn."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
+          "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
+          "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "given": [
+          "A managed repository has a productive work-item conversation and at least one other active work-item conversation."
+        ],
+        "id": "architecture.conversation_orchestration.scenario_work_item_conversation_settles_and_reopens",
+        "subject_id": "architecture.conversation_orchestration",
+        "then": [
+          "The completed conversation settles into historical lineage for that work item instead of competing with active productive conversations.",
+          "Reopening the work item yields a fresh active productive conversation for that same work item.",
+          "Governed run detail and adjacent surfaces can explain both the current active thread and the preserved historical lineage."
+        ],
+        "when": [
+          "The first governed work item completes and is later reopened."
         ]
       },
       {
@@ -5685,6 +5715,25 @@
       },
       {
         "covers": [
+          "architecture.work_synthesis.active_conversation_identity_rejoins_work_item",
+          "architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "given": [
+          "A governed `WorkItem` already has a productive conversation that later became historical because the work completed or was cancelled."
+        ],
+        "id": "architecture.work_synthesis.scenario_reopened_work_item_preserves_historical_conversation_lineage",
+        "subject_id": "architecture.work_synthesis",
+        "then": [
+          "A new active productive conversation can attach to the reopened work item.",
+          "The historical conversation remains explainable as prior lineage on that same work item rather than being discarded or revived as the active default."
+        ],
+        "when": [
+          "The same work item is reopened for fresh governed work."
+        ]
+      },
+      {
+        "covers": [
           "auth.github_integration.readiness_feedback",
           "auth.github_integration.github_app_preferred"
         ],
@@ -6677,6 +6726,7 @@
             "test/jido_code/phase_forty_six_integration_test.exs",
             "test/jido_code/phase_forty_seven_integration_test.exs",
             "test/jido_code/phase_forty_eight_integration_test.exs",
+            "test/jido_code/phase_fifty_one_integration_test.exs",
             "test/jido_code/phase_forty_one_integration_test.exs",
             "test/jido_code/phase_forty_two_integration_test.exs",
             "test/jido_code_web/live/project_detail_live_test.exs",
@@ -8556,7 +8606,8 @@
       {
         "covers": [
           "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
-          "architecture.conversation_orchestration.steering_preserves_short_term_context"
+          "architecture.conversation_orchestration.steering_preserves_short_term_context",
+          "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status"
         ],
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -8684,6 +8735,17 @@
         "kind": "source_file",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_eight_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
+          "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
+          "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs"
       },
       {
         "covers": [
@@ -9252,6 +9314,15 @@
         "kind": "source_file",
         "subject_id": "architecture.factory_control_plane",
         "target": ".spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs"
       },
       {
         "covers": [
@@ -12043,7 +12114,8 @@
       {
         "covers": [
           "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
-          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context"
+          "architecture.work_synthesis.work_item_origin_can_preserve_conversation_context",
+          "architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item"
         ],
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
@@ -12165,6 +12237,16 @@
         "kind": "source_file",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/phase_forty_seven_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.active_conversation_identity_rejoins_work_item",
+          "architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs"
       },
       {
         "covers": [
@@ -14558,11 +14640,11 @@
     "decision_parse_errors": 0,
     "decisions": 24,
     "exceptions": 0,
-    "findings": 40,
-    "requirements": 340,
-    "scenarios": 163,
+    "findings": 39,
+    "requirements": 342,
+    "scenarios": 165,
     "subjects": 43,
-    "verifications": 649
+    "verifications": 652
   },
   "verification": {
     "claims": [
@@ -16266,7 +16348,18 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations.ex",
+        "verification_index": 19
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations.ex",
         "verification_index": 19
@@ -16646,6 +16739,39 @@
         "verification_index": 30
       },
       {
+        "cover_id": "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs",
+        "verification_index": 31
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs",
+        "verification_index": 31
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs",
+        "verification_index": 31
+      },
+      {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -16654,7 +16780,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -16665,7 +16791,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -16676,7 +16802,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -16687,7 +16813,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -16698,7 +16824,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -16709,7 +16835,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit",
@@ -16720,7 +16846,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -16731,7 +16857,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -16742,7 +16868,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -16753,7 +16879,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -16764,17 +16890,6 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 32
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 33
       },
       {
@@ -16785,7 +16900,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 34
       },
       {
@@ -16796,7 +16911,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
         "verification_index": 35
       },
       {
@@ -16807,18 +16922,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
         "verification_index": 36
       },
       {
-        "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
+        "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/forge/pubsub.ex",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 37
       },
       {
@@ -16829,8 +16944,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/orchestration/run_pubsub.ex",
+        "target": "lib/jido_code/forge/pubsub.ex",
         "verification_index": 38
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/orchestration/run_pubsub.ex",
+        "verification_index": 39
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -17966,6 +18092,17 @@
         "verification_index": 23
       },
       {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs",
+        "verification_index": 24
+      },
+      {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
@@ -17974,7 +18111,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/phase_forty_nine_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records",
@@ -17985,17 +18122,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/phase_forty_nine_integration_test.exs",
-        "verification_index": 24
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/operations/repo_native_state.ex",
         "verification_index": 25
       },
       {
@@ -18006,7 +18132,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code/operations/repo_native_state_test.exs",
+        "target": "lib/jido_code/operations/repo_native_state.ex",
         "verification_index": 26
       },
       {
@@ -18017,8 +18143,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "target": "test/jido_code/operations/repo_native_state_test.exs",
         "verification_index": 27
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -18029,7 +18166,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/repo_bridge.ex",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors",
@@ -18040,17 +18177,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/source_repo.ex",
-        "verification_index": 29
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 30
       },
       {
@@ -18061,7 +18187,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
+        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 31
       },
       {
@@ -18072,7 +18198,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
         "verification_index": 32
       },
       {
@@ -18083,8 +18209,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 33
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records",
@@ -18095,7 +18232,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code_web/live/run_detail_live.ex",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -25479,6 +25616,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/conversations.ex",
+        "verification_index": 3
+      },
+      {
         "cover_id": "architecture.work_synthesis.productive_conversations_route_through_work_resolution",
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
@@ -25807,6 +25955,28 @@
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/phase_forty_seven_integration_test.exs",
         "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.work_synthesis.active_conversation_identity_rejoins_work_item",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/phase_fifty_one_integration_test.exs",
+        "verification_index": 15
       },
       {
         "cover_id": "auth.github_integration.github_app_preferred",
@@ -29871,9 +30041,9 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 99,
+      "claimed": 98,
       "executed": 0,
-      "linked": 1292
+      "linked": 1301
     },
     "threshold_failures": 0
   },

@@ -1,6 +1,9 @@
 defmodule JidoCode.Conversations do
   # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+  # covers: architecture.conversation_orchestration.steering_preserves_short_term_context
+  # covers: architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status
   # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
+  # covers: architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
   # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
 
@@ -8,6 +11,7 @@ defmodule JidoCode.Conversations do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations.{Conversation, EventRecord, SnapshotRecord}
+  alias JidoCode.Conversations.{Driver, Persistence, Snapshot}
   alias JidoCode.Operations.{Ingress, WorkItem}
 
   admin do
@@ -21,6 +25,8 @@ defmodule JidoCode.Conversations do
   end
 
   @active_statuses [:active, :paused]
+  @resumable_work_item_statuses [:open, :in_progress, :blocked]
+  @terminal_work_item_conversation_statuses %{completed: :completed, cancelled: :cancelled, suppressed: :cancelled}
 
   @type start_result :: %{
           conversation: Conversation.t(),
@@ -38,6 +44,12 @@ defmodule JidoCode.Conversations do
           conversation: Conversation.t(),
           work_item: WorkItem.t(),
           resumed?: boolean()
+        }
+
+  @type lifecycle_reconciliation_result :: %{
+          work_item: WorkItem.t(),
+          active_conversation: Conversation.t() | nil,
+          settled_conversation: Conversation.t() | nil
         }
 
   @spec start(map()) :: {:ok, start_result()} | {:error, term()}
@@ -89,6 +101,29 @@ defmodule JidoCode.Conversations do
     end
   end
 
+  @spec latest_repo_intake_for_managed_repo(String.t(), keyword()) ::
+          {:ok, Conversation.t() | nil} | {:error, term()}
+  def latest_repo_intake_for_managed_repo(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    query =
+      Conversation
+      |> Ash.Query.filter(
+        managed_repo_id == ^managed_repo_id and
+          scope == :repo_scoped and
+          attachment_mode == :pre_work
+      )
+      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
+      |> Ash.Query.limit(1)
+
+    case Ash.read(query, domain: __MODULE__, actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @spec latest_for_work_item(String.t(), keyword()) :: {:ok, Conversation.t() | nil} | {:error, term()}
   def latest_for_work_item(work_item_id, opts \\ [])
       when is_binary(work_item_id) and is_list(opts) do
@@ -118,6 +153,26 @@ defmodule JidoCode.Conversations do
     query =
       Conversation
       |> Ash.Query.filter(work_item_id == ^work_item_id and status in ^active_statuses)
+      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
+      |> Ash.Query.limit(1)
+
+    case Ash.read(query, domain: __MODULE__, actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec latest_historical_for_work_item(String.t(), keyword()) ::
+          {:ok, Conversation.t() | nil} | {:error, term()}
+  def latest_historical_for_work_item(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    active_statuses = @active_statuses
+
+    query =
+      Conversation
+      |> Ash.Query.filter(work_item_id == ^work_item_id and status not in ^active_statuses)
       |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
       |> Ash.Query.limit(1)
 
@@ -179,20 +234,37 @@ defmodule JidoCode.Conversations do
     actor = normalize_actor(Keyword.get(opts, :actor))
     attrs = normalize_map(Keyword.get(opts, :attrs))
 
-    with {:ok, %WorkItem{} = work_item} <- fetch_work_item(work_item_id, actor),
+    with {:ok, %{work_item: %WorkItem{} = work_item, active_conversation: active_conversation}} <-
+           reconcile_work_item_conversation_lifecycle(work_item_id, actor: actor),
          :ok <- validate_work_item_open(work_item) do
-      case active_for_work_item(work_item_id, actor: actor) do
-        {:ok, %Conversation{} = conversation} ->
+      case active_conversation do
+        %Conversation{} = conversation ->
           with {:ok, resumed} <- resume(conversation.id, actor: actor) do
             {:ok, %{conversation: resumed, work_item: work_item, resumed?: true}}
           end
 
-        {:ok, nil} ->
+        nil ->
           start_or_recover_work_item_conversation(work_item, attrs, actor)
-
-        {:error, reason} ->
-          {:error, reason}
       end
+    end
+  end
+
+  @spec reconcile_work_item_conversation_lifecycle(String.t(), keyword()) ::
+          {:ok, lifecycle_reconciliation_result()} | {:error, term()}
+  def reconcile_work_item_conversation_lifecycle(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    with {:ok, %WorkItem{} = work_item} <- fetch_work_item(work_item_id, actor),
+         {:ok, active_conversation} <- active_for_work_item(work_item.id, actor: actor),
+         {:ok, settled_conversation, next_active_conversation} <-
+           maybe_reconcile_terminal_work_item(work_item, active_conversation, actor) do
+      {:ok,
+       %{
+         work_item: work_item,
+         active_conversation: next_active_conversation,
+         settled_conversation: settled_conversation
+       }}
     end
   end
 
@@ -748,8 +820,163 @@ defmodule JidoCode.Conversations do
 
   defp normalize_steering_attach_mode(_attach_mode, _requested_work_item_id, _conversation), do: :pre_work
 
-  defp validate_work_item_open(%WorkItem{status: :open}), do: :ok
+  defp validate_work_item_open(%WorkItem{status: status}) when status in @resumable_work_item_statuses,
+    do: :ok
+
   defp validate_work_item_open(%WorkItem{}), do: {:error, :work_item_not_open}
+
+  defp maybe_reconcile_terminal_work_item(%WorkItem{status: status}, nil, _actor)
+       when is_map_key(@terminal_work_item_conversation_statuses, status) do
+    {:ok, nil, nil}
+  end
+
+  defp maybe_reconcile_terminal_work_item(%WorkItem{status: status} = work_item, %Conversation{} = conversation, actor)
+       when is_map_key(@terminal_work_item_conversation_statuses, status) do
+    settle_terminal_work_item_conversation(work_item, conversation, actor)
+  end
+
+  defp maybe_reconcile_terminal_work_item(%WorkItem{}, %Conversation{} = conversation, _actor),
+    do: {:ok, nil, conversation}
+
+  defp maybe_reconcile_terminal_work_item(%WorkItem{}, nil, _actor), do: {:ok, nil, nil}
+
+  defp settle_terminal_work_item_conversation(%WorkItem{status: status}, %Conversation{} = conversation, actor) do
+    target_status = Map.fetch!(@terminal_work_item_conversation_statuses, status)
+
+    case fetch_idle_snapshot(conversation) do
+      {:ok, snapshot} ->
+        if snapshot_idle?(snapshot) do
+          finalized_conversation =
+            finalize_work_item_conversation(conversation, target_status, status, actor)
+
+          case finalized_conversation do
+            {:ok, %Conversation{} = updated_conversation} ->
+              terminal_snapshot =
+                snapshot
+                |> Map.put(:status, target_status)
+                |> Map.put(:admission_paused, false)
+                |> Map.put(:child_execution_paused, false)
+                |> Map.put(:active_turn_id, nil)
+                |> Map.put(:active_turn, nil)
+                |> Map.put(:active_child_work_id, nil)
+                |> Map.put(:active_child_work, nil)
+                |> Map.put(:queued_turn_ids, [])
+                |> Map.put(:work_item_id, updated_conversation.work_item_id)
+                |> Map.put(:scope, updated_conversation.scope)
+                |> Map.put(:attachment_mode, updated_conversation.attachment_mode)
+                |> Map.put(:shared_context, terminal_shared_context(snapshot, updated_conversation))
+
+              _ = Persistence.persist_snapshot(terminal_snapshot)
+              :ok = Driver.stop(updated_conversation.id)
+              {:ok, updated_conversation, nil}
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+        else
+          {:ok, nil, conversation}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp fetch_idle_snapshot(%Conversation{} = conversation) do
+    case Driver.snapshot(conversation.id) do
+      {:ok, snapshot} ->
+        {:ok, snapshot}
+
+      {:error, :conversation_snapshot_not_found} ->
+        {:ok, Snapshot.empty(conversation)}
+
+      {:error, reason} ->
+        if snapshot_not_found?(reason) do
+          {:ok, Snapshot.empty(conversation)}
+        else
+          {:error, reason}
+        end
+    end
+  end
+
+  defp snapshot_not_found?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &snapshot_not_found?/1)
+  end
+
+  defp snapshot_not_found?(%Ash.Error.Query.NotFound{}), do: true
+  defp snapshot_not_found?(_reason), do: false
+
+  defp snapshot_idle?(snapshot) when is_map(snapshot) do
+    active_turn_id = map_get(snapshot, :active_turn_id)
+    active_child_work_id = map_get(snapshot, :active_child_work_id)
+    queued_turn_ids = map_get(snapshot, :queued_turn_ids) || []
+
+    is_nil(optional_string(active_turn_id)) and is_nil(optional_string(active_child_work_id)) and
+      List.wrap(queued_turn_ids) == []
+  end
+
+  defp snapshot_idle?(_snapshot), do: false
+
+  defp finalize_work_item_conversation(
+         %Conversation{} = conversation,
+         target_status,
+         work_item_status,
+         actor
+       ) do
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    metadata = terminal_lifecycle_metadata(conversation, target_status, work_item_status, now)
+
+    Conversation.update(
+      conversation,
+      %{
+        status: target_status,
+        conversation_metadata: metadata,
+        last_activity_at: now
+      },
+      actor: actor
+    )
+  end
+
+  defp terminal_lifecycle_metadata(%Conversation{} = conversation, target_status, work_item_status, now) do
+    metadata = normalize_map(conversation.conversation_metadata)
+    settled_at = DateTime.to_iso8601(now)
+
+    settlement_entry = %{
+      "at" => settled_at,
+      "conversation_status" => Atom.to_string(target_status),
+      "work_item_status" => Atom.to_string(work_item_status)
+    }
+
+    metadata
+    |> Map.put("last_work_item_status", Atom.to_string(work_item_status))
+    |> Map.put("last_conversation_settlement", settlement_entry)
+    |> Map.put(
+      "conversation_settlement_history",
+      conversation_settlement_history(metadata, settlement_entry)
+    )
+  end
+
+  defp conversation_settlement_history(metadata, settlement_entry) do
+    metadata
+    |> Map.get("conversation_settlement_history", [])
+    |> List.wrap()
+    |> Enum.filter(&is_map/1)
+    |> Kernel.++([settlement_entry])
+    |> Enum.take(-10)
+  end
+
+  defp terminal_shared_context(snapshot, %Conversation{} = conversation) when is_map(snapshot) do
+    snapshot
+    |> map_get(:shared_context)
+    |> normalize_map()
+    |> Map.put("work_item_id", conversation.work_item_id)
+    |> Map.put("scope", Atom.to_string(conversation.scope))
+    |> Map.put("attachment_mode", Atom.to_string(conversation.attachment_mode))
+    |> Map.put("work_resolution", Snapshot.empty(conversation).shared_context["work_resolution"])
+  end
+
+  defp terminal_shared_context(_snapshot, %Conversation{} = conversation),
+    do: Snapshot.empty(conversation).shared_context
 
   defp start_or_recover_work_item_conversation(%WorkItem{} = work_item, attrs, actor) do
     start_attrs =

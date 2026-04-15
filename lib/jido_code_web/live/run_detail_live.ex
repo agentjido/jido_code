@@ -499,10 +499,24 @@ defmodule JidoCodeWeb.RunDetailLive do
                     >
                       {@conversation_linkage.origin["resolution_reason"]}
                     </p>
+                    <p
+                      :if={@conversation_linkage.notice}
+                      id="run-detail-conversation-lineage-note"
+                      class="text-xs text-warning"
+                    >
+                      {@conversation_linkage.notice.detail}
+                    </p>
+                    <p
+                      :if={@conversation_linkage.historical_conversation}
+                      id="run-detail-conversation-historical-id"
+                      class="text-xs text-base-content/70"
+                    >
+                      Historical origin: {@conversation_linkage.historical_conversation.id}
+                    </p>
                     <.link
                       id="run-detail-conversation-open-repo"
                       class="link link-primary text-xs"
-                      navigate={~p"/repos/#{@project_id}"}
+                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage)}
                     >
                       {@conversation_linkage.action_label}
                     </.link>
@@ -529,10 +543,17 @@ defmodule JidoCodeWeb.RunDetailLive do
                     >
                       {@conversation_linkage.origin["resolution_reason"]}
                     </p>
+                    <p
+                      :if={@conversation_linkage.notice}
+                      id="run-detail-conversation-origin-note"
+                      class="text-xs text-warning"
+                    >
+                      {@conversation_linkage.notice.detail}
+                    </p>
                     <.link
                       id="run-detail-conversation-open-repo"
                       class="link link-primary text-xs"
-                      navigate={~p"/repos/#{@project_id}"}
+                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage)}
                     >
                       {@conversation_linkage.action_label}
                     </.link>
@@ -551,7 +572,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                     <.link
                       id="run-detail-conversation-open-repo"
                       class="link link-primary text-xs"
-                      navigate={~p"/repos/#{@project_id}"}
+                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage)}
                     >
                       Open repo detail
                     </.link>
@@ -1853,6 +1874,26 @@ defmodule JidoCodeWeb.RunDetailLive do
       "/repos/#{managed_repo_id}/runs/#{run_id}#run-detail-memory-context"
     else
       nil
+    end
+  end
+
+  defp route_for_conversation_linkage(project_id, conversation_linkage) do
+    project_id = present_string(project_id)
+    work_item_id =
+      conversation_linkage
+      |> map_get(:work_item, "work_item", %{})
+      |> map_get(:id, "id")
+      |> present_string()
+
+    cond do
+      is_binary(project_id) and is_binary(work_item_id) ->
+        "/repos/#{project_id}?work_item_id=#{work_item_id}#project-detail-conversation-panel"
+
+      is_binary(project_id) ->
+        "/repos/#{project_id}#project-detail-conversation-panel"
+
+      true ->
+        "#run-detail-conversation-linkage"
     end
   end
 

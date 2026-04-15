@@ -157,6 +157,74 @@ defmodule JidoCode.ConversationsTest do
     assert reopened_conversation.work_item_id == work_item.id
   end
 
+  test "work-item conversations stay resumable through in-progress or blocked status and reopen cleanly after completion" do
+    managed_repo = managed_repo_fixture!("conversation-lifecycle")
+    work_item = work_item_fixture!(managed_repo, "operator-lifecycle")
+
+    assert {:ok, %{conversation: first_conversation, resumed?: false}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-lifecycle-open"})
+             )
+
+    assert {:ok, in_progress_work_item} =
+             WorkItem.update(work_item, %{status: :in_progress}, actor: Actor.operator_actor())
+
+    assert {:ok, %{conversation: in_progress_conversation, resumed?: true}} =
+             Conversations.open_or_resume_for_work_item(
+               in_progress_work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-lifecycle-in-progress"})
+             )
+
+    assert in_progress_conversation.id == first_conversation.id
+
+    assert {:ok, blocked_work_item} =
+             WorkItem.update(in_progress_work_item, %{status: :blocked}, actor: Actor.operator_actor())
+
+    assert {:ok, %{conversation: blocked_conversation, resumed?: true}} =
+             Conversations.open_or_resume_for_work_item(
+               blocked_work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-lifecycle-blocked"})
+             )
+
+    assert blocked_conversation.id == first_conversation.id
+
+    assert {:ok, completed_work_item} =
+             WorkItem.update(blocked_work_item, %{status: :completed}, actor: Actor.operator_actor())
+
+    assert {:ok,
+            %{work_item: reconciled_work_item, active_conversation: nil, settled_conversation: settled_conversation}} =
+             Conversations.reconcile_work_item_conversation_lifecycle(
+               completed_work_item.id,
+               actor: Actor.operator_actor()
+             )
+
+    assert reconciled_work_item.status == :completed
+    assert settled_conversation.id == first_conversation.id
+    assert settled_conversation.status == :completed
+    assert settled_conversation.conversation_metadata["last_work_item_status"] == "completed"
+
+    assert {:ok, nil} = Conversations.active_for_work_item(completed_work_item.id, actor: Actor.operator_actor())
+
+    assert {:error, :work_item_not_open} =
+             Conversations.open_or_resume_for_work_item(
+               completed_work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-lifecycle-completed"})
+             )
+
+    assert {:ok, reopened_work_item} =
+             WorkItem.update(completed_work_item, %{status: :open}, actor: Actor.operator_actor())
+
+    assert {:ok, %{conversation: reopened_conversation, resumed?: false}} =
+             Conversations.open_or_resume_for_work_item(
+               reopened_work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-lifecycle-reopened"})
+             )
+
+    refute reopened_conversation.id == first_conversation.id
+    assert reopened_conversation.work_item_id == reopened_work_item.id
+  end
+
   test "latest_for_managed_repo returns the most recently active conversation" do
     managed_repo = managed_repo_fixture!("conversation-latest")
 

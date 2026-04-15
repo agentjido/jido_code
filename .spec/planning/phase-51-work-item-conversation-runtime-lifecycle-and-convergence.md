@@ -31,56 +31,56 @@ Back to index: [README](./README.md)
 - Governed run detail and follow-up routing still need to become fully lifecycle-aware once multiple work-item conversations can coexist within one repository.
 - The final convergence cut should remove residual repo-global productive conversation assumptions from runtime helpers, lifecycle rules, and contributor guidance rather than preserving parallel mental models.
 
-[ ] 51 Phase 51 - Work-Item Conversation Runtime Lifecycle And Convergence
+[x] 51 Phase 51 - Work-Item Conversation Runtime Lifecycle And Convergence
   Harden governed run routing, runtime lifecycle, and contributor expectations so work-item-scoped productive conversations become the durable default without residual repo-global conversation assumptions.
 
-  [ ] 51.1 Section - Governed Run And Follow-Up Conversation Routing
+  [x] 51.1 Section - Governed Run And Follow-Up Conversation Routing
     Make governed execution and operator follow-up actions resolve back to the canonical work-item conversation thread instead of falling through repo-global lookup shortcuts.
 
-    [ ] 51.1.1 Task - Route governed run detail back to canonical work-item conversation threads
+    [x] 51.1.1 Task - Route governed run detail back to canonical work-item conversation threads
       Ensure governed run detail can explain and resume the right productive conversation even when one managed repository has several active work-item conversations.
 
-      [ ] 51.1.1.1 Subtask - Resolve governed run detail through canonical `WorkItem` conversation linkage before considering any repo-level fallback.
-      [ ] 51.1.1.2 Subtask - Surface preserved conversation origin and current active work-item conversation identity when governed execution was conversation-driven.
-      [ ] 51.1.1.3 Subtask - Keep missing, stale, or historical lineage explicit when the originating conversation is no longer the active thread for that work item.
+      [x] 51.1.1.1 Subtask - Resolve governed run detail through canonical `WorkItem` conversation linkage before considering any repo-level fallback.
+      [x] 51.1.1.2 Subtask - Surface preserved conversation origin and current active work-item conversation identity when governed execution was conversation-driven.
+      [x] 51.1.1.3 Subtask - Keep missing, stale, or historical lineage explicit when the originating conversation is no longer the active thread for that work item.
 
-    [ ] 51.1.2 Task - Align follow-up actions with work-item conversation identity
+    [x] 51.1.2 Task - Align follow-up actions with work-item conversation identity
       Ensure operator follow-up paths such as clarification, review continuation, and post-run conversation resumption target the canonical conversation for the selected work item.
 
-      [ ] 51.1.2.1 Subtask - Route work-item follow-up actions to the active productive conversation for that work item when one exists.
-      [ ] 51.1.2.2 Subtask - Make follow-up behavior explicit when a work item has only historical conversations and no active productive thread.
-      [ ] 51.1.2.3 Subtask - Preserve actor attribution and bounded shared context when governed follow-up reopens work-item conversation supervision.
+      [x] 51.1.2.1 Subtask - Route work-item follow-up actions to the active productive conversation for that work item when one exists.
+      [x] 51.1.2.2 Subtask - Make follow-up behavior explicit when a work item has only historical conversations and no active productive thread.
+      [x] 51.1.2.3 Subtask - Preserve actor attribution and bounded shared context when governed follow-up reopens work-item conversation supervision.
 
-  [ ] 51.2 Section - Runtime Lifecycle And Closure Rules
+  [x] 51.2 Section - Runtime Lifecycle And Closure Rules
     Remove residual repo-global assumptions from the runtime and define clear closure semantics for productive conversations that follow governed work over time.
 
-    [ ] 51.2.1 Task - Retire repo-global productive conversation assumptions from runtime helpers
+    [x] 51.2.1 Task - Retire repo-global productive conversation assumptions from runtime helpers
       Ensure runtime-facing helpers, projections, and continuity logic no longer treat "latest repo conversation" as the productive default after the work-item model lands.
 
-      [ ] 51.2.1.1 Subtask - Remove or narrow repo-global productive conversation lookup paths so work-item conversation identity remains canonical.
-      [ ] 51.2.1.2 Subtask - Keep bounded repo-scoped intake support explicit and separate from productive work-item conversation lifecycle.
-      [ ] 51.2.1.3 Subtask - Verify restart, reconnect, and recovery paths preserve one-active-conversation-per-work-item semantics across persistence boundaries.
+      [x] 51.2.1.1 Subtask - Remove or narrow repo-global productive conversation lookup paths so work-item conversation identity remains canonical.
+      [x] 51.2.1.2 Subtask - Keep bounded repo-scoped intake support explicit and separate from productive work-item conversation lifecycle.
+      [x] 51.2.1.3 Subtask - Verify restart, reconnect, and recovery paths preserve one-active-conversation-per-work-item semantics across persistence boundaries.
 
-    [ ] 51.2.2 Task - Define closure, archival, and reopening behavior for work-item conversations
+    [x] 51.2.2 Task - Define closure, archival, and reopening behavior for work-item conversations
       Make it explicit how productive conversation threads settle when governed work completes, is cancelled, or is later reopened.
 
-      [ ] 51.2.2.1 Subtask - Define when a work-item conversation should complete, pause, cancel, or remain resumable as governed work status changes.
-      [ ] 51.2.2.2 Subtask - Preserve historical conversation lineage per work item without letting historical threads compete with the active productive conversation.
-      [ ] 51.2.2.3 Subtask - Keep reopening behavior explicit when closed or historical work-item conversations must yield to a new active productive thread.
+      [x] 51.2.2.1 Subtask - Define when a work-item conversation should complete, pause, cancel, or remain resumable as governed work status changes.
+      [x] 51.2.2.2 Subtask - Preserve historical conversation lineage per work item without letting historical threads compete with the active productive conversation.
+      [x] 51.2.2.3 Subtask - Keep reopening behavior explicit when closed or historical work-item conversations must yield to a new active productive thread.
 
-  [ ] 51.3 Section - Integration Coverage And Contributor Convergence
+  [x] 51.3 Section - Integration Coverage And Contributor Convergence
     Prove the final per-work-item conversation lifecycle end to end and keep specs plus contributor guidance aligned with the corrected product model.
 
-    [ ] 51.3.1 Task - Add end-to-end lifecycle coverage for work-item conversations
+    [x] 51.3.1 Task - Add end-to-end lifecycle coverage for work-item conversations
       Verify governed runs, follow-up actions, completion, reopening, and history all respect the corrected productive conversation identity model.
 
-      [ ] 51.3.1.1 Subtask - Add coverage proving governed run detail resolves and resumes the correct work-item conversation when multiple active conversations exist in one repository.
-      [ ] 51.3.1.2 Subtask - Add coverage proving conversation lifecycle changes stay coherent as governed work completes, cancels, pauses, or reopens.
-      [ ] 51.3.1.3 Subtask - Add coverage proving historical conversation lineage stays explainable without violating one-active-conversation-per-work-item semantics.
+      [x] 51.3.1.1 Subtask - Add coverage proving governed run detail resolves and resumes the correct work-item conversation when multiple active conversations exist in one repository.
+      [x] 51.3.1.2 Subtask - Add coverage proving conversation lifecycle changes stay coherent as governed work completes, cancels, pauses, or reopens.
+      [x] 51.3.1.3 Subtask - Add coverage proving historical conversation lineage stays explainable without violating one-active-conversation-per-work-item semantics.
 
-    [ ] 51.3.2 Task - Converge specs, planning, and contributor guidance
+    [x] 51.3.2 Task - Converge specs, planning, and contributor guidance
       Keep the architecture, planning, and developer-facing documentation coherent once the per-work-item conversation model is fully adopted.
 
-      [ ] 51.3.2.1 Subtask - Update current-truth conversation, work-synthesis, and factory-control-plane specs to reflect the final lifecycle and run-detail routing model.
-      [ ] 51.3.2.2 Subtask - Verify the planning index remains coherent after Phase 51 closes out the repo-global productive conversation correction.
-      [ ] 51.3.2.3 Subtask - Update contributor guidance so future work treats repo intake, active work-item conversations, and historical conversation lineage as distinct concepts.
+      [x] 51.3.2.1 Subtask - Update current-truth conversation, work-synthesis, and factory-control-plane specs to reflect the final lifecycle and run-detail routing model.
+      [x] 51.3.2.2 Subtask - Verify the planning index remains coherent after Phase 51 closes out the repo-global productive conversation correction.
+      [x] 51.3.2.3 Subtask - Update contributor guidance so future work treats repo intake, active work-item conversations, and historical conversation lineage as distinct concepts.

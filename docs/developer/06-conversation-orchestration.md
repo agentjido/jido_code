@@ -123,6 +123,12 @@ specialist execution continues:
   conversation rather than creating a duplicate active thread
 - different work items in the same repository can keep separate active
   productive conversations in parallel
+- active work-item conversations stay resumable while the governed `WorkItem`
+  is `open`, `in_progress`, or `blocked`
+- once governed work becomes `completed`, `cancelled`, or `suppressed`, the
+  productive conversation settles into historical lineage for that work item
+- reopening the work item later yields a fresh active productive conversation
+  while preserving the closed thread as historical lineage
 
 ## Operator Surface Projections
 
@@ -138,7 +144,8 @@ The current projection model is:
   conversation linkage instead of assuming one repo-global productive thread
 - governed run detail resolves conversation lineage back from canonical
   `WorkItem` scope, showing either the latest linked conversation or preserved
-  conversation-origin metadata from work synthesis
+  historical lineage for that work item when the active thread changed after
+  completion and reopen
 
 That means conversation lineage is expected to travel through product-owned
 records:

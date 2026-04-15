@@ -260,6 +260,19 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Returns the latest repo-scoped intake conversation for the managed repository, if any.
+  """
+  @spec latest_repo_intake_conversation(managed_repo_id(), keyword()) ::
+          {:ok, Conversations.Conversation.t() | nil} | {:error, term()}
+  def latest_repo_intake_conversation(managed_repo_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_list(opts) do
+    Conversations.latest_repo_intake_for_managed_repo(
+      managed_repo_id,
+      actor: conversation_actor(opts)
+    )
+  end
+
+  @doc """
   Returns the active repo-scoped intake conversation for the managed repository, if any.
   """
   @spec active_repo_intake_conversation(managed_repo_id(), keyword()) ::

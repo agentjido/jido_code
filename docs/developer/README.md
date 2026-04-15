@@ -45,6 +45,9 @@ lives in:
 12. [`12-user-request-to-llm-message-path.md`](12-user-request-to-llm-message-path.md)
     See exactly how a user request is preserved, wrapped, and transformed before
     becoming the final specialist LLM message list.
+13. [`13-source-code-graph-operations.md`](13-source-code-graph-operations.md)
+    Learn operational aspects of the source code graph capability, including
+    configuration, monitoring, troubleshooting, and production deployment.
 
 ## How To Use These Guides
 

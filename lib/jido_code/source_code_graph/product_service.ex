@@ -11,7 +11,7 @@ defmodule JidoCode.SourceCodeGraph.ProductService do
   """
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.SourceCodeGraph.{Finding, Materialization, ViewModel}
+  alias JidoCode.SourceCodeGraph.{Finding, Health, Materialization, ViewModel}
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -27,6 +27,28 @@ defmodule JidoCode.SourceCodeGraph.ProductService do
 
       {:error, reason, detail} ->
         {:error, reason, ViewModel.error(:graph_status, managed_repo_id, reason, error_detail(reason, detail), nil)}
+    end
+  end
+
+  @spec health(managed_repo_id(), workspace_path(), keyword()) :: {:ok, map()} | {:error, atom(), map()}
+  def health(managed_repo_id, workspace_path, opts \\ []) do
+    graph_store_path = SourceCodeGraph.graph_store_path(workspace_path)
+
+    health_opts =
+      opts
+      |> Keyword.put(:workspace_path, workspace_path)
+      |> Keyword.put(:graph_store_path, graph_store_path)
+
+    health_status = Health.check(health_opts)
+
+    # Merge with any status result from AgentWorkspace for additional context
+    case AgentWorkspace.source_code_graph_status(managed_repo_id, workspace_path, opts) do
+      {:ok, status_result} ->
+        merged_health = merge_health_with_status(health_status, status_result)
+        {:ok, ViewModel.health(managed_repo_id, merged_health)}
+
+      _ ->
+        {:ok, ViewModel.health(managed_repo_id, health_status)}
     end
   end
 
@@ -184,4 +206,20 @@ defmodule JidoCode.SourceCodeGraph.ProductService do
   end
 
   defp error_detail(reason, _detail), do: error_detail(reason)
+
+  defp merge_health_with_status(health_status, status_result) do
+    %{
+      ready?: health_status.ready? and Map.get(status_result, :ready?, false),
+      stale?: health_status.stale? or Map.get(status_result, :stale?, false),
+      corrupted?: health_status.corrupted?,
+      last_analysis_at: Map.get(status_result, :analyzed_at) || health_status.last_analysis_at,
+      last_analysis_duration_ms: health_status.last_analysis_duration_ms,
+      graph_size_bytes: health_status.graph_size_bytes,
+      triple_count: health_status.triple_count || Map.get(status_result, :individual_triple_count),
+      file_count: health_status.file_count || Map.get(status_result, :file_count),
+      error_count: health_status.error_count || Map.get(status_result, :error_count, 0),
+      imported_revision: Map.get(status_result, :imported_revision),
+      source_commit: Map.get(status_result, :source_commit)
+    }
+  end
 end

@@ -17,6 +17,42 @@ defmodule JidoCode.SourceCodeGraph.ViewModel do
     }
   end
 
+  @spec health(String.t(), map()) :: projection()
+  def health(managed_repo_id, health_status) when is_binary(managed_repo_id) and is_map(health_status) do
+    %{
+      kind: :graph_health,
+      managed_repo_id: managed_repo_id,
+      health: %{
+        summary: health_summary(health_status),
+        ready?: Map.get(health_status, :ready?, false),
+        stale?: Map.get(health_status, :stale?, true),
+        corrupted?: Map.get(health_status, :corrupted?, false),
+        last_analysis_at: Map.get(health_status, :last_analysis_at),
+        last_analysis_duration_ms: Map.get(health_status, :last_analysis_duration_ms),
+        graph_size_bytes: Map.get(health_status, :graph_size_bytes),
+        graph_size_mb: size_in_mb(Map.get(health_status, :graph_size_bytes)),
+        triple_count: Map.get(health_status, :triple_count),
+        file_count: Map.get(health_status, :file_count),
+        error_count: Map.get(health_status, :error_count, 0),
+        imported_revision: Map.get(health_status, :imported_revision),
+        source_commit: Map.get(health_status, :source_commit)
+      },
+      error: nil
+    }
+  end
+
+  defp health_summary(health_status) do
+    cond do
+      Map.get(health_status, :corrupted?, false) -> "corrupted"
+      not Map.get(health_status, :ready?, false) -> "not_ready"
+      Map.get(health_status, :stale?, true) -> "stale"
+      true -> "healthy"
+    end
+  end
+
+  defp size_in_mb(nil), do: nil
+  defp size_in_mb(bytes) when is_integer(bytes), do: div(bytes, 1024 * 1024)
+
   @spec summary(String.t(), map(), map()) :: projection()
   def summary(managed_repo_id, status_result, groups)
       when is_binary(managed_repo_id) and is_map(status_result) and is_map(groups) do

@@ -33,6 +33,24 @@ if secret_ref_encryption_key = System.get_env("JIDO_CODE_SECRET_REF_ENCRYPTION_K
   config :jido_code, secret_ref_encryption_key: secret_ref_encryption_key
 end
 
+# Source code graph configuration from environment
+# These can be set to override defaults for production deployment
+if source_code_graph_enabled = System.get_env("SOURCE_CODE_GRAPH_ENABLED") do
+  config :jido_code, source_code_graph_enabled: source_code_graph_enabled == "true"
+end
+
+if analysis_timeout = System.get_env("SOURCE_CODE_GRAPH_ANALYSIS_TIMEOUT_MS") do
+  config :jido_code, source_code_graph_analysis_timeout_ms: String.to_integer(analysis_timeout)
+end
+
+if load_timeout = System.get_env("SOURCE_CODE_GRAPH_LOAD_TIMEOUT_MS") do
+  config :jido_code, source_code_graph_load_timeout_ms: String.to_integer(load_timeout)
+end
+
+if query_timeout = System.get_env("SOURCE_CODE_GRAPH_QUERY_TIMEOUT_MS") do
+  config :jido_code, source_code_graph_query_timeout_ms: String.to_integer(query_timeout)
+end
+
 # Desktop/Burrito mode: when BURRITO_TARGET is set (by Tauri sidecar or manually),
 # override prod config for local desktop use. This block runs before the prod
 # block below, providing defaults so the raises are never hit.

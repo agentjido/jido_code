@@ -111,4 +111,14 @@ config :jido_code,
   agent_os_persistence: [
     adapter: Jido.Ecto.Storage,
     repo: JidoCode.Repo
-  ]
+  ],
+  # Source code graph configuration (enabled in dev with conservative defaults)
+  source_code_graph_enabled: true,
+  source_code_graph_analysis_timeout_ms: 300_000, # 5 minutes
+  source_code_graph_load_timeout_ms: 120_000, # 2 minutes
+  source_code_graph_query_timeout_ms: 30_000, # 30 seconds
+  source_code_graph_max_retries: 3,
+  source_code_graph_retry_backoff_ms: 1000,
+  source_code_graph_max_file_count: 10_000,
+  source_code_graph_max_graph_size_mb: 500,
+  source_code_graph_allow_partial_results: false

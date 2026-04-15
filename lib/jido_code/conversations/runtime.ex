@@ -263,9 +263,10 @@ defmodule JidoCode.Conversations.Runtime do
         invoke_memory_workflow(request, readiness, actor)
 
       :workspace_with_semantic ->
-        invoke_workspace(request, readiness, actor,
-          source_code_graph: [workspace_path: readiness.workspace_path, prepare: :load_if_missing]
-        )
+        invoke_workspace_with_semantic_fallback(request, readiness, actor)
+
+      :semantic_workflow ->
+        invoke_semantic_workflow_with_fallback(request, readiness, actor)
 
       _other ->
         invoke_workspace(request, readiness, actor, [])
@@ -358,6 +359,128 @@ defmodule JidoCode.Conversations.Runtime do
           opts
         )
     end
+  end
+
+  # Invokes workspace with semantic context, falling back to plain workspace on failure
+  defp invoke_workspace_with_semantic_fallback(request, readiness, actor) do
+    semantic_opts = [workspace_path: readiness.workspace_path, prepare: :load_if_missing]
+
+    case invoke_workspace(request, readiness, actor, source_code_graph: semantic_opts) do
+      {:error, :source_code_graph_disabled, _} ->
+        # Feature is disabled, fall back to plain workspace
+        log_semantic_degradation(request.managed_repo_id, :disabled)
+        invoke_workspace(request, readiness, actor, [])
+
+      {:error, :source_code_graph_not_ready, _} ->
+        # Graph not loaded, fall back to plain workspace
+        log_semantic_degradation(request.managed_repo_id, :not_ready)
+        invoke_workspace(request, readiness, actor, [])
+
+      {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+        # Semantic analysis failed, fall back to plain workspace
+        log_semantic_degradation(request.managed_repo_id, {:analysis_failed, reason})
+        invoke_workspace(request, readiness, actor, [])
+
+      result ->
+        result
+    end
+  end
+
+  # Invokes semantic workflow with fallback to workspace on failure
+  defp invoke_semantic_workflow_with_fallback(request, readiness, actor) do
+    managed_repo_id = request.managed_repo_id
+    work_item_id = request.work_item_id
+    instruction = request.instruction
+    workspace_path = readiness.workspace_path
+
+    semantic_opts = [workspace_path: workspace_path, prepare: :load_if_missing]
+
+    case request.workflow do
+      :plan ->
+        case SemanticWorkflowService.plan(managed_repo_id, work_item_id, instruction,
+               semantic: semantic_opts,
+               workspace_path: workspace_path,
+               actor: actor) do
+          {:error, :source_code_graph_disabled, _} ->
+            log_semantic_degradation(managed_repo_id, :disabled)
+            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          {:error, :source_code_graph_not_ready, _} ->
+            log_semantic_degradation(managed_repo_id, :not_ready)
+            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          result ->
+            result
+        end
+
+      :review ->
+        case SemanticWorkflowService.review(managed_repo_id, work_item_id, instruction,
+               semantic: semantic_opts,
+               workspace_path: workspace_path,
+               actor: actor) do
+          {:error, :source_code_graph_disabled, _} ->
+            log_semantic_degradation(managed_repo_id, :disabled)
+            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          {:error, :source_code_graph_not_ready, _} ->
+            log_semantic_degradation(managed_repo_id, :not_ready)
+            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          result ->
+            result
+        end
+
+      :explain ->
+        case SemanticWorkflowService.explain(managed_repo_id, work_item_id, instruction,
+               semantic: semantic_opts,
+               workspace_path: workspace_path,
+               actor: actor) do
+          {:error, :source_code_graph_disabled, _} ->
+            log_semantic_degradation(managed_repo_id, :disabled)
+            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          {:error, :source_code_graph_not_ready, _} ->
+            log_semantic_degradation(managed_repo_id, :not_ready)
+            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path, actor: actor)
+
+          result ->
+            result
+        end
+
+      _workflow ->
+        # For execute workflow, use workspace with semantic fallback
+        invoke_workspace_with_semantic_fallback(request, readiness, actor)
+    end
+  end
+
+  defp log_semantic_degradation(managed_repo_id, reason) do
+    require Logger
+
+    Logger.warning("""
+    Source code graph degraded for repo #{managed_repo_id}: #{inspect(reason)}
+    Falling back to non-semantic workspace mode.
+    """)
   end
 
   defp bounded_instruction(

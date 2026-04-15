@@ -6,6 +6,9 @@ defmodule JidoCode.SourceCodeGraph.Store do
   @moduledoc false
 
   alias JidoCode.SourceCodeGraph
+  alias JidoCode.SourceCodeGraph.Config
+  alias JidoCode.SourceCodeGraph.ResourceLimits
+  alias JidoCode.SourceCodeGraph.RetryPolicy
 
   @type analysis_result :: map()
 
@@ -17,10 +20,15 @@ defmodule JidoCode.SourceCodeGraph.Store do
     canonical_store_path = dataset.graph_store_path
     staging_store_path = staging_store_path(canonical_store_path, revision_metadata.analyzed_revision, mode)
     named_graph = SourceCodeGraph.named_graph_resource()
+    timeout = Config.load_timeout(opts)
+
+    # Estimate graph size for validation
+    estimated_size_bytes = estimate_graph_size(analysis_result)
 
     with :ok <- ensure_parent_directory(canonical_store_path),
+         :ok <- ResourceLimits.validate_disk_space(canonical_store_path, estimated_size_bytes, opts),
          :ok <- reset_directory(staging_store_path),
-         {:ok, load_counts} <- build_staged_store(staging_store_path, analysis_result.load_artifacts, named_graph),
+         {:ok, load_counts} <- build_staged_store(staging_store_path, analysis_result.load_artifacts, named_graph, timeout),
          :ok <- promote_store(staging_store_path, canonical_store_path) do
       imported_at = DateTime.utc_now()
 
@@ -71,13 +79,24 @@ defmodule JidoCode.SourceCodeGraph.Store do
     end
   end
 
-  defp build_staged_store(staging_store_path, load_artifacts, named_graph) do
+  defp build_staged_store(staging_store_path, load_artifacts, named_graph, timeout \\ :infinity) do
+    task = Task.async(fn ->
+      do_build_staged_store(staging_store_path, load_artifacts, named_graph)
+    end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> {:error, %{stage: :load, reason: :timeout, timeout_ms: timeout}}
+    end
+  end
+
+  defp do_build_staged_store(staging_store_path, load_artifacts, named_graph) do
     with {:ok, store} <- TripleStore.open(staging_store_path, schema: :quad, create_if_missing: true) do
       try do
         with {:ok, schema_count} <-
-               load_schema_artifacts(store, load_artifacts.ontology_schema.artifacts, named_graph),
+               load_schema_artifacts_with_retry(store, load_artifacts.ontology_schema.artifacts, named_graph),
              {:ok, individual_count} <-
-               TripleStore.load_graph(store, load_artifacts.project_individuals.graph, graph: named_graph) do
+               load_graph_with_retry(store, load_artifacts.project_individuals.graph, named_graph) do
           {:ok,
            %{
              schema_triple_count: schema_count,
@@ -95,6 +114,18 @@ defmodule JidoCode.SourceCodeGraph.Store do
       {:error, reason} ->
         {:error, %{stage: :open_store, reason: inspect(reason)}}
     end
+  end
+
+  defp load_schema_artifacts_with_retry(store, schema_artifacts, named_graph) do
+    RetryPolicy.retry(fn ->
+      load_schema_artifacts(store, schema_artifacts, named_graph)
+    end, max_retries: 2)
+  end
+
+  defp load_graph_with_retry(store, graph, named_graph) do
+    RetryPolicy.retry(fn ->
+      TripleStore.load_graph(store, graph, graph: named_graph)
+    end, max_retries: 2)
   end
 
   defp load_schema_artifacts(store, schema_artifacts, named_graph) do
@@ -186,6 +217,13 @@ defmodule JidoCode.SourceCodeGraph.Store do
       |> String.replace(~r/[^a-zA-Z0-9_-]+/, "_")
 
     canonical_store_path <> ".#{mode}.#{suffix}"
+  end
+
+  defp estimate_graph_size(analysis_result) do
+    # Use the individual triple count as a baseline
+    # Each triple is approximately 100-200 bytes in storage
+    triple_count = get_in(analysis_result, [:load_artifacts, :project_individuals, :triple_count]) || 0
+    triple_count * 200
   end
 
   defp import_state(:refresh), do: :refreshed

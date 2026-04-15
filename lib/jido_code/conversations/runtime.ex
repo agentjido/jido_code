@@ -103,12 +103,6 @@ defmodule JidoCode.Conversations.Runtime do
              runtime_spec[:managed_repo_id] || runtime_spec["managed_repo_id"],
              "conversation_runtime_repo_scope_invalid",
              "Managed repository scope is missing for real conversation runtime."
-           ),
-         {:ok, work_item_id} <-
-           required_string(
-             runtime_spec[:work_item_id] || runtime_spec["work_item_id"],
-             "conversation_runtime_work_item_unavailable",
-             "Work item scope is missing for real conversation runtime."
            ) do
       instruction =
         runtime_spec
@@ -134,6 +128,7 @@ defmodule JidoCode.Conversations.Runtime do
         })
 
       workflow = routing.workflow
+      work_item_id = normalize_optional_string(runtime_spec[:work_item_id] || runtime_spec["work_item_id"])
 
       referenced_files =
         shared_context
@@ -147,31 +142,33 @@ defmodule JidoCode.Conversations.Runtime do
 
       context_source = select_context_source(workflow)
 
-      {:ok,
-       %{
-         managed_repo_id: managed_repo_id,
-         work_item_id: work_item_id,
-         user_instruction: instruction || "Continue the repository conversation.",
-         workflow: workflow,
-         routing: routing,
-         context_source: context_source,
-         source: normalize_optional_string(map_get(runtime_spec, :source)),
-         objective: objective,
-         referenced_files: referenced_files,
-         shared_context: shared_context,
-         clarification_resume: clarification_resume,
-         instruction:
-           bounded_instruction(
-             runtime_spec,
-             workflow,
-             managed_repo_id,
-             work_item_id,
-             readiness.workspace_path,
-             shared_context,
-             referenced_files,
-             clarification_resume
-           )
-       }}
+      with {:ok, work_item_id} <- require_work_item_for_request(work_item_id, routing) do
+        {:ok,
+         %{
+           managed_repo_id: managed_repo_id,
+           work_item_id: work_item_id,
+           user_instruction: instruction || "Continue the repository conversation.",
+           workflow: workflow,
+           routing: routing,
+           context_source: context_source,
+           source: normalize_optional_string(map_get(runtime_spec, :source)),
+           objective: objective,
+           referenced_files: referenced_files,
+           shared_context: shared_context,
+           clarification_resume: clarification_resume,
+           instruction:
+             bounded_instruction(
+               runtime_spec,
+               workflow,
+               managed_repo_id,
+               work_item_id,
+               readiness.workspace_path,
+               shared_context,
+               referenced_files,
+               clarification_resume
+             )
+         }}
+      end
     end
   end
 
@@ -577,6 +574,16 @@ defmodule JidoCode.Conversations.Runtime do
       normalized ->
         {:ok, normalized}
     end
+  end
+
+  defp require_work_item_for_request(work_item_id, %{ambiguous?: true}), do: {:ok, work_item_id}
+
+  defp require_work_item_for_request(work_item_id, _routing) do
+    required_string(
+      work_item_id,
+      "conversation_runtime_work_item_unavailable",
+      "Work item scope is missing for real conversation runtime."
+    )
   end
 
   defp normalize_summary(value) when is_binary(value) do

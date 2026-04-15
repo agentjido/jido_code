@@ -239,7 +239,8 @@ defmodule JidoCode.Conversations.Coordinator do
              normalized_command.actor,
              normalized_command.payload
            ),
-         {:ok, resumed_state} <- maybe_schedule_runtime_for_turn(applied_state, resumed_turn.id) do
+         {:ok, scoped_state} <- maybe_prepare_runtime_scope(applied_state, resumed_turn.id),
+         {:ok, resumed_state} <- maybe_schedule_runtime_for_turn(scoped_state, resumed_turn.id) do
       {:ok, resumed_state}
     end
   end

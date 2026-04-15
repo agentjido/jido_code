@@ -1,5 +1,7 @@
 defmodule JidoCode.Conversations.WorkflowRouter do
   # covers: architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+  # covers: architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
+  # covers: architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification
   @moduledoc """
   Canonical deterministic workflow routing for productive conversation turns.
 

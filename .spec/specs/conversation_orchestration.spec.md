@@ -7,7 +7,7 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption, repo-scoped pre-work intake, and multiple active work-item conversations per repository rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption, repo-scoped pre-work intake, multiple active work-item conversations per repository, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
@@ -161,6 +161,21 @@ surface:
 
 - id: architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
   statement: Conversation runtime shall assemble prompts, bounded shared context, tool access, and model execution through AgentWorkspace, CodingPod specialists, or an adjacent product-owned conversation runtime boundary instead of embedding prompt assembly or model orchestration directly in LiveView surfaces.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+  statement: Conversation workflow and specialist routing shall resolve through one product-owned deterministic routing boundary with explicit precedence, bounded inputs, and inspectable routing metadata rather than duplicated ad hoc heuristics, provider-side self-selection, or letting the active AI agent decide which specialist should handle the turn.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
+  statement: Explicit workflow intent, clarification or resume continuity, active work-item context, and bounded surface intent shall take precedence over free-text routing heuristics so productive follow-up work continues through the canonical workflow unless the operator explicitly changes it.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification
+  statement: When routing signals are weak, conflicting, or otherwise ambiguous, the conversation runtime shall request clarification through bounded conversation control flow instead of silently guessing the workflow or specialist.
   priority: must
   stability: proposed
 
@@ -399,6 +414,34 @@ surface:
     - The system does not fabricate progress, delta, or completion events that imply successful work.
     - Persisted conversation state still remains available for continuity and later recovery.
 
+- id: architecture.conversation_orchestration.scenario_explicit_workflow_intent_beats_ambiguous_text
+  covers:
+    - architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+    - architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
+  given:
+    - A productive conversation turn includes mixed free-text cues such as review and implementation language.
+    - The bounded product surface or active conversation state already carries explicit workflow intent or prior continuity for that turn.
+  when:
+    - The product routes the turn into productive execution.
+  then:
+    - The canonical routing boundary uses the explicit workflow or continuity signal before considering free-text heuristics.
+    - The chosen workflow and routing reason are persisted as bounded routing metadata that downstream runtime helpers can reuse.
+    - Specialist selection remains product-owned and deterministic instead of asking the model which specialist to use.
+
+- id: architecture.conversation_orchestration.scenario_ambiguous_routing_requests_clarification
+  covers:
+    - architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+    - architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification
+    - architecture.conversation_orchestration.steering_preserves_short_term_context
+  given:
+    - A productive conversation turn has no explicit workflow and presents weak or conflicting routing cues.
+  when:
+    - The product attempts to route that turn into planning, execution, review, or explanation work.
+  then:
+    - The canonical routing boundary classifies the routing state as ambiguous rather than silently picking a specialist.
+    - The coordinator emits a clarification request through the normal conversation control flow.
+    - Bounded shared context and work-item continuity remain available so the clarified turn can resume without losing the governed work thread.
+
 - id: architecture.conversation_orchestration.scenario_real_runtime_cutover_removes_fake_path
   covers:
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
@@ -493,6 +536,27 @@ surface:
   covers:
     - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
     - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: .spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md
+  covers:
+    - architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+    - architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
+    - architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification
+
+- kind: source_file
+  target: lib/jido_code/conversations/workflow_router.ex
+  covers:
+    - architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+    - architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
+    - architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification
+
+- kind: source_file
+  target: test/jido_code/phase_fifty_two_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
+    - architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
+    - architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification
 
 - kind: source_file
   target: test/jido_code/phase_forty_nine_integration_test.exs

@@ -318,6 +318,14 @@ defmodule JidoCode.Workbench.ProjectConversation do
           {:error, reason}
       end
 
+    historical_conversation =
+      historical_lineage_for_work_item(
+        reference.work_item_id,
+        conversation_result,
+        origin_conversation,
+        actor
+      )
+
     case conversation_result do
       {:ok, %Conversation{} = conversation} ->
         case AgentWorkspace.conversation_snapshot(conversation.id) do
@@ -326,12 +334,12 @@ defmodule JidoCode.Workbench.ProjectConversation do
               available?: true,
               managed_repo_id: reference.managed_repo_id,
               conversation: conversation_summary(conversation, snapshot),
-              historical_conversation: historical_lineage_conversation(conversation, origin_conversation),
+              historical_conversation: historical_conversation,
               work_item: reference.work_item,
               origin: reference.origin,
               snapshot: snapshot,
               recent_events: recent_events(snapshot),
-              notice: work_item_lineage_notice(conversation, origin_conversation),
+              notice: work_item_lineage_notice(conversation, historical_conversation),
               action_label: work_item_action_label(conversation)
             }
 
@@ -340,7 +348,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
               available?: true,
               managed_repo_id: reference.managed_repo_id,
               conversation: conversation_summary(conversation, nil),
-              historical_conversation: historical_lineage_conversation(conversation, origin_conversation),
+              historical_conversation: historical_conversation,
               work_item: reference.work_item,
               origin: reference.origin,
               snapshot: nil,
@@ -682,14 +690,16 @@ defmodule JidoCode.Workbench.ProjectConversation do
     |> Map.put("source_metadata", source_metadata)
   end
 
-  defp work_item_lineage_notice(%Conversation{} = conversation, %Conversation{} = origin_conversation) do
-    if conversation.id == origin_conversation.id do
+  defp work_item_lineage_notice(%Conversation{} = conversation, %{} = historical_conversation) do
+    historical_id = normalize_optional_string(Map.get(historical_conversation, :id))
+
+    if conversation.id == historical_id do
       nil
     else
       %{
-        error_type: "work_item_conversation_origin_historical",
+        error_type: "work_item_conversation_historical_lineage",
         detail:
-          "This governed run originated from historical conversation #{origin_conversation.id}. Conversation #{conversation.id} is the current productive thread for the same work item.",
+          "Conversation #{historical_id} is preserved as historical lineage. Conversation #{conversation.id} is the current productive thread for the same work item.",
         remediation: "Resume the governed conversation from this work item path to continue the active thread."
       }
     end
@@ -718,15 +728,44 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp no_active_work_item_notice(_origin), do: nil
 
-  defp historical_lineage_conversation(%Conversation{} = current, %Conversation{} = origin_conversation) do
-    if current.id == origin_conversation.id do
-      nil
-    else
-      conversation_summary(origin_conversation, nil)
+  defp historical_lineage_for_work_item(
+         work_item_id,
+         {:ok, %Conversation{} = current},
+         %Conversation{} = origin_conversation,
+         _actor
+       )
+       when is_binary(work_item_id) do
+    historical_lineage_conversation(current, origin_conversation)
+  end
+
+  defp historical_lineage_for_work_item(
+         work_item_id,
+         {:ok, %Conversation{} = current},
+         _origin_conversation,
+         actor
+       )
+       when is_binary(work_item_id) do
+    case Conversations.latest_historical_for_work_item(work_item_id, actor: actor) do
+      {:ok, %Conversation{} = historical_conversation} ->
+        historical_lineage_conversation(current, historical_conversation)
+
+      _other ->
+        nil
     end
   end
 
-  defp historical_lineage_conversation(_current, _origin_conversation), do: nil
+  defp historical_lineage_for_work_item(_work_item_id, _conversation_result, _origin_conversation, _actor),
+    do: nil
+
+  defp historical_lineage_conversation(%Conversation{} = current, %Conversation{} = historical_conversation) do
+    if current.id == historical_conversation.id do
+      nil
+    else
+      conversation_summary(historical_conversation, nil)
+    end
+  end
+
+  defp historical_lineage_conversation(_current, _historical_conversation), do: nil
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

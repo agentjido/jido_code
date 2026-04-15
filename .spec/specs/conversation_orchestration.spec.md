@@ -53,6 +53,7 @@ surface:
   - test/jido_code/phase_forty_six_integration_test.exs
   - test/jido_code/phase_forty_seven_integration_test.exs
   - test/jido_code/phase_forty_eight_integration_test.exs
+  - test/jido_code/phase_fifty_one_integration_test.exs
   - test/jido_code/phase_forty_one_integration_test.exs
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
@@ -170,6 +171,11 @@ surface:
 
 - id: architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
   statement: The real conversation-runtime cutover shall remove the fake repository-conversation execution path rather than preserving a backward-compatibility shim, feature-flagged legacy mode, or parallel simulated runtime after adoption.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status
+  statement: Active work-item conversations shall remain resumable while governed work stays `open`, `in_progress`, or `blocked`, shall settle into terminal historical lineage when governed work becomes `completed`, `cancelled`, or `suppressed`, and reopening that work later shall create a fresh active productive thread without reviving the historical one as the active default.
   priority: must
   stability: proposed
 ```
@@ -323,6 +329,20 @@ surface:
   then:
     - Each work item keeps its own productive conversation thread, bounded context, and runtime routing.
     - The system does not merge those work streams into one repo-global productive conversation.
+
+- id: architecture.conversation_orchestration.scenario_work_item_conversation_settles_and_reopens
+  covers:
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+  given:
+    - A managed repository has a productive work-item conversation and at least one other active work-item conversation.
+  when:
+    - The first governed work item completes and is later reopened.
+  then:
+    - The completed conversation settles into historical lineage for that work item instead of competing with active productive conversations.
+    - Reopening the work item yields a fresh active productive conversation for that same work item.
+    - Governed run detail and adjacent surfaces can explain both the current active thread and the preserved historical lineage.
 
 - id: architecture.conversation_orchestration.scenario_operator_surfaces_expose_conversation_work_item_linkage
   covers:
@@ -534,6 +554,7 @@ surface:
   covers:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
     - architecture.conversation_orchestration.steering_preserves_short_term_context
+    - architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status
 
 - kind: source_file
   target: lib/jido_code/agent_workspace.ex
@@ -611,6 +632,13 @@ surface:
 - kind: source_file
   target: test/jido_code/phase_forty_eight_integration_test.exs
   covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code/phase_fifty_one_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
+    - architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status
     - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
 
 - kind: source_file

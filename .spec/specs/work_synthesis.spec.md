@@ -57,6 +57,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
+  statement: When governed work completes or later reopens, historical productive conversation lineage shall remain attached to the canonical `WorkItem` so operator surfaces can explain prior conversation-driven work without reviving the historical thread as the active default.
+  priority: should
+  stability: evolving
+
 - id: architecture.work_synthesis.work_item_creation_can_stop_before_execution
   statement: Work synthesis shall be able to stop at durable `WorkItem` creation without requiring immediate run launch so the control plane can record actionable work even when execution stays deferred or optional.
   priority: must
@@ -137,6 +142,18 @@ surface:
     - Each work item preserves separate productive conversation linkage and continuation identity.
     - The product does not require operators to route that resumed work through one repo-global latest conversation.
 
+- id: architecture.work_synthesis.scenario_reopened_work_item_preserves_historical_conversation_lineage
+  covers:
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
+    - architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
+  given:
+    - A governed `WorkItem` already has a productive conversation that later became historical because the work completed or was cancelled.
+  when:
+    - The same work item is reopened for fresh governed work.
+  then:
+    - A new active productive conversation can attach to the reopened work item.
+    - The historical conversation remains explainable as prior lineage on that same work item rather than being discarded or revived as the active default.
+
 ```
 
 ## Verification
@@ -172,6 +189,7 @@ surface:
   covers:
     - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
+    - architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
 
 - kind: source_file
   target: .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
@@ -244,5 +262,11 @@ surface:
     - architecture.work_synthesis.productive_conversations_route_through_work_resolution
     - architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
     - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
+
+- kind: source_file
+  target: test/jido_code/phase_fifty_one_integration_test.exs
+  covers:
+    - architecture.work_synthesis.active_conversation_identity_rejoins_work_item
+    - architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
 
 ```

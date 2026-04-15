@@ -23,7 +23,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   alias JidoCode.Governance.{Decision, Evidence, RepoPosture}
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, GovernedSurfaceContext, ProductService}
-  alias JidoCode.Operations.{Assessment, Event, WorkItem}
+  alias JidoCode.Operations.{Assessment, Event, Ingress, WorkItem}
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
 
@@ -345,6 +345,151 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(
              view,
              "#run-detail-conversation-open-repo[href='/repos/#{project.id}?work_item_id=#{work_item_id}#project-detail-conversation-panel']",
+             "Resume governed conversation"
+           )
+  end
+
+  test "shows current and historical governed conversation lineage when a work item reopens", %{
+    conn: _conn
+  } do
+    register_owner("run-conversation-history-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("run-conversation-history-owner@example.com", "owner-password-123")
+
+    workspace_path = create_memory_workspace_path!("run_detail_conversation_history")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-run-conversation-history",
+        github_full_name: "owner/repo-run-conversation-history",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, tracked_conversations} = Agent.start(fn -> [] end)
+
+    on_exit(fn ->
+      if Process.alive?(tracked_conversations) do
+        tracked_conversations
+        |> Agent.get(&Enum.uniq(&1))
+        |> Enum.each(fn conversation_id ->
+          _ = AgentWorkspace.stop_conversation(conversation_id)
+        end)
+
+        Agent.stop(tracked_conversations)
+      end
+
+      _ = AgentWorkspace.shutdown_kernel(managed_repo.id)
+      :ok
+    end)
+
+    first_work_item = work_item_fixture!(managed_repo, "run-detail-history-first")
+    second_work_item = work_item_fixture!(managed_repo, "run-detail-history-second")
+
+    assert {:ok, %{conversation: historical_conversation}} =
+             AgentWorkspace.open_work_item_conversation(
+               first_work_item.id,
+               %{
+                 source: "run_detail_live_test",
+                 objective: "Coordinate the first governed work item through conversation."
+               },
+               actor: Actor.operator_actor(%{"id" => "run-detail-history-first-open"})
+             )
+
+    Agent.update(tracked_conversations, &[historical_conversation.id | &1])
+
+    assert {:ok, %{conversation: second_conversation}} =
+             AgentWorkspace.open_work_item_conversation(
+               second_work_item.id,
+               %{
+                 source: "run_detail_live_test",
+                 objective: "Keep a second governed conversation active in the same repository."
+               },
+               actor: Actor.operator_actor(%{"id" => "run-detail-history-second-open"})
+             )
+
+    Agent.update(tracked_conversations, &[second_conversation.id | &1])
+
+    assert {:ok, completed_work_item} =
+             WorkItem.update(first_work_item, %{status: :completed}, actor: Actor.operator_actor())
+
+    assert {:ok, %{active_conversation: nil, settled_conversation: settled_conversation}} =
+             JidoCode.Conversations.reconcile_work_item_conversation_lifecycle(
+               completed_work_item.id,
+               actor: Actor.operator_actor()
+             )
+
+    assert settled_conversation.id == historical_conversation.id
+
+    assert {:ok, reopened_work_item} =
+             WorkItem.update(completed_work_item, %{status: :open}, actor: Actor.operator_actor())
+
+    assert {:ok, %{conversation: current_conversation}} =
+             AgentWorkspace.open_work_item_conversation(
+               reopened_work_item.id,
+               %{
+                 source: "run_detail_live_test",
+                 objective: "Resume the reopened governed work item."
+               },
+               actor: Actor.operator_actor(%{"id" => "run-detail-history-first-reopen"})
+             )
+
+    Agent.update(tracked_conversations, &[current_conversation.id | &1])
+
+    run_id = "run-conversation-history-#{System.unique_integer([:positive])}"
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        managed_repo_id: managed_repo.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{
+          "task_summary" => "Render historical conversation lineage",
+          "work_item_id" => reopened_work_item.id
+        },
+        input_metadata: %{
+          "task_summary" => %{required: true, source: "manual_workflows_ui"},
+          "work_item_id" => %{required: true, source: "conversation"}
+        },
+        initiating_actor: %{id: "owner-1", email: "run-conversation-history-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-15 10:00:00Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "plan_changes",
+        transitioned_at: ~U[2026-04-15 10:01:00Z]
+      })
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-conversation-entry")
+    assert has_element?(view, "#run-detail-conversation-id", current_conversation.id)
+    assert has_element?(view, "#run-detail-conversation-status", "active")
+    assert has_element?(view, "#run-detail-conversation-lineage-note", historical_conversation.id)
+    assert has_element?(view, "#run-detail-conversation-historical-id", historical_conversation.id)
+
+    assert has_element?(
+             view,
+             "#run-detail-conversation-open-repo[href='/repos/#{project.id}?work_item_id=#{reopened_work_item.id}#project-detail-conversation-panel']",
              "Resume governed conversation"
            )
   end
@@ -2556,6 +2701,25 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
   defp assert_eventually(_assertion_fun, 0) do
     flunk("expected condition to become true")
+  end
+
+  defp work_item_fixture!(managed_repo, actor_id) do
+    {:ok, %{work_item: work_item}} =
+      Ingress.record_operator_intake(%{
+        managed_repo_id: managed_repo.id,
+        channel: "workbench",
+        intent: "fix_workflow_kickoff",
+        actor: %{id: actor_id, email: "#{actor_id}@example.com"},
+        payload: %{
+          "workflow_name" => "fix_failing_tests_#{actor_id}",
+          "context_item" => %{"type" => "issue", "id" => actor_id}
+        },
+        source_metadata: %{
+          "trigger" => %{"source" => "workbench", "mode" => "manual"}
+        }
+      })
+
+    work_item
   end
 
   defp maybe_put(map, _key, nil), do: map

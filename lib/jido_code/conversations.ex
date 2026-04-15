@@ -1,6 +1,9 @@
 defmodule JidoCode.Conversations do
   # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+  # covers: architecture.conversation_orchestration.steering_preserves_short_term_context
+  # covers: architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status
   # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
+  # covers: architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
   # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
 
@@ -150,6 +153,26 @@ defmodule JidoCode.Conversations do
     query =
       Conversation
       |> Ash.Query.filter(work_item_id == ^work_item_id and status in ^active_statuses)
+      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
+      |> Ash.Query.limit(1)
+
+    case Ash.read(query, domain: __MODULE__, actor: actor) do
+      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
+      {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec latest_historical_for_work_item(String.t(), keyword()) ::
+          {:ok, Conversation.t() | nil} | {:error, term()}
+  def latest_historical_for_work_item(work_item_id, opts \\ [])
+      when is_binary(work_item_id) and is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+    active_statuses = @active_statuses
+
+    query =
+      Conversation
+      |> Ash.Query.filter(work_item_id == ^work_item_id and status not in ^active_statuses)
       |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
       |> Ash.Query.limit(1)
 

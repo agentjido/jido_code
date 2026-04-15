@@ -205,4 +205,6 @@ Avoid:
 ## Read Next
 
 Continue with
+[`11-ingress-synthesis-and-work-item-flow.md`](11-ingress-synthesis-and-work-item-flow.md)
+for the concrete repo-intake-to-work-item trace, then
 [`07-source-code-graph-and-semantic-services.md`](07-source-code-graph-and-semantic-services.md).

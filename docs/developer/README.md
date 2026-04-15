@@ -38,6 +38,13 @@ lives in:
 10. [`10-development-workflow-and-quality-gates.md`](10-development-workflow-and-quality-gates.md)  
     Finish with the day-to-day contributor workflow and the verification
     surfaces that protect the repo.
+11. [`11-ingress-synthesis-and-work-item-flow.md`](11-ingress-synthesis-and-work-item-flow.md)
+    Follow the concrete path from inbound demand to `WorkItem`, including the
+    repo-conversation-to-governed-work handoff and a real `fix failing tests`
+    example.
+12. [`12-user-request-to-llm-message-path.md`](12-user-request-to-llm-message-path.md)
+    See exactly how a user request is preserved, wrapped, and transformed before
+    becoming the final specialist LLM message list.
 
 ## How To Use These Guides
 
@@ -52,4 +59,3 @@ lives in:
 - [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)
 - [`../../AGENTS.md`](../../AGENTS.md)
 - [`../../memory_ontology_guide.md`](../../memory_ontology_guide.md)
-

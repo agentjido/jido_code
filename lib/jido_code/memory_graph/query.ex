@@ -4,6 +4,7 @@ defmodule JidoCode.MemoryGraph.Query do
   @moduledoc false
 
   alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.Config
 
   @type graph_context :: map()
 
@@ -54,6 +55,19 @@ defmodule JidoCode.MemoryGraph.Query do
   end
 
   defp execute_query(graph, query, graph_context, sparql) do
+    timeout = Config.query_timeout([])
+
+    query_task = Task.async(fn ->
+      do_execute_query(graph, query, graph_context, sparql)
+    end)
+
+    case Task.yield(query_task, timeout) || Task.shutdown(query_task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> {:error, :memory_graph_query_timeout, failure_diagnostics(graph_context, :execute_query, :timeout, timeout_ms: timeout)}
+    end
+  end
+
+  defp do_execute_query(graph, query, graph_context, sparql) do
     case SPARQL.execute_query(graph, query) do
       {:error, reason} ->
         {:error, :memory_graph_query_failed, failure_diagnostics(graph_context, :execute_query, reason)}
@@ -74,15 +88,40 @@ defmodule JidoCode.MemoryGraph.Query do
   end
 
   defp open_store(store_path) do
-    case TripleStore.open(store_path, create_if_missing: false, schema: :quad) do
-      {:ok, store} ->
+    timeout = Config.store_timeout([])
+
+    open_task = Task.async(fn ->
+      TripleStore.open(store_path, create_if_missing: false, schema: :quad)
+    end)
+
+    case Task.yield(open_task, timeout) || Task.shutdown(open_task, :brutal_kill) do
+      {:ok, {:ok, store}} ->
         {:ok, store}
 
-      {:error, reason} ->
+      {:ok, {:error, reason}} ->
         {:error, :memory_graph_query_failed,
          %{
            stage: :open_store,
            reason: inspect(reason),
+           graph_store_path: store_path,
+           library: :sparql
+         }}
+
+      {:ok, other} ->
+        {:error, :memory_graph_query_failed,
+         %{
+           stage: :open_store,
+           reason: inspect(other),
+           graph_store_path: store_path,
+           library: :sparql
+         }}
+
+      nil ->
+        {:error, :memory_graph_query_failed,
+         %{
+           stage: :open_store,
+           reason: :timeout,
+           timeout_ms: timeout,
            graph_store_path: store_path,
            library: :sparql
          }}
@@ -216,8 +255,8 @@ defmodule JidoCode.MemoryGraph.Query do
 
   defp format_value(value), do: %{type: :value, value: value}
 
-  defp failure_diagnostics(graph_context, stage, reason) do
-    %{
+  defp failure_diagnostics(graph_context, stage, reason, opts \\ []) do
+    base = %{
       stage: stage,
       reason: inspect(reason),
       graph_name: graph_context.selected_graph_name,
@@ -225,5 +264,10 @@ defmodule JidoCode.MemoryGraph.Query do
       graph_store_path: graph_context.dataset_metadata.graph_store_path,
       library: :sparql
     }
+
+    case Keyword.get(opts, :timeout_ms) do
+      nil -> base
+      timeout -> Map.put(base, :timeout_ms, timeout)
+    end
   end
 end

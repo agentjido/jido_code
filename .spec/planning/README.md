@@ -36,6 +36,9 @@ The plan aligns to:
 - `../decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
 - `../decisions/jido_code.jido_os_deprecation.md`
+- `../decisions/jido_code.multi_provider_llm_support.md`
+- `../specs/llm_provider_configuration.spec.md`
+- `../specs/llm_model_selection.spec.md`
 
 ## Phase Files
 1. [Phase 1 - Managed Repo Control-Plane Foundation](./phase-01-managed-repo-control-plane-foundation.md): introduce the transitional repo ontology, control-plane domain layout, and initial governance scaffolding without breaking existing project flows.
@@ -85,6 +88,9 @@ The plan aligns to:
 45. [Phase 51 - Work-Item Conversation Runtime Lifecycle And Convergence](./phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md): harden governed run routing, runtime lifecycle, and contributor guidance so per-work-item productive conversations become the durable default without residual repo-global assumptions.
 46. [Phase 52 - Deterministic Conversation Workflow Routing And Clarification](./phase-52-deterministic-conversation-workflow-routing-and-clarification.md): centralize productive conversation workflow routing into one deterministic product-owned boundary, preserve explicit intent and continuity ahead of text heuristics, and clarify ambiguous routing instead of silently guessing the specialist.
 47. [Phase 53 - Source Code Graph Enablement and Hardening](./phase-53-source-code-graph-enablement-and-hardening.md): enable the source code graph feature for development use and add production-hardening including timeouts, retries, resource limits, health monitoring, and graceful degradation.
+48. [Phase 54 - Memory Graph Enablement and Hardening](./phase-54-memory-graph-enablement-and-hardening.md): enable the memory graph capability for development use and add production-hardening including timeouts, retry mechanisms, resource limits, health monitoring, and graceful degradation for memory capture, storage, and retrieval operations.
+49. [Phase 55 - Core Memory Type Extensions](./phase-55-core-memory-type-extensions.md): extend the memory ontology to support additional first-class memory types including Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, and update envelope and writer logic to handle these new types.
+50. [Phase 56 - Multi-Provider LLM Support](./phase-56-multi-provider-llm-support.md): expose all ReqLLM providers (18+) and their available models through a hierarchical configuration system operating at application, repository, and conversation levels, enabling users to select any provider and model based on their needs.
 
 ## Shared Conventions
 - Numbering:

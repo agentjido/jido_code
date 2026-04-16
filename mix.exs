@@ -168,6 +168,10 @@ defmodule JidoCode.MixProject do
       {:open_api_spex, "~> 3.0"},
       {:plug_canonical_host, "~> 2.0"},
 
+      # LLM Providers
+      {:req_llm, "~> 1.0"},
+      {:llm_db, "~> 2026.3"},
+
       # Email
       {:swoosh, "~> 1.16"},
       {:heroicons,

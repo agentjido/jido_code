@@ -11,6 +11,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
   alias JidoCode.MemoryGraph.Config
   alias JidoCode.MemoryGraph.DurableMemoryEnvelope
   alias JidoCode.MemoryGraph.GovernedReference
+  alias JidoCode.MemoryGraph.ResourceLimits
   alias JidoCode.MemoryGraph.Retry
 
   @jido_ns "https://jido.run/ontology/memory#"
@@ -25,6 +26,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
          true <-
            graph_context.selected_graph_name == MemoryGraph.memory_graph_name() or
              {:error, :invalid_memory_capture, wrong_graph_diagnostics(graph_context, capture)},
+         :ok <- validate_resource_limits(graph_context.graph_store_path, envelope),
          {:ok, store} <- open_store(graph_context.graph_store_path) do
       try do
         graph = RDF.Graph.new(triples(envelope))
@@ -262,6 +264,51 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
       {:ok, result} -> result
       nil -> {:error, %{stage: :load_memory_graph, reason: :timeout, timeout_ms: timeout}}
     end
+  end
+
+  defp validate_resource_limits(store_path, envelope) do
+    # Estimate the size of this write
+    estimated_triples = estimate_triple_count(envelope)
+    estimated_bytes = ResourceLimits.estimate_graph_size(estimated_triples, [])
+
+    with :ok <- ResourceLimits.validate_graph_size(store_path, estimated_bytes, []),
+         :ok <- ResourceLimits.validate_disk_space(store_path, estimated_bytes, []),
+         :ok <- ResourceLimits.validate_concurrent_operations([]) do
+      :ok
+    else
+      {:error, :graph_size_limit_exceeded, _detail} = error ->
+        # Allow write with degraded warning
+        log_resource_limit_warning(:graph_size, envelope)
+        :ok
+
+      {:error, :disk_space_insufficient, detail} ->
+        {:error, :memory_graph_write_failed, Map.put(detail, :stage, :validate_disk_space)}
+
+      {:error, :concurrent_operation_limit_exceeded, detail} ->
+        {:error, :memory_graph_write_failed, Map.put(detail, :stage, :validate_concurrent_operations)}
+    end
+  end
+
+  defp estimate_triple_count(envelope) do
+    base_count = 20 # Base triples for a memory
+    tags_count = length(envelope.tags) * 3
+    governed_count = length(envelope.governed_references) * 7
+    anchor_count = length(envelope.source_code_anchors) * 2
+    artifact_count = length(envelope.supported_by_artifacts) * 5
+    evidence_count = length(envelope.evidence_artifacts) * 5
+
+    base_count + tags_count + governed_count + anchor_count + artifact_count + evidence_count
+  end
+
+  defp log_resource_limit_warning(limit_type, envelope) do
+    require Logger
+
+    Logger.warning("""
+    Memory graph resource limit exceeded: #{limit_type}
+    Resource ID: #{envelope.resource_id}
+    Kind: #{envelope.kind}
+    Operation proceeding with degraded capacity.
+    """)
   end
 
   defp wrong_graph_diagnostics(graph_context, capture) do

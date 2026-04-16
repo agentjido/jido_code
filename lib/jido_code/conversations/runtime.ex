@@ -277,47 +277,90 @@ defmodule JidoCode.Conversations.Runtime do
        when workflow in [:plan, :execute, :review, :explain] do
     memory_opts = [workspace_path: readiness.workspace_path, prepare: :recover_if_needed]
 
-    case workflow do
-      :plan ->
-        MemoryWorkflowService.plan(
-          request.managed_repo_id,
-          request.work_item_id,
-          request.instruction,
-          memory: memory_opts,
-          workspace_path: readiness.workspace_path,
-          actor: actor
-        )
+    result =
+      case workflow do
+        :plan ->
+          MemoryWorkflowService.plan(
+            request.managed_repo_id,
+            request.work_item_id,
+            request.instruction,
+            memory: memory_opts,
+            workspace_path: readiness.workspace_path,
+            actor: actor
+          )
 
-      :execute ->
-        MemoryWorkflowService.execute(
-          request.managed_repo_id,
-          request.work_item_id,
-          request.instruction,
-          memory: memory_opts,
-          workspace_path: readiness.workspace_path,
-          actor: actor
-        )
+        :execute ->
+          MemoryWorkflowService.execute(
+            request.managed_repo_id,
+            request.work_item_id,
+            request.instruction,
+            memory: memory_opts,
+            workspace_path: readiness.workspace_path,
+            actor: actor
+          )
 
-      :review ->
-        MemoryWorkflowService.review(
-          request.managed_repo_id,
-          request.work_item_id,
-          request.instruction,
-          memory: memory_opts,
-          workspace_path: readiness.workspace_path,
-          actor: actor
-        )
+        :review ->
+          MemoryWorkflowService.review(
+            request.managed_repo_id,
+            request.work_item_id,
+            request.instruction,
+            memory: memory_opts,
+            workspace_path: readiness.workspace_path,
+            actor: actor
+          )
 
-      :explain ->
-        MemoryWorkflowService.explain(
-          request.managed_repo_id,
-          request.work_item_id,
-          request.instruction,
-          memory: memory_opts,
-          workspace_path: readiness.workspace_path,
-          actor: actor
-        )
+        :explain ->
+          MemoryWorkflowService.explain(
+            request.managed_repo_id,
+            request.work_item_id,
+            request.instruction,
+            memory: memory_opts,
+            workspace_path: readiness.workspace_path,
+            actor: actor
+          )
+      end
+
+    handle_memory_workflow_result(result, request, readiness, actor)
+  end
+
+  defp handle_memory_workflow_result(result, request, readiness, actor) do
+    case result do
+      {:error, :memory_graph_disabled, _} ->
+        log_memory_degradation(request.managed_repo_id, :disabled)
+        fallback_to_workspace(request, readiness, actor)
+
+      {:error, :memory_graph_not_ready, _} ->
+        log_memory_degradation(request.managed_repo_id, :not_ready)
+        fallback_to_workspace_with_semantic(request, readiness, actor)
+
+      {:error, reason, _} when reason in [:memory_graph_write_failed, :memory_graph_query_failed, :memory_graph_timeout] ->
+        log_memory_degradation(request.managed_repo_id, {:operation_failed, reason})
+        fallback_to_workspace_with_semantic(request, readiness, actor)
+
+      result ->
+        result
     end
+  end
+
+  defp fallback_to_workspace(request, readiness, actor) do
+    invoke_workspace(request, readiness, actor, [])
+  end
+
+  defp fallback_to_workspace_with_semantic(request, readiness, actor) do
+    if semantic_enabled?() do
+      invoke_workspace_with_semantic_fallback(request, readiness, actor)
+    else
+      invoke_workspace(request, readiness, actor, [])
+    end
+  end
+
+  defp log_memory_degradation(managed_repo_id, reason) do
+    require Logger
+
+    Logger.warning("""
+    Memory graph degraded for repo #{managed_repo_id}: #{inspect(reason)}
+    Falling back from memory workflow to workspace mode.
+    """)
   end
 
   defp invoke_workspace(%{workflow: workflow} = request, readiness, actor, extra_opts)

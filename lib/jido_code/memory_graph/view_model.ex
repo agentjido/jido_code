@@ -44,6 +44,35 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     }
   end
 
+  @spec health(String.t(), map(), map()) :: projection()
+  def health(managed_repo_id, status_result, health_result)
+      when is_binary(managed_repo_id) and is_map(status_result) and is_map(health_result) do
+    normalized_graph = graph_state(status_result)
+
+    %{
+      kind: :memory_graph_health,
+      managed_repo_id: managed_repo_id,
+      graph: normalized_graph,
+      feedback: ProductFeedback.for_graph(normalized_graph),
+      health_status: health_result.status,
+      health_checks: %{
+        memory_graph: health_check_summary(health_result.checks.memory_graph),
+        workflow_provenance_graph: health_check_summary(health_result.checks.workflow_provenance_graph)
+      },
+      metrics: health_result.metrics,
+      error: nil
+    }
+  end
+
+  defp health_check_summary(check) when is_map(check) do
+    %{
+      status: check.status,
+      present?: check.present?,
+      triple_count: check.triple_count,
+      integrity: check.integrity
+    }
+  end
+
   @spec recovery(String.t(), map()) :: projection()
   def recovery(managed_repo_id, graph_status) when is_binary(managed_repo_id) and is_map(graph_status) do
     normalized_graph = graph_state(graph_status)

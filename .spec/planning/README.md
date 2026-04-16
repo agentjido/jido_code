@@ -84,6 +84,7 @@ The plan aligns to:
 44. [Phase 50 - Managed Repo, Workbench, And Dashboard Multi-Conversation Adoption](./phase-50-managed-repo-workbench-and-dashboard-multi-conversation-adoption.md): adopt the new repo-intake plus work-item conversation roster model across the main managed-repository operator surfaces.
 45. [Phase 51 - Work-Item Conversation Runtime Lifecycle And Convergence](./phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md): harden governed run routing, runtime lifecycle, and contributor guidance so per-work-item productive conversations become the durable default without residual repo-global assumptions.
 46. [Phase 52 - Deterministic Conversation Workflow Routing And Clarification](./phase-52-deterministic-conversation-workflow-routing-and-clarification.md): centralize productive conversation workflow routing into one deterministic product-owned boundary, preserve explicit intent and continuity ahead of text heuristics, and clarify ambiguous routing instead of silently guessing the specialist.
+47. [Phase 53 - Source Code Graph Enablement and Hardening](./phase-53-source-code-graph-enablement-and-hardening.md): enable the source code graph feature for development use and add production-hardening including timeouts, retries, resource limits, health monitoring, and graceful degradation.
 
 ## Shared Conventions
 - Numbering:

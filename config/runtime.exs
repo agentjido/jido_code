@@ -33,6 +33,71 @@ if secret_ref_encryption_key = System.get_env("JIDO_CODE_SECRET_REF_ENCRYPTION_K
   config :jido_code, secret_ref_encryption_key: secret_ref_encryption_key
 end
 
+# Source code graph configuration from environment
+# These can be set to override defaults for production deployment
+if source_code_graph_enabled = System.get_env("SOURCE_CODE_GRAPH_ENABLED") do
+  config :jido_code, source_code_graph_enabled: source_code_graph_enabled == "true"
+end
+
+if analysis_timeout = System.get_env("SOURCE_CODE_GRAPH_ANALYSIS_TIMEOUT_MS") do
+  config :jido_code, source_code_graph_analysis_timeout_ms: String.to_integer(analysis_timeout)
+end
+
+if load_timeout = System.get_env("SOURCE_CODE_GRAPH_LOAD_TIMEOUT_MS") do
+  config :jido_code, source_code_graph_load_timeout_ms: String.to_integer(load_timeout)
+end
+
+if query_timeout = System.get_env("SOURCE_CODE_GRAPH_QUERY_TIMEOUT_MS") do
+  config :jido_code, source_code_graph_query_timeout_ms: String.to_integer(query_timeout)
+end
+
+# Memory graph configuration from environment
+# These can be set to override defaults for production deployment
+# Default: memory_graph_enabled is false in production
+if memory_graph_enabled = System.get_env("MEMORY_GRAPH_ENABLED") do
+  config :jido_code, memory_graph_enabled: memory_graph_enabled == "true"
+end
+
+if store_timeout = System.get_env("MEMORY_GRAPH_STORE_TIMEOUT_MS") do
+  config :jido_code, memory_graph_store_timeout_ms: String.to_integer(store_timeout)
+end
+
+if query_timeout = System.get_env("MEMORY_GRAPH_QUERY_TIMEOUT_MS") do
+  config :jido_code, memory_graph_query_timeout_ms: String.to_integer(query_timeout)
+end
+
+if validation_timeout = System.get_env("MEMORY_GRAPH_VALIDATION_TIMEOUT_MS") do
+  config :jido_code, memory_graph_validation_timeout_ms: String.to_integer(validation_timeout)
+end
+
+if recovery_timeout = System.get_env("MEMORY_GRAPH_RECOVERY_TIMEOUT_MS") do
+  config :jido_code, memory_graph_recovery_timeout_ms: String.to_integer(recovery_timeout)
+end
+
+if max_retries = System.get_env("MEMORY_GRAPH_MAX_RETRIES") do
+  config :jido_code, memory_graph_max_retries: String.to_integer(max_retries)
+end
+
+if max_write_retries = System.get_env("MEMORY_GRAPH_MAX_WRITE_RETRIES") do
+  config :jido_code, memory_graph_max_write_retries: String.to_integer(max_write_retries)
+end
+
+if retry_backoff = System.get_env("MEMORY_GRAPH_RETRY_BACKOFF_MS") do
+  config :jido_code, memory_graph_retry_backoff_ms: String.to_integer(retry_backoff)
+end
+
+if max_graph_size = System.get_env("MEMORY_GRAPH_MAX_GRAPH_SIZE_MB") do
+  config :jido_code, memory_graph_max_graph_size_mb: String.to_integer(max_graph_size)
+end
+
+if max_query_results = System.get_env("MEMORY_GRAPH_MAX_QUERY_RESULTS") do
+  config :jido_code, memory_graph_max_query_results: String.to_integer(max_query_results)
+end
+
+if max_concurrent = System.get_env("MEMORY_GRAPH_MAX_CONCURRENT_OPERATIONS") do
+  config :jido_code, memory_graph_max_concurrent_operations: String.to_integer(max_concurrent)
+end
+
 # Desktop/Burrito mode: when BURRITO_TARGET is set (by Tauri sidecar or manually),
 # override prod config for local desktop use. This block runs before the prod
 # block below, providing defaults so the raises are never hit.

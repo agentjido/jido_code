@@ -11,8 +11,10 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
   @moduledoc false
 
   alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.Config
   alias JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope
   alias JidoCode.MemoryGraph.GovernedReference
+  alias JidoCode.MemoryGraph.Retry
 
   @jido_ns "https://jido.run/ontology/memory#"
   @prov_ns "http://www.w3.org/ns/prov#"
@@ -30,7 +32,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
       try do
         graph = RDF.Graph.new(triples(envelope))
 
-        case TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) do
+        case load_graph_with_timeout(store, graph) do
           {:ok, triple_count} ->
             {:ok,
              %{
@@ -263,6 +265,22 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
     case TripleStore.open(store_path, create_if_missing: false, schema: :quad) do
       {:ok, store} -> {:ok, store}
       {:error, reason} -> {:error, :memory_graph_record_failed, %{stage: :open_store, reason: inspect(reason)}}
+    end
+  end
+
+  defp load_graph_with_timeout(store, graph) do
+    timeout = Config.store_timeout([])
+
+    load_task = Task.async(fn ->
+      Retry.with_write_retry(
+        fn -> TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) end,
+        attempt_context: %{operation: :memory_update}
+      )
+    end)
+
+    case Task.yield(load_task, timeout) || Task.shutdown(load_task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> {:error, %{stage: :load_memory_graph, reason: :timeout, timeout_ms: timeout}}
     end
   end
 

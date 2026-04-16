@@ -13,7 +13,7 @@ defmodule JidoCode.MemoryGraph.ProductService do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CrossGraphNavigation, GovernedReference, HelperQueries, ViewModel}
+  alias JidoCode.MemoryGraph.{CrossGraphNavigation, GovernedReference, Health, HelperQueries, ViewModel}
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -30,6 +30,21 @@ defmodule JidoCode.MemoryGraph.ProductService do
       {:error, reason, detail} ->
         {:error, reason,
          ViewModel.error(:memory_graph_status, managed_repo_id, reason, error_detail(reason, detail), nil)}
+    end
+  end
+
+  @spec health(managed_repo_id(), workspace_path(), keyword()) :: {:ok, map()} | {:error, atom(), map()}
+  def health(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, status_result} <- AgentWorkspace.memory_graph_status(managed_repo_id, workspace_path, opts),
+         {:ok, health_result} <- Health.check(status_result) do
+      {:ok, ViewModel.health(managed_repo_id, status_result, health_result)}
+    else
+      {:error, reason} ->
+        {:error, reason, ViewModel.error(:memory_graph_health, managed_repo_id, reason, error_detail(reason), nil)}
+
+      {:error, reason, detail} ->
+        {:error, reason,
+         ViewModel.error(:memory_graph_health, managed_repo_id, reason, error_detail(reason, detail), nil)}
     end
   end
 

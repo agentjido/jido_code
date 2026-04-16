@@ -5,7 +5,9 @@ defmodule JidoCode.MemoryGraph.Store do
   @moduledoc false
 
   alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.Config
   alias JidoCode.MemoryGraph.GovernedReference
+  alias JidoCode.MemoryGraph.Retry
 
   @legacy_governed_artifact_segments [
     "managed_repo_id/",
@@ -40,9 +42,9 @@ defmodule JidoCode.MemoryGraph.Store do
          {:ok, store} <- open_store(graph_context.graph_store_path, create_if_missing: true) do
       try do
         with {:ok, memory_triple_count} <-
-               load_ontology_graph(store, MemoryGraph.memory_named_graph_resource()),
+               load_ontology_graph(store, MemoryGraph.memory_named_graph_resource(), []),
              {:ok, workflow_triple_count} <-
-               load_ontology_graph(store, MemoryGraph.workflow_provenance_named_graph_resource()),
+               load_ontology_graph(store, MemoryGraph.workflow_provenance_named_graph_resource(), []),
              {:ok, semantic_model} <- semantic_model_status(store, graph_context.managed_repo_id) do
           validated_at = DateTime.utc_now()
           current_revision = graph_context.revision_metadata.current_revision
@@ -171,7 +173,27 @@ defmodule JidoCode.MemoryGraph.Store do
     end
   end
 
-  defp load_ontology_graph(store, named_graph_resource) do
+  defp load_ontology_graph(store, named_graph_resource, opts \\ []) do
+    timeout = Config.validation_timeout(opts)
+
+    load_task = Task.async(fn ->
+      load_ontology_graph_with_retry(store, named_graph_resource)
+    end)
+
+    case Task.yield(load_task, timeout) || Task.shutdown(load_task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> {:error, %{stage: :load_ontology_graph, named_graph_iri: to_string(named_graph_resource), reason: :timeout, timeout_ms: timeout}}
+    end
+  end
+
+  defp load_ontology_graph_with_retry(store, named_graph_resource) do
+    Retry.with_retry(
+      fn -> do_load_ontology_graph(store, named_graph_resource) end,
+      attempt_context: %{named_graph_iri: to_string(named_graph_resource)}
+    )
+  end
+
+  defp do_load_ontology_graph(store, named_graph_resource) do
     MemoryGraph.ontology_artifacts()
     |> Enum.reduce_while({:ok, 0}, fn artifact, {:ok, total_count} ->
       case RDF.Turtle.read_file(artifact.path) do
@@ -239,10 +261,38 @@ defmodule JidoCode.MemoryGraph.Store do
 
   defp open_store(store_path, opts) do
     create_if_missing = Keyword.get(opts, :create_if_missing, false)
+    timeout = Config.store_timeout(opts)
 
-    case TripleStore.open(store_path, create_if_missing: create_if_missing, schema: :quad) do
-      {:ok, store} ->
+    open_task = Task.async(fn ->
+      open_store_with_retry(store_path, create_if_missing)
+    end)
+
+    case Task.yield(open_task, timeout) || Task.shutdown(open_task, :brutal_kill) do
+      {:ok, {:ok, store}} ->
         {:ok, store}
+
+      {:ok, {:error, reason}} ->
+        {:error, %{stage: :open_store, reason: inspect(reason)}}
+
+      {:ok, other} ->
+        {:error, %{stage: :open_store, reason: inspect(other)}}
+
+      nil ->
+        {:error, %{stage: :open_store, reason: :timeout, timeout_ms: timeout}}
+    end
+  end
+
+  defp open_store_with_retry(store_path, create_if_missing) do
+    Retry.with_retry(
+      fn ->
+        case TripleStore.open(store_path, create_if_missing: create_if_missing, schema: :quad) do
+          {:ok, store} -> {:ok, store}
+          {:error, reason} -> {:error, reason}
+        end
+      end,
+      attempt_context: %{graph_store_path: store_path}
+    )
+  end
 
       {:error, reason} ->
         {:error,

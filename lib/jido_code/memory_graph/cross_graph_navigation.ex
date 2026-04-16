@@ -5,6 +5,7 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
 
   alias JidoCode.{MemoryGraph, SourceCodeGraph}
   alias JidoCode.MemoryGraph.GovernedReference
+  alias JidoCode.MemoryGraph.Retry
 
   @spec build(String.t(), String.t(), [map()]) :: map()
   def build(managed_repo_id, workspace_path, bindings)
@@ -24,10 +25,18 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
       |> Enum.flat_map(&related_memory_links(managed_repo_id, workspace_path, &1))
       |> uniq_by(:iri)
 
+    cross_graph_status =
+      if source_code == [] and governed_records == [] do
+        :no_cross_graph_links
+      else
+        :cross_graph_links_found
+      end
+
     %{
       source_code: source_code,
       governed_records: governed_records,
-      related_memories: related_memories
+      related_memories: related_memories,
+      cross_graph_status: cross_graph_status
     }
   end
 

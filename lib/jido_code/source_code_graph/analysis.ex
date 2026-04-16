@@ -4,6 +4,9 @@ defmodule JidoCode.SourceCodeGraph.Analysis do
   @moduledoc false
 
   alias JidoCode.SourceCodeGraph
+  alias JidoCode.SourceCodeGraph.Config
+  alias JidoCode.SourceCodeGraph.ResourceLimits
+  alias JidoCode.SourceCodeGraph.RetryPolicy
 
   @type graph_context :: map()
 
@@ -12,12 +15,59 @@ defmodule JidoCode.SourceCodeGraph.Analysis do
     started_at = DateTime.utc_now()
     analysis_options = analysis_options(graph_context, opts)
     revision_metadata = revision_metadata(graph_context)
+    timeout = Config.analysis_timeout(opts)
 
-    case ElixirOntologies.analyze_project(graph_context.workspace_path, analysis_options) do
-      {:ok, analysis_result} ->
+    # Pre-flight validation
+    with :ok <- ResourceLimits.validate_workspace(graph_context.workspace_path),
+         :ok <- ResourceLimits.validate_file_count(graph_context.workspace_path, opts) do
+      do_analyze(graph_context, analysis_options, revision_metadata, started_at, timeout, opts)
+    else
+      {:error, reason, details} ->
+        {:error,
+         %{
+           state: :analysis_failed,
+           graph_name: graph_context.graph_name,
+           ontology_profile: graph_context.ontology_profile,
+           analyzed_revision: revision_metadata.analyzed_revision,
+           analyzed_at: DateTime.utc_now(),
+           source_commit: revision_metadata.source_commit,
+           workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
+           failure: reason,
+           details: details
+         }}
+    end
+  end
+
+  defp do_analyze(graph_context, analysis_options, revision_metadata, started_at, timeout, opts) do
+
+    analysis_task =
+      Task.async(fn ->
+        retry_opts = Keyword.take(opts, [:max_retries, :retry_backoff_ms, :on_retry])
+
+        RetryPolicy.retry(fn ->
+          ElixirOntologies.analyze_project(graph_context.workspace_path, analysis_options)
+        end, retry_opts)
+      end)
+
+    case Task.yield(analysis_task, timeout) || Task.shutdown(analysis_task, :brutal_kill) do
+      {:ok, {:ok, analysis_result}} ->
         build_success_result(graph_context, analysis_result, analysis_options, revision_metadata, started_at)
 
-      {:error, reason} ->
+      {:ok, {:error, :max_retries_exceeded, retry_info}} ->
+        {:error,
+         %{
+           state: :analysis_failed,
+           graph_name: graph_context.graph_name,
+           ontology_profile: graph_context.ontology_profile,
+           analyzed_revision: revision_metadata.analyzed_revision,
+           analyzed_at: DateTime.utc_now(),
+           source_commit: revision_metadata.source_commit,
+           workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
+           failure: :max_retries_exceeded,
+           retry_info: retry_info
+         }}
+
+      {:ok, {:error, reason}} ->
         {:error,
          %{
            state: :analysis_failed,
@@ -28,6 +78,33 @@ defmodule JidoCode.SourceCodeGraph.Analysis do
            source_commit: revision_metadata.source_commit,
            workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
            failure: normalize_failure(reason)
+         }}
+
+      {:ok, other} ->
+        {:error,
+         %{
+           state: :analysis_failed,
+           graph_name: graph_context.graph_name,
+           ontology_profile: graph_context.ontology_profile,
+           analyzed_revision: revision_metadata.analyzed_revision,
+           analyzed_at: DateTime.utc_now(),
+           source_commit: revision_metadata.source_commit,
+           workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
+           failure: normalize_failure(other)
+         }}
+
+      nil ->
+        {:error,
+         %{
+           state: :analysis_failed,
+           graph_name: graph_context.graph_name,
+           ontology_profile: graph_context.ontology_profile,
+           analyzed_revision: revision_metadata.analyzed_revision,
+           analyzed_at: DateTime.utc_now(),
+           source_commit: revision_metadata.source_commit,
+           workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
+           failure: :timeout,
+           timeout_ms: timeout
          }}
     end
   end

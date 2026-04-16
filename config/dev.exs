@@ -121,4 +121,16 @@ config :jido_code,
   source_code_graph_retry_backoff_ms: 1000,
   source_code_graph_max_file_count: 10_000,
   source_code_graph_max_graph_size_mb: 500,
-  source_code_graph_allow_partial_results: false
+  source_code_graph_allow_partial_results: false,
+  # Memory graph configuration (enabled in dev with conservative defaults)
+  memory_graph_enabled: true,
+  memory_graph_store_timeout_ms: 30_000, # 30 seconds - TripleStore operations
+  memory_graph_query_timeout_ms: 60_000, # 1 minute - SPARQL queries
+  memory_graph_validation_timeout_ms: 120_000, # 2 minutes - ontology validation
+  memory_graph_recovery_timeout_ms: 300_000, # 5 minutes - recovery operations
+  memory_graph_max_retries: 3, # maximum retry attempts for transient failures
+  memory_graph_max_write_retries: 2, # maximum retry attempts for write operations
+  memory_graph_retry_backoff_ms: 1000, # base backoff time in milliseconds
+  memory_graph_max_graph_size_mb: 10_000, # maximum graph size in MB (10 GB)
+  memory_graph_max_query_results: 10_000, # maximum query result count
+  memory_graph_max_concurrent_operations: 50 # maximum concurrent write operations

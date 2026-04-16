@@ -7,15 +7,33 @@ defmodule JidoCodeWeb.LLMSettingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    current_actor = current_actor(socket)
+
     socket =
       socket
       |> assign(:page_title, "LLM Settings")
+      |> assign(:current_actor, current_actor)
       |> assign_providers()
       |> assign_credentials()
       |> assign(:test_results, %{})
       |> assign(:testing_provider, nil)
 
     {:ok, socket}
+  end
+
+  defp current_actor(socket) do
+    socket.assigns
+    |> Map.get(:current_user)
+    |> case do
+      %{id: id} = user ->
+        %{
+          "id" => id,
+          "email" => Map.get(user, :email)
+        }
+
+      _other ->
+        %{}
+    end
   end
 
   @impl true
@@ -33,25 +51,17 @@ defmodule JidoCodeWeb.LLMSettingsLive do
         </p>
 
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {for provider <- @providers do
-            provider_key = Atom.to_string(provider.id)
-            is_configured = Map.has_key?(@credentials, provider.id)
-            test_result = Map.get(@test_results, provider_key)
-            is_testing = @testing_provider == provider.id
-
-            ~H'''
-              <.live_component
-                module={JidoCodeWeb.LLMProviderCard}
-                id={"provider-#{provider.id}"}
-                provider={provider}
-                configured={is_configured}
-                credential_status={Map.get(@credentials, provider.id)}
-                test_result={test_result}
-                testing={is_testing}
-                current_actor={@current_actor}
-              />
-            '''
-          end}
+          <.live_component
+            :for={provider <- @providers}
+            module={JidoCodeWeb.LLMProviderCard}
+            id={"provider-#{provider.id}"}
+            provider={provider}
+            configured={Map.has_key?(@credentials, provider.id)}
+            credential_status={Map.get(@credentials, provider.id)}
+            test_result={Map.get(@test_results, Atom.to_string(provider.id))}
+            testing={@testing_provider == provider.id}
+            current_actor={@current_actor}
+          />
         </div>
       </div>
     </Layouts.app>

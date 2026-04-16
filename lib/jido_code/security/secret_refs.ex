@@ -97,9 +97,10 @@ defmodule JidoCode.Security.SecretRefs do
         }
 
   @typedoc """
-  Provider keys supported by MVP rotation operations.
+  Provider keys supported by credential operations.
+  Any atom provider from ReqLLM is supported.
   """
-  @type provider :: :anthropic | :openai
+  @type provider :: atom()
 
   @typedoc """
   Snapshot used by runtime callers to hold credential context during a run.
@@ -164,14 +165,35 @@ defmodule JidoCode.Security.SecretRefs do
   def provider_rotation_options, do: @provider_rotation_options
 
   @doc """
-  Canonical secret name for a supported provider credential.
+  Validate a provider credential value.
+
+  For known providers, uses provider-specific validation.
+  For unknown providers, performs basic format validation.
+
+  ## Parameters
+
+  - `provider`: The atom identifier for the provider
+  - `value`: The credential value to validate
+
+  ## Returns
+
+  `true` if the value appears valid for the provider, `false` otherwise.
+
+  ## Examples
+
+      iex> JidoCode.Security.SecretRefs.valid_provider_credential_value?(:anthropic, "sk-ant-api03-123")
+      true
+
+      iex> JidoCode.Security.SecretRefs.valid_provider_credential_value?(:anthropic, "invalid")
+      false
+
   """
-  @spec provider_secret_ref_name(provider()) :: String.t()
-  def provider_secret_ref_name(provider) when provider in [:anthropic, :openai] do
-    @provider_secret_specs
-    |> Map.fetch!(provider)
-    |> Map.fetch!(:name)
+  @spec valid_provider_credential_value?(provider(), String.t()) :: boolean()
+  def valid_provider_credential_value?(provider, value) when is_atom(provider) and is_binary(value) do
+    valid_provider_credential_value_internal?(provider, value)
   end
+
+  def valid_provider_credential_value?(_provider, _value), do: false
 
   @doc """
   Returns a provider credential context snapshot for in-flight runtime usage.
@@ -856,10 +878,8 @@ defmodule JidoCode.Security.SecretRefs do
   defp normalize_source("rotation"), do: {:ok, :rotation}
   defp normalize_source(_source), do: {:error, :invalid_source}
 
-  defp normalize_provider(provider) when provider in [:anthropic, :openai], do: {:ok, provider}
-  defp normalize_provider("anthropic"), do: {:ok, :anthropic}
-  defp normalize_provider("openai"), do: {:ok, :openai}
-  defp normalize_provider(_provider), do: {:error, :invalid_provider}
+  defp normalize_provider(provider) when is_atom(provider), do: {:ok, provider}
+  defp normalize_provider(provider) when is_binary(provider), do: {:ok, String.to_existing_atom(provider)}
 
   defp normalize_secret_ref_id(secret_ref_id) when is_binary(secret_ref_id) do
     case String.trim(secret_ref_id) do
@@ -926,10 +946,79 @@ defmodule JidoCode.Security.SecretRefs do
   end
 
   defp provider_secret_spec(provider) when provider in [:anthropic, :openai] do
+    # Keep existing hardcoded specs for backward compatibility
     {:ok, Map.fetch!(@provider_secret_specs, provider)}
   end
 
+  defp provider_secret_spec(provider) when is_atom(provider) do
+    # Dynamic provider resolution via ReqLLM
+    env_key = provider_env_key(provider)
+    {:ok, %{scope: :integration, name: "providers/#{provider}_api_key", env_key: env_key}}
+  end
+
   defp provider_secret_spec(_provider), do: {:error, :invalid_provider}
+
+  @doc """
+  Get the environment variable key for a provider's API credential.
+
+  Delegates to ReqLLM.Providers.get_env_key/1 for automatic discovery,
+  with a fallback to "${PROVIDER}_API_KEY" format for unknown providers.
+
+  ## Parameters
+
+  - `provider`: The atom identifier for the provider
+
+  ## Returns
+
+  The environment variable name as a string, or nil if not found.
+
+  ## Examples
+
+      iex> JidoCode.Security.SecretRefs.provider_env_key(:anthropic)
+      "ANTHROPIC_API_KEY"
+
+      iex> JidoCode.Security.SecretRefs.provider_env_key(:openai)
+      "OPENAI_API_KEY"
+
+  """
+  @spec provider_env_key(provider()) :: String.t() | nil
+  def provider_env_key(provider) when is_atom(provider) do
+    ReqLLM.Providers.get_env_key(provider) ||
+      :"#{provider}_api_key"
+      |> to_string()
+      |> String.upcase()
+  end
+
+  @doc """
+  Build the secret reference name for a provider's API key.
+
+  Returns the canonical secret reference path used for storing
+  provider credentials in the SecretRefs system.
+
+  ## Parameters
+
+  - `provider`: The atom identifier for the provider
+
+  ## Returns
+
+  The secret reference name as a string.
+
+  ## Examples
+
+      iex> JidoCode.Security.SecretRefs.provider_secret_ref_name(:anthropic)
+      "providers/anthropic_api_key"
+
+  """
+  @spec provider_secret_ref_name(provider()) :: String.t()
+  def provider_secret_ref_name(provider) when provider in [:anthropic, :openai] do
+    @provider_secret_specs
+    |> Map.fetch!(provider)
+    |> Map.fetch!(:name)
+  end
+
+  def provider_secret_ref_name(provider) when is_atom(provider) do
+    "providers/#{provider}_api_key"
+  end
 
   defp require_existing_provider_secret(nil, provider), do: {:error, {:provider_secret_missing, provider}}
   defp require_existing_provider_secret(%SecretRef{} = secret_ref, _provider), do: {:ok, secret_ref}
@@ -1169,18 +1258,51 @@ defmodule JidoCode.Security.SecretRefs do
 
   def default_provider_rotation_validator(_context), do: {:error, :invalid_rotation_context}
 
-  defp valid_provider_credential_value?(:anthropic, value)
+  defp valid_provider_credential_value_internal?(:anthropic, value)
        when is_binary(value),
        do: String.starts_with?(String.trim(value), "sk-ant-")
 
-  defp valid_provider_credential_value?(:openai, value)
+  defp valid_provider_credential_value_internal?(:openai, value)
        when is_binary(value),
        do: String.starts_with?(String.trim(value), "sk-")
 
-  defp valid_provider_credential_value?(_provider, _value), do: false
+  defp valid_provider_credential_value_internal?(:google, value)
+       when is_binary(value) do
+    trimmed = String.trim(value)
+    String.starts_with?(trimmed, "AIza") or String.starts_with?(trimmed, "GOOG")
+  end
+
+  defp valid_provider_credential_value_internal?(:groq, value)
+       when is_binary(value),
+       do: String.starts_with?(String.trim(value), "gsk_")
+
+  defp valid_provider_credential_value_internal?(_provider, value)
+       when is_binary(value),
+       do: valid_generic_key?(value)
+
+  defp valid_provider_credential_value_internal?(_provider, _value), do: false
+
+  defp valid_generic_key?(value) when is_binary(value) do
+    trimmed = String.trim(value)
+    String.length(trimmed) >= 20 and
+      not String.contains?(trimmed, [" ", "\n", "\t"])
+  end
+
+  defp valid_generic_key?(_value), do: false
 
   defp provider_display_name(:anthropic), do: "Anthropic"
   defp provider_display_name(:openai), do: "OpenAI"
+  defp provider_display_name(:google), do: "Google"
+  defp provider_display_name(:groq), do: "Groq"
+  defp provider_display_name(provider) when is_atom(provider) do
+    # Fallback to formatting the provider name
+    provider
+    |> Atom.to_string()
+    |> String.replace("_", " ")
+    |> String.split()
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
 
   defp default_verification_detail(:before), do: "Pre-rotation verification passed."
   defp default_verification_detail(:after), do: "Post-rotation verification passed."

@@ -223,6 +223,10 @@ When touching the memory graph boundary, capture envelopes, memory actions,
 memory workspace entrypoints, or provenance or durable-memory adoption flows,
 run `mix memory.verify`.
 
+For operational guidance on configuration, troubleshooting, and production
+deployment of the memory graph capability, see the
+[Memory Graph Operations Guide](.spec/planning/memory_graph_operations.md).
+
 ## Repo Shape
 
 ```text

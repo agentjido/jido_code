@@ -8,5 +8,6 @@ defmodule JidoCode.Control do
   resources do
     resource JidoCode.Control.SourceRepo
     resource JidoCode.Control.ManagedRepo
+    resource JidoCode.Control.LLMPreferences
   end
 end

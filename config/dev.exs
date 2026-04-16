@@ -133,4 +133,21 @@ config :jido_code,
   memory_graph_retry_backoff_ms: 1000, # base backoff time in milliseconds
   memory_graph_max_graph_size_mb: 10_000, # maximum graph size in MB (10 GB)
   memory_graph_max_query_results: 10_000, # maximum query result count
-  memory_graph_max_concurrent_operations: 50 # maximum concurrent write operations
+  memory_graph_max_concurrent_operations: 50, # maximum concurrent write operations
+  # LLM provider configuration
+  llm: [
+    # All providers available to req_llm (or explicit list)
+    available_providers: :all,
+    # Default provider when none specified
+    default_provider: :anthropic,
+    # Default model when none specified
+    default_model: "claude-3-5-sonnet-20250929",
+    # Capability requirements for default model
+    default_capabilities: %{
+      chat: true,
+      tools: true,
+      streaming: true
+    },
+    # Feature flag for multi-provider LLM support
+    feature_multi_provider_llm: true
+  ]

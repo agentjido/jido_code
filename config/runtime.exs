@@ -98,6 +98,22 @@ if max_concurrent = System.get_env("MEMORY_GRAPH_MAX_CONCURRENT_OPERATIONS") do
   config :jido_code, memory_graph_max_concurrent_operations: String.to_integer(max_concurrent)
 end
 
+# LLM provider configuration from environment
+# These can be set to override defaults for production deployment
+# Default: feature_multi_provider_llm is false in production
+if feature_multi_provider_llm = System.get_env("FEATURE_MULTI_PROVIDER_LLM") do
+  config :jido_code, :llm, feature_multi_provider_llm: feature_multi_provider_llm == "true"
+end
+
+if default_provider = System.get_env("LLM_DEFAULT_PROVIDER") do
+  provider_atom = String.to_existing_atom(default_provider)
+  config :jido_code, :llm, default_provider: provider_atom
+end
+
+if default_model = System.get_env("LLM_DEFAULT_MODEL") do
+  config :jido_code, :llm, default_model: default_model
+end
+
 # Desktop/Burrito mode: when BURRITO_TARGET is set (by Tauri sidecar or manually),
 # override prod config for local desktop use. This block runs before the prod
 # block below, providing defaults so the raises are never hit.

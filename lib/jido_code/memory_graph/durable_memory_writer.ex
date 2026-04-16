@@ -11,6 +11,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
   alias JidoCode.MemoryGraph.Config
   alias JidoCode.MemoryGraph.DurableMemoryEnvelope
   alias JidoCode.MemoryGraph.GovernedReference
+  alias JidoCode.MemoryGraph.Retry
 
   @jido_ns "https://jido.run/ontology/memory#"
   @prov_ns "http://www.w3.org/ns/prov#"
@@ -251,7 +252,10 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
     timeout = Config.store_timeout([])
 
     load_task = Task.async(fn ->
-      TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource())
+      Retry.with_write_retry(
+        fn -> TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) end,
+        attempt_context: %{resource_id: envelope.resource_id, kind: envelope.kind}
+      )
     end)
 
     case Task.yield(load_task, timeout) || Task.shutdown(load_task, :brutal_kill) do

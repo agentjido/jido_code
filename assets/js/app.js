@@ -25,6 +25,7 @@ import { getHooks } from "live_vue";
 import liveVueApp from "../vue";
 import topbar from "topbar";
 import { createLiveToastHook } from "../../deps/live_toast/priv/static/live_toast.esm.js";
+import { getLLMHooks } from "./llm_hooks";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -38,6 +39,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     LiveToast: createLiveToastHook(),
     ...getHooks(liveVueApp),
+    ...getLLMHooks(),
   },
 });
 

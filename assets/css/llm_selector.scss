@@ -1,0 +1,182 @@
+// LLM Selector Component Styles
+
+.model-selector {
+  @apply relative;
+
+  .provider-tabs {
+    @apply flex gap-1 p-1 bg-base-200 rounded-lg overflow-x-auto;
+
+    .provider-tab {
+      @apply px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
+      @apply hover:bg-base-300;
+
+      &.active {
+        @apply bg-base-100 shadow-sm;
+      }
+    }
+  }
+
+  .model-list {
+    @apply space-y-1 max-h-64 overflow-y-auto;
+
+    .model-option {
+      @apply p-3 rounded-lg border border-base-300 cursor-pointer transition-all;
+      @apply hover:border-primary hover:bg-base-100;
+
+      &.selected {
+        @apply border-primary bg-primary/10;
+      }
+
+      .model-name {
+        @apply font-medium text-base-content;
+      }
+
+      .model-description {
+        @apply text-sm text-base-content/70 mt-1;
+      }
+
+      .capability-badges {
+        @apply flex gap-1 mt-2 flex-wrap;
+      }
+    }
+  }
+}
+
+// Model Picker (Compact Dropdown)
+.model-picker {
+  @apply relative;
+
+  .picker-button {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg border border-base-300;
+    @apply hover:bg-base-100 transition-colors;
+  }
+
+  .picker-dropdown {
+    @apply absolute z-50 w-80 max-h-96 overflow-y-auto bg-base-100;
+    @apply border border-base-300 rounded-lg shadow-lg;
+
+    .provider-group {
+      @apply border-b border-base-200 last:border-0;
+
+      .provider-header {
+        @apply px-3 py-2 text-sm font-semibold bg-base-200/50 sticky top-0;
+      }
+
+      .model-option {
+        @apply px-3 py-2 hover:bg-base-100 cursor-pointer transition-colors;
+
+        &.selected {
+          @apply bg-primary/10;
+        }
+
+        .model-row {
+          @apply flex items-center justify-between gap-2;
+        }
+      }
+    }
+  }
+}
+
+// LLM Settings Page
+.llm-settings {
+  .provider-grid {
+    @apply grid gap-4 md:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .provider-card {
+    @apply bg-base-100 border border-base-300 rounded-lg p-4;
+    @apply hover:border-primary/50 transition-colors;
+
+    .provider-header {
+      @apply flex items-start justify-between mb-3;
+    }
+
+    .provider-name {
+      @apply font-semibold text-lg;
+    }
+
+    .credential-form {
+      @apply mt-4 space-y-3;
+    }
+
+    .test-connection {
+      @apply mt-3;
+    }
+  }
+}
+
+// Utility Classes
+.capability-badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  @apply bg-primary/10 text-primary;
+
+  &.chat {
+    @apply bg-info/10 text-info;
+  }
+
+  &.tools {
+    @apply bg-success/10 text-success;
+  }
+
+  &.streaming {
+    @apply bg-warning/10 text-warning;
+  }
+
+  &.vision {
+    @apply bg-secondary/10 text-secondary;
+  }
+}
+
+.provider-icon {
+  @apply w-6 h-6 flex items-center justify-center rounded;
+  @apply bg-gradient-to-br from-primary/20 to-primary/5;
+
+  svg {
+    @apply w-4 h-4 text-primary;
+  }
+}
+
+// Error States
+.llm-error {
+  @apply p-4 rounded-lg bg-error/10 border border-error/20;
+  @apply text-error;
+
+  .error-title {
+    @apply font-semibold mb-1;
+  }
+
+  .error-message {
+    @apply text-sm;
+  }
+}
+
+// Loading States
+.llm-loading {
+  @apply flex items-center justify-center p-8;
+
+  .spinner {
+    @apply w-6 h-6 border-2 border-primary border-t-transparent rounded-full;
+    @apply animate-spin;
+  }
+}
+
+// Responsive
+@media (max-width: 640px) {
+  .model-selector {
+    .provider-tabs {
+      @apply text-xs;
+    }
+
+    .model-list {
+      max-height: 48; // 12rem
+    }
+  }
+
+  .model-picker {
+    .picker-dropdown {
+      @apply w-full max-w-none;
+      left: 0 !important;
+      right: 0 !important;
+    }
+  }
+}

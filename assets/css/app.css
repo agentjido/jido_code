@@ -9,6 +9,7 @@
 @source "../../deps/live_toast/lib";
 
 @import "./syntax.css";
+@import "./llm_selector.scss";
 
 @plugin "../vendor/heroicons";
 

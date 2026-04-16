@@ -294,16 +294,6 @@ defmodule JidoCode.MemoryGraph.Store do
     )
   end
 
-      {:error, reason} ->
-        {:error,
-         %{
-           stage: :open_store,
-           graph_store_path: store_path,
-           reason: inspect(reason)
-         }}
-    end
-  end
-
   defp maybe_reset_store(%{graph_store_path: store_path, reset_store?: true}) do
     case File.rm_rf(store_path) do
       {:ok, _paths} -> :ok

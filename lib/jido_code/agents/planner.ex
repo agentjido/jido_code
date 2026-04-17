@@ -11,7 +11,6 @@ defmodule JidoCode.Agents.Planner do
   use Jido.AI.Agent,
     name: "jido_code_planner",
     description: "Planning specialist for JidoCode operations.",
-    model: :reasoning,
     streaming: false,
     max_iterations: 10,
     tools: [

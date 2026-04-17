@@ -10,7 +10,6 @@ defmodule JidoCode.Agents.Coder do
   use Jido.AI.Agent,
     name: "jido_code_coder",
     description: "Code implementation specialist for JidoCode.",
-    model: :fast,
     streaming: false,
     max_iterations: 15,
     tools: [

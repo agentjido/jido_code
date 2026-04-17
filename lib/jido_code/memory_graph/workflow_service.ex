@@ -373,7 +373,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       plan: Map.get(raw_result, :plan),
       memory_input: memory_input,
       workflow_provenance: provenance_summary(workflow_provenance),
-      follow_up_context: follow_up_context(:plan, memory_input, workflow_provenance)
+      follow_up_context: follow_up_context(:plan, memory_input, workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 
@@ -386,7 +387,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       changes: Map.get(raw_result, :changes),
       memory_input: memory_input,
       workflow_provenance: provenance_summary(workflow_provenance),
-      follow_up_context: follow_up_context(:execute, memory_input, workflow_provenance)
+      follow_up_context: follow_up_context(:execute, memory_input, workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 
@@ -399,7 +401,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       feedback: Map.get(raw_result, :feedback),
       memory_input: memory_input,
       workflow_provenance: provenance_summary(workflow_provenance),
-      follow_up_context: follow_up_context(:review, memory_input, workflow_provenance)
+      follow_up_context: follow_up_context(:review, memory_input, workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 
@@ -412,7 +415,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       explanation: Map.get(raw_result, :explanation),
       memory_input: memory_input,
       workflow_provenance: provenance_summary(workflow_provenance),
-      follow_up_context: follow_up_context(:explain, memory_input, workflow_provenance)
+      follow_up_context: follow_up_context(:explain, memory_input, workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 

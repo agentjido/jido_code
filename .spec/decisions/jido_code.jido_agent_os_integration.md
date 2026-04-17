@@ -7,6 +7,7 @@ affects:
   - architecture.agent_os_integration
 related:
   - jido_code.jido_os_deprecation
+  - jido_code.llm_provider_and_model_selection
 ---
 
 <!-- covers: package.jido_code.spec_led_workspace -->
@@ -18,6 +19,7 @@ related:
 <!-- covers: architecture.agent_os_integration.multiple_pods_parallel_execution -->
 <!-- covers: architecture.agent_os_integration.pod_contains_multiple_agents -->
 <!-- covers: architecture.agent_os_integration.eager_and_lazy_agent_activation -->
+<!-- covers: architecture.agent_os_integration.specialist_llm_selection_is_product_owned_and_concrete -->
 <!-- covers: architecture.agent_os_integration.ecto_persistence_per_kernel -->
 <!-- covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology -->
 <!-- covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace -->
@@ -76,6 +78,13 @@ must seed explicit workspace and work-item identity into the eager
 signals to create or select the active task, append lifecycle events, and
 persist specialist artifacts so pod collaboration remains inspectable,
 resumable, and product-owned.
+
+Concrete LLM provider and model selection for specialists is also a
+product-owned runtime concern rather than pod-topology metadata. Specialist
+identity, prompts, and tool assignments remain part of the CodingPod contract,
+but concrete provider/model choice must be resolved by product-owned selection
+policy before the specialist run starts. Abstract model-tier atoms are not part
+of this runtime contract.
 
 When a configured AgentOS persistence adapter is not actually available in the
 host repo, runtime pod and node startup shall fail closed into an explicit
@@ -334,14 +343,14 @@ end
 │  │              Lazy AI Specialists                         │   │
 │  ├─────────────┬─────────────┬─────────────┬───────────────┤   │
 │  │ Planner     │ Coder       │ Reviewer    │ Refactorer    │   │
-│  │ (reasoning) │ (fast)      │ (reasoning) │ (fast)        │   │
 │  ├─────────────┼─────────────┼─────────────┼───────────────┤   │
 │  │ - Plan      │ - Write     │ - Review    │ - Refactor    │   │
 │  │ - Breakdown │ - Edit      │ - Lint      │ - Optimize    │   │
 │  │ - Research  │ - Test      │ - Approve   │ - Simplify    │   │
 │  └─────────────┴─────────────┴─────────────┴───────────────┘   │
 │                                                                 │
-│  Agents communicate via signals within the pod                 │
+│  Concrete provider/model selection is resolved at runtime      │
+│  outside the pod topology                                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -389,7 +398,6 @@ defmodule JidoCode.AgentOS.Agents.Planner do
   use Jido.AI.Agent,
     name: "coding_planner",
     description: "Planning specialist for coding assistance.",
-    model: :reasoning,
     streaming: false,
     max_iterations: 10,
     tools: [
@@ -420,7 +428,6 @@ defmodule JidoCode.AgentOS.Agents.Coder do
   use Jido.AI.Agent,
     name: "coding_coder",
     description: "Code implementation specialist.",
-    model: :fast,
     streaming: false,
     max_iterations: 15,
     tools: [
@@ -453,7 +460,6 @@ defmodule JidoCode.AgentOS.Agents.Reviewer do
   use Jido.AI.Agent,
     name: "coding_reviewer",
     description: "Code review specialist.",
-    model: :reasoning,
     streaming: false,
     max_iterations: 10,
     tools: [
@@ -1315,12 +1321,15 @@ end
 
 Each AI agent is configured with the tools it needs:
 
+Concrete provider/model selection is resolved by product-owned runtime policy
+before a specialist run starts. The specialist definitions below illustrate
+tool ownership, not model-tier binding.
+
 ```elixir
 # Planner agent - needs to read and understand code
 defmodule JidoCode.AgentOS.Agents.Planner do
   use Jido.AI.Agent,
     name: "coding_planner",
-    model: :reasoning,
     tools: [
       JidoCode.AgentOS.Actions.ReadFile,
       JidoCode.AgentOS.Actions.ListFiles,
@@ -1333,7 +1342,6 @@ end
 defmodule JidoCode.AgentOS.Agents.Coder do
   use Jido.AI.Agent,
     name: "coding_coder",
-    model: :fast,
     tools: [
       JidoCode.AgentOS.Actions.ReadFile,
       JidoCode.AgentOS.Actions.WriteFile,
@@ -1349,7 +1357,6 @@ end
 defmodule JidoCode.AgentOS.Agents.Reviewer do
   use Jido.AI.Agent,
     name: "coding_reviewer",
-    model: :reasoning,
     tools: [
       JidoCode.AgentOS.Actions.ReadFile,
       JidoCode.AgentOS.Actions.ListFiles,

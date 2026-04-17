@@ -9,7 +9,6 @@ defmodule JidoCode.Agents.Refactorer do
   use Jido.AI.Agent,
     name: "jido_code_refactorer",
     description: "Code refactoring specialist for JidoCode.",
-    model: :reasoning,
     streaming: false,
     max_iterations: 12,
     tools: [

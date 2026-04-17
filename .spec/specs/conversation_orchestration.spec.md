@@ -7,13 +7,15 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption, repo-scoped pre-work intake, multiple active work-item conversations per repository, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption, repo-scoped pre-work intake, multiple active work-item conversations per repository, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
+  - jido_code.llm_provider_and_model_selection
   - jido_code.interruptible_conversation_orchestration
   - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
+  - .spec/decisions/jido_code.llm_provider_and_model_selection.md
   - lib/jido_code/conversations.ex
   - lib/jido_code/conversations/command.ex
   - lib/jido_code/conversations/conversation.ex
@@ -161,6 +163,21 @@ surface:
 
 - id: architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
   statement: Conversation runtime shall assemble prompts, bounded shared context, tool access, and model execution through AgentWorkspace, CodingPod specialists, or an adjacent product-owned conversation runtime boundary instead of embedding prompt assembly or model orchestration directly in LiveView surfaces.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.repo_and_conversation_llm_selection_is_explicit
+  statement: Real conversation execution shall resolve an explicit concrete LLM provider and model through a product-owned selection boundary using repository defaults, optional conversation overrides, and system defaults rather than hardcoded provider enums or abstract model tiers.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.conversation_llm_selection_overrides_repo_default
+  statement: When a productive conversation carries an explicit LLM override, that concrete provider/model selection shall take precedence over the repository default for subsequent real runtime turns, and repository default shall take precedence over system default when no override exists.
+  priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.selected_llm_provider_readiness_is_validated
+  statement: Readiness and failure handling for real conversation execution shall validate the selected provider and its concrete provider-specific requirements rather than only checking global readiness for a fixed provider shortlist.
   priority: must
   stability: proposed
 
@@ -390,6 +407,7 @@ surface:
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
+    - architecture.conversation_orchestration.repo_and_conversation_llm_selection_is_explicit
     - architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   given:
     - A managed-repository detail route has an active repository conversation and the required LLM provider plus runtime prerequisites are available.
@@ -397,13 +415,29 @@ surface:
     - The operator submits a new repository conversation turn or resumes a clarification.
   then:
     - The coordinator creates child work that routes through a product-owned LLM execution boundary instead of LiveView-local fake progress scheduling.
+    - The runtime resolves a concrete provider and model from conversation override, repository default, or system default before specialist execution begins.
     - Progress, stdout, delta, clarification, and completion updates reflect the real conversation runtime outcome.
     - The route continues to consume those updates through the existing event-driven conversation delivery model.
+
+- id: architecture.conversation_orchestration.scenario_conversation_override_supersedes_repo_default
+  covers:
+    - architecture.conversation_orchestration.repo_and_conversation_llm_selection_is_explicit
+    - architecture.conversation_orchestration.conversation_llm_selection_overrides_repo_default
+  given:
+    - A managed repository has a concrete default provider/model selection for coding conversations.
+    - An active productive conversation on that repository carries an explicit concrete provider/model override.
+  when:
+    - The operator submits or resumes a real runtime turn for that conversation.
+  then:
+    - The runtime uses the conversation override for the turn instead of the repository default.
+    - If the override is absent on a later turn, the runtime falls back to the repository default and then the system default.
+    - Abstract model-tier aliases are not consulted as part of the selection path.
 
 - id: architecture.conversation_orchestration.scenario_repo_conversation_surfaces_llm_unavailability
   covers:
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.selected_llm_provider_readiness_is_validated
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   given:
     - A managed-repository detail route can open a repository conversation record but the real LLM execution path is unavailable because provider credentials, runtime services, or policy prerequisites are not ready.
@@ -481,6 +515,13 @@ surface:
     - architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
     - architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item
     - architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake
+
+- kind: source_file
+  target: .spec/decisions/jido_code.llm_provider_and_model_selection.md
+  covers:
+    - architecture.conversation_orchestration.repo_and_conversation_llm_selection_is_explicit
+    - architecture.conversation_orchestration.conversation_llm_selection_overrides_repo_default
+    - architecture.conversation_orchestration.selected_llm_provider_readiness_is_validated
 
 - kind: source_file
   target: lib/jido_code/conversations/child_work.ex

@@ -33,6 +33,34 @@ if secret_ref_encryption_key = System.get_env("JIDO_CODE_SECRET_REF_ENCRYPTION_K
   config :jido_code, secret_ref_encryption_key: secret_ref_encryption_key
 end
 
+llm_provider = System.get_env("JIDO_CODE_LLM_PROVIDER")
+llm_model = System.get_env("JIDO_CODE_LLM_MODEL")
+llm_model_spec = System.get_env("JIDO_CODE_LLM_MODEL_SPEC")
+
+cond do
+  is_binary(llm_provider) and String.trim(llm_provider) != "" and is_binary(llm_model) and
+      String.trim(llm_model) != "" ->
+    config :jido_code, :llm_selection, %{
+      default: %{provider: String.trim(llm_provider), model: String.trim(llm_model)}
+    }
+
+  is_binary(llm_model_spec) and String.trim(llm_model_spec) != "" ->
+    case String.split(String.trim(llm_model_spec), ":", parts: 2) do
+      [provider, model] when provider != "" and model != "" ->
+        config :jido_code, :llm_selection, %{default: %{provider: provider, model: model}}
+
+      _other ->
+        raise "JIDO_CODE_LLM_MODEL_SPEC must use provider:model format"
+    end
+
+  (is_binary(llm_provider) and String.trim(llm_provider) != "") or
+      (is_binary(llm_model) and String.trim(llm_model) != "") ->
+    raise "Set both JIDO_CODE_LLM_PROVIDER and JIDO_CODE_LLM_MODEL for the system LLM default"
+
+  true ->
+    :ok
+end
+
 # Source code graph configuration from environment
 # These can be set to override defaults for production deployment
 if source_code_graph_enabled = System.get_env("SOURCE_CODE_GRAPH_ENABLED") do

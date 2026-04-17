@@ -56,6 +56,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
   alias JidoCode.Conversations.Driver, as: ConversationDriver
+  alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
   alias JidoCode.Pods.{CodingPod, RepoPod}
@@ -394,6 +395,7 @@ defmodule JidoCode.AgentWorkspace do
   def plan_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, provenance_context} <-
@@ -426,7 +428,8 @@ defmodule JidoCode.AgentWorkspace do
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
-        workflow_provenance: provenance_summary(provenance_context)
+        workflow_provenance: provenance_summary(provenance_context),
+        llm_selection: llm_selection_summary(opts)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :planning, %{last_plan: result})
@@ -456,6 +459,7 @@ defmodule JidoCode.AgentWorkspace do
   def execute_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, provenance_context} <-
@@ -488,7 +492,8 @@ defmodule JidoCode.AgentWorkspace do
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
-        workflow_provenance: provenance_summary(provenance_context)
+        workflow_provenance: provenance_summary(provenance_context),
+        llm_selection: llm_selection_summary(opts)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :coding, %{last_changes: result})
@@ -518,6 +523,7 @@ defmodule JidoCode.AgentWorkspace do
   def review_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, provenance_context} <-
@@ -550,7 +556,8 @@ defmodule JidoCode.AgentWorkspace do
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
-        workflow_provenance: provenance_summary(provenance_context)
+        workflow_provenance: provenance_summary(provenance_context),
+        llm_selection: llm_selection_summary(opts)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :reviewing, %{last_review: result})
@@ -571,6 +578,7 @@ defmodule JidoCode.AgentWorkspace do
   def explain_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, provenance_context} <-
@@ -603,7 +611,8 @@ defmodule JidoCode.AgentWorkspace do
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
-        workflow_provenance: provenance_summary(provenance_context)
+        workflow_provenance: provenance_summary(provenance_context),
+        llm_selection: llm_selection_summary(opts)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :explaining, %{last_explanation: result})
@@ -1448,6 +1457,7 @@ defmodule JidoCode.AgentWorkspace do
       specialist_tool_context(managed_repo_id, workspace_path, semantic_context, memory_context, opts)
 
     agent_run_id = specialist_agent_run_id(stage, work_item_id)
+    llm_selection = Keyword.get(opts, :llm_selection)
 
     with {:ok, task_context} <- start_task_board_stage(managed_repo_id, work_item_id, stage, instruction),
          {:ok, response} <-
@@ -1456,6 +1466,7 @@ defmodule JidoCode.AgentWorkspace do
              pid,
              instruction,
              tool_context: tool_context,
+             llm_selection: llm_selection,
              timeout: Keyword.get(opts, :timeout, 30_000)
            ),
          :ok <- complete_task_board_stage(managed_repo_id, work_item_id, stage, task_context, response) do
@@ -1507,6 +1518,19 @@ defmodule JidoCode.AgentWorkspace do
   defp specialist_stage(Reviewer), do: :reviewing
   defp specialist_stage(Explainer), do: :explaining
   defp specialist_stage(_other), do: :working
+
+  defp put_llm_selection(managed_repo_id, opts) when is_binary(managed_repo_id) and is_list(opts) do
+    case LLMSelection.resolve(managed_repo_id, opts) do
+      {:ok, selection} -> {:ok, Keyword.put(opts, :llm_selection, selection)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp llm_selection_summary(opts) when is_list(opts) do
+    opts
+    |> Keyword.get(:llm_selection)
+    |> LLMSelection.summary()
+  end
 
   defp sync_project_context(_managed_repo_id, work_item_id, workspace_path, pod_pid) when is_pid(pod_pid) do
     with {:ok, project_context_pid} <- Pod.ensure_node(pod_pid, :project_context),
@@ -1856,10 +1880,18 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp provenance_llm_selection(opts) do
+    opts
+    |> Keyword.get(:llm_selection)
+    |> LLMSelection.summary()
+  end
+
   defp provenance_metadata(provenance_context) do
     %{}
     |> maybe_put_map_value(:memory_policy, Map.get(provenance_context, :memory_policy))
     |> maybe_put_map_value(:follow_up_intent, Map.get(provenance_context, :follow_up_intent))
+    |> maybe_put_map_value(:llm_provider, get_in(provenance_context, [:llm_selection, :provider]))
+    |> maybe_put_map_value(:llm_selection_source, get_in(provenance_context, [:llm_selection, :source]))
   end
 
   defp maybe_put_map_value(map, _key, nil), do: map
@@ -1892,7 +1924,8 @@ defmodule JidoCode.AgentWorkspace do
       related_resources: provenance_related_resources(opts),
       governed_references: provenance_governed_references(work_item_id, opts),
       memory_policy: provenance_memory_policy(opts),
-      follow_up_intent: provenance_follow_up_intent(opts)
+      follow_up_intent: provenance_follow_up_intent(opts),
+      llm_selection: provenance_llm_selection(opts)
     }
 
     _ = capture_session_start(managed_repo_id, context, opts)
@@ -1910,6 +1943,7 @@ defmodule JidoCode.AgentWorkspace do
         work_item_id: provenance_context.work_item_id,
         goal: provenance_context.instruction,
         outcome: "started",
+        model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         related_resources: provenance_context.related_resources,
         governed_references: provenance_context.governed_references,
@@ -1923,6 +1957,7 @@ defmodule JidoCode.AgentWorkspace do
         workflow: provenance_context.workflow,
         work_item_id: provenance_context.work_item_id,
         content: provenance_context.instruction,
+        model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         related_resources: provenance_context.related_resources,
         governed_references: provenance_context.governed_references,
@@ -1974,6 +2009,7 @@ defmodule JidoCode.AgentWorkspace do
         content: "#{instruction}\n\nOutcome: success",
         started_at: started_at,
         ended_at: ended_at,
+        model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources
@@ -1990,6 +2026,7 @@ defmodule JidoCode.AgentWorkspace do
         content: inspect(%{agent: agent_name(agent_module), keys: Map.keys(tool_context)}, pretty: true),
         started_at: started_at,
         ended_at: ended_at,
+        model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources
@@ -2054,6 +2091,7 @@ defmodule JidoCode.AgentWorkspace do
         content: "#{instruction}\n\nOutcome: failed\n#{inspect(reason)}",
         started_at: started_at,
         ended_at: ended_at,
+        model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
         related_resources: provenance_context.related_resources,
@@ -2076,6 +2114,7 @@ defmodule JidoCode.AgentWorkspace do
       content: stringify_artifact_content(content),
       started_at: started_at,
       ended_at: ended_at,
+      model: provenance_model_name(provenance_context),
       revision: provenance_context.revision,
       governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
@@ -2093,6 +2132,7 @@ defmodule JidoCode.AgentWorkspace do
       content: stringify_artifact_content(content),
       started_at: started_at,
       ended_at: ended_at,
+      model: provenance_model_name(provenance_context),
       revision: provenance_context.revision,
       governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
@@ -2110,6 +2150,7 @@ defmodule JidoCode.AgentWorkspace do
       content: stringify_artifact_content(content),
       started_at: started_at,
       ended_at: ended_at,
+      model: provenance_model_name(provenance_context),
       revision: provenance_context.revision,
       governed_references: provenance_context.governed_references,
       related_resources: provenance_context.related_resources,
@@ -2177,8 +2218,15 @@ defmodule JidoCode.AgentWorkspace do
       workflow: provenance_context.workflow,
       related_resources: Map.get(provenance_context, :related_resources, []),
       memory_policy: Map.get(provenance_context, :memory_policy),
-      follow_up_intent: Map.get(provenance_context, :follow_up_intent)
+      follow_up_intent: Map.get(provenance_context, :follow_up_intent),
+      llm_selection: Map.get(provenance_context, :llm_selection)
     }
+  end
+
+  defp provenance_model_name(provenance_context) do
+    provenance_context
+    |> Map.get(:llm_selection, %{})
+    |> map_get(:model_spec, "model_spec")
   end
 
   defp provenance_session_id(work_item_id, workflow, opts) do

@@ -251,7 +251,8 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
       instruction: Map.get(raw_result, :instruction),
       plan: Map.get(raw_result, :plan),
       semantic_input: semantic_input,
-      workflow_provenance: provenance_summary(workflow_provenance)
+      workflow_provenance: provenance_summary(workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 
@@ -263,7 +264,8 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
       instruction: Map.get(raw_result, :instruction),
       feedback: Map.get(raw_result, :feedback),
       semantic_input: semantic_input,
-      workflow_provenance: provenance_summary(workflow_provenance)
+      workflow_provenance: provenance_summary(workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 
@@ -275,7 +277,8 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
       instruction: Map.get(raw_result, :instruction),
       explanation: Map.get(raw_result, :explanation),
       semantic_input: semantic_input,
-      workflow_provenance: provenance_summary(workflow_provenance)
+      workflow_provenance: provenance_summary(workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
     }
   end
 

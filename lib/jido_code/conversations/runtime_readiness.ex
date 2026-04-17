@@ -7,25 +7,26 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
   or provider prerequisites are unavailable instead of fabricating progress.
   """
 
-  alias JidoCode.Setup.ProviderCredentialChecks
+  alias JidoCode.LLMSelection
   alias JidoCode.Workbench.ProjectDetail
 
   @type readiness :: %{
           project_detail: map(),
-          workspace_path: String.t()
+          workspace_path: String.t(),
+          llm_selection: map()
         }
 
-  @spec resolve(String.t()) :: {:ok, readiness()} | {:error, map()}
-  def resolve(managed_repo_id) when is_binary(managed_repo_id) do
+  @spec resolve(String.t(), keyword()) :: {:ok, readiness()} | {:error, map()}
+  def resolve(managed_repo_id, opts \\ []) when is_binary(managed_repo_id) and is_list(opts) do
     with {:ok, project_detail} <- ProjectDetail.load(managed_repo_id),
          :ok <- execution_ready(project_detail),
          {:ok, workspace_path} <- workspace_path(project_detail),
-         :ok <- provider_ready() do
-      {:ok, %{project_detail: project_detail, workspace_path: workspace_path}}
+         {:ok, llm_selection} <- llm_selection(project_detail, opts) do
+      {:ok, %{project_detail: project_detail, workspace_path: workspace_path, llm_selection: llm_selection}}
     end
   end
 
-  def resolve(_managed_repo_id), do: {:error, invalid_repo_scope_error()}
+  def resolve(_managed_repo_id, _opts), do: {:error, invalid_repo_scope_error()}
 
   defp execution_ready(project_detail) do
     if ProjectDetail.ready_for_execution?(project_detail) do
@@ -80,38 +81,15 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
     end
   end
 
-  defp provider_ready do
-    case Application.get_env(:jido_code_server, :llm_adapter, :jido_ai) do
-      :deterministic ->
-        :ok
+  defp llm_selection(project_detail, opts) do
+    opts =
+      Keyword.put_new(
+        opts,
+        :conversation_metadata,
+        Keyword.get(opts, :conversation_metadata, %{})
+      )
 
-      _adapter ->
-        report = ProviderCredentialChecks.run()
-
-        if ProviderCredentialChecks.blocked?(report) do
-          blocked_credential =
-            report
-            |> ProviderCredentialChecks.blocked_credentials()
-            |> List.first()
-
-          {:error,
-           %{
-             "error_type" =>
-               blocked_credential &&
-                 blocked_credential.error_type || "conversation_runtime_provider_unavailable",
-             "detail" =>
-               blocked_credential &&
-                 blocked_credential.detail ||
-                 "LLM provider credentials are not ready for real conversation runtime.",
-             "remediation" =>
-               blocked_credential &&
-                 blocked_credential.remediation ||
-                 "Verify provider credentials and retry the conversation turn."
-           }}
-        else
-          :ok
-        end
-    end
+    LLMSelection.resolve_from_project_detail(project_detail, opts)
   end
 
   defp invalid_repo_scope_error do

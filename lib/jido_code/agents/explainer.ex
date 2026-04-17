@@ -10,7 +10,6 @@ defmodule JidoCode.Agents.Explainer do
   use Jido.AI.Agent,
     name: "jido_code_explainer",
     description: "Code explanation specialist for JidoCode.",
-    model: :fast,
     streaming: false,
     max_iterations: 6,
     tools: [

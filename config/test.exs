@@ -50,7 +50,6 @@ config :jido_code,
   system_config_loader: &JidoCode.Setup.SystemConfig.default_loader/0,
   system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1
 
-config :jido_code_server, :llm_adapter, :deterministic
 config :jido_code, :llm_selection, %{default: %{provider: "deterministic", model: "deterministic"}}
 
 # Ontology configuration (optional - requires elixir_ontologies package)

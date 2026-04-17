@@ -49,6 +49,11 @@ For day-to-day development:
 - `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
+Ash resource changes are explicit in this workspace. Browser requests do not
+auto-run Ash codegen or migrations. When resource DSL changes require generated
+files, run `mix ash.codegen --dev` while iterating and `mix ash.codegen <name>`
+before you finalize the change set.
+
 ## Source Code Graph Capability
 
 The repository-scoped semantic graph stack uses `elixir_ontologies`,

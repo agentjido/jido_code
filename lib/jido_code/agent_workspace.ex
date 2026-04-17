@@ -2224,9 +2224,10 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp provenance_model_name(provenance_context) do
-    provenance_context
-    |> Map.get(:llm_selection, %{})
-    |> map_get(:model_spec, "model_spec")
+    case Map.get(provenance_context, :llm_selection, %{}) do
+      %{} = llm_selection -> Map.get(llm_selection, :model_spec) || Map.get(llm_selection, "model_spec")
+      _other -> nil
+    end
   end
 
   defp provenance_session_id(work_item_id, workflow, opts) do

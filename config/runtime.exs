@@ -20,11 +20,9 @@ if System.get_env("PHX_SERVER") do
   config :jido_code, JidoCodeWeb.Endpoint, server: true
 end
 
-config :jido_code, JidoCodeWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+config :jido_code, JidoCodeWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4100"))]
 
 if config_env() == :prod do
-  config :jido_code_server, :llm_adapter, :jido_ai
-
   config :jido_code, JidoCodeWeb.Endpoint,
     cache_static_manifest_latest: PhoenixVite.cache_static_manifest_latest(:jido_code)
 end
@@ -130,7 +128,7 @@ end
 # override prod config for local desktop use. This block runs before the prod
 # block below, providing defaults so the raises are never hit.
 if config_env() == :prod and System.get_env("BURRITO_TARGET") != nil do
-  port = String.to_integer(System.get_env("PORT") || "4000")
+  port = String.to_integer(System.get_env("PORT") || "4100")
 
   config :jido_code, JidoCode.Repo,
     url: System.get_env("DATABASE_URL") || "ecto://postgres:postgres@localhost/jido_code_dev",

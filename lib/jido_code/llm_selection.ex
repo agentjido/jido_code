@@ -24,7 +24,7 @@ defmodule JidoCode.LLMSelection do
     "headers" => :headers
   }
 
-  @type selection_source :: :explicit | :conversation | :repo_default | :system_default | :deterministic
+  @type selection_source :: :explicit | :conversation | :repo_default | :system_default
 
   @type selection :: %{
           provider: String.t(),
@@ -36,7 +36,9 @@ defmodule JidoCode.LLMSelection do
         }
 
   @spec resolve(String.t(), keyword()) :: {:ok, selection()} | {:error, map()}
-  def resolve(managed_repo_id, opts \\ []) when is_binary(managed_repo_id) and is_list(opts) do
+  def resolve(managed_repo_id, opts \\ [])
+
+  def resolve(managed_repo_id, opts) when is_binary(managed_repo_id) and is_list(opts) do
     repo_execution_settings =
       managed_repo_id
       |> repo_execution_settings()
@@ -48,7 +50,10 @@ defmodule JidoCode.LLMSelection do
   def resolve(_managed_repo_id, _opts), do: {:error, missing_selection_error()}
 
   @spec resolve_from_project_detail(map(), keyword()) :: {:ok, selection()} | {:error, map()}
-  def resolve_from_project_detail(project_detail, opts \\ []) when is_map(project_detail) and is_list(opts) do
+  def resolve_from_project_detail(project_detail, opts \\ [])
+
+  def resolve_from_project_detail(project_detail, opts)
+      when is_map(project_detail) and is_list(opts) do
     execution_settings =
       project_detail
       |> map_get(:settings, "settings", %{})
@@ -63,6 +68,8 @@ defmodule JidoCode.LLMSelection do
 
   @spec resolve_from_execution_settings(map(), keyword()) :: {:ok, selection()} | {:error, map()}
   def resolve_from_execution_settings(execution_settings, opts \\ [])
+
+  def resolve_from_execution_settings(execution_settings, opts)
       when is_map(execution_settings) and is_list(opts) do
     explicit_selection =
       opts
@@ -89,8 +96,7 @@ defmodule JidoCode.LLMSelection do
            {:explicit, explicit_selection},
            {:conversation, conversation_selection},
            {:repo_default, repo_selection},
-           {:system_default, system_selection},
-           {:deterministic, deterministic_selection()}
+           {:system_default, system_selection}
          ]) do
       {:ok, selection} -> {:ok, selection}
       :error -> {:error, missing_selection_error()}
@@ -261,20 +267,6 @@ defmodule JidoCode.LLMSelection do
     end)
   end
 
-  defp deterministic_selection do
-    if Application.get_env(:jido_code_server, :llm_adapter, :jido_ai) == :deterministic do
-      %{
-        provider: "deterministic",
-        model: "deterministic",
-        model_spec: "deterministic:deterministic",
-        llm_opts: [],
-        req_http_options: []
-      }
-    else
-      nil
-    end
-  end
-
   defp normalize_keyword_options(nil, _allowed_keys), do: []
 
   defp normalize_keyword_options(options, allowed_keys) when is_map(options) do
@@ -319,7 +311,7 @@ defmodule JidoCode.LLMSelection do
 
   defp parse_model_spec(_model_spec), do: {nil, nil}
 
-  defp map_get(map, atom_key, string_key, default \\ nil) when is_map(map) do
+  defp map_get(map, atom_key, string_key, default) when is_map(map) do
     cond do
       Map.has_key?(map, atom_key) -> Map.get(map, atom_key)
       Map.has_key?(map, string_key) -> Map.get(map, string_key)
@@ -348,6 +340,8 @@ defmodule JidoCode.LLMSelection do
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
 
+  defp normalize_optional_string(nil), do: nil
+
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
@@ -363,7 +357,7 @@ defmodule JidoCode.LLMSelection do
 
   defp normalize_optional_string(_value), do: nil
 
-  defp fallback_optional_string(primary, fallback) when is_binary(primary), do: primary
+  defp fallback_optional_string(primary, _fallback) when is_binary(primary), do: primary
   defp fallback_optional_string(nil, fallback), do: fallback
   defp fallback_optional_string(_primary, fallback), do: fallback
 end

@@ -7,11 +7,9 @@ defmodule JidoCode.LLMSelectionTest do
 
   setup do
     llm_selection = Application.get_env(:jido_code, :llm_selection, :__missing__)
-    llm_adapter = Application.get_env(:jido_code_server, :llm_adapter, :__missing__)
 
     on_exit(fn ->
       restore_env(:jido_code, :llm_selection, llm_selection)
-      restore_env(:jido_code_server, :llm_adapter, llm_adapter)
     end)
 
     :ok
@@ -56,22 +54,22 @@ defmodule JidoCode.LLMSelectionTest do
     assert selection.source == :repo_default
   end
 
-  test "deterministic adapter still resolves a concrete selection when no configured default exists" do
-    Application.delete_env(:jido_code, :llm_selection)
-    Application.put_env(:jido_code_server, :llm_adapter, :deterministic)
+  test "system default resolves a concrete selection when no repo default exists" do
+    Application.put_env(:jido_code, :llm_selection, %{
+      default: %{provider: "deterministic", model: "deterministic"}
+    })
 
-    managed_repo = managed_repo_fixture!("deterministic-fallback")
+    managed_repo = managed_repo_fixture!("system-default")
 
     assert {:ok, selection} = LLMSelection.resolve(managed_repo.id)
     assert selection.provider == "deterministic"
     assert selection.model == "deterministic"
     assert selection.model_spec == "deterministic:deterministic"
-    assert selection.source == :deterministic
+    assert selection.source == :system_default
   end
 
-  test "runtime readiness fails closed when a real adapter has no concrete selection" do
+  test "runtime readiness fails closed when no concrete selection exists" do
     Application.delete_env(:jido_code, :llm_selection)
-    Application.put_env(:jido_code_server, :llm_adapter, :jido_ai)
 
     managed_repo = managed_repo_fixture!("missing-selection")
 

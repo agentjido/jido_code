@@ -1,5 +1,5 @@
 erlang 27.3
 elixir 1.18.4-otp-27
-nodejs 22.14.0
+nodejs 24.3.0
 rust stable
 zig 0.15.2

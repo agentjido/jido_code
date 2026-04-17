@@ -124,8 +124,10 @@ defmodule JidoWorkflow.Workflow.MarkdownParser do
   end
 
   defp split_frontmatter(markdown) do
-    if String.starts_with?(markdown, "---\n") do
-      case String.split(markdown, "\n---\n", parts: 2) do
+    trimmed_markdown = String.trim_leading(markdown)
+
+    if String.starts_with?(trimmed_markdown, "---\n") do
+      case String.split(trimmed_markdown, "\n---\n", parts: 2) do
         [<<"---\n", frontmatter::binary>>, body] ->
           {:ok, frontmatter, body}
 

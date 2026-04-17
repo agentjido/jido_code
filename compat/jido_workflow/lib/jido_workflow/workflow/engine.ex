@@ -2,8 +2,8 @@ defmodule JidoWorkflow.Workflow.Engine do
   # covers: workflow.runtime.compatibility.legacy_loader_and_engine_surface
   # covers: workflow.runtime.compatibility.action_workflow_execution
   @moduledoc """
-  Minimal action-oriented workflow runtime used to satisfy jido_code_server's
-  expected workflow API surface in CI and local development.
+  Minimal action-oriented workflow runtime used to preserve the legacy
+  workflow API surface in CI and local development.
   """
 
   alias JidoWorkflow.Workflow.ArgumentResolver

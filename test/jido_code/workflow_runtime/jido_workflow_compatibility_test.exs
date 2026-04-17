@@ -4,8 +4,8 @@ defmodule JidoCode.WorkflowRuntime.JidoWorkflowCompatibilityTest do
   # covers: workflow.runtime.compatibility.action_workflow_execution
   use ExUnit.Case, async: false
 
-  alias Jido.Code.Server, as: Runtime
-  alias Jido.Code.Server.TestSupport.TempProject
+  alias JidoWorkflow.Workflow.Engine
+  alias JidoWorkflow.Workflow.Loader
 
   defmodule WorkflowEchoAction do
     use Jido.Action,
@@ -20,51 +20,26 @@ defmodule JidoCode.WorkflowRuntime.JidoWorkflowCompatibilityTest do
     end
   end
 
-  setup do
-    on_exit(fn ->
-      Enum.each(Runtime.list_projects(), fn %{project_id: project_id} ->
-        _ = Runtime.stop_project(project_id)
-      end)
-    end)
+  test "legacy workflow loader and engine stay executable through the local compatibility package" do
+    workflow_path = write_workflow_fixture!(valid_workflow_markdown())
 
-    :ok
-  end
+    assert {:ok, definition} = Loader.load_markdown(workflow_path)
+    assert definition.name == "example_workflow"
+    assert Enum.map(definition.inputs, & &1.name) == ["file_path"]
 
-  test "workflow asset tools stay registered and executable through the local compatibility runtime" do
-    root = TempProject.create!(with_seed_files: true)
-    on_exit(fn -> TempProject.cleanup(root) end)
-
-    workflow_path = Path.join(root, ".jido/workflows/example_workflow.md")
-    File.write!(workflow_path, valid_workflow_markdown())
-
-    assert {:ok, project_id} =
-             Runtime.start_project(root,
-               project_id: "workflow-compatibility-runtime",
-               network_egress_policy: :allow
+    assert {:ok, result} =
+             Engine.execute_definition(
+               definition,
+               %{"file_path" => "lib/example.ex"},
+               workflow_id: definition.name,
+               run_id: "workflow-compatibility-runtime"
              )
 
-    workflow_tool =
-      project_id
-      |> Runtime.list_tools()
-      |> Enum.find(&(&1.name == "workflow.run.example_workflow"))
-
-    assert workflow_tool.kind == :workflow_run
-    assert workflow_tool.asset_name == "example_workflow"
-    assert get_in(workflow_tool, [:input_schema, "properties", "file_path", "type"]) == "string"
-    assert get_in(workflow_tool, [:input_schema, "properties", "inputs", "required"]) == ["file_path"]
-
-    assert {:ok, %{status: :ok, tool: "workflow.run.example_workflow", result: result}} =
-             Runtime.run_tool(project_id, %{
-               name: "workflow.run.example_workflow",
-               args: %{"inputs" => %{"file_path" => "lib/example.ex"}}
-             })
-
-    assert result.mode == :executed
-    assert result.runtime == :jido_workflow
-    assert result.workflow == "example_workflow"
-    assert get_in(result, [:execution, :status]) == :completed
-    assert get_in(result, [:execution, :workflow_id]) == "example_workflow"
-    assert get_in(result, [:execution, :result, "file_path"]) == "lib/example.ex"
+    assert result.status == :completed
+    assert result.workflow_id == "example_workflow"
+    assert result.run_id == "workflow-compatibility-runtime"
+    assert result.result["file_path"] == "lib/example.ex"
+    assert result.workflow.name == "example_workflow"
   end
 
   defp valid_workflow_markdown do
@@ -93,5 +68,21 @@ defmodule JidoCode.WorkflowRuntime.JidoWorkflowCompatibilityTest do
     ## Return
     - **value**: echo
     """
+  end
+
+  defp write_workflow_fixture!(contents) do
+    root =
+      Path.join(
+        System.tmp_dir!(),
+        "jido-code-workflow-compatibility-#{System.unique_integer([:positive])}"
+      )
+
+    on_exit(fn -> File.rm_rf(root) end)
+
+    File.mkdir_p!(root)
+
+    workflow_path = Path.join(root, "example_workflow.md")
+    File.write!(workflow_path, contents)
+    workflow_path
   end
 end

@@ -200,7 +200,6 @@ defmodule JidoCode.MixProject do
       {:rocksdb, "~> 2.6", override: true},
 
       # Product-specific Jido integrations
-      {:jido_code_server, git: "https://github.com/pcharbon70/jido_code_server.git", branch: "main"},
       {:gettext, "~> 0.26", override: true},
 
       # Cloud Sandboxes

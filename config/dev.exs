@@ -2,6 +2,11 @@ import Config
 config :live_vue, vite_host: "http://localhost:5173", ssr_module: LiveVue.SSR.ViteJS
 config :ash, policies: [show_policy_breakdowns?: true]
 
+# Keep Ash codegen explicit in this repo. The default AshPhoenix dev plug can
+# offer a browser action that runs `mix ash.codegen --dev` and migrations from
+# a request failure page, which is too eager for this workspace.
+config :jido_code, ash_codegen_status_check?: false
+
 config :git_ops,
   mix_project: JidoCode.MixProject,
   changelog_file: "CHANGELOG.md",
@@ -95,8 +100,6 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
-
-config :jido_code_server, :llm_adapter, :jido_ai
 
 # Ontology configuration (optional - requires elixir_ontologies package)
 # When elixir_ontologies is available, uncomment to enable:

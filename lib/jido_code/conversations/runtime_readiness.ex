@@ -17,7 +17,9 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
         }
 
   @spec resolve(String.t(), keyword()) :: {:ok, readiness()} | {:error, map()}
-  def resolve(managed_repo_id, opts \\ []) when is_binary(managed_repo_id) and is_list(opts) do
+  def resolve(managed_repo_id, opts \\ [])
+
+  def resolve(managed_repo_id, opts) when is_binary(managed_repo_id) and is_list(opts) do
     with {:ok, project_detail} <- ProjectDetail.load(managed_repo_id),
          :ok <- execution_ready(project_detail),
          {:ok, workspace_path} <- workspace_path(project_detail),

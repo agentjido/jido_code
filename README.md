@@ -30,7 +30,7 @@ mix setup
 mix server
 ```
 
-Then open http://localhost:4000
+Then open http://localhost:4100
 
 For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix server` is the preferred start path and prepares browser dependencies or bundles first when the current LiveVue/Vite output is missing. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](tauri/README.md).
 
@@ -68,6 +68,11 @@ You may also need extra credentials depending on what you are exercising:
 - `ANTHROPIC_API_KEY` for Claude-powered flows
 - `SPRITES_API_TOKEN` for live Sprites-backed execution
 - mail provider settings such as `RESEND_API_KEY`
+
+Ash resource changes stay manual in this repo. Development browser requests do
+not auto-run Ash code generation or migrations. When you change Ash resources,
+use `mix ash.codegen --dev` while iterating, then `mix ash.codegen <name>` once
+the change set is ready to keep.
 
 ## Source Code Graph
 

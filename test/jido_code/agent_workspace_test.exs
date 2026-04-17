@@ -206,6 +206,35 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert result.plan =~ "deterministic planner response"
     end
 
+    test "plan_work persists the resolved llm selection for the work item" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Implement feature",
+                 workspace_path: workspace_path,
+                 llm_selection: %{"provider" => "openai", "model" => "gpt-5"}
+               )
+
+      assert result.llm_selection == %{
+               provider: "openai",
+               model: "gpt-5",
+               model_spec: "openai:gpt-5",
+               source: :explicit
+             }
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+
+      assert get_in(pod_status, [:metadata, :last_plan, :llm_selection, :provider]) == "openai"
+      assert get_in(pod_status, [:metadata, :last_plan, :llm_selection, :model_spec]) == "openai:gpt-5"
+    end
+
     test "execute_work returns ok with changes map" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"

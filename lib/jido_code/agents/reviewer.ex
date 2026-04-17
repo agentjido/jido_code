@@ -10,7 +10,6 @@ defmodule JidoCode.Agents.Reviewer do
   use Jido.AI.Agent,
     name: "jido_code_reviewer",
     description: "Code review specialist for JidoCode.",
-    model: :fast,
     streaming: false,
     max_iterations: 8,
     tools: [

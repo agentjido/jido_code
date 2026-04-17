@@ -13,7 +13,7 @@ defmodule JidoCode.Control.RepoBridge do
   alias JidoCode.Governance.{PolicyBridge, PostureBridge}
   alias JidoCode.Operations.RepoNativeState
 
-  @execution_setting_keys ["execution", "workflow"]
+  @execution_setting_keys ["execution", "workflow", "llm", "llm_selection"]
   @provisioning_actor Actor.factory_system_actor()
   @read_actor Actor.operator_actor()
 

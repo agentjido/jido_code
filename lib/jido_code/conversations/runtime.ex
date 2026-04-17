@@ -14,6 +14,7 @@ defmodule JidoCode.Conversations.Runtime do
   alias JidoCode.AgentWorkspace
   alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.Conversations.RuntimeReadiness
+  alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.WorkflowService, as: MemoryWorkflowService
   alias JidoCode.SourceCodeGraph.WorkflowService, as: SemanticWorkflowService
 
@@ -47,7 +48,10 @@ defmodule JidoCode.Conversations.Runtime do
     })
 
     with {:ok, readiness} <-
-           RuntimeReadiness.resolve(runtime_spec[:managed_repo_id] || runtime_spec["managed_repo_id"]),
+           RuntimeReadiness.resolve(
+             runtime_spec[:managed_repo_id] || runtime_spec["managed_repo_id"],
+             conversation_metadata: normalize_map(map_get(runtime_spec, :conversation_metadata))
+           ),
          {:ok, request} <- build_request(runtime_spec, readiness) do
       emit.(runtime_progress_event(request))
 
@@ -74,7 +78,8 @@ defmodule JidoCode.Conversations.Runtime do
                    "summary" => summary,
                    "workflow" => Atom.to_string(request.workflow),
                    "context_source" => context_source_name(request.context_source),
-                   "instruction" => request.user_instruction
+                   "instruction" => request.user_instruction,
+                   "llm_selection" => llm_selection_payload(request.llm_selection)
                  }
                }}
 
@@ -156,6 +161,7 @@ defmodule JidoCode.Conversations.Runtime do
            referenced_files: referenced_files,
            shared_context: shared_context,
            clarification_resume: clarification_resume,
+           llm_selection: readiness.llm_selection,
            instruction:
              bounded_instruction(
                runtime_spec,
@@ -229,7 +235,8 @@ defmodule JidoCode.Conversations.Runtime do
           request.instruction,
           semantic: semantic_opts,
           workspace_path: readiness.workspace_path,
-          actor: map_get(runtime_spec, :actor)
+          actor: map_get(runtime_spec, :actor),
+          llm_selection: readiness.llm_selection
         )
 
       :review ->
@@ -239,7 +246,8 @@ defmodule JidoCode.Conversations.Runtime do
           request.instruction,
           semantic: semantic_opts,
           workspace_path: readiness.workspace_path,
-          actor: map_get(runtime_spec, :actor)
+          actor: map_get(runtime_spec, :actor),
+          llm_selection: readiness.llm_selection
         )
 
       :explain ->
@@ -249,7 +257,8 @@ defmodule JidoCode.Conversations.Runtime do
           request.instruction,
           semantic: semantic_opts,
           workspace_path: readiness.workspace_path,
-          actor: map_get(runtime_spec, :actor)
+          actor: map_get(runtime_spec, :actor),
+          llm_selection: readiness.llm_selection
         )
     end
   end
@@ -286,7 +295,8 @@ defmodule JidoCode.Conversations.Runtime do
             request.instruction,
             memory: memory_opts,
             workspace_path: readiness.workspace_path,
-            actor: actor
+            actor: actor,
+            llm_selection: readiness.llm_selection
           )
 
         :execute ->
@@ -296,7 +306,8 @@ defmodule JidoCode.Conversations.Runtime do
             request.instruction,
             memory: memory_opts,
             workspace_path: readiness.workspace_path,
-            actor: actor
+            actor: actor,
+            llm_selection: readiness.llm_selection
           )
 
         :review ->
@@ -306,7 +317,8 @@ defmodule JidoCode.Conversations.Runtime do
             request.instruction,
             memory: memory_opts,
             workspace_path: readiness.workspace_path,
-            actor: actor
+            actor: actor,
+            llm_selection: readiness.llm_selection
           )
 
         :explain ->
@@ -316,7 +328,8 @@ defmodule JidoCode.Conversations.Runtime do
             request.instruction,
             memory: memory_opts,
             workspace_path: readiness.workspace_path,
-            actor: actor
+            actor: actor,
+            llm_selection: readiness.llm_selection
           )
       end
 
@@ -366,7 +379,7 @@ defmodule JidoCode.Conversations.Runtime do
   defp invoke_workspace(%{workflow: workflow} = request, readiness, actor, extra_opts)
        when workflow in [:plan, :execute, :review, :explain] do
     opts =
-      [workspace_path: readiness.workspace_path, actor: actor]
+      [workspace_path: readiness.workspace_path, actor: actor, llm_selection: readiness.llm_selection]
       |> Keyword.merge(List.wrap(extra_opts))
 
     case workflow do
@@ -443,21 +456,28 @@ defmodule JidoCode.Conversations.Runtime do
         case SemanticWorkflowService.plan(managed_repo_id, work_item_id, instruction,
                semantic: semantic_opts,
                workspace_path: workspace_path,
-               actor: actor) do
+               actor: actor,
+               llm_selection: readiness.llm_selection) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
             log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           result ->
             result
@@ -467,21 +487,28 @@ defmodule JidoCode.Conversations.Runtime do
         case SemanticWorkflowService.review(managed_repo_id, work_item_id, instruction,
                semantic: semantic_opts,
                workspace_path: workspace_path,
-               actor: actor) do
+               actor: actor,
+               llm_selection: readiness.llm_selection) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
             log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           result ->
             result
@@ -491,21 +518,28 @@ defmodule JidoCode.Conversations.Runtime do
         case SemanticWorkflowService.explain(managed_repo_id, work_item_id, instruction,
                semantic: semantic_opts,
                workspace_path: workspace_path,
-               actor: actor) do
+               actor: actor,
+               llm_selection: readiness.llm_selection) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
             log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path, actor: actor)
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection)
 
           result ->
             result
@@ -580,10 +614,11 @@ defmodule JidoCode.Conversations.Runtime do
       %{
         "kind" => "progress",
         "summary" =>
-          "Routing the repository conversation through the #{Atom.to_string(request.workflow)} specialist using #{context_source_label(request.context_source)}.",
+          "Routing the repository conversation through the #{Atom.to_string(request.workflow)} specialist using #{context_source_label(request.context_source)}#{runtime_llm_summary(request.llm_selection)}.",
         "workflow" => Atom.to_string(request.workflow),
         "context_source" => context_source_name(request.context_source),
-        "referenced_files" => request.referenced_files
+        "referenced_files" => request.referenced_files,
+        "llm_selection" => llm_selection_payload(request.llm_selection)
       }
     end
   end
@@ -646,6 +681,22 @@ defmodule JidoCode.Conversations.Runtime do
   defp context_source_label(_other), do: "AgentWorkspace"
 
   defp context_source_name(context_source), do: Atom.to_string(context_source)
+
+  defp runtime_llm_summary(llm_selection) do
+    case llm_selection do
+      %{model_spec: model_spec} when is_binary(model_spec) -> " with #{model_spec}"
+      _other -> ""
+    end
+  end
+
+  defp llm_selection_payload(llm_selection) do
+    llm_selection
+    |> LLMSelection.summary()
+    |> case do
+      nil -> nil
+      summary -> normalize_map(summary)
+    end
+  end
 
   defp accepted_result_lines(results) do
     results

@@ -6,15 +6,17 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, cross-graph consistency, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, query, and repository-scoped recovery that can also back product-owned services, an implemented MemoryGraphPod foundation with one eager context agent plus lazy recorder, querier, and validator specialists, a companion governed control-plane ontology plus typed governed-reference contract available to that semantic stack before later capture and writer cutovers, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that now normalizes typed workflow-provenance envelopes and durable-memory envelopes with canonical `governed_references` before writing them through the capture plane, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, product-owned governed-surface memory context and operator memory actions that still resolve through AgentWorkspace-backed services instead of pod-local mutation paths, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, cross-graph consistency, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, query, and repository-scoped recovery that can also back product-owned services, an implemented MemoryGraphPod foundation with one eager context agent plus lazy recorder, querier, and validator specialists, a companion governed control-plane ontology plus typed governed-reference contract available to that semantic stack before later capture and writer cutovers, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that now normalizes typed workflow-provenance envelopes and durable-memory envelopes with canonical `governed_references` before writing them through the capture plane, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, product-owned governed-surface memory context and operator memory actions that still resolve through AgentWorkspace-backed services instead of pod-local mutation paths, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, product-owned concrete LLM provider/model resolution for specialists instead of abstract model tiers, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
+  - jido_code.llm_provider_and_model_selection
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
 surface:
   - .spec/decisions/jido_code.jido_agent_os_integration.md
+  - .spec/decisions/jido_code.llm_provider_and_model_selection.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
   - .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
@@ -103,6 +105,11 @@ surface:
 
 - id: architecture.agent_os_integration.eager_and_lazy_agent_activation
   statement: Task board and project context agents shall be eager (always running), while AI specialist agents (planner, coder, reviewer) shall be lazy (started on demand).
+  priority: must
+  stability: proposed
+
+- id: architecture.agent_os_integration.specialist_llm_selection_is_product_owned_and_concrete
+  statement: CodingPod specialists shall receive concrete LLM provider and model selection through a product-owned runtime boundary, and specialist modules or pod topology shall not encode abstract model-tier atoms as the architectural contract.
   priority: must
   stability: proposed
 
@@ -243,6 +250,7 @@ surface:
   covers:
     - architecture.agent_os_integration.pod_contains_multiple_agents
     - architecture.agent_os_integration.eager_and_lazy_agent_activation
+    - architecture.agent_os_integration.specialist_llm_selection_is_product_owned_and_concrete
     - architecture.agent_os_integration.signal_routing_within_pod
     - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   given:
@@ -254,6 +262,7 @@ surface:
     - The project_context agent receives the explicit workspace path and WorkItem identity before specialist work begins.
     - The planner agent starts on demand (lazy).
     - The planner uses tools (ReadFile, SearchCode) to analyze the codebase.
+    - AgentWorkspace resolves a concrete provider and model for the planner run instead of consulting abstract model-tier atoms.
     - The plan is stored in the task_board agent state.
     - Task-board lifecycle events and artifacts reflect the specialist run.
 
@@ -398,6 +407,7 @@ surface:
     - architecture.agent_os_integration.coding_pod_per_work_item
     - architecture.agent_os_integration.pod_contains_multiple_agents
     - architecture.agent_os_integration.eager_and_lazy_agent_activation
+    - architecture.agent_os_integration.specialist_llm_selection_is_product_owned_and_concrete
     - architecture.agent_os_integration.multiple_pods_parallel_execution
     - architecture.agent_os_integration.kernel_naming_convention
     - architecture.agent_os_integration.pod_naming_convention
@@ -406,6 +416,11 @@ surface:
     - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
     - architecture.agent_os_integration.repository_work_queue_is_bounded
     - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+
+- kind: source_file
+  target: .spec/decisions/jido_code.llm_provider_and_model_selection.md
+  covers:
+    - architecture.agent_os_integration.specialist_llm_selection_is_product_owned_and_concrete
 
 - kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md

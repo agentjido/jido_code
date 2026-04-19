@@ -11,9 +11,6 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.Orchestration.WorkflowRun
-  alias JidoCode.Projects.Project
-
   setup do
     original_loader = Application.get_env(:jido_code, :dashboard_run_summary_loader, :__missing__)
 
@@ -36,8 +33,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     register_owner("owner@example.com", "owner-password-123")
     {authed_conn, _session_token} = authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-dashboard-recent-runs",
         github_full_name: "owner/repo-dashboard-recent-runs",
         default_branch: "main",
@@ -47,24 +44,15 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     {:ok, completed_run} =
-      create_run(project.id, "dashboard-run-completed", DateTime.add(now, -3_600, :second))
-
-    {:ok, completed_run} =
-      WorkflowRun.transition_status(completed_run, %{
-        to_status: :running,
-        current_step: "plan_changes",
-        transitioned_at: DateTime.add(now, -3_540, :second)
-      })
-
-    {:ok, _completed_run} =
-      WorkflowRun.transition_status(completed_run, %{
-        to_status: :completed,
+      create_run(route_id, "dashboard-run-completed", DateTime.add(now, -3_600, :second), %{
+        status: :completed,
         current_step: "publish_pr",
-        transitioned_at: DateTime.add(now, -3_480, :second)
+        current_stage: "publish_pr",
+        completed_at: DateTime.add(now, -3_480, :second)
       })
 
     {:ok, _pending_run} =
-      create_run(project.id, "dashboard-run-pending", DateTime.add(now, -120, :second))
+      create_run(route_id, "dashboard-run-pending", DateTime.add(now, -120, :second))
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
 
@@ -365,9 +353,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
            )
   end
 
-  defp create_run(project_id, run_id, started_at) do
-    WorkflowRun.create(%{
-      project_id: project_id,
+  defp create_run(repo_identifier, run_id, started_at, attrs \\ %{}) do
+    create_governed_run(repo_identifier, Map.merge(%{
       run_id: run_id,
       workflow_name: "implement_task",
       workflow_version: 1,
@@ -377,7 +364,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       initiating_actor: %{id: "owner-1", email: "owner@example.com"},
       current_step: "queued",
       started_at: started_at
-    })
+    }, attrs))
   end
 
   defp run_dom_token(value) do

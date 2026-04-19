@@ -5,10 +5,10 @@ This guide explains how repository-scoped memory and workflow provenance work in
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/memory_graph_product_adoption.spec.md`](../../.spec/specs/memory_graph_product_adoption.spec.md)
-- [`../../.spec/specs/memory_capture_plane.spec.md`](../../.spec/specs/memory_capture_plane.spec.md)
-- [`../../lib/jido_code/memory_graph/`](../../lib/jido_code/memory_graph/)
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
+- [`../../.spec/specs/memory_graph_product_adoption.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_graph_product_adoption.spec.md)
+- [`../../.spec/specs/memory_capture_plane.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_capture_plane.spec.md)
+- [`../../lib/jido_code/memory_graph/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/memory_graph)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## Two Related Graphs
 
@@ -151,5 +151,5 @@ That usually tells you which boundary to use.
 ## Read Next
 
 Continue with
-[`09-frontend-and-product-surfaces.md`](09-frontend-and-product-surfaces.md).
+[`09-frontend-and-product-surfaces.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/09-frontend-and-product-surfaces.md).
 

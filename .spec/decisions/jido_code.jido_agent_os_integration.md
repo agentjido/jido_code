@@ -1508,6 +1508,6 @@ Task board actions:
 
 - [jido_agent_os README](https://github.com/pcharbon70/jido_agent_os)
 - [jido_agent_os CodingAssistant Pod](https://github.com/pcharbon70/jido_agent_os/tree/main/lib/jido/agent_os/pods/coding_assistant)
-- [jido_os Deprecation ADR](./jido_code.jido_os_deprecation.md)
-- [ManagedRepo domain](../../lib/jido_code/control/managed_repo.ex)
-- [WorkItem domain](../../lib/jido_code/operations/work_item.ex)
+- [jido_os Deprecation ADR](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.jido_os_deprecation.md)
+- [ManagedRepo domain](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/control/managed_repo.ex)
+- [WorkItem domain](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/work_item.ex)

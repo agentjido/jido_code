@@ -6,7 +6,7 @@
 <!-- covers: architecture.conversation_orchestration.steering_preserves_short_term_context -->
 <!-- covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

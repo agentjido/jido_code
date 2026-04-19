@@ -5,7 +5,7 @@
 <!-- covers: architecture.memory_graph.memory_graph_supports_cross_graph_provenance -->
 <!-- covers: architecture.run_governance.run_detail_can_host_bounded_memory_context -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/memory_graph.spec.md`

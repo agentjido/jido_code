@@ -177,9 +177,9 @@ follow-up were produced.
 The semantic store still uses three named graphs, but it now uses two
 complementary ontology assets:
 
-- [priv/ontologies/jido-memory.ttl](/Users/Pascal/code/epic/jido_code/priv/ontologies/jido-memory.ttl)
+- [priv/ontologies/jido-memory.ttl](https://github.com/mikehostetler/jido_code/blob/main/priv/ontologies/jido-memory.ttl)
   for durable coding memory and workflow provenance
-- [priv/ontologies/jido-control-plane.ttl](/Users/Pascal/code/epic/jido_code/priv/ontologies/jido-control-plane.ttl)
+- [priv/ontologies/jido-control-plane.ttl](https://github.com/mikehostetler/jido_code/blob/main/priv/ontologies/jido-control-plane.ttl)
   for first-class governed product records
 
 ```mermaid

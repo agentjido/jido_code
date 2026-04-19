@@ -4,9 +4,9 @@ This guide explains how browser-facing surfaces are structured in `jido_code`.
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/frontend_architecture.spec.md`](../../.spec/specs/frontend_architecture.spec.md)
-- [`../../lib/jido_code_web/`](../../lib/jido_code_web/)
-- [`../../assets/`](../../assets/)
+- [`../../.spec/specs/frontend_architecture.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/frontend_architecture.spec.md)
+- [`../../lib/jido_code_web/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code_web)
+- [`../../assets/`](https://github.com/mikehostetler/jido_code/tree/main/assets)
 
 ## Core Rule
 
@@ -105,5 +105,5 @@ When adding UI:
 ## Read Next
 
 Continue with
-[`10-development-workflow-and-quality-gates.md`](10-development-workflow-and-quality-gates.md).
+[`10-development-workflow-and-quality-gates.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/10-development-workflow-and-quality-gates.md).
 

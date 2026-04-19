@@ -9,7 +9,7 @@
 <!-- covers: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance -->
 <!-- covers: architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/memory_graph.spec.md`

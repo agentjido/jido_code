@@ -1,6 +1,6 @@
 # Phase 3 - Run, Evidence, Decision, and Execution Governance
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/execution_pipeline.spec.md`

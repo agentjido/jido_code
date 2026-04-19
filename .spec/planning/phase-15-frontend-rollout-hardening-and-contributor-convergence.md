@@ -1,6 +1,6 @@
 # Phase 15 - Frontend Rollout Hardening and Contributor Convergence
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/frontend_architecture.spec.md`

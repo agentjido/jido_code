@@ -6,7 +6,7 @@ defmodule JidoCode.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/epic-creative/jido_code"
+  @source_url "https://github.com/mikehostetler/jido_code"
   @description "Primary Jido.Code product and implementation repository."
   @erlang_rocksdb_opts "-DWITH_BUNDLE_SNAPPY=ON -DWITH_BUNDLE_LZ4=OFF -DWITH_LZ4=TRUE"
 

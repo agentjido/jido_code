@@ -4,10 +4,10 @@ This guide summarizes how contributors should work in `jido_code` day to day.
 
 Current truth for this area lives in:
 
-- [`../../README.md`](../../README.md)
-- [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)
-- [`../../AGENTS.md`](../../AGENTS.md)
-- [`../../.spec/specs/developer_workflow.spec.md`](../../.spec/specs/developer_workflow.spec.md)
+- [`../../README.md`](https://github.com/mikehostetler/jido_code/blob/main/README.md)
+- [`../../CONTRIBUTING.md`](https://github.com/mikehostetler/jido_code/blob/main/CONTRIBUTING.md)
+- [`../../AGENTS.md`](https://github.com/mikehostetler/jido_code/blob/main/AGENTS.md)
+- [`../../.spec/specs/developer_workflow.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/developer_workflow.spec.md)
 
 ## Normal Local Workflow
 
@@ -23,7 +23,7 @@ Typical flow:
 5. `mix test`
 
 Desktop packaging and runtime work are separate and live under
-[`../../tauri/README.md`](../../tauri/README.md).
+[`../../tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md).
 
 ## Read Order For New Work
 
@@ -112,8 +112,8 @@ Before landing meaningful work:
 
 If you need a refresher on the architecture, go back to:
 
-- [`README.md`](README.md)
-- [`01-system-overview.md`](01-system-overview.md)
-- [`03-agent-workspace-and-runtime-topology.md`](03-agent-workspace-and-runtime-topology.md)
-- [`05-specialist-prompts-context-and-tool-execution.md`](05-specialist-prompts-context-and-tool-execution.md)
+- [`README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md)
+- [`01-system-overview.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/01-system-overview.md)
+- [`03-agent-workspace-and-runtime-topology.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/03-agent-workspace-and-runtime-topology.md)
+- [`05-specialist-prompts-context-and-tool-execution.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/05-specialist-prompts-context-and-tool-execution.md)
 

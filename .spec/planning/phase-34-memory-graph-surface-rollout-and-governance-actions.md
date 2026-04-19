@@ -8,7 +8,7 @@
 <!-- covers: architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections -->
 <!-- covers: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/memory_graph.spec.md`

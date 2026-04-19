@@ -7,9 +7,9 @@ This guide covers operational aspects of the source code graph capability, inclu
 The source code graph feature extracts semantic information from Elixir codebases using `ElixirOntologies`, storing results in a local TripleStore for semantic-aware planning, review, and explanation workflows.
 
 **Current Truth Sources:**
-- [`../../.spec/planning/phase-20-source-code-graph-pod-foundation.md`](../../.spec/planning/phase-20-source-code-graph-pod-foundation.md)
-- [`../../.spec/planning/phase-21-full-ontology-analysis-and-named-graph-load.md`](../../.spec/planning/phase-21-full-ontology-analysis-and-named-graph-load.md)
-- [`../../lib/jido_code/source_code_graph/`](../../lib/jido_code/source_code_graph/)
+- [`../../.spec/planning/phase-20-source-code-graph-pod-foundation.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-20-source-code-graph-pod-foundation.md)
+- [`../../.spec/planning/phase-21-full-ontology-analysis-and-named-graph-load.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-21-full-ontology-analysis-and-named-graph-load.md)
+- [`../../lib/jido_code/source_code_graph/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/source_code_graph)
 
 ## Configuration
 
@@ -222,5 +222,5 @@ Key metrics to monitor:
 
 ## Read Next
 
-- [`07-source-code-graph-and-semantic-services.md`](07-source-code-graph-and-semantic-services.md) - Architecture overview
-- [`08-memory-graph-and-workflow-provenance.md`](08-memory-graph-and-workflow-provenance.md) - Related memory graph features
+- [`07-source-code-graph-and-semantic-services.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/07-source-code-graph-and-semantic-services.md) - Architecture overview
+- [`08-memory-graph-and-workflow-provenance.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08-memory-graph-and-workflow-provenance.md) - Related memory graph features

@@ -7,7 +7,7 @@
 <!-- covers: architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode -->
 <!-- covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

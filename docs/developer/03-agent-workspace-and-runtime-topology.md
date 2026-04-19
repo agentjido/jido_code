@@ -5,9 +5,9 @@ This guide explains the repository-scoped runtime and the role of
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/agent_os_integration.spec.md`](../../.spec/specs/agent_os_integration.spec.md)
-- [`../../.spec/topology.md`](../../.spec/topology.md)
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
+- [`../../.spec/specs/agent_os_integration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/agent_os_integration.spec.md)
+- [`../../.spec/topology.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/topology.md)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## What AgentWorkspace Is
 
@@ -132,5 +132,5 @@ product-owned service over:
 ## Read Next
 
 Continue with
-[`04-coding-pod-and-specialist-workflows.md`](04-coding-pod-and-specialist-workflows.md).
+[`04-coding-pod-and-specialist-workflows.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/04-coding-pod-and-specialist-workflows.md).
 

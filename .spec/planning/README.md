@@ -85,6 +85,12 @@ The plan aligns to:
 45. [Phase 51 - Work-Item Conversation Runtime Lifecycle And Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md): harden governed run routing, runtime lifecycle, and contributor guidance so per-work-item productive conversations become the durable default without residual repo-global assumptions.
 46. [Phase 52 - Deterministic Conversation Workflow Routing And Clarification](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md): centralize productive conversation workflow routing into one deterministic product-owned boundary, preserve explicit intent and continuity ahead of text heuristics, and clarify ambiguous routing instead of silently guessing the specialist.
 47. [Phase 53 - Source Code Graph Enablement and Hardening](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-53-source-code-graph-enablement-and-hardening.md): enable the source code graph feature for development use and add production-hardening including timeouts, retries, resource limits, health monitoring, and graceful degradation.
+48. [Phase 54 - Drift Closure And Current-Truth Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-54-drift-closure-and-current-truth-convergence.md): close the remaining spec-to-implementation drift by finishing canonical repo and run cutovers, converging greenfield fixtures and helpers, promoting shipped semantic and AgentOS subjects out of proposal-only status, and repairing planning plus contributor guidance where chronology or terminology has diverged.
+
+Chronology note: repo integration coverage already includes Phase 55-style
+memory ontology and governed-reference verification. Phase 54 closes the
+missing planning gap so later rollout docs can build on a repaired narrative
+instead of jumping from Phase 53 straight into higher-numbered coverage.
 
 ## Shared Conventions
 - Numbering:
@@ -102,6 +108,6 @@ The plan aligns to:
 ## Shared Assumptions and Defaults
 - `Jido.Code` is the product and durable factory control plane.
 - `Jido.Runic` is the canonical execution integration layer.
-- Current `Project` and `WorkflowRun` surfaces are transitional implementation seams, not the preferred long-term ontology.
+- Remaining `Project` and `WorkflowRun` compatibility seams are bounded internal, migration, or audit exceptions rather than the preferred contributor path or long-term ontology.
 - Repo-native `.spec/` state and optional Git-native planning state such as Beadwork remain additive signals that inform the factory without replacing product-owned records.
-- Repository-scoped AgentOS kernels remain the bounded runtime host for specialist pods such as CodingPod, RepoPod, and future semantic-analysis pods.
+- Repository-scoped AgentOS kernels remain the bounded runtime host for specialist pods such as CodingPod, RepoPod, SourceCodeGraphPod, and MemoryGraphPod.

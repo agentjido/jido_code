@@ -47,6 +47,10 @@ Jido.Code currently centers on a few concrete areas:
 
 The product direction is still broader than the currently finished UX. Treat this repo as a working implementation base, not a finished end-user product.
 
+For new repo work, prefer canonical repository or managed-repository language
+and governed-run terms. Keep `Project` and `WorkflowRun` references confined to
+explicit compatibility, migration, or audit seams.
+
 ## Local Development
 
 The repo toolchain is pinned in `.tool-versions` for `asdf`. Normal day-to-day development should feel like a conventional Phoenix app:

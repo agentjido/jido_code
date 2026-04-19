@@ -87,22 +87,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 55.3.2.2 Subtask - Preserve follow-up previews, provenance feedback, and governed adoption metadata on the work-item route.
       [x] 55.3.2.3 Subtask - Keep action feedback and state refresh consistent with the existing run-detail memory interaction model.
 
-  [ ] 55.4 Section - Evidence And Decision Memory Surface Adoption
+  [x] 55.4 Section - Evidence And Decision Memory Surface Adoption
     Finish the governed rollout by giving evidence and decision records their own bounded memory-aware surfaces, consistent navigation, and product-owned operator actions.
 
-    [ ] 55.4.1 Task - Add bounded evidence and decision memory context
+    [x] 55.4.1 Task - Add bounded evidence and decision memory context
       Present the same explainable memory, provenance, and related-governed context on evidence and decision routes that operators already see in run detail.
 
-      [ ] 55.4.1.1 Subtask - Add product-owned evidence detail loaders that shape evidence, related work, and bounded memory context for the canonical evidence route.
-      [ ] 55.4.1.2 Subtask - Add product-owned decision detail loaders that shape decision history, related evidence, and bounded memory context for the canonical decision route.
-      [ ] 55.4.1.3 Subtask - Keep cross-graph navigation repository-scoped and consistent across work-item, evidence, and decision routes.
+      [x] 55.4.1.1 Subtask - Add product-owned evidence detail loaders that shape evidence, related work, and bounded memory context for the canonical evidence route.
+      [x] 55.4.1.2 Subtask - Add product-owned decision detail loaders that shape decision history, related evidence, and bounded memory context for the canonical decision route.
+      [x] 55.4.1.3 Subtask - Keep cross-graph navigation repository-scoped and consistent across work-item, evidence, and decision routes.
 
-    [ ] 55.4.2 Task - Reuse bounded memory actions and governed follow-up on evidence and decision routes
+    [x] 55.4.2 Task - Reuse bounded memory actions and governed follow-up on evidence and decision routes
       Expose the same product-owned memory action boundary and follow-up affordances from the new evidence and decision routes rather than keeping those interactions run-detail-only.
 
-      [ ] 55.4.2.1 Subtask - Wire validate, invalidate, supersede, and promote interactions through the shared product-owned memory action path.
-      [ ] 55.4.2.2 Subtask - Preserve governed follow-up previews and post-action feedback on evidence and decision surfaces.
-      [ ] 55.4.2.3 Subtask - Keep the route contract canonical and governed instead of introducing graph-first views or raw RDF detail.
+      [x] 55.4.2.1 Subtask - Wire validate, invalidate, supersede, and promote interactions through the shared product-owned memory action path.
+      [x] 55.4.2.2 Subtask - Preserve governed follow-up previews and post-action feedback on evidence and decision surfaces.
+      [x] 55.4.2.3 Subtask - Keep the route contract canonical and governed instead of introducing graph-first views or raw RDF detail.
 
   [ ] 55.5 Section - Spec And Contributor Convergence
     Bring the remaining proposed subjects and adjacent guidance into alignment once the governed memory surfaces actually exist in the product.

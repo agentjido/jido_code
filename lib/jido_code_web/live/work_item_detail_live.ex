@@ -5,6 +5,8 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
   # covers: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
   use JidoCodeWeb, :live_view
 
+  import JidoCodeWeb.GovernedMemoryHelpers
+
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.Decision
   alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
@@ -628,191 +630,13 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
   defp memory_context_graph(_socket), do: nil
 
   defp memory_operator_opts(socket, extra_opts \\ []) do
-    actor = approving_actor(socket)
-
-    [
-      actor: actor,
-      workspace_path: memory_operator_workspace_path(socket),
-      revision: memory_operator_revision(socket),
+    memory_operator_base_opts(
+      socket,
       work_item_id: socket.assigns.work_item && socket.assigns.work_item.id
-    ] ++ extra_opts
+    ) ++ extra_opts
   end
-
-  defp memory_operator_workspace_path(socket) do
-    socket.assigns
-    |> Map.get(:memory_context, %{})
-    |> Map.get(:workspace_path)
-  end
-
-  defp memory_operator_revision(socket) do
-    socket.assigns
-    |> Map.get(:memory_context, %{})
-    |> Map.get(:graph, %{})
-    |> Map.get(:current_revision)
-  end
-
-  defp approving_actor(socket) do
-    socket.assigns
-    |> Map.get(:current_user)
-    |> case do
-      %{} = user ->
-        Actor.operator_actor(%{
-          "id" => user |> Map.get(:id) |> normalize_optional_string() || "unknown",
-          "email" => user |> Map.get(:email) |> normalize_optional_string()
-        })
-
-      _other ->
-        Actor.operator_actor(%{"id" => "unknown", "email" => nil})
-    end
-  end
-
-  defp latest_decision([decision | _rest]), do: decision
-  defp latest_decision(_decisions), do: nil
-
-  defp decision_memory_iri(items) when is_list(items) do
-    items
-    |> Enum.find(&(memory_item_kind(&1) == "Decision"))
-    |> case do
-      nil -> nil
-      item -> memory_item_iri(item)
-    end
-  end
-
-  defp decision_memory_iri(_items), do: nil
-
-  defp memory_feedback_kind(%{kind: kind}) when is_atom(kind), do: kind
-  defp memory_feedback_kind(_feedback), do: :info
-
-  defp memory_item_iri(item) do
-    present_string(map_get(item, :memory_iri, "memory_iri"))
-  end
-
-  defp memory_item_kind(item) do
-    present_string(map_get(item, :memory_kind, "memory_kind")) ||
-      kind_from_resource_iri(memory_item_iri(item)) ||
-      "Memory"
-  end
-
-  defp memory_item_content(item) do
-    present_string(map_get(item, :content, "content")) || "bounded durable memory"
-  end
-
-  defp memory_item_freshness(item) do
-    map_get(item, :freshness_score, "freshness_score") || "unknown"
-  end
-
-  defp memory_item_decision_status(item) do
-    present_string(map_get(item, :decision_status, "decision_status")) || "n/a"
-  end
-
-  defp provenance_item_kind(item) do
-    present_string(map_get(item, :provenance_kind, "provenance_kind")) ||
-      kind_from_resource_iri(present_string(map_get(item, :resource_iri, "resource_iri"))) ||
-      "Provenance"
-  end
-
-  defp provenance_item_label(item) do
-    present_string(map_get(item, :label, "label")) ||
-      present_string(map_get(item, :content, "content")) ||
-      "bounded provenance"
-  end
-
-  defp provenance_item_revision(item) do
-    present_string(map_get(item, :revision_iri, "revision_iri")) || "unknown"
-  end
-
-  defp kind_from_resource_iri(nil), do: nil
-
-  defp kind_from_resource_iri(value) when is_binary(value) do
-    value
-    |> String.split("#")
-    |> List.last()
-    |> case do
-      nil -> nil
-      fragment -> fragment |> String.split("/") |> List.first()
-    end
-    |> present_string()
-    |> case do
-      nil -> nil
-      segment -> segment |> String.replace("-", "_") |> Macro.camelize()
-    end
-  end
-
-  defp work_item_route(repo_id, work_item_id) when is_binary(repo_id) and is_binary(work_item_id),
-    do: "/repos/#{repo_id}/work-items/#{work_item_id}"
-
-  defp work_item_route(_repo_id, _work_item_id), do: nil
 
   defp work_item_memory_route(repo_id, work_item_id) do
-    case work_item_route(repo_id, work_item_id) do
-      route when is_binary(route) -> route <> "#work-item-detail-memory-context"
-      _other -> nil
-    end
+    memory_anchor_route(work_item_route(repo_id, work_item_id), "#work-item-detail-memory-context")
   end
-
-  defp repo_route(repo_id) when is_binary(repo_id), do: "/repos/#{repo_id}"
-  defp repo_route(_repo_id), do: nil
-
-  defp run_route(repo_id, run_id) when is_binary(repo_id) and is_binary(run_id),
-    do: "/repos/#{repo_id}/runs/#{run_id}"
-
-  defp run_route(_repo_id, _run_id), do: nil
-
-  defp route_repo_id(scope) when is_map(scope) do
-    normalize_optional_string(Map.get(scope, :route_id) || Map.get(scope, "route_id"))
-  end
-
-  defp route_repo_id(_scope), do: nil
-
-  defp managed_repo_id(scope) when is_map(scope) do
-    normalize_optional_string(Map.get(scope, :managed_repo_id) || Map.get(scope, "managed_repo_id"))
-  end
-
-  defp managed_repo_id(_scope), do: nil
-
-  defp display_string(value, fallback \\ "Unavailable")
-
-  defp display_string(value, fallback) when is_binary(value) do
-    case String.trim(value) do
-      "" -> fallback
-      normalized -> normalized
-    end
-  end
-
-  defp display_string(value, fallback) when is_atom(value),
-    do: value |> Atom.to_string() |> display_string(fallback)
-
-  defp display_string(nil, fallback), do: fallback
-  defp display_string(value, _fallback), do: to_string(value)
-
-  defp display_atom(value) when is_atom(value), do: Atom.to_string(value)
-  defp display_atom(value), do: display_string(value)
-
-  defp present_string(value), do: normalize_optional_string(value)
-
-  defp map_get(map, atom_key, string_key, default \\ nil)
-
-  defp map_get(map, atom_key, string_key, default) when is_map(map) do
-    cond do
-      Map.has_key?(map, atom_key) -> Map.get(map, atom_key)
-      Map.has_key?(map, string_key) -> Map.get(map, string_key)
-      true -> default
-    end
-  end
-
-  defp map_get(_map, _atom_key, _string_key, default), do: default
-
-  defp normalize_optional_string(nil), do: nil
-
-  defp normalize_optional_string(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      normalized -> normalized
-    end
-  end
-
-  defp normalize_optional_string(value) when is_atom(value),
-    do: value |> Atom.to_string() |> normalize_optional_string()
-
-  defp normalize_optional_string(_value), do: nil
 end

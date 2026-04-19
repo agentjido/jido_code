@@ -12,7 +12,7 @@ defmodule JidoCodeWeb.SettingsLive do
 
   @secret_scope_options [
     {"Instance", "instance"},
-    {"Project", "project"},
+    {"Repository", "project"},
     {"Integration", "integration"}
   ]
 

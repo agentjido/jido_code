@@ -30,6 +30,7 @@ defmodule JidoCodeWeb.ConnCase do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Orchestration.Run
 
   import Phoenix.ConnTest, only: [recycle: 1]
   import Plug.Conn, only: [get_session: 2]
@@ -156,6 +157,40 @@ defmodule JidoCodeWeb.ConnCase do
     end
   end
 
+  def create_governed_run!(repo_identifier, attrs \\ %{}) when is_map(attrs) do
+    {:ok, run} = create_governed_run(repo_identifier, attrs)
+    run
+  end
+
+  def create_governed_run(repo_identifier, attrs \\ %{}) when is_map(attrs) do
+    with {:ok, repo_scope} <- governed_run_repo_scope(repo_identifier) do
+      managed_repo_id =
+        repo_scope
+        |> Map.get(:managed_repo, %{})
+        |> Map.get(:id)
+
+      legacy_project_id = Map.get(repo_scope, :route_id) || managed_repo_id
+
+      base_attrs = %{
+        managed_repo_id: managed_repo_id,
+        legacy_project_id: legacy_project_id,
+        run_id: "run-#{System.unique_integer([:positive])}",
+        workflow_name: "implement_task",
+        workflow_version: 1,
+        status: :pending,
+        current_step: "queued",
+        current_stage: "repo_attach",
+        trigger: %{"source" => "test", "mode" => "manual"},
+        inputs: %{},
+        input_metadata: %{},
+        initiating_actor: %{"id" => "test-owner", "email" => "owner@example.com"},
+        started_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      }
+
+      Run.create(Map.merge(base_attrs, attrs), actor: Actor.operator_actor())
+    end
+  end
+
   def read_managed_repo!(managed_repo_id) when is_binary(managed_repo_id) do
     {:ok, [managed_repo]} =
       ManagedRepo.read(
@@ -170,6 +205,22 @@ defmodule JidoCodeWeb.ConnCase do
   defp auth_result(conn, session_token, _owner, true, false), do: {conn, session_token}
   defp auth_result(conn, _session_token, owner, false, true), do: {conn, owner}
   defp auth_result(conn, session_token, owner, true, true), do: {conn, session_token, owner}
+
+  defp governed_run_repo_scope(%{repo_scope: repo_scope}) when is_map(repo_scope), do: {:ok, repo_scope}
+  defp governed_run_repo_scope(%{route_id: route_id}) when is_binary(route_id), do: RepoBridge.repo_scope(route_id)
+
+  defp governed_run_repo_scope(%{managed_repo: %{id: managed_repo_id}})
+       when is_binary(managed_repo_id) do
+    RepoBridge.repo_scope(managed_repo_id)
+  end
+
+  defp governed_run_repo_scope(%{id: managed_repo_id}) when is_binary(managed_repo_id) do
+    RepoBridge.repo_scope(managed_repo_id)
+  end
+
+  defp governed_run_repo_scope(repo_identifier) when is_binary(repo_identifier) do
+    RepoBridge.repo_scope(repo_identifier)
+  end
 
   defp owner_sign_in_with_token_path(strategy, token) do
     strategy_path =

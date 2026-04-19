@@ -129,7 +129,7 @@ defmodule JidoCodeWeb.AgentsLive do
         <table id="agents-project-table" class="table table-zebra w-full">
           <thead>
             <tr>
-              <th>Project</th>
+              <th>Repository</th>
               <th>Issue Bot status</th>
               <th>Webhook events</th>
               <th>Approval policy</th>
@@ -139,7 +139,7 @@ defmodule JidoCodeWeb.AgentsLive do
           <tbody id="agents-project-rows" phx-update="stream">
             <tr :if={@project_count == 0} id="agents-project-empty">
               <td colspan="5" class="text-center text-sm text-base-content/70 py-8">
-                No projects are available for Issue Bot configuration.
+                No repositories are available for Issue Bot configuration.
               </td>
             </tr>
 

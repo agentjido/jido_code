@@ -6,14 +6,14 @@ defmodule JidoCodeWeb.WorkflowsLive do
   @impl true
   def mount(_params, _session, socket) do
     workflows = ManualRunKickoff.supported_workflows()
-    projects = ManualRunKickoff.project_options()
-    run_form_values = default_run_form_values(workflows, projects)
+    repositories = ManualRunKickoff.repository_options()
+    run_form_values = default_run_form_values(workflows, repositories)
 
     {:ok,
      socket
      |> assign(:workflows, workflows)
-     |> assign(:project_count, length(projects))
-     |> assign(:project_options, project_select_options(projects))
+     |> assign(:repository_count, length(repositories))
+     |> assign(:repository_options, repository_select_options(repositories))
      |> assign(:run_feedback, nil)
      |> assign(:run_count, 0)
      |> assign(:run_form_values, run_form_values)
@@ -98,10 +98,10 @@ defmodule JidoCodeWeb.WorkflowsLive do
           <div class="grid gap-3 md:grid-cols-2">
             <.input
               id="workflows-project-id"
-              field={@run_form[:project_id]}
+              field={@run_form[:repo_id]}
               type="select"
               label="Repo scope"
-              options={@project_options}
+              options={@repository_options}
             />
             <.input
               id="workflows-workflow-name"
@@ -137,7 +137,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
           <% end %>
 
           <div class="flex flex-wrap items-center gap-3">
-            <%= if @project_count > 0 do %>
+            <%= if @repository_count > 0 do %>
               <button id="workflows-start-run" type="submit" class="btn btn-primary">
                 Start workflow run
               </button>
@@ -211,7 +211,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
               <th>Run ID</th>
               <th>Workflow</th>
               <th>Version</th>
-              <th>Project</th>
+              <th>Repository</th>
               <th>Trigger</th>
               <th>Inputs</th>
               <th>Route</th>
@@ -233,7 +233,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
               <td id={"workflows-run-workflow-version-#{run_dom_token(run.run_id)}"} class="text-xs">
                 {run_workflow_version_summary(run.workflow_version)}
               </td>
-              <td id={"workflows-run-project-#{run_dom_token(run.run_id)}"}>{run.project_name}</td>
+              <td id={"workflows-run-project-#{run_dom_token(run.run_id)}"}>{run.repository_name}</td>
               <td id={"workflows-run-trigger-#{run_dom_token(run.run_id)}"} class="text-xs">
                 {run_trigger_summary(run.trigger)}
               </td>
@@ -257,10 +257,10 @@ defmodule JidoCodeWeb.WorkflowsLive do
     """
   end
 
-  defp default_run_form_values(workflows, projects) do
+  defp default_run_form_values(workflows, repositories) do
     %{
-      "project_id" =>
-        projects
+      "repo_id" =>
+        repositories
         |> List.first()
         |> map_get(:id, "id", ""),
       "workflow_name" =>
@@ -275,7 +275,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
 
   defp normalize_run_form_values(run_params, current_values) when is_map(run_params) do
     %{
-      "project_id" => form_value(run_params, current_values, :project_id, "project_id"),
+      "repo_id" => form_value(run_params, current_values, :repo_id, "repo_id"),
       "workflow_name" => form_value(run_params, current_values, :workflow_name, "workflow_name"),
       "task_summary" => form_value(run_params, current_values, :task_summary, "task_summary"),
       "failure_signal" => form_value(run_params, current_values, :failure_signal, "failure_signal"),
@@ -316,12 +316,12 @@ defmodule JidoCodeWeb.WorkflowsLive do
     end)
   end
 
-  defp project_select_options([]), do: [{"Select a repository", ""}]
+  defp repository_select_options([]), do: [{"Select a repository", ""}]
 
-  defp project_select_options(projects) do
-    Enum.map(projects, fn project ->
-      label = Map.get(project, :github_full_name) || Map.get(project, :name) || Map.get(project, :id)
-      {label, Map.get(project, :id)}
+  defp repository_select_options(repositories) do
+    Enum.map(repositories, fn repository ->
+      label = Map.get(repository, :github_full_name) || Map.get(repository, :name) || Map.get(repository, :id)
+      {label, Map.get(repository, :id)}
     end)
   end
 

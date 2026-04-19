@@ -54,6 +54,16 @@ auto-run Ash codegen or migrations. When resource DSL changes require generated
 files, run `mix ash.codegen --dev` while iterating and `mix ash.codegen <name>`
 before you finalize the change set.
 
+## Canonical Repo And Run Terms
+
+New product code, tests, and docs should default to `SourceRepo`,
+`ManagedRepo`, and governed `Run` terminology.
+
+- Use shared helpers such as `provision_managed_repo!/1` and
+  `create_governed_run!/2` for greenfield test setup.
+- Keep `Project` and `WorkflowRun` references limited to explicit
+  compatibility, migration, or audit coverage, and label those cases clearly.
+
 ## Source Code Graph Capability
 
 The repository-scoped semantic graph stack uses `elixir_ontologies`,

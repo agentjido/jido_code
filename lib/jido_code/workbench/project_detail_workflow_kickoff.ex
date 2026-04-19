@@ -24,14 +24,14 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
       label: "Fix failing tests",
       launcher_env: :workbench_fix_workflow_launcher,
       context_item_type: :issue,
-      context_item_label: "Project issue queue"
+      context_item_label: "Repository issue queue"
     },
     %{
       name: "issue_triage",
       label: "Issue triage and research",
       launcher_env: :workbench_issue_triage_workflow_launcher,
       context_item_type: :issue,
-      context_item_label: "Project issue queue"
+      context_item_label: "Repository issue queue"
     }
   ]
 
@@ -82,7 +82,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
         {:error,
          kickoff_error(
            @default_error_type,
-           "Project workflow kickoff failed with an unexpected result (#{inspect(other)}).",
+           "Repository workflow kickoff failed with an unexpected result (#{inspect(other)}).",
            @launcher_remediation
          )}
     end
@@ -155,7 +155,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
          |> normalize_optional_string() || "project_execution_not_ready",
          execution_readiness
          |> map_get(:detail, "detail")
-         |> normalize_optional_string() || "Project is not ready for workflow execution.",
+         |> normalize_optional_string() || "Repository is not ready for workflow execution.",
          execution_readiness
          |> map_get(:remediation, "remediation")
          |> normalize_optional_string() || @validation_remediation
@@ -193,6 +193,12 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
 
     %{
       workflow_name: Map.fetch!(workflow_definition, :name),
+      repo_id: project_id,
+      repository_name: Map.fetch!(project_scope, :project_name),
+      repository_defaults: %{
+        default_branch: Map.fetch!(project_scope, :default_branch),
+        github_full_name: github_full_name
+      },
       project_id: project_id,
       project_name: Map.fetch!(project_scope, :project_name),
       project_defaults: %{
@@ -217,6 +223,8 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
            actor: Map.fetch!(kickoff_request, :initiating_actor),
            payload: %{
              "workflow_name" => Map.fetch!(kickoff_request, :workflow_name),
+             "repository_name" => Map.fetch!(kickoff_request, :repository_name),
+             "repository_defaults" => Map.fetch!(kickoff_request, :repository_defaults),
              "project_name" => Map.fetch!(kickoff_request, :project_name),
              "project_defaults" => Map.fetch!(kickoff_request, :project_defaults),
              "context_item" => Map.fetch!(kickoff_request, :context_item)
@@ -359,16 +367,24 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
 
       project_id = Map.fetch!(kickoff_request, :project_id)
 
+      repo_id =
+        kickoff_request
+        |> Map.get(:repo_id, project_id)
+        |> normalize_optional_string() || project_id
+
       {:ok,
        %{
          run_id: run_id,
          workflow_name: Map.fetch!(kickoff_request, :workflow_name),
+         repo_id: repo_id,
+         repository_name: Map.fetch!(kickoff_request, :repository_name),
+         repository_defaults: Map.fetch!(kickoff_request, :repository_defaults),
          project_id: project_id,
          project_name: Map.fetch!(kickoff_request, :project_name),
          project_defaults: Map.fetch!(kickoff_request, :project_defaults),
          trigger: Map.fetch!(kickoff_request, :trigger),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path: "/repos/#{URI.encode(repo_id)}/runs/#{URI.encode(run_id)}",
          started_at: started_at
        }}
     else

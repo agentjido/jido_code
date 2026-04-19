@@ -10,11 +10,10 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
   import Phoenix.LiveViewTest
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
-  alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
-  alias JidoCode.Projects.Project
+  alias JidoCode.Orchestration.RunPubSub
 
   setup do
     original_workbench_loader =
@@ -81,8 +80,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     workspace_path = create_semantic_workspace_path!("WorkbenchSemantic.Ready")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-semantic-ready",
         github_full_name: "owner/repo-semantic-ready",
         default_branch: "main",
@@ -96,8 +95,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    route_id = managed_repo_route_id!(project.id)
 
     assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(route_id, workspace_path)
 
@@ -132,8 +129,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     workspace_path = create_semantic_workspace_path!("WorkbenchSemantic.Stale")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-semantic-stale",
         github_full_name: "owner/repo-semantic-stale",
         default_branch: "main",
@@ -147,8 +144,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    route_id = managed_repo_route_id!(project.id)
 
     assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(route_id, workspace_path)
 
@@ -187,8 +182,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     workspace_path = create_semantic_workspace_path!("WorkbenchMemory.Ready")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-memory-ready",
         github_full_name: "owner/repo-memory-ready",
         default_branch: "main",
@@ -202,8 +197,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    route_id = managed_repo_route_id!(project.id)
     seed_memory_graph!(route_id, workspace_path, "phase-32-workbench-ready")
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
@@ -219,8 +212,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     workspace_path = create_semantic_workspace_path!("WorkbenchConversation.Active")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-workbench-conversation",
         github_full_name: "owner/repo-workbench-conversation",
         default_branch: "main",
@@ -235,8 +228,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
         }
       })
 
-    route_id = managed_repo_route_id!(project.id)
-
     on_exit(fn ->
       case AgentWorkspace.latest_repo_conversation(route_id, actor: Actor.operator_actor()) do
         {:ok, %{id: conversation_id}} ->
@@ -250,7 +241,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       end
     end)
 
-    {:ok, detail_view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, detail_view, _html} = live(recycle(authed_conn), ~p"/repos/#{route_id}", on_error: :warn)
 
     detail_view
     |> element("#project-detail-conversation-open")
@@ -308,8 +299,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     workspace_path = create_semantic_workspace_path!("WorkbenchMemory.Stale")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-memory-stale",
         github_full_name: "owner/repo-memory-stale",
         default_branch: "main",
@@ -323,8 +314,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    route_id = managed_repo_route_id!(project.id)
     seed_memory_graph!(route_id, workspace_path, "phase-32-workbench-stale")
     rewrite_semantic_workspace_module!(workspace_path, "WorkbenchMemory.Refreshed")
 
@@ -464,8 +453,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-run-outcomes",
         github_full_name: "owner/repo-run-outcomes",
         default_branch: "main",
@@ -478,30 +467,20 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
         }
       })
 
-    route_id = managed_repo_route_id!(project.id)
-
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    {:ok, run} =
-      create_workbench_run(
-        project.id,
-        "workbench-recent-run-#{System.unique_integer([:positive])}",
-        DateTime.add(now, -180, :second)
-      )
-
-    {:ok, run} =
-      WorkflowRun.transition_status(run, %{
-        to_status: :running,
-        current_step: "execute_changes",
-        transitioned_at: DateTime.add(now, -120, :second)
-      })
-
     {:ok, completed_run} =
-      WorkflowRun.transition_status(run, %{
-        to_status: :completed,
-        current_step: "publish_pr",
-        transitioned_at: DateTime.add(now, -60, :second)
-      })
+      create_workbench_run(
+        route_id,
+        "workbench-recent-run-#{System.unique_integer([:positive])}",
+        DateTime.add(now, -180, :second),
+        %{
+          status: :completed,
+          current_step: "publish_pr",
+          current_stage: "publish_pr",
+          completed_at: DateTime.add(now, -60, :second)
+        }
+      )
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
@@ -513,7 +492,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{route_id}/runs/#{completed_run.run_id}']"
            )
 
     assert has_element?(
@@ -524,7 +503,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{route_id}/runs/#{completed_run.run_id}']"
            )
   end
 
@@ -534,8 +513,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-run-refresh",
         github_full_name: "owner/repo-run-refresh",
         default_branch: "main",
@@ -547,8 +526,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    route_id = managed_repo_route_id!(project.id)
     run_id = "workbench-refresh-run-#{System.unique_integer([:positive])}"
     run_detail_path = "/repos/#{route_id}/runs/#{run_id}"
     loader_state = start_supervised!({Agent, fn -> :initial end}, id: make_ref())
@@ -627,8 +604,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-unknown-outcome",
         github_full_name: "owner/repo-unknown-outcome",
         default_branch: "main",
@@ -640,8 +617,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    route_id = managed_repo_route_id!(project.id)
 
     Application.put_env(:jido_code, :workbench_recent_run_outcome_loader, fn _rows ->
       %{
@@ -832,8 +807,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-fixable",
         github_full_name: "owner/repo-fixable",
         default_branch: "main",
@@ -845,9 +820,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    project_id = project.id
-    route_id = managed_repo_route_id!(project_id)
     launcher_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn kickoff_request ->
@@ -922,8 +894,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-triageable",
         github_full_name: "owner/repo-triageable",
         default_branch: "main",
@@ -941,9 +913,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    project_id = project.id
-    route_id = managed_repo_route_id!(project_id)
     launcher_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(
@@ -1160,8 +1129,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
         name: "repo-network-resolution",
         github_full_name: "owner/repo-network-resolution",
         default_branch: "main",
@@ -1173,9 +1142,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
-
-    project_id = project.id
-    route_id = managed_repo_route_id!(project_id)
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn _kickoff_request ->
       {:error,
@@ -1760,9 +1726,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(view, "#workbench-project-name-owner-repo-two", "owner/repo-two")
   end
 
-  defp create_workbench_run(project_id, run_id, started_at) do
-    WorkflowRun.create(%{
-      project_id: project_id,
+  defp create_workbench_run(repo_identifier, run_id, started_at, attrs \\ %{}) do
+    create_governed_run(repo_identifier, Map.merge(%{
       run_id: run_id,
       workflow_name: "fix_failing_tests",
       workflow_version: 1,
@@ -1772,14 +1737,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       initiating_actor: %{id: "owner-1", email: "owner@example.com"},
       current_step: "queued",
       started_at: started_at
-    })
-  end
-
-  defp managed_repo_route_id!(legacy_project_id) do
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(legacy_project_id, actor: Actor.operator_actor())
-
-    managed_repo.id
+    }, attrs))
   end
 
   defp create_semantic_workspace_path!(module_name) do

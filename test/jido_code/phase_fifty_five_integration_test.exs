@@ -1,12 +1,13 @@
 defmodule JidoCode.PhaseFiftyFiveIntegrationTest do
   # covers: architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+  # covers: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
   # covers: package.jido_code.spec_led_workspace
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, ProductService}
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, GovernedReference, ProductService}
   alias JidoCode.Projects.Project
 
   @memory_kinds [
@@ -97,6 +98,29 @@ defmodule JidoCode.PhaseFiftyFiveIntegrationTest do
                )
 
       assert_anti_pattern_ontology(projection)
+    end
+  end
+
+  describe "Section 55.6.1 - Governed reference route coherence scenarios" do
+    test "typed governed references resolve canonical product routes" do
+      assert {:ok, normalized} =
+               GovernedReference.normalize_many("repo-55-routes", [
+                 %{run_id: "run-55"},
+                 %{work_item_id: "work-55"},
+                 %{evidence_id: "evidence-55"},
+                 %{decision_id: "decision-55"}
+               ])
+
+      assert normalized
+             |> Enum.map(fn reference ->
+               {reference.kind, GovernedReference.route("repo-55-routes", reference)}
+             end)
+             |> Enum.sort() == [
+               {:decision, "/repos/repo-55-routes/decisions/decision-55"},
+               {:evidence, "/repos/repo-55-routes/evidence/evidence-55"},
+               {:run, "/repos/repo-55-routes/runs/run-55"},
+               {:work_item, "/repos/repo-55-routes/work-items/work-55"}
+             ]
     end
   end
 

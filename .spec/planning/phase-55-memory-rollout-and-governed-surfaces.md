@@ -121,19 +121,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 55.5.2.2 Subtask - Update contributor-facing guidance that references the remaining proposed status of those memory rollout subjects.
       [x] 55.5.2.3 Subtask - Verify planning, specs, and route vocabulary converge on one canonical governed-memory story.
 
-  [ ] 55.6 Section - Phase 55 Integration Tests
+  [x] 55.6 Section - Phase 55 Integration Tests
     Verify the completed rollout through both the existing ontology coverage and new governed-surface route coverage so the phase closes with implementation, docs, and tests aligned.
 
-    [ ] 55.6.1 Task - Preserve and align shipped ontology coverage with the Phase 55 narrative
+    [x] 55.6.1 Task - Preserve and align shipped ontology coverage with the Phase 55 narrative
       Keep the existing Phase 55 ontology and governed-reference verification as part of the phase while ensuring the new plan explicitly acknowledges it.
 
-      [ ] 55.6.1.1 Subtask - Keep the existing `55.6.*` ontology and governed-reference integration coverage in place as the final phase verification section.
-      [ ] 55.6.1.2 Subtask - Add any missing assertions needed to keep governed-reference routing coherent once canonical work-item, evidence, and decision routes exist.
-      [ ] 55.6.1.3 Subtask - Verify the phase narrative and integration file numbering stay aligned after the plan is introduced.
+      [x] 55.6.1.1 Subtask - Keep the existing `55.6.*` ontology and governed-reference integration coverage in place as the final phase verification section.
+      [x] 55.6.1.2 Subtask - Add any missing assertions needed to keep governed-reference routing coherent once canonical work-item, evidence, and decision routes exist.
+      [x] 55.6.1.3 Subtask - Verify the phase narrative and integration file numbering stay aligned after the plan is introduced.
 
-    [ ] 55.6.2 Task - Add governed-surface LiveView and integration coverage
+    [x] 55.6.2 Task - Add governed-surface LiveView and integration coverage
       Prove the new work-item, evidence, and decision routes host bounded memory context and product-owned actions without regressing the existing route family.
 
-      [ ] 55.6.2.1 Subtask - Add LiveView coverage for canonical work-item, evidence, and decision memory surfaces, including bounded navigation and not-found behavior.
-      [ ] 55.6.2.2 Subtask - Add coverage proving memory actions on those routes still flow through shared product-owned boundaries and preserve follow-up metadata.
-      [ ] 55.6.2.3 Subtask - Verify the final proposed memory specs, planning docs, and governed routes now tell the same current-truth story.
+      [x] 55.6.2.1 Subtask - Add LiveView coverage for canonical work-item, evidence, and decision memory surfaces, including bounded navigation and not-found behavior.
+      [x] 55.6.2.2 Subtask - Add coverage proving memory actions on those routes still flow through shared product-owned boundaries and preserve follow-up metadata.
+      [x] 55.6.2.3 Subtask - Verify the final proposed memory specs, planning docs, and governed routes now tell the same current-truth story.

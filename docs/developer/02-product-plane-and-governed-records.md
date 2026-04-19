@@ -5,9 +5,9 @@ runtime internals.
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/factory_control_plane.spec.md`](../../.spec/specs/factory_control_plane.spec.md)
-- [`../../.spec/specs/work_synthesis.spec.md`](../../.spec/specs/work_synthesis.spec.md)
-- [`../../.spec/specs/run_governance.spec.md`](../../.spec/specs/run_governance.spec.md)
+- [`../../.spec/specs/factory_control_plane.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/factory_control_plane.spec.md)
+- [`../../.spec/specs/work_synthesis.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/work_synthesis.spec.md)
+- [`../../.spec/specs/run_governance.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/run_governance.spec.md)
 
 ## Why The Product Plane Exists
 
@@ -101,5 +101,5 @@ That framing usually leads to the right boundary.
 ## Read Next
 
 Continue with
-[`03-agent-workspace-and-runtime-topology.md`](03-agent-workspace-and-runtime-topology.md).
+[`03-agent-workspace-and-runtime-topology.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/03-agent-workspace-and-runtime-topology.md).
 

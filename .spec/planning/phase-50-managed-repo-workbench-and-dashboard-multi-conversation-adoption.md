@@ -6,7 +6,7 @@
 <!-- covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records -->
 <!-- covers: architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

@@ -6,7 +6,7 @@
 <!-- covers: architecture.memory_ontology.memory_updates_preserve_mutation_lineage -->
 <!-- covers: architecture.memory_graph.memory_graph_supports_cross_graph_provenance -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/memory_capture_plane.spec.md`

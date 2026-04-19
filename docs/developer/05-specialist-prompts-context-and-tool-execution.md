@@ -5,10 +5,10 @@ what actually reaches the LLM.
 
 Current truth for this area lives in:
 
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
-- [`../../lib/jido_code/agents/`](../../lib/jido_code/agents/)
-- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/strategy.ex`](../../deps/jido_ai/lib/jido_ai/reasoning/react/strategy.ex)
-- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex`](../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
+- [`../../lib/jido_code/agents/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/agents)
+- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/strategy.ex`](https://github.com/agentjido/jido_ai/blob/5601aa5eec5341a3cd62c951c029e53cd584a110/lib/jido_ai/reasoning/react/strategy.ex)
+- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex`](https://github.com/agentjido/jido_ai/blob/5601aa5eec5341a3cd62c951c029e53cd584a110/lib/jido_ai/reasoning/react/runner.ex)
 
 ## The Three Context Layers
 
@@ -267,6 +267,6 @@ Use this model when debugging or designing specialist behavior:
 ## Read Next
 
 Continue with
-[`12-user-request-to-llm-message-path.md`](12-user-request-to-llm-message-path.md)
+[`12-user-request-to-llm-message-path.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/12-user-request-to-llm-message-path.md)
 for the exact transformation path from user text to final LLM messages, then
-[`06-conversation-orchestration.md`](06-conversation-orchestration.md).
+[`06-conversation-orchestration.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/06-conversation-orchestration.md).

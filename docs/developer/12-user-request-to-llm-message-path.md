@@ -19,13 +19,13 @@ The current answer is:
 
 Current truth for this area lives in:
 
-- [`../../lib/jido_code/conversations/runtime.ex`](../../lib/jido_code/conversations/runtime.ex)
-- [`../../lib/jido_code/conversations/work_resolution.ex`](../../lib/jido_code/conversations/work_resolution.ex)
-- [`../../lib/jido_code/conversations/coordinator.ex`](../../lib/jido_code/conversations/coordinator.ex)
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
-- [`../../lib/jido_code/agents/`](../../lib/jido_code/agents/)
-- [`../../deps/jido_ai/lib/jido_ai/context.ex`](../../deps/jido_ai/lib/jido_ai/context.ex)
-- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex`](../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex)
+- [`../../lib/jido_code/conversations/runtime.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/runtime.ex)
+- [`../../lib/jido_code/conversations/work_resolution.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/work_resolution.ex)
+- [`../../lib/jido_code/conversations/coordinator.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/coordinator.ex)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
+- [`../../lib/jido_code/agents/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/agents)
+- [`../../deps/jido_ai/lib/jido_ai/context.ex`](https://github.com/agentjido/jido_ai/blob/5601aa5eec5341a3cd62c951c029e53cd584a110/lib/jido_ai/context.ex)
+- [`../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex`](https://github.com/agentjido/jido_ai/blob/5601aa5eec5341a3cd62c951c029e53cd584a110/lib/jido_ai/reasoning/react/runner.ex)
 
 ## Short Answer
 
@@ -118,7 +118,7 @@ The turn starts as operator text in the turn payload, for example:
 
 That value is still visible as the request later in
 `Conversations.Runtime.build_request/2` through `runtime_spec[:instruction]` in
-[`runtime.ex`](../../lib/jido_code/conversations/runtime.ex).
+[`runtime.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/runtime.ex).
 
 ### Stage 2: Workflow inference and governed work resolution
 
@@ -357,6 +357,6 @@ That order usually finds the bug much faster than starting at the provider edge.
 
 ## Companion Guides
 
-- [`05-specialist-prompts-context-and-tool-execution.md`](05-specialist-prompts-context-and-tool-execution.md)
-- [`06-conversation-orchestration.md`](06-conversation-orchestration.md)
-- [`11-ingress-synthesis-and-work-item-flow.md`](11-ingress-synthesis-and-work-item-flow.md)
+- [`05-specialist-prompts-context-and-tool-execution.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/05-specialist-prompts-context-and-tool-execution.md)
+- [`06-conversation-orchestration.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/06-conversation-orchestration.md)
+- [`11-ingress-synthesis-and-work-item-flow.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/11-ingress-synthesis-and-work-item-flow.md)

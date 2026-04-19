@@ -6,7 +6,7 @@
 <!-- covers: architecture.conversation_orchestration.tool_execution_is_cancellable_child_work -->
 <!-- covers: architecture.conversation_orchestration.cancellation_lifecycle_is_evented -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

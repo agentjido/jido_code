@@ -204,6 +204,6 @@ JidoCode.MemoryGraph.ProductService.memories(managed_repo_id, workspace_path, li
 
 ## Cross-Reference
 
-- [Source Code Graph Operations Guide](../specs/source_code_graph.spec.md)
-- [Memory Graph Spec](../specs/memory_graph.spec.md)
-- [Memory Capture Plane](../specs/memory_capture_plane.spec.md)
+- [Source Code Graph Operations Guide](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/13-source-code-graph-operations.md)
+- [Memory Graph Spec](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_graph.spec.md)
+- [Memory Capture Plane](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_capture_plane.spec.md)

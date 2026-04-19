@@ -2,7 +2,7 @@
 
 <!-- covers: package.jido_code.spec_led_workspace -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/memory_capture_plane.spec.md`

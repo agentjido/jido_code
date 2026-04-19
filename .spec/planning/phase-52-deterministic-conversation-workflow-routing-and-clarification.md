@@ -5,7 +5,7 @@
 <!-- covers: architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence -->
 <!-- covers: architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

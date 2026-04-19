@@ -5,7 +5,7 @@
 <!-- covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery -->
 <!-- covers: architecture.run_governance.run_detail_can_host_bounded_memory_context -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/memory_graph.spec.md`

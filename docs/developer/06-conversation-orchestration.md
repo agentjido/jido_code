@@ -5,9 +5,9 @@ This guide explains how productive coding conversations are coordinated in
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/conversation_orchestration.spec.md`](../../.spec/specs/conversation_orchestration.spec.md)
-- [`../../lib/jido_code/conversations/`](../../lib/jido_code/conversations/)
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
+- [`../../.spec/specs/conversation_orchestration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/conversation_orchestration.spec.md)
+- [`../../lib/jido_code/conversations/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/conversations)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## What A Conversation Is
 
@@ -205,6 +205,6 @@ Avoid:
 ## Read Next
 
 Continue with
-[`11-ingress-synthesis-and-work-item-flow.md`](11-ingress-synthesis-and-work-item-flow.md)
+[`11-ingress-synthesis-and-work-item-flow.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/11-ingress-synthesis-and-work-item-flow.md)
 for the concrete repo-intake-to-work-item trace, then
-[`07-source-code-graph-and-semantic-services.md`](07-source-code-graph-and-semantic-services.md).
+[`07-source-code-graph-and-semantic-services.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/07-source-code-graph-and-semantic-services.md).

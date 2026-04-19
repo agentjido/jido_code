@@ -1,6 +1,6 @@
 # Phase 6 - Compatibility, UI Migration, and Rollout Hardening
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/factory_control_plane.spec.md`

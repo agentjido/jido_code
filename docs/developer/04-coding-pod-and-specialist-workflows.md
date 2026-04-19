@@ -5,9 +5,9 @@ specialist work.
 
 Current truth for this area lives in:
 
-- [`../../lib/jido_code/pods/coding_pod.ex`](../../lib/jido_code/pods/coding_pod.ex)
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
-- [`../../.spec/specs/agent_os_integration.spec.md`](../../.spec/specs/agent_os_integration.spec.md)
+- [`../../lib/jido_code/pods/coding_pod.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/pods/coding_pod.ex)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
+- [`../../.spec/specs/agent_os_integration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/agent_os_integration.spec.md)
 
 ## Scope
 
@@ -152,5 +152,5 @@ So the work-item boundary is also the practical lifetime boundary.
 ## Read Next
 
 Continue with
-[`05-specialist-prompts-context-and-tool-execution.md`](05-specialist-prompts-context-and-tool-execution.md).
+[`05-specialist-prompts-context-and-tool-execution.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/05-specialist-prompts-context-and-tool-execution.md).
 

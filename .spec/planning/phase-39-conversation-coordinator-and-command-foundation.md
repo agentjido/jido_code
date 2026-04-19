@@ -5,7 +5,7 @@
 <!-- covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state -->
 <!-- covers: architecture.conversation_orchestration.control_and_work_commands_are_distinct -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

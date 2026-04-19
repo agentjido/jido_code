@@ -2,7 +2,7 @@
 
 <!-- covers: package.jido_code.version_controlled_quality_surfaces -->
 
-[![CI](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml)
+[![CI](https://github.com/mikehostetler/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/mikehostetler/jido_code/actions/workflows/ci.yml)
 
 Jido.Code is the primary product and implementation repo in this workspace. It is a Phoenix + LiveView application built on Ash, Postgres, and the Jido runtime, with a separate Tauri desktop packaging path.
 
@@ -22,7 +22,7 @@ Expected local defaults:
 - databases `jido_code_dev` and `jido_code_test*`
 
 ```bash
-git clone https://github.com/epic-creative/jido_code.git
+git clone https://github.com/mikehostetler/jido_code.git
 cd jido_code
 
 asdf install
@@ -32,7 +32,7 @@ mix server
 
 Then open http://localhost:4100
 
-For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix server` is the preferred start path and prepares browser dependencies or bundles first when the current LiveVue/Vite output is missing. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](tauri/README.md).
+For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix server` is the preferred start path and prepares browser dependencies or bundles first when the current LiveVue/Vite output is missing. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md).
 
 ## What This Repo Contains
 
@@ -179,19 +179,19 @@ mix workflow.run my_workflow --inputs '{"file_path":"lib/example.ex","mode":"ful
 
 The canonical repo-facing guides now live here:
 
-- [`.spec/README.md`](.spec/README.md) for the repo-local Spec Led Development workflow
-- [`docs/developer/README.md`](docs/developer/README.md) for the numbered developer architecture guide set; these guides are explanatory and point back to `.spec` as the current-truth source
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) for contributor setup and quality expectations
-- [`memory_ontology_guide.md`](memory_ontology_guide.md) for the developer-facing explanation of the coding memory ontology
-- [`tauri/README.md`](tauri/README.md) for the separate desktop packaging/runtime path
-- [`CHANGELOG.md`](CHANGELOG.md) for release history
-- [`AGENTS.md`](AGENTS.md) for local agent operating guidance in this repo
+- [`.spec/README.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/README.md) for the repo-local Spec Led Development workflow
+- [`docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md) for the numbered developer architecture guide set; these guides are explanatory and point back to `.spec` as the current-truth source
+- [`CONTRIBUTING.md`](https://github.com/mikehostetler/jido_code/blob/main/CONTRIBUTING.md) for contributor setup and quality expectations
+- [`memory_ontology_guide.md`](https://github.com/mikehostetler/jido_code/blob/main/memory_ontology_guide.md) for the developer-facing explanation of the coding memory ontology
+- [`tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md) for the separate desktop packaging/runtime path
+- [`CHANGELOG.md`](https://github.com/mikehostetler/jido_code/blob/main/CHANGELOG.md) for release history
+- [`AGENTS.md`](https://github.com/mikehostetler/jido_code/blob/main/AGENTS.md) for local agent operating guidance in this repo
 
-The durable architecture and product-shaping decisions live in [`.spec/decisions/`](.spec/decisions/), especially:
+The durable architecture and product-shaping decisions live in [`.spec/decisions/`](https://github.com/mikehostetler/jido_code/tree/main/.spec/decisions), especially:
 
-- [`.spec/decisions/jido_code.runic_execution_model.md`](.spec/decisions/jido_code.runic_execution_model.md)
-- [`.spec/decisions/jido_code.vsm_recursion_and_scope.md`](.spec/decisions/jido_code.vsm_recursion_and_scope.md)
-- [`.spec/decisions/jido_code.local_developer_workflow.md`](.spec/decisions/jido_code.local_developer_workflow.md)
+- [`.spec/decisions/jido_code.runic_execution_model.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.runic_execution_model.md)
+- [`.spec/decisions/jido_code.vsm_recursion_and_scope.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.vsm_recursion_and_scope.md)
+- [`.spec/decisions/jido_code.local_developer_workflow.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.local_developer_workflow.md)
 
 ## Semantic Memory
 
@@ -230,7 +230,7 @@ run `mix memory.verify`.
 
 For operational guidance on configuration, troubleshooting, and production
 deployment of the memory graph capability, see the
-[Memory Graph Operations Guide](.spec/planning/memory_graph_operations.md).
+[Memory Graph Operations Guide](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/memory_graph_operations.md).
 
 ## Repo Shape
 
@@ -260,8 +260,8 @@ test/     tests and support code
 
 ## Release Notes
 
-Release automation is version-controlled in [`.github/workflows/release.yml`](.github/workflows/release.yml). Keep [`CHANGELOG.md`](CHANGELOG.md) current, run the relevant quality and spec checks, and cut releases from the workflow instead of relying on ad hoc local release steps.
+Release automation is version-controlled in [`.github/workflows/release.yml`](https://github.com/mikehostetler/jido_code/blob/main/.github/workflows/release.yml). Keep [`CHANGELOG.md`](https://github.com/mikehostetler/jido_code/blob/main/CHANGELOG.md) current, run the relevant quality and spec checks, and cut releases from the workflow instead of relying on ad hoc local release steps.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE) for details.
+Apache-2.0 — see [LICENSE](https://github.com/mikehostetler/jido_code/blob/main/LICENSE) for details.

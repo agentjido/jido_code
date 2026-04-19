@@ -6,7 +6,7 @@
 <!-- covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution -->
 <!-- covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context -->
 
-Back to index: [README](./README.md)
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/conversation_orchestration.spec.md`

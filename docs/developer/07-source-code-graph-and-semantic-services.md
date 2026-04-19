@@ -5,10 +5,10 @@ is exposed to product code.
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/source_code_graph_product_adoption.spec.md`](../../.spec/specs/source_code_graph_product_adoption.spec.md)
-- [`../../.spec/specs/source_code_graph_pod.spec.md`](../../.spec/specs/source_code_graph_pod.spec.md)
-- [`../../lib/jido_code/source_code_graph/`](../../lib/jido_code/source_code_graph/)
-- [`../../lib/jido_code/agent_workspace.ex`](../../lib/jido_code/agent_workspace.ex)
+- [`../../.spec/specs/source_code_graph_product_adoption.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/source_code_graph_product_adoption.spec.md)
+- [`../../.spec/specs/source_code_graph_pod.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/source_code_graph_pod.spec.md)
+- [`../../lib/jido_code/source_code_graph/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/source_code_graph)
+- [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## What The Source Code Graph Is
 
@@ -130,5 +130,5 @@ Prefer ordinary file reads and code inspection when you need:
 ## Read Next
 
 Continue with
-[`08-memory-graph-and-workflow-provenance.md`](08-memory-graph-and-workflow-provenance.md).
+[`08-memory-graph-and-workflow-provenance.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08-memory-graph-and-workflow-provenance.md).
 

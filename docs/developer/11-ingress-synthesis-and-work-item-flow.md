@@ -6,15 +6,15 @@ hands off from repo intake into a work-item-scoped coding loop.
 
 Current truth for this area lives in:
 
-- [`../../.spec/specs/demand_ingress.spec.md`](../../.spec/specs/demand_ingress.spec.md)
-- [`../../.spec/specs/event_assessment_synthesis.spec.md`](../../.spec/specs/event_assessment_synthesis.spec.md)
-- [`../../.spec/specs/work_synthesis.spec.md`](../../.spec/specs/work_synthesis.spec.md)
-- [`../../.spec/specs/conversation_orchestration.spec.md`](../../.spec/specs/conversation_orchestration.spec.md)
-- [`../../lib/jido_code/operations/ingress.ex`](../../lib/jido_code/operations/ingress.ex)
-- [`../../lib/jido_code/operations/synthesis.ex`](../../lib/jido_code/operations/synthesis.ex)
-- [`../../lib/jido_code/operations/work_synthesis.ex`](../../lib/jido_code/operations/work_synthesis.ex)
-- [`../../lib/jido_code/conversations/work_resolution.ex`](../../lib/jido_code/conversations/work_resolution.ex)
-- [`../../lib/jido_code/conversations/runtime.ex`](../../lib/jido_code/conversations/runtime.ex)
+- [`../../.spec/specs/demand_ingress.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/demand_ingress.spec.md)
+- [`../../.spec/specs/event_assessment_synthesis.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/event_assessment_synthesis.spec.md)
+- [`../../.spec/specs/work_synthesis.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/work_synthesis.spec.md)
+- [`../../.spec/specs/conversation_orchestration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/conversation_orchestration.spec.md)
+- [`../../lib/jido_code/operations/ingress.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/ingress.ex)
+- [`../../lib/jido_code/operations/synthesis.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/synthesis.ex)
+- [`../../lib/jido_code/operations/work_synthesis.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/work_synthesis.ex)
+- [`../../lib/jido_code/conversations/work_resolution.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/work_resolution.ex)
+- [`../../lib/jido_code/conversations/runtime.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/runtime.ex)
 
 ## Why This Pipeline Exists
 
@@ -360,17 +360,17 @@ If the behavior is wrong, start in the layer that owns that decision:
 
 These tests are especially good companions to this guide:
 
-- [`../../test/jido_code/operations/work_synthesis_test.exs`](../../test/jido_code/operations/work_synthesis_test.exs)
-- [`../../test/jido_code/phase_forty_six_integration_test.exs`](../../test/jido_code/phase_forty_six_integration_test.exs)
-- [`../../test/jido_code/phase_forty_nine_integration_test.exs`](../../test/jido_code/phase_forty_nine_integration_test.exs)
-- [`../../test/jido_code/phase_fifty_one_integration_test.exs`](../../test/jido_code/phase_fifty_one_integration_test.exs)
+- [`../../test/jido_code/operations/work_synthesis_test.exs`](https://github.com/mikehostetler/jido_code/blob/main/test/jido_code/operations/work_synthesis_test.exs)
+- [`../../test/jido_code/phase_forty_six_integration_test.exs`](https://github.com/mikehostetler/jido_code/blob/main/test/jido_code/phase_forty_six_integration_test.exs)
+- [`../../test/jido_code/phase_forty_nine_integration_test.exs`](https://github.com/mikehostetler/jido_code/blob/main/test/jido_code/phase_forty_nine_integration_test.exs)
+- [`../../test/jido_code/phase_fifty_one_integration_test.exs`](https://github.com/mikehostetler/jido_code/blob/main/test/jido_code/phase_fifty_one_integration_test.exs)
 
 ## Read Next
 
-Read [`06-conversation-orchestration.md`](06-conversation-orchestration.md) for
+Read [`06-conversation-orchestration.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/06-conversation-orchestration.md) for
 the broader runtime model, then
-[`12-user-request-to-llm-message-path.md`](12-user-request-to-llm-message-path.md)
+[`12-user-request-to-llm-message-path.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/12-user-request-to-llm-message-path.md)
 for the exact prompt-transformation path, then
-[`08-memory-graph-and-workflow-provenance.md`](08-memory-graph-and-workflow-provenance.md)
+[`08-memory-graph-and-workflow-provenance.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08-memory-graph-and-workflow-provenance.md)
 for the bounded memory and provenance context that can flow into these
 work-item-scoped specialist calls.

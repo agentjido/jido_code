@@ -85,12 +85,11 @@ defmodule JidoCodeWeb.PhaseFiftyFourIntegrationTest do
     assert repo_file!(".spec/specs/memory_capture_plane.spec.md") =~ "status: active"
     assert repo_file!(".spec/specs/memory_graph.spec.md") =~ "status: active"
     assert repo_file!(".spec/specs/memory_graph_product_adoption.spec.md") =~ "status: active"
+    assert repo_file!(".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md") =~ "status: active"
+    assert repo_file!(".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md") =~ "status: active"
     assert repo_file!(".spec/specs/memory_ontology.spec.md") =~ "status: active"
 
-    assert proposed_specs() == [
-             "memory_graph_surface_rollout_and_governance_actions.spec.md",
-             "memory_graph_workflow_and_operator_expansion.spec.md"
-           ]
+    assert proposed_specs() == []
   end
 
   defp proposed_specs do

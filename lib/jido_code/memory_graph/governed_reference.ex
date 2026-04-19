@@ -148,8 +148,20 @@ defmodule JidoCode.MemoryGraph.GovernedReference do
       when is_binary(id),
       do: "/repos/#{id}"
 
+  def route(managed_repo_id, :work_item, id)
+      when is_binary(managed_repo_id) and is_binary(id),
+      do: "/repos/#{managed_repo_id}/work-items/#{id}"
+
   def route(managed_repo_id, :run, id) when is_binary(managed_repo_id) and is_binary(id),
     do: "/repos/#{managed_repo_id}/runs/#{id}"
+
+  def route(managed_repo_id, :evidence, id)
+      when is_binary(managed_repo_id) and is_binary(id),
+      do: "/repos/#{managed_repo_id}/evidence/#{id}"
+
+  def route(managed_repo_id, :decision, id)
+      when is_binary(managed_repo_id) and is_binary(id),
+      do: "/repos/#{managed_repo_id}/decisions/#{id}"
 
   def route(_managed_repo_id, _kind, _id), do: nil
 

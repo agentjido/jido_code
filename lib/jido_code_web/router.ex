@@ -48,6 +48,9 @@ defmodule JidoCodeWeb.Router do
       live("/repos", ProjectInventoryLive, :index)
       live("/repos/:id", ProjectDetailLive, :show)
       live("/repos/:id/runs/:run_id", RunDetailLive, :show)
+      live("/repos/:id/work-items/:work_item_id", WorkItemDetailLive, :show)
+      live("/repos/:id/evidence/:evidence_id", EvidenceDetailLive, :show)
+      live("/repos/:id/decisions/:decision_id", DecisionDetailLive, :show)
       live("/settings", SettingsLive, :index)
       live("/settings/:tab", SettingsLive, :index)
     end

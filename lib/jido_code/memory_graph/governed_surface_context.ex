@@ -105,10 +105,48 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     end
   end
 
+  @spec load_governed_detail(map(), atom(), map(), keyword()) :: map()
+  def load_governed_detail(scope, kind, record, opts \\ []) when is_atom(kind) and is_map(record) do
+    case governed_scope(scope, record, opts) do
+      {:ok, managed_repo_id, workspace_path} ->
+        status = projection_for(ProductService.status(managed_repo_id, workspace_path, opts))
+        graph = Map.get(status, :graph, @default_graph)
+        lookup_opts = Keyword.put_new(opts, :allow_stale?, true)
+        fallback_route = detail_route(kind, managed_repo_id, record, opts)
+
+        %{
+          available?: true,
+          managed_repo_id: managed_repo_id,
+          workspace_path: workspace_path,
+          graph: graph,
+          surface:
+            governed_surface(
+              record,
+              kind,
+              managed_repo_id,
+              workspace_path,
+              graph,
+              fallback_route,
+              lookup_opts
+            ),
+          notice: governed_notice(status),
+          notice_kind: ProductFeedback.notice_kind(graph),
+          recovery: ProductFeedback.recovery(graph)
+        }
+
+      {:error, notice} ->
+        unavailable_detail_context(notice)
+    end
+  end
+
   defp run_scope(scope, %Run{} = run, opts) do
+    governed_scope(scope, run, opts)
+  end
+
+  defp governed_scope(scope, record, opts) when is_map(record) do
     managed_repo_id =
       normalize_optional_string(Keyword.get(opts, :managed_repo_id)) ||
-        normalize_optional_string(map_get(run, :managed_repo_id, "managed_repo_id")) ||
+        normalize_optional_string(map_get(record, :managed_repo_id, "managed_repo_id")) ||
         normalize_optional_string(map_get(scope, :managed_repo_id, "managed_repo_id"))
 
     workspace_path =
@@ -124,7 +162,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
          %{
            error_type: "memory_governed_scope_unavailable",
            detail: "Governed memory context needs a managed repository identifier.",
-           remediation: "Open this run from a canonical managed-repository route and retry."
+           remediation: "Open this governed record from a canonical managed-repository route and retry."
          }}
 
       is_nil(workspace_path) ->
@@ -138,6 +176,15 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
       true ->
         {:ok, managed_repo_id, workspace_path}
     end
+  end
+
+  defp governed_scope(_scope, _record, _opts) do
+    {:error,
+     %{
+       error_type: "memory_governed_scope_unavailable",
+       detail: "Governed memory context is unavailable.",
+       remediation: "Open this governed record from a canonical managed-repository route and retry."
+     }}
   end
 
   defp managed_workspace_path(managed_repo) when is_map(managed_repo) do
@@ -297,7 +344,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   defp governed_surface(record, kind, managed_repo_id, workspace_path, graph, run_route, opts) when is_map(record) do
     record_id = record_id(record)
     governed_references = [%{kind: kind, id: record_id}]
-    route = record_id && governed_route(kind, record_id, run_route)
+    route = record_id && governed_route(kind, record_id, managed_repo_id, run_route)
 
     {memories, provenance} =
       if queryable_graph?(graph) and is_binary(record_id) do
@@ -359,31 +406,39 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
       normalize_optional_string(map_get(record, :recommended_action, "recommended_action")) || "Work item"
   end
 
-  defp governed_route(:work_item, _record_id, run_route), do: run_route <> "#run-detail-work-item"
+  defp governed_route(kind, record_id, managed_repo_id, run_route)
+       when is_atom(kind) and is_binary(record_id) and is_binary(managed_repo_id) do
+    GovernedReference.route(managed_repo_id, kind, record_id) ||
+      governed_anchor_route(kind, record_id, run_route)
+  end
 
-  defp governed_route(:evidence, record_id, run_route),
+  defp governed_route(kind, record_id, _managed_repo_id, run_route)
+       when is_atom(kind) and is_binary(record_id),
+       do: governed_anchor_route(kind, record_id, run_route)
+
+  defp governed_route(_kind, _record_id, _managed_repo_id, run_route), do: run_route
+
+  defp governed_anchor_route(:work_item, _record_id, run_route), do: run_route <> "#run-detail-work-item"
+
+  defp governed_anchor_route(:evidence, record_id, run_route),
     do: run_route <> "#run-detail-evidence-entry-#{dom_token(record_id)}"
 
-  defp governed_route(:decision, record_id, run_route),
+  defp governed_anchor_route(:decision, record_id, run_route),
     do: run_route <> "#run-detail-decision-entry-#{dom_token(record_id)}"
 
-  defp governed_route(_kind, _record_id, run_route), do: run_route
+  defp governed_anchor_route(_kind, _record_id, run_route), do: run_route
+
+  defp governed_route_from_reference(managed_repo_id, %{kind: kind, id: id}, run_route)
+       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
+       do:
+         case GovernedReference.route(managed_repo_id, kind, id) do
+           route when is_binary(route) -> route
+           _other -> governed_anchor_route(kind, id, run_route)
+         end
 
   defp governed_route_from_reference(managed_repo_id, %{kind: :work_item}, run_route)
        when is_binary(managed_repo_id),
        do: run_route <> "#run-detail-work-item"
-
-  defp governed_route_from_reference(_managed_repo_id, %{kind: :evidence, id: id}, run_route)
-       when is_binary(id),
-       do: governed_route(:evidence, id, run_route)
-
-  defp governed_route_from_reference(_managed_repo_id, %{kind: :decision, id: id}, run_route)
-       when is_binary(id),
-       do: governed_route(:decision, id, run_route)
-
-  defp governed_route_from_reference(managed_repo_id, %{kind: kind, id: id}, _run_route)
-       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
-       do: GovernedReference.route(managed_repo_id, kind, id)
 
   defp governed_route_from_reference(_managed_repo_id, _reference, _run_route), do: nil
 
@@ -436,6 +491,33 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
       notice_kind: :warning,
       recovery: ProductFeedback.recovery(@default_graph)
     }
+  end
+
+  defp unavailable_detail_context(notice) do
+    %{
+      available?: false,
+      managed_repo_id: nil,
+      workspace_path: nil,
+      graph: @default_graph,
+      surface: nil,
+      notice: notice,
+      notice_kind: :warning,
+      recovery: ProductFeedback.recovery(@default_graph)
+    }
+  end
+
+  defp detail_route(kind, managed_repo_id, record, opts) do
+    normalize_optional_string(Keyword.get(opts, :current_route)) ||
+      record
+      |> record_id()
+      |> case do
+        record_id when is_binary(record_id) ->
+          GovernedReference.route(managed_repo_id, kind, record_id)
+
+        _other ->
+          nil
+      end ||
+      "/repos/#{managed_repo_id}"
   end
 
   defp governed_notice(%{graph: %{state: :ready}}), do: nil

@@ -297,7 +297,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   defp governed_surface(record, kind, managed_repo_id, workspace_path, graph, run_route, opts) when is_map(record) do
     record_id = record_id(record)
     governed_references = [%{kind: kind, id: record_id}]
-    route = record_id && governed_route(kind, record_id, run_route)
+    route = record_id && governed_route(kind, record_id, managed_repo_id, run_route)
 
     {memories, provenance} =
       if queryable_graph?(graph) and is_binary(record_id) do
@@ -359,31 +359,39 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
       normalize_optional_string(map_get(record, :recommended_action, "recommended_action")) || "Work item"
   end
 
-  defp governed_route(:work_item, _record_id, run_route), do: run_route <> "#run-detail-work-item"
+  defp governed_route(kind, record_id, managed_repo_id, run_route)
+       when is_atom(kind) and is_binary(record_id) and is_binary(managed_repo_id) do
+    GovernedReference.route(managed_repo_id, kind, record_id) ||
+      governed_anchor_route(kind, record_id, run_route)
+  end
 
-  defp governed_route(:evidence, record_id, run_route),
+  defp governed_route(kind, record_id, _managed_repo_id, run_route)
+       when is_atom(kind) and is_binary(record_id),
+       do: governed_anchor_route(kind, record_id, run_route)
+
+  defp governed_route(_kind, _record_id, _managed_repo_id, run_route), do: run_route
+
+  defp governed_anchor_route(:work_item, _record_id, run_route), do: run_route <> "#run-detail-work-item"
+
+  defp governed_anchor_route(:evidence, record_id, run_route),
     do: run_route <> "#run-detail-evidence-entry-#{dom_token(record_id)}"
 
-  defp governed_route(:decision, record_id, run_route),
+  defp governed_anchor_route(:decision, record_id, run_route),
     do: run_route <> "#run-detail-decision-entry-#{dom_token(record_id)}"
 
-  defp governed_route(_kind, _record_id, run_route), do: run_route
+  defp governed_anchor_route(_kind, _record_id, run_route), do: run_route
+
+  defp governed_route_from_reference(managed_repo_id, %{kind: kind, id: id}, run_route)
+       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
+       do:
+         case GovernedReference.route(managed_repo_id, kind, id) do
+           route when is_binary(route) -> route
+           _other -> governed_anchor_route(kind, id, run_route)
+         end
 
   defp governed_route_from_reference(managed_repo_id, %{kind: :work_item}, run_route)
        when is_binary(managed_repo_id),
        do: run_route <> "#run-detail-work-item"
-
-  defp governed_route_from_reference(_managed_repo_id, %{kind: :evidence, id: id}, run_route)
-       when is_binary(id),
-       do: governed_route(:evidence, id, run_route)
-
-  defp governed_route_from_reference(_managed_repo_id, %{kind: :decision, id: id}, run_route)
-       when is_binary(id),
-       do: governed_route(:decision, id, run_route)
-
-  defp governed_route_from_reference(managed_repo_id, %{kind: kind, id: id}, _run_route)
-       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
-       do: GovernedReference.route(managed_repo_id, kind, id)
 
   defp governed_route_from_reference(_managed_repo_id, _reference, _run_route), do: nil
 

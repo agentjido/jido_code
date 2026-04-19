@@ -125,7 +125,7 @@ defmodule JidoCode.PhaseThirtySevenIntegrationTest do
 
     assert Enum.any?(run_memory_item.navigation.governed_records, fn reference ->
              reference.kind == :decision and reference.id == decision.id and
-               reference.route =~ "#run-detail-decision-entry-"
+               reference.route == "/repos/#{managed_repo.id}/decisions/#{decision.id}"
            end)
 
     rewrite_workspace_module!(workspace_path, "ExamplePhaseThirtySevenQueryUpdated")

@@ -53,22 +53,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 55.1.1.2 Subtask - Register Phase 55 in the planning index with a short summary that points at governed-surface completion rather than generic memory rollout.
       [x] 55.1.1.3 Subtask - Repair the chronology note so existing `55.6.*` coverage is described as part of this phase instead of as a planning gap.
 
-  [ ] 55.2 Section - Canonical Governed Route Foundation
+  [x] 55.2 Section - Canonical Governed Route Foundation
     Establish real canonical product routes for work items, evidence, and decisions so memory-backed governed navigation stops depending on run-detail anchors as its primary route contract.
 
-    [ ] 55.2.1 Task - Extend governed routing and typed reference resolution
+    [x] 55.2.1 Task - Extend governed routing and typed reference resolution
       Teach the governed-reference and governed-surface helpers how to build canonical routes for work items, evidence, and decisions without falling back to run-detail anchors when a first-class route exists.
 
-      [ ] 55.2.1.1 Subtask - Extend governed reference route helpers so work-item, evidence, and decision references resolve to canonical product routes.
-      [ ] 55.2.1.2 Subtask - Update governed surface context shaping so cross-graph navigation prefers those canonical routes while keeping bounded fallback labels where no route exists.
-      [ ] 55.2.1.3 Subtask - Preserve repository-scoped route construction and keep run-detail anchors only as explicit fallback behavior where older context still requires them.
+      [x] 55.2.1.1 Subtask - Extend governed reference route helpers so work-item, evidence, and decision references resolve to canonical product routes.
+      [x] 55.2.1.2 Subtask - Update governed surface context shaping so cross-graph navigation prefers those canonical routes while keeping bounded fallback labels where no route exists.
+      [x] 55.2.1.3 Subtask - Preserve repository-scoped route construction and keep run-detail anchors only as explicit fallback behavior where older context still requires them.
 
-    [ ] 55.2.2 Task - Add routed LiveView entrypoints for governed detail surfaces
+    [x] 55.2.2 Task - Add routed LiveView entrypoints for governed detail surfaces
       Introduce the routed LiveView surfaces that will host the new bounded memory context and operator actions for work items, evidence, and decisions.
 
-      [ ] 55.2.2.1 Subtask - Add authenticated router entries for canonical work-item, evidence, and decision routes under the managed-repository route family.
-      [ ] 55.2.2.2 Subtask - Create the initial governed detail LiveViews with canonical loading, not-found handling, and route-local page framing.
-      [ ] 55.2.2.3 Subtask - Keep route naming, page titles, and fallback messaging aligned with current controlled vocabulary for managed repositories and governed records.
+      [x] 55.2.2.1 Subtask - Add authenticated router entries for canonical work-item, evidence, and decision routes under the managed-repository route family.
+      [x] 55.2.2.2 Subtask - Create the initial governed detail LiveViews with canonical loading, not-found handling, and route-local page framing.
+      [x] 55.2.2.3 Subtask - Keep route naming, page titles, and fallback messaging aligned with current controlled vocabulary for managed repositories and governed records.
 
   [ ] 55.3 Section - Work-Item Memory Surface Adoption
     Project bounded memory and workflow-provenance context onto the canonical work-item surface so governed work no longer depends on run detail as the only memory-backed operator route.

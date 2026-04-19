@@ -41,6 +41,15 @@ defmodule JidoCode.MemoryGraph.GovernedReferenceTest do
              })
   end
 
+  test "builds canonical routes for governed run, work-item, evidence, and decision records" do
+    assert GovernedReference.route("repo-123", :run, "run-42") == "/repos/repo-123/runs/run-42"
+    assert GovernedReference.route("repo-123", :work_item, "work-42") == "/repos/repo-123/work-items/work-42"
+    assert GovernedReference.route("repo-123", :evidence, "evidence-42") == "/repos/repo-123/evidence/evidence-42"
+
+    assert GovernedReference.route("repo-123", :decision, "decision-42") ==
+             "/repos/repo-123/decisions/decision-42"
+  end
+
   test "normalizes and deduplicates multiple references" do
     assert {:ok, normalized} =
              GovernedReference.normalize_many("repo-123", [

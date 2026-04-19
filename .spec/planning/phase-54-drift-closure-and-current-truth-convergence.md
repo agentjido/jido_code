@@ -37,7 +37,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - GitLab and Bitbucket service automation remain intentional placeholder capabilities and should stay explicit as deferred work rather than being misclassified as drift.
 - The planning chronology also needs repair: the index stops at Phase 53 even though repo coverage has already advanced into Phase 55-style integration work.
 
-[ ] 54 Phase 54 - Drift Closure And Current-Truth Convergence
+[x] 54 Phase 54 - Drift Closure And Current-Truth Convergence
   Close the remaining gap between the current-truth specs and the implementation by finishing canonical repo and run cutovers, converging greenfield fixtures and helpers, reclassifying shipped subjects, and repairing planning plus contributor guidance where chronology or terminology has drifted.
 
   [x] 54.1 Section - Canonical Product Surface And Runtime Convergence
@@ -108,19 +108,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 54.4.2.2 Subtask - Keep compatibility or migration notes explicit when a guide still needs to mention legacy identifiers, bridges, or audit support.
       [x] 54.4.2.3 Subtask - Verify contributor guidance now directs future work toward canonical repo and run helpers, spec statuses, and planning references.
 
-  [ ] 54.5 Section - Phase 54 Integration Tests
+  [x] 54.5 Section - Phase 54 Integration Tests
     Prove the drift is actually closed by checking live product behavior, greenfield fixture defaults, current-truth spec status, and contributor-facing planning or documentation together.
 
-    [ ] 54.5.1 Task - Add drift-closure coverage for canonical product surfaces and helpers
+    [x] 54.5.1 Task - Add drift-closure coverage for canonical product surfaces and helpers
       Verify live product paths, setup helpers, and new tests no longer depend on `Project` and `WorkflowRun` as the primary product truths for greenfield behavior.
 
-      [ ] 54.5.1.1 Subtask - Add coverage proving live operator surfaces load canonical repository and governed-run state without direct legacy record reads.
-      [ ] 54.5.1.2 Subtask - Add coverage proving greenfield helpers and tests create canonical repo and run graphs by default.
-      [ ] 54.5.1.3 Subtask - Add coverage proving remaining compatibility seams are bounded to explicit adapter, audit, or migration paths.
+      [x] 54.5.1.1 Subtask - Add coverage proving live operator surfaces load canonical repository and governed-run state without direct legacy record reads.
+      [x] 54.5.1.2 Subtask - Add coverage proving greenfield helpers and tests create canonical repo and run graphs by default.
+      [x] 54.5.1.3 Subtask - Add coverage proving remaining compatibility seams are bounded to explicit adapter, audit, or migration paths.
 
-    [ ] 54.5.2 Task - Verify current-truth convergence across specs, planning, and docs
+    [x] 54.5.2 Task - Verify current-truth convergence across specs, planning, and docs
       Ensure the spec workspace, planning index, and contributor-facing guidance tell the same story after the drift-closure work lands.
 
-      [ ] 54.5.2.1 Subtask - Add verification proving promoted specs, current implementation surfaces, and their tests stay in sync after the status cleanup.
-      [ ] 54.5.2.2 Subtask - Add verification proving planning chronology and phase references remain coherent once Phase 54 is introduced.
-      [ ] 54.5.2.3 Subtask - Verify contributor and operator docs reflect canonical terminology and explicit placeholder exceptions instead of mixed current and legacy language.
+      [x] 54.5.2.1 Subtask - Add verification proving promoted specs, current implementation surfaces, and their tests stay in sync after the status cleanup.
+      [x] 54.5.2.2 Subtask - Add verification proving planning chronology and phase references remain coherent once Phase 54 is introduced.
+      [x] 54.5.2.3 Subtask - Verify contributor and operator docs reflect canonical terminology and explicit placeholder exceptions instead of mixed current and legacy language.

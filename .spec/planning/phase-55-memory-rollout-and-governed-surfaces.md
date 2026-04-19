@@ -70,22 +70,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 55.2.2.2 Subtask - Create the initial governed detail LiveViews with canonical loading, not-found handling, and route-local page framing.
       [x] 55.2.2.3 Subtask - Keep route naming, page titles, and fallback messaging aligned with current controlled vocabulary for managed repositories and governed records.
 
-  [ ] 55.3 Section - Work-Item Memory Surface Adoption
+  [x] 55.3 Section - Work-Item Memory Surface Adoption
     Project bounded memory and workflow-provenance context onto the canonical work-item surface so governed work no longer depends on run detail as the only memory-backed operator route.
 
-    [ ] 55.3.1 Task - Add product-owned work-item memory context shaping
+    [x] 55.3.1 Task - Add product-owned work-item memory context shaping
       Reuse existing memory product services and governed loaders to present bounded work-item memory context through a dedicated work-item route instead of a run-detail section.
 
-      [ ] 55.3.1.1 Subtask - Add work-item detail loaders that gather canonical work-item data, related governed run history, and bounded memory context through product-owned services.
-      [ ] 55.3.1.2 Subtask - Reuse shared memory surface components so work-item memory links, freshness state, and related-governed navigation match the existing product contract.
-      [ ] 55.3.1.3 Subtask - Keep the work-item route product-owned and explainable when memory is missing, stale, invalidated, or recovering.
+      [x] 55.3.1.1 Subtask - Add work-item detail loaders that gather canonical work-item data, related governed run history, and bounded memory context through product-owned services.
+      [x] 55.3.1.2 Subtask - Reuse shared memory surface components so work-item memory links, freshness state, and related-governed navigation match the existing product contract.
+      [x] 55.3.1.3 Subtask - Keep the work-item route product-owned and explainable when memory is missing, stale, invalidated, or recovering.
 
-    [ ] 55.3.2 Task - Reuse bounded memory actions on the work-item route
+    [x] 55.3.2 Task - Reuse bounded memory actions on the work-item route
       Make validation, invalidation, supersession, and promotion available from work-item detail without introducing a route-specific mutation boundary.
 
-      [ ] 55.3.2.1 Subtask - Wire work-item memory actions through the existing AgentWorkspace and governed memory action helpers.
-      [ ] 55.3.2.2 Subtask - Preserve follow-up previews, provenance feedback, and governed adoption metadata on the work-item route.
-      [ ] 55.3.2.3 Subtask - Keep action feedback and state refresh consistent with the existing run-detail memory interaction model.
+      [x] 55.3.2.1 Subtask - Wire work-item memory actions through the existing AgentWorkspace and governed memory action helpers.
+      [x] 55.3.2.2 Subtask - Preserve follow-up previews, provenance feedback, and governed adoption metadata on the work-item route.
+      [x] 55.3.2.3 Subtask - Keep action feedback and state refresh consistent with the existing run-detail memory interaction model.
 
   [ ] 55.4 Section - Evidence And Decision Memory Surface Adoption
     Finish the governed rollout by giving evidence and decision records their own bounded memory-aware surfaces, consistent navigation, and product-owned operator actions.

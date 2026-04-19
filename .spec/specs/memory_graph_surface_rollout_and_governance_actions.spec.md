@@ -8,8 +8,8 @@ roll out across the remaining canonical operator and governed product surfaces.
 ```spec-meta
 id: architecture.memory_graph_surface_rollout_and_governance_actions
 kind: feature
-status: proposed
-summary: Jido.Code expands memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and view-model boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses, with dashboard summary feeds, governed surface sections, follow-up preview widgets, and the new typed governed-reference contract staying tied to canonical product routes and the shared capture-envelope seam.
+status: active
+summary: Jido.Code now extends memory-graph product adoption beyond repository detail and run detail into dashboard summaries plus canonical work-item, evidence, and decision surfaces, uses product-owned services and routed LiveView boundaries to host bounded memory and workflow-provenance context on those routes, makes validate, invalidate, supersede, and promote actions available from those same canonical surfaces rather than through special-case graph views, keeps memory-aware summaries and follow-up suggestions bounded and action-oriented, standardizes cross-graph navigation among memory, provenance, source code, and governed records across the remaining operator surfaces, and ensures memory-aware workflow or governed follow-up continues to consume product-shaped projections instead of raw graph responses or direct pod interactions while dashboard summary feeds, governed surface sections, follow-up preview widgets, and typed governed references stay tied to canonical product routes and the shared capture-envelope seam.
 decisions:
   - jido_code.memory_graph_product_adoption
   - jido_code.memory_graph_workflow_and_operator_expansion
@@ -19,9 +19,11 @@ surface:
   - .spec/specs/memory_graph_product_adoption.spec.md
   - .spec/specs/memory_graph_workflow_and_operator_expansion.spec.md
   - .spec/planning/phase-34-memory-graph-surface-rollout-and-governance-actions.md
+  - .spec/planning/phase-55-memory-rollout-and-governed-surfaces.md
   - lib/jido_code/memory_graph/
   - lib/jido_code/workbench/
   - lib/jido_code/governance/
+  - lib/jido_code_web/governed_memory_helpers.ex
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
   - test/jido_code/
@@ -148,6 +150,48 @@ surface:
     - architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented
     - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
     - architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
+    - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+
+- kind: source_file
+  target: .spec/planning/phase-55-memory-rollout-and-governed-surfaces.md
+  covers:
+    - architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context
+    - architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
+    - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+
+- kind: source_file
+  target: lib/jido_code_web/live/work_item_detail_live.ex
+  covers:
+    - architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context
+    - architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
+    - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+
+- kind: source_file
+  target: lib/jido_code_web/live/evidence_detail_live.ex
+  covers:
+    - architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context
+    - architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
+    - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+
+- kind: source_file
+  target: lib/jido_code_web/live/decision_detail_live.ex
+  covers:
+    - architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context
+    - architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
+    - architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
+    - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+
+- kind: source_file
+  target: lib/jido_code_web/governed_memory_helpers.ex
+  covers:
+    - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
     - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
 
 ```

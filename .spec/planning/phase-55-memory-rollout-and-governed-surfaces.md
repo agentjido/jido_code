@@ -104,22 +104,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 55.4.2.2 Subtask - Preserve governed follow-up previews and post-action feedback on evidence and decision surfaces.
       [x] 55.4.2.3 Subtask - Keep the route contract canonical and governed instead of introducing graph-first views or raw RDF detail.
 
-  [ ] 55.5 Section - Spec And Contributor Convergence
+  [x] 55.5 Section - Spec And Contributor Convergence
     Bring the remaining proposed subjects and adjacent guidance into alignment once the governed memory surfaces actually exist in the product.
 
-    [ ] 55.5.1 Task - Promote the remaining memory rollout specs to current truth
+    [x] 55.5.1 Task - Promote the remaining memory rollout specs to current truth
       Reclassify the final proposed memory rollout subjects to active status and update their summaries or verification references so they describe the shipped governed-surface behavior accurately.
 
-      [ ] 55.5.1.1 Subtask - Update `memory_graph_workflow_and_operator_expansion` to reflect canonical governed routes and shipped bounded operator memory actions.
-      [ ] 55.5.1.2 Subtask - Update `memory_graph_surface_rollout_and_governance_actions` to reflect dashboard plus governed-surface rollout as active product behavior.
-      [ ] 55.5.1.3 Subtask - Keep verification targets aligned with the final route modules, shared components, and Phase 55 coverage.
+      [x] 55.5.1.1 Subtask - Update `memory_graph_workflow_and_operator_expansion` to reflect canonical governed routes and shipped bounded operator memory actions.
+      [x] 55.5.1.2 Subtask - Update `memory_graph_surface_rollout_and_governance_actions` to reflect dashboard plus governed-surface rollout as active product behavior.
+      [x] 55.5.1.3 Subtask - Keep verification targets aligned with the final route modules, shared components, and Phase 55 coverage.
 
-    [ ] 55.5.2 Task - Align planning and contributor guidance with the completed rollout
+    [x] 55.5.2 Task - Align planning and contributor guidance with the completed rollout
       Update the planning index and any adjacent contributor-facing guidance so future work sees the governed memory route family as canonical current truth.
 
-      [ ] 55.5.2.1 Subtask - Remove or rewrite planning notes that still frame canonical work-item, evidence, and decision memory routes as missing after Phase 55 lands.
-      [ ] 55.5.2.2 Subtask - Update contributor-facing guidance that references the remaining proposed status of those memory rollout subjects.
-      [ ] 55.5.2.3 Subtask - Verify planning, specs, and route vocabulary converge on one canonical governed-memory story.
+      [x] 55.5.2.1 Subtask - Remove or rewrite planning notes that still frame canonical work-item, evidence, and decision memory routes as missing after Phase 55 lands.
+      [x] 55.5.2.2 Subtask - Update contributor-facing guidance that references the remaining proposed status of those memory rollout subjects.
+      [x] 55.5.2.3 Subtask - Verify planning, specs, and route vocabulary converge on one canonical governed-memory story.
 
   [ ] 55.6 Section - Phase 55 Integration Tests
     Verify the completed rollout through both the existing ontology coverage and new governed-surface route coverage so the phase closes with implementation, docs, and tests aligned.

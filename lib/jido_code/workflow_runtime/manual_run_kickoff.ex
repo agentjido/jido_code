@@ -8,7 +8,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   @default_error_type "workflow_manual_run_creation_failed"
   @validation_error_type "workflow_run_validation_failed"
   @workflow_unsupported_error_type "workflow_template_unsupported"
-  @project_lookup_error_type "workflow_project_lookup_failed"
+  @repository_lookup_error_type "workflow_repository_lookup_failed"
   @workflow_definition_lookup_error_type "workflow_definition_lookup_failed"
   @workflow_version_pinning_error_type "workflow_version_pinning_failed"
 
@@ -20,13 +20,13 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   Verify workflow runtime setup and retry kickoff from `/workflows`.
   """
 
-  @project_lookup_remediation """
+  @repository_lookup_remediation """
   Ensure the repository is imported and available, then retry kickoff from `/workflows`.
   """
-  @project_loader_actor Actor.operator_actor(%{
-                          "id" => "system:manual-run-kickoff",
-                          "email" => "manual-run-kickoff@system.local"
-                        })
+  @repository_loader_actor Actor.operator_actor(%{
+                             "id" => "system:manual-run-kickoff",
+                             "email" => "manual-run-kickoff@system.local"
+                           })
 
   @workflow_definition_remediation """
   Verify workflow definition metadata and retry kickoff from `/workflows`.
@@ -91,6 +91,10 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
           run_id: String.t(),
           workflow_name: String.t(),
           workflow_version: pos_integer(),
+          repo_id: String.t(),
+          managed_repo_id: String.t() | nil,
+          repository_name: String.t(),
+          repository_defaults: map(),
           project_id: String.t(),
           project_name: String.t(),
           project_defaults: map(),
@@ -122,22 +126,25 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
     end)
   end
 
-  @spec project_options() :: [map()]
-  def project_options do
-    case load_projects() do
-      {:ok, projects} -> projects
+  @spec repository_options() :: [map()]
+  def repository_options do
+    case load_repositories() do
+      {:ok, repositories} -> repositories
       {:error, _error} -> []
     end
   end
 
+  @spec project_options() :: [map()]
+  def project_options, do: repository_options()
+
   @spec kickoff(map() | nil, map() | nil) :: {:ok, kickoff_run()} | {:error, kickoff_error()}
   def kickoff(run_params, initiating_actor) do
     with {:ok, workflow_definition} <- workflow_definition(run_params),
-         {:ok, project_scope} <- project_scope(run_params),
+         {:ok, repository_scope} <- repository_scope(run_params),
          {:ok, inputs, input_metadata} <- validate_required_inputs(workflow_definition, run_params),
          kickoff_request <-
            build_kickoff_request(
-             project_scope,
+             repository_scope,
              workflow_definition,
              inputs,
              input_metadata,
@@ -176,16 +183,16 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   end
 
   @doc false
-  @spec default_project_loader() :: {:ok, [map()]} | {:error, kickoff_error()}
-  def default_project_loader do
-    case ManagedRepo.read(query: [sort: [display_name: :asc]], actor: @project_loader_actor) do
+  @spec default_repository_loader() :: {:ok, [map()]} | {:error, kickoff_error()}
+  def default_repository_loader do
+    case ManagedRepo.read(query: [sort: [display_name: :asc]], actor: @repository_loader_actor) do
       {:ok, managed_repos} ->
         {:ok,
          managed_repos
          |> Enum.map(fn managed_repo ->
            case RepoBridge.repo_scope(managed_repo.id) do
-             {:ok, scope} -> to_project_option(scope)
-             {:error, _reason} -> to_project_option(managed_repo)
+             {:ok, scope} -> to_repository_option(scope)
+             {:error, _reason} -> to_repository_option(managed_repo)
            end
          end)
          |> Enum.reject(&is_nil/1)}
@@ -193,12 +200,15 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
       {:error, reason} ->
         {:error,
          kickoff_error(
-           @project_lookup_error_type,
+           @repository_lookup_error_type,
            "Repository lookup failed (#{format_reason(reason)}).",
-           @project_lookup_remediation
+           @repository_lookup_remediation
          )}
     end
   end
+
+  @spec default_project_loader() :: {:ok, [map()]} | {:error, kickoff_error()}
+  def default_project_loader, do: default_repository_loader()
 
   defp workflow_definition(run_params) do
     with {:ok, workflow_definitions} <- load_workflow_definitions() do
@@ -312,54 +322,67 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
     end
   end
 
-  defp project_scope(run_params) do
-    case run_params |> map_get(:project_id, "project_id") |> normalize_optional_string() do
+  defp repository_scope(run_params) do
+    case repository_identifier(run_params) do
       nil ->
         {:error,
          validation_error(
            "Repo scope is required before starting a workflow run.",
-           [field_error("project_id", "required", "Select a repository to scope this run.")]
+           [field_error("repo_id", "required", "Select a repository to scope this run.")]
          )}
 
-      project_id ->
-        with {:ok, projects} <- load_projects(),
-             {:ok, project_scope} <- find_project_scope(projects, project_id) do
-          {:ok, project_scope}
+      repo_id ->
+        with {:ok, repositories} <- load_repositories(),
+             {:ok, repository_scope} <- find_repository_scope(repositories, repo_id) do
+          {:ok, repository_scope}
         end
     end
   end
 
-  defp find_project_scope(projects, project_id) when is_list(projects) do
-    case Enum.find(projects, fn project ->
-           project
+  defp find_repository_scope(repositories, repo_id) when is_list(repositories) do
+    case Enum.find(repositories, fn repository ->
+           repository
            |> map_get(:id, "id")
-           |> normalize_optional_string() == project_id
+           |> normalize_optional_string() == repo_id
          end) do
-      %{} = project ->
-        resolved_project_id =
-          project
+      %{} = repository ->
+        resolved_repo_id =
+          repository
           |> map_get(:id, "id")
-          |> normalize_optional_string() || project_id
+          |> normalize_optional_string() || repo_id
 
-        project_name =
-          project
+        managed_repo_id =
+          repository
+          |> map_get(:managed_repo_id, "managed_repo_id")
+          |> normalize_optional_string() || resolved_repo_id
+
+        repository_name =
+          repository
           |> map_get(:name, "name")
           |> normalize_optional_string()
 
         github_full_name =
-          project
+          repository
           |> map_get(:github_full_name, "github_full_name")
           |> normalize_optional_string()
 
         default_branch =
-          project
+          repository
           |> map_get(:default_branch, "default_branch")
           |> normalize_optional_string() || "main"
 
+        legacy_project_id =
+          repository
+          |> map_get(:legacy_project_id, "legacy_project_id")
+          |> normalize_optional_string() || resolved_repo_id
+
         {:ok,
          %{
-           project_id: resolved_project_id,
-           project_name: project_name || github_full_name || resolved_project_id,
+           repo_id: resolved_repo_id,
+           managed_repo_id: managed_repo_id,
+           repository_name: repository_name || github_full_name || resolved_repo_id,
+           project_id: legacy_project_id,
+           project_name: repository_name || github_full_name || resolved_repo_id,
            github_full_name: github_full_name,
            default_branch: default_branch
          }}
@@ -367,80 +390,80 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
       nil ->
         {:error,
          validation_error(
-           "Repository #{project_id} was not found.",
-           [field_error("project_id", "not_found", "Select an imported repository and retry kickoff.")]
+           "Repository #{repo_id} was not found.",
+           [field_error("repo_id", "not_found", "Select an imported repository and retry kickoff.")]
          )}
     end
   end
 
-  defp find_project_scope(_projects, _project_id) do
+  defp find_repository_scope(_repositories, _repo_id) do
     {:error,
      kickoff_error(
-       @project_lookup_error_type,
+       @repository_lookup_error_type,
        "Repository loader returned malformed repository catalog data.",
-       @project_lookup_remediation
+       @repository_lookup_remediation
      )}
   end
 
-  defp load_projects do
+  defp load_repositories do
     loader =
       Application.get_env(
         :jido_code,
-        :workflow_manual_project_loader,
-        &__MODULE__.default_project_loader/0
+        :workflow_manual_repository_loader,
+        Application.get_env(:jido_code, :workflow_manual_project_loader, &__MODULE__.default_repository_loader/0)
       )
 
     if is_function(loader, 0) do
-      safe_invoke_project_loader(loader)
+      safe_invoke_repository_loader(loader)
     else
       {:error,
        kickoff_error(
-         @project_lookup_error_type,
-         "Workflow manual project loader configuration is invalid.",
-         @project_lookup_remediation
+         @repository_lookup_error_type,
+         "Workflow manual repository loader configuration is invalid.",
+         @repository_lookup_remediation
        )}
     end
   end
 
-  defp safe_invoke_project_loader(loader) do
+  defp safe_invoke_repository_loader(loader) do
     try do
       case loader.() do
-        {:ok, projects} when is_list(projects) ->
-          {:ok, normalize_loaded_projects(projects)}
+        {:ok, repositories} when is_list(repositories) ->
+          {:ok, normalize_loaded_repositories(repositories)}
 
         {:error, error} ->
-          {:error, normalize_project_lookup_error(error)}
+          {:error, normalize_repository_lookup_error(error)}
 
         other ->
           {:error,
            kickoff_error(
-             @project_lookup_error_type,
-             "Workflow manual project loader returned an invalid result (#{inspect(other)}).",
-             @project_lookup_remediation
+             @repository_lookup_error_type,
+             "Workflow manual repository loader returned an invalid result (#{inspect(other)}).",
+             @repository_lookup_remediation
            )}
       end
     rescue
       exception ->
         {:error,
          kickoff_error(
-           @project_lookup_error_type,
-           "Workflow manual project loader crashed (#{Exception.message(exception)}).",
-           @project_lookup_remediation
+           @repository_lookup_error_type,
+           "Workflow manual repository loader crashed (#{Exception.message(exception)}).",
+           @repository_lookup_remediation
          )}
     catch
       kind, reason ->
         {:error,
          kickoff_error(
-           @project_lookup_error_type,
-           "Workflow manual project loader threw #{inspect({kind, reason})}.",
-           @project_lookup_remediation
+           @repository_lookup_error_type,
+           "Workflow manual repository loader threw #{inspect({kind, reason})}.",
+           @repository_lookup_remediation
          )}
     end
   end
 
-  defp normalize_loaded_projects(projects) do
-    projects
-    |> Enum.map(&to_project_option/1)
+  defp normalize_loaded_repositories(repositories) do
+    repositories
+    |> Enum.map(&to_repository_option/1)
     |> Enum.reject(&is_nil/1)
   end
 
@@ -491,7 +514,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   end
 
   defp build_kickoff_request(
-         project_scope,
+         repository_scope,
          workflow_definition,
          inputs,
          input_metadata,
@@ -499,23 +522,29 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
        ) do
     workflow_name = Map.fetch!(workflow_definition, :name)
     workflow_version = Map.fetch!(workflow_definition, :version)
-    project_id = Map.fetch!(project_scope, :project_id)
+    repo_id = Map.fetch!(repository_scope, :repo_id)
+    repository_defaults = %{
+      default_branch: Map.fetch!(repository_scope, :default_branch),
+      github_full_name: Map.get(repository_scope, :github_full_name)
+    }
 
     %{
       workflow_name: workflow_name,
       workflow_version: workflow_version,
-      project_id: project_id,
-      project_name: Map.fetch!(project_scope, :project_name),
-      project_defaults: %{
-        default_branch: Map.fetch!(project_scope, :default_branch),
-        github_full_name: Map.get(project_scope, :github_full_name)
-      },
+      repo_id: repo_id,
+      managed_repo_id: Map.get(repository_scope, :managed_repo_id),
+      repository_name: Map.fetch!(repository_scope, :repository_name),
+      repository_defaults: repository_defaults,
+      project_id: Map.fetch!(repository_scope, :project_id),
+      project_name: Map.fetch!(repository_scope, :project_name),
+      project_defaults: repository_defaults,
       trigger: %{
         source: "workflows",
         mode: "manual",
         source_row: %{
           route: "/workflows",
-          project_id: project_id,
+          repo_id: repo_id,
+          project_id: Map.fetch!(repository_scope, :project_id),
           workflow_name: workflow_name,
           workflow_version: workflow_version
         }
@@ -592,6 +621,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
         |> normalize_optional_datetime() ||
           DateTime.utc_now() |> DateTime.truncate(:second)
 
+      repo_id = Map.fetch!(kickoff_request, :repo_id)
       project_id = Map.fetch!(kickoff_request, :project_id)
 
       {:ok,
@@ -599,6 +629,10 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
          run_id: run_id,
          workflow_name: Map.fetch!(kickoff_request, :workflow_name),
          workflow_version: Map.fetch!(kickoff_request, :workflow_version),
+         repo_id: repo_id,
+         managed_repo_id: Map.get(kickoff_request, :managed_repo_id),
+         repository_name: Map.fetch!(kickoff_request, :repository_name),
+         repository_defaults: Map.fetch!(kickoff_request, :repository_defaults),
          project_id: project_id,
          project_name: Map.fetch!(kickoff_request, :project_name),
          project_defaults: Map.fetch!(kickoff_request, :project_defaults),
@@ -606,7 +640,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
          inputs: Map.fetch!(kickoff_request, :inputs),
          input_metadata: Map.fetch!(kickoff_request, :input_metadata),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path: "/repos/#{URI.encode(repo_id)}/runs/#{URI.encode(run_id)}",
          started_at: started_at
        }}
     else
@@ -630,27 +664,27 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
 
   defp extract_run_id(_run_result), do: nil
 
-  defp to_project_option(project) when is_map(project) do
-    project_id =
-      project
+  defp to_repository_option(repository) when is_map(repository) do
+    repo_id =
+      repository
       |> map_get(:route_id, "route_id")
       |> normalize_optional_string() ||
-        project
+        repository
         |> map_get(:managed_repo_id, "managed_repo_id")
         |> normalize_optional_string() ||
-        project
+        repository
         |> map_get(:id, "id")
         |> normalize_optional_string()
 
-    if is_binary(project_id) do
-      managed_repo = map_get(project, :managed_repo, "managed_repo", %{})
-      source_repo = map_get(project, :source_repo, "source_repo", %{})
+    if is_binary(repo_id) do
+      managed_repo = map_get(repository, :managed_repo, "managed_repo", %{})
+      source_repo = map_get(repository, :source_repo, "source_repo", %{})
 
-      project_name =
+      repository_name =
         managed_repo
         |> map_get(:display_name, "display_name")
         |> normalize_optional_string() ||
-          project
+          repository
           |> map_get(:name, "name")
           |> normalize_optional_string()
 
@@ -658,7 +692,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
         source_repo
         |> map_get(:full_name, "full_name")
         |> normalize_optional_string() ||
-          project
+          repository
           |> map_get(:github_full_name, "github_full_name")
           |> normalize_optional_string()
 
@@ -666,20 +700,33 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
         source_repo
         |> map_get(:default_branch, "default_branch")
         |> normalize_optional_string() ||
-          project
+          repository
           |> map_get(:default_branch, "default_branch")
           |> normalize_optional_string() || "main"
 
+      legacy_project_id =
+        repository
+        |> map_get(:project_id, "project_id")
+        |> normalize_optional_string() ||
+          repository
+          |> map_get(:legacy_project_id, "legacy_project_id")
+          |> normalize_optional_string()
+
       %{
-        id: project_id,
-        name: project_name || github_full_name || project_id,
-        github_full_name: github_full_name || project_name || project_id,
+        id: repo_id,
+        managed_repo_id:
+          managed_repo
+          |> map_get(:id, "id")
+          |> normalize_optional_string() || repo_id,
+        legacy_project_id: legacy_project_id,
+        name: repository_name || github_full_name || repo_id,
+        github_full_name: github_full_name || repository_name || repo_id,
         default_branch: default_branch
       }
     end
   end
 
-  defp to_project_option(_project), do: nil
+  defp to_repository_option(_repository), do: nil
 
   defp validation_error(detail, field_errors) do
     kickoff_error(@validation_error_type, detail, @validation_remediation, field_errors)
@@ -694,11 +741,11 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
     )
   end
 
-  defp normalize_project_lookup_error(error) do
+  defp normalize_repository_lookup_error(error) do
     kickoff_error(
-      map_get(error, :error_type, "error_type", @project_lookup_error_type),
+      map_get(error, :error_type, "error_type", @repository_lookup_error_type),
       map_get(error, :detail, "detail", "Repository lookup failed."),
-      map_get(error, :remediation, "remediation", @project_lookup_remediation),
+      map_get(error, :remediation, "remediation", @repository_lookup_remediation),
       map_get(error, :field_errors, "field_errors", [])
     )
   end
@@ -751,6 +798,17 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   end
 
   defp normalize_field_error(_field_error), do: nil
+
+  defp repository_identifier(run_params) do
+    run_params
+    |> map_get(:repo_id, "repo_id")
+    |> normalize_optional_string()
+    |> Kernel.||(
+      run_params
+      |> map_get(:project_id, "project_id")
+      |> normalize_optional_string()
+    )
+  end
 
   defp field_error(field, error_type, detail) do
     %{

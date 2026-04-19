@@ -7,6 +7,9 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     original_definition_loader =
       Application.get_env(:jido_code, :workflow_manual_definition_loader, :__missing__)
 
+    original_repository_loader =
+      Application.get_env(:jido_code, :workflow_manual_repository_loader, :__missing__)
+
     original_project_loader =
       Application.get_env(:jido_code, :workflow_manual_project_loader, :__missing__)
 
@@ -15,6 +18,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
 
     on_exit(fn ->
       restore_env(:workflow_manual_definition_loader, original_definition_loader)
+      restore_env(:workflow_manual_repository_loader, original_repository_loader)
       restore_env(:workflow_manual_project_loader, original_project_loader)
       restore_env(:workflow_manual_run_launcher, original_run_launcher)
     end)
@@ -23,18 +27,20 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
   end
 
   test "kickoff pins workflow version in launch metadata and run result" do
-    project_id = "project-123"
+    repo_id = "repo-123"
     requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(:jido_code, :workflow_manual_definition_loader, fn ->
       {:ok, [workflow_definition("implement_task", 7)]}
     end)
 
-    Application.put_env(:jido_code, :workflow_manual_project_loader, fn ->
+    Application.put_env(:jido_code, :workflow_manual_repository_loader, fn ->
       {:ok,
        [
          %{
-           id: project_id,
+           id: repo_id,
+           managed_repo_id: repo_id,
+           legacy_project_id: repo_id,
            name: "repo-workflows",
            github_full_name: "owner/repo-workflows",
            default_branch: "main"
@@ -50,7 +56,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     {:ok, kickoff_run} =
       ManualRunKickoff.kickoff(
         %{
-          "project_id" => project_id,
+          "repo_id" => repo_id,
           "workflow_name" => "implement_task",
           "task_summary" => "Ship onboarding updates."
         },
@@ -60,8 +66,9 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     assert kickoff_run.run_id == "run-manual-123"
     assert kickoff_run.workflow_name == "implement_task"
     assert kickoff_run.workflow_version == 7
-    assert kickoff_run.project_id == project_id
-    assert kickoff_run.detail_path == "/repos/#{project_id}/runs/run-manual-123"
+    assert kickoff_run.repo_id == repo_id
+    assert kickoff_run.project_id == repo_id
+    assert kickoff_run.detail_path == "/repos/#{repo_id}/runs/run-manual-123"
 
     recorded_requests = requests |> Agent.get(&Enum.reverse(&1))
 
@@ -69,13 +76,19 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
              %{
                workflow_name: "implement_task",
                workflow_version: 7,
-               project_id: ^project_id,
+               repo_id: ^repo_id,
+               project_id: ^repo_id,
+               repository_defaults: %{
+                 default_branch: "main",
+                 github_full_name: "owner/repo-workflows"
+               },
                trigger: %{
                  source: "workflows",
                  mode: "manual",
                  source_row: %{
                    route: "/workflows",
-                   project_id: ^project_id,
+                   repo_id: ^repo_id,
+                   project_id: ^repo_id,
                    workflow_name: "implement_task",
                    workflow_version: 7
                  }
@@ -90,7 +103,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
   end
 
   test "workflow version is pinned per run even when definitions change after kickoff" do
-    project_id = "project-789"
+    repo_id = "repo-789"
 
     definition_version =
       start_supervised!({Agent, fn -> 1 end}, id: :workflow_definition_version_agent)
@@ -102,11 +115,13 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
       {:ok, [workflow_definition("implement_task", current_version)]}
     end)
 
-    Application.put_env(:jido_code, :workflow_manual_project_loader, fn ->
+    Application.put_env(:jido_code, :workflow_manual_repository_loader, fn ->
       {:ok,
        [
          %{
-           id: project_id,
+           id: repo_id,
+           managed_repo_id: repo_id,
+           legacy_project_id: repo_id,
            name: "repo-pinned",
            github_full_name: "owner/repo-pinned",
            default_branch: "main"
@@ -122,7 +137,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     {:ok, first_run} =
       ManualRunKickoff.kickoff(
         %{
-          "project_id" => project_id,
+          "repo_id" => repo_id,
           "workflow_name" => "implement_task",
           "task_summary" => "Initial run."
         },
@@ -134,7 +149,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     {:ok, second_run} =
       ManualRunKickoff.kickoff(
         %{
-          "project_id" => project_id,
+          "repo_id" => repo_id,
           "workflow_name" => "implement_task",
           "task_summary" => "Second run."
         },
@@ -155,14 +170,16 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
   end
 
   test "missing required inputs returns typed validation error and does not invoke launcher" do
-    project_id = "project-456"
+    repo_id = "repo-456"
     launcher_invocations = start_supervised!({Agent, fn -> 0 end})
 
-    Application.put_env(:jido_code, :workflow_manual_project_loader, fn ->
+    Application.put_env(:jido_code, :workflow_manual_repository_loader, fn ->
       {:ok,
        [
          %{
-           id: project_id,
+           id: repo_id,
+           managed_repo_id: repo_id,
+           legacy_project_id: repo_id,
            name: "repo-validation",
            github_full_name: "owner/repo-validation",
            default_branch: "main"
@@ -178,7 +195,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     assert {:error, kickoff_error} =
              ManualRunKickoff.kickoff(
                %{
-                 "project_id" => project_id,
+                 "repo_id" => repo_id,
                  "workflow_name" => "implement_task",
                  "task_summary" => ""
                },
@@ -196,7 +213,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
   end
 
   test "missing workflow version pinning metadata aborts run creation before launcher" do
-    project_id = "project-999"
+    repo_id = "repo-999"
     launcher_invocations = start_supervised!({Agent, fn -> 0 end})
 
     Application.put_env(:jido_code, :workflow_manual_definition_loader, fn ->
@@ -217,11 +234,13 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
        ]}
     end)
 
-    Application.put_env(:jido_code, :workflow_manual_project_loader, fn ->
+    Application.put_env(:jido_code, :workflow_manual_repository_loader, fn ->
       {:ok,
        [
          %{
-           id: project_id,
+           id: repo_id,
+           managed_repo_id: repo_id,
+           legacy_project_id: repo_id,
            name: "repo-version-missing",
            github_full_name: "owner/repo-version-missing",
            default_branch: "main"
@@ -237,7 +256,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     assert {:error, kickoff_error} =
              ManualRunKickoff.kickoff(
                %{
-                 "project_id" => project_id,
+                 "repo_id" => repo_id,
                  "workflow_name" => "implement_task",
                  "task_summary" => "Ship deterministic workflow metadata."
                },

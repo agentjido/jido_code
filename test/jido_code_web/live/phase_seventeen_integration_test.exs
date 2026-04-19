@@ -192,7 +192,7 @@ defmodule JidoCodeWeb.PhaseSeventeenIntegrationTest do
     {:ok, run_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{managed_repo.id}/runs/#{run_id}", on_error: :warn)
 
-    assert has_element?(run_view, "#run-detail-title", "Workflow run detail")
+    assert has_element?(run_view, "#run-detail-title", "Run detail")
     assert has_element?(run_view, "#run-detail-status", "awaiting_approval")
     assert has_element?(run_view, "#run-detail-runtime-evidence")
 

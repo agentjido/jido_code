@@ -227,32 +227,32 @@ defmodule JidoCode.Workbench.ProjectDetail do
       status: :blocked,
       enabled: false,
       error_type: @project_not_ready_error_type,
-      detail: "Project execution prerequisites are unavailable.",
+      detail: "Repository execution prerequisites are unavailable.",
       remediation: @project_not_ready_remediation
     }
   end
 
   defp blocked_readiness_reason(:ready, _workspace_initialized?, _baseline_synced?) do
     {
-      "Project workspace metadata is incomplete for workflow execution.",
+      "Repository workspace metadata is incomplete for workflow execution.",
       "project_execution_metadata_incomplete"
     }
   end
 
   defp blocked_readiness_reason(:cloning, _workspace_initialized?, _baseline_synced?) do
-    {"Project workspace clone is still running.", "project_workspace_clone_in_progress"}
+    {"Repository workspace clone is still running.", "project_workspace_clone_in_progress"}
   end
 
   defp blocked_readiness_reason(:pending, _workspace_initialized?, _baseline_synced?) do
-    {"Project workspace import has not completed yet.", "project_workspace_clone_pending"}
+    {"Repository workspace import has not completed yet.", "project_workspace_clone_pending"}
   end
 
   defp blocked_readiness_reason(:error, _workspace_initialized?, _baseline_synced?) do
-    {"Project workspace clone or baseline sync failed.", @project_not_ready_error_type}
+    {"Repository workspace clone or baseline sync failed.", @project_not_ready_error_type}
   end
 
   defp blocked_readiness_reason(_clone_status, _workspace_initialized?, _baseline_synced?) do
-    {"Project execution prerequisites are incomplete.", @project_not_ready_error_type}
+    {"Repository execution prerequisites are incomplete.", @project_not_ready_error_type}
   end
 
   defp normalize_clone_status(:pending), do: :pending

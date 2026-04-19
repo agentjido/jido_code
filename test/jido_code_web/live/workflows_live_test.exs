@@ -61,7 +61,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
     view
     |> form("#workflows-manual-run-form",
       run: %{
-        project_id: repo_id,
+        repo_id: repo_id,
         workflow_name: "implement_task",
         task_summary: "Ship onboarding copy updates with tests."
       }
@@ -96,7 +96,12 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
              %{
                workflow_name: "implement_task",
                workflow_version: 4,
+               repo_id: ^repo_id,
                project_id: ^repo_id,
+               repository_defaults: %{
+                 default_branch: "main",
+                 github_full_name: "owner/repo-workflows"
+               },
                project_defaults: %{
                  default_branch: "main",
                  github_full_name: "owner/repo-workflows"
@@ -106,6 +111,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
                  mode: "manual",
                  source_row: %{
                    route: "/workflows",
+                   repo_id: ^repo_id,
                    project_id: ^repo_id,
                    workflow_name: "implement_task",
                    workflow_version: 4
@@ -152,7 +158,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
     view
     |> form("#workflows-manual-run-form",
       run: %{
-        project_id: repo.id,
+        repo_id: repo.id,
         workflow_name: "implement_task",
         task_summary: ""
       }

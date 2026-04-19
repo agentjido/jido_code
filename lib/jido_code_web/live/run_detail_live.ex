@@ -21,7 +21,6 @@ defmodule JidoCodeWeb.RunDetailLive do
   alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
-  alias JidoCode.Projects.Project
   alias JidoCode.Workbench.ProjectConversation
 
   @run_events_for_refresh MapSet.new([
@@ -369,7 +368,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       <section id="run-detail-page" class="space-y-4">
         <%= if @run do %>
           <section id="run-detail-header" class="space-y-1">
-            <h1 id="run-detail-title" class="text-2xl font-bold">Workflow run detail</h1>
+            <h1 id="run-detail-title" class="text-2xl font-bold">Run detail</h1>
             <p id="run-detail-run-id" class="text-sm">
               Run: <span class="font-mono">{@run.run_id}</span>
             </p>
@@ -1504,7 +1503,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       conversation_linkage = ProjectConversation.load_work_item_linkage(work_item, actor: Actor.operator_actor())
 
       managed_repo_id = memory_context_managed_repo_id(project_scope, run)
-      workspace_path = load_project_workspace_path(project_id)
+      workspace_path = load_repo_workspace_path(project_scope)
 
       memory_context =
         GovernedSurfaceContext.load_run_detail(
@@ -1656,18 +1655,15 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp load_repo_posture(_run), do: nil
 
-  defp load_project_workspace_path(project_id) do
-    with {:ok, [project]} <-
-           Project.read(query: [filter: [id: project_id], limit: 1], actor: Actor.operator_actor()) do
-      project
-      |> map_get(:settings, "settings", %{})
-      |> map_get(:workspace, "workspace", %{})
-      |> map_get(:workspace_path, "workspace_path")
-      |> normalize_optional_string()
-    else
-      _other -> nil
-    end
+  defp load_repo_workspace_path(project_scope) when is_map(project_scope) do
+    project_scope
+    |> map_get(:managed_repo, "managed_repo", %{})
+    |> map_get(:workspace_settings, "workspace_settings", %{})
+    |> map_get(:workspace_path, "workspace_path")
+    |> normalize_optional_string()
   end
+
+  defp load_repo_workspace_path(_project_scope), do: nil
 
   defp memory_context_managed_repo_id(project_scope, %Run{} = run) do
     normalize_optional_string(map_get(run, :managed_repo_id, "managed_repo_id")) ||

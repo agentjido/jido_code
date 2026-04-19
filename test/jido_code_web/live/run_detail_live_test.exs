@@ -74,7 +74,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/run-detail-123", on_error: :warn)
 
-    assert has_element?(view, "#run-detail-title", "Workflow run detail")
+    assert has_element?(view, "#run-detail-title", "Run detail")
     assert has_element?(view, "#run-detail-run-id", "run-detail-123")
     assert has_element?(view, "#run-detail-status", "awaiting_approval")
     assert has_element?(view, "#run-detail-current-step", "approval_gate")
@@ -1327,7 +1327,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
         on_error: :warn
       )
 
-    assert has_element?(view, "#run-detail-title", "Workflow run detail")
+    assert has_element?(view, "#run-detail-title", "Run detail")
     assert has_element?(view, "#run-detail-artifact-browser")
     assert has_element?(view, "#run-detail-artifact-entry-diff-summaries-diff-summary")
     refute has_element?(view, "#run-detail-artifact-category-missing-diff_summaries")

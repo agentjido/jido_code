@@ -99,6 +99,7 @@ config :jido_code,
     JidoCode.Security,
     JidoCode.Setup
   ],
+  # covers: setup.runtime_environment_defaults.selection_persisted_in_database_backed_system_config
   system_config_loader: &JidoCode.Setup.SystemConfigPersistence.load/0,
   system_config_saver: &JidoCode.Setup.SystemConfigPersistence.save/1,
   ash_authentication: [return_error_on_invalid_magic_link_token?: true],

@@ -5,6 +5,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
   # covers: users.admin_system.registration_guardrails
   # covers: setup.onboarding.post_bootstrap_start_surface
   # covers: setup.onboarding.deployment_mode_auto_detected
+  # covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
+  # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
   # covers: setup.onboarding.deferred_integrations
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb.ConnCase, async: false
@@ -35,7 +37,9 @@ defmodule JidoCodeWeb.SetupLiveTest do
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
       onboarding_step: 1,
-      onboarding_state: %{}
+      onboarding_state: %{},
+      default_environment: :sprite,
+      workspace_root: nil
     })
 
     Application.put_env(:jido_code, :setup_prerequisite_checker, fn _timeout_ms ->
@@ -258,7 +262,9 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    assert has_element?(view, "#setup-deployment-mode", "Desktop")
+    assert has_element?(view, "#setup-install-flavor", "Desktop")
+    assert has_element?(view, "#setup-runtime-environment-select")
+    assert has_element?(view, "#setup-saved-runtime-environment", "Cloud")
     assert has_element?(view, "#setup-start-choice-local_repo-badge", "Recommended")
     assert has_element?(view, "#setup-start-choice-local_repo-save", "Add local repo")
     assert has_element?(view, "#setup-start-choice-github-save", "Connect GitHub")
@@ -285,11 +291,128 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    assert has_element?(view, "#setup-deployment-mode", "Cloud")
+    assert has_element?(view, "#setup-install-flavor", "Cloud")
+    assert has_element?(view, "#setup-runtime-environment-select")
+    assert has_element?(view, "#setup-saved-runtime-environment", "Cloud")
     refute has_element?(view, "#setup-start-choice-local_repo")
     assert has_element?(view, "#setup-start-choice-github-badge", "Recommended")
     assert has_element?(view, "#setup-start-choice-github-save", "Connect GitHub")
     assert has_element?(view, "#setup-start-choice-later-save", "Do this later")
+  end
+
+  test "saving a local runtime environment persists validated local defaults without advancing onboarding progress",
+       %{conn: conn} do
+    workspace_root = tmp_workspace_path!()
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      },
+      default_environment: :sprite,
+      workspace_root: nil
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    render_change(view, "change_runtime_environment", %{
+      "runtime_environment" => %{
+        "mode" => "local"
+      }
+    })
+
+    assert has_element?(view, "#setup-runtime-workspace-root")
+
+    render_submit(view, "save_runtime_environment", %{
+      "runtime_environment" => %{
+        "mode" => "local",
+        "workspace_root" => workspace_root
+      }
+    })
+
+    assert has_element?(view, "#setup-saved-runtime-environment", "Local")
+    assert has_element?(view, "#setup-saved-runtime-note", workspace_root)
+
+    assert %{
+             onboarding_completed: false,
+             onboarding_step: 3,
+             default_environment: :local,
+             workspace_root: ^workspace_root,
+             onboarding_state: %{
+               "3" => %{
+                 "runtime_environment" => %{
+                   "mode" => "local",
+                   "default_environment" => "local",
+                   "workspace_root" => ^workspace_root,
+                   "status" => "ready"
+                 },
+                 "runtime_environment_note" => runtime_note
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    assert runtime_note =~ workspace_root
+  end
+
+  test "saving a local runtime environment rejects an invalid workspace root", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      },
+      default_environment: :sprite,
+      workspace_root: nil
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    render_change(view, "change_runtime_environment", %{
+      "runtime_environment" => %{
+        "mode" => "local"
+      }
+    })
+
+    render_submit(view, "save_runtime_environment", %{
+      "runtime_environment" => %{
+        "mode" => "local",
+        "workspace_root" => "relative/workspaces"
+      }
+    })
+
+    assert has_element?(view, "#setup-runtime-save-error", "Workspace root must be an absolute path.")
+
+    assert %{
+             onboarding_completed: false,
+             onboarding_step: 3,
+             default_environment: :sprite,
+             workspace_root: nil,
+             onboarding_state: onboarding_state
+           } = Application.get_env(:jido_code, :system_config)
+
+    refute get_in(onboarding_state, ["3", "runtime_environment"])
   end
 
   test "choosing a start path persists the saved choice without advancing onboarding progress", %{
@@ -421,7 +544,20 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-start-surface")
     assert has_element?(view, "#setup-title", "Choose how to start")
     assert has_element?(view, "#setup-description")
+    assert has_element?(view, "#setup-runtime-environment-form")
     assert has_element?(view, "#setup-owner-email", "owner@example.com")
+  end
+
+  defp tmp_workspace_path! do
+    workspace_path =
+      Path.join(
+        System.tmp_dir!(),
+        "setup-live-runtime-workspace-#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(workspace_path)
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+    workspace_path
   end
 
   defp assert_owner_count(expected_count) do

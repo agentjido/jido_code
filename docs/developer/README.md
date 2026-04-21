@@ -48,6 +48,9 @@ lives in:
 13. [`13-source-code-graph-operations.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/13-source-code-graph-operations.md)
     Learn operational aspects of the source code graph capability, including
     configuration, monitoring, troubleshooting, and production deployment.
+14. [`14-repository-mental-map.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/14-repository-mental-map.md)
+    Use this as a fast "where things live" index when you want to browse the
+    codebase without reconstructing the repo layout from scratch.
 
 ## How To Use These Guides
 

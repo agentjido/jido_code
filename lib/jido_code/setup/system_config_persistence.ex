@@ -1,4 +1,6 @@
 defmodule JidoCode.Setup.SystemConfigPersistence do
+  # covers: setup.runtime_environment_defaults.selection_persisted_in_database_backed_system_config
+  # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
   @moduledoc """
   Database-backed loader/saver for SystemConfig.
 

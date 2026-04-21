@@ -1,4 +1,7 @@
 defmodule JidoCode.Setup.EnvironmentDefaults do
+  # covers: setup.runtime_environment_defaults.cloud_selection_maps_to_sprite_default
+  # covers: setup.runtime_environment_defaults.local_selection_requires_valid_workspace_root
+  # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
   @moduledoc """
   Validates setup step 5 environment defaults before onboarding can advance.
   """

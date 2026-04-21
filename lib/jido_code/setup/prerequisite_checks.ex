@@ -197,14 +197,28 @@ defmodule JidoCode.Setup.PrerequisiteChecks do
   end
 
   defp safe_invoke_checker(checker, timeout_ms) when is_function(checker, 1) do
-    try do
-      checker.(timeout_ms)
-    rescue
-      exception ->
-        {:error, {:checker_exception, Exception.message(exception)}}
-    catch
-      kind, reason ->
-        {:error, {:checker_throw, {kind, reason}}}
+    task =
+      Task.async(fn ->
+        try do
+          {:ok, checker.(timeout_ms)}
+        rescue
+          exception ->
+            {:error, {:checker_exception, Exception.message(exception)}}
+        catch
+          kind, reason ->
+            {:error, {:checker_throw, {kind, reason}}}
+        end
+      end)
+
+    case Task.yield(task, timeout_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, result}} ->
+        result
+
+      {:ok, {:error, reason}} ->
+        {:error, reason}
+
+      nil ->
+        {:error, {:checker_timeout, timeout_ms}}
     end
   end
 
@@ -258,6 +272,9 @@ defmodule JidoCode.Setup.PrerequisiteChecks do
     }
   end
 
+  defp normalize_report({:error, {:checker_timeout, timeout_ms}}, _timeout_ms),
+    do: checker_timeout_report(timeout_ms)
+
   defp normalize_report({:error, reason}, _timeout_ms), do: checker_error_report(reason)
 
   defp normalize_report(other, _timeout_ms), do: checker_error_report({:invalid_checker_result, other})
@@ -275,6 +292,25 @@ defmodule JidoCode.Setup.PrerequisiteChecks do
           status: :fail,
           detail: "Unable to run prerequisite checks: #{inspect(reason)}",
           remediation: "Verify setup prerequisite checker configuration and retry setup.",
+          checked_at: checked_at
+        }
+      ]
+    }
+  end
+
+  defp checker_timeout_report(timeout_ms) do
+    checked_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    %{
+      checked_at: checked_at,
+      status: :timeout,
+      checks: [
+        %{
+          id: "prerequisite_checker",
+          name: "Prerequisite checker",
+          status: :timeout,
+          detail: "Prerequisite checks timed out after #{timeout_ms}ms.",
+          remediation: "Retry setup. If the check still hangs, inspect the prerequisite checker configuration and runtime dependencies.",
           checked_at: checked_at
         }
       ]

@@ -3,12 +3,18 @@ import vue from "@vitejs/plugin-vue";
 import liveVuePlugin from "live_vue/vitePlugin";
 import tailwindcss from "@tailwindcss/vite";
 
+const phoenixPort = process.env.PORT ?? "4100";
+const allowedOrigins = [
+  `http://localhost:${phoenixPort}`,
+  `http://127.0.0.1:${phoenixPort}`,
+];
+
 export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
-    cors: { origin: "http://localhost:4000" },
+    cors: { origin: allowedOrigins },
   },
   optimizeDeps: {
     // https://vitejs.dev/guide/dep-pre-bundling#monorepos-and-linked-dependencies

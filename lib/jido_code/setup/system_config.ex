@@ -1,4 +1,6 @@
 defmodule JidoCode.Setup.SystemConfig do
+  # covers: setup.runtime_environment_defaults.selection_persisted_in_database_backed_system_config
+  # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
   @moduledoc """
   Onboarding state loader and progress persistence for setup routing.
   """
@@ -94,6 +96,25 @@ defmodule JidoCode.Setup.SystemConfig do
 
   def save_step_progress(_validated_state, _config_updates),
     do: {:error, save_error(:invalid_step_state, 1)}
+
+  @spec update((t() -> t() | {:ok, t()} | {:error, term()})) :: {:ok, t()} | {:error, save_error()}
+  def update(updater) when is_function(updater, 1) do
+    case load() do
+      {:ok, %__MODULE__{} = config} ->
+        with {:ok, updated_config} <- apply_config_update(updater, config),
+             {:ok, persisted_config} <- persist_config(updated_config) do
+          {:ok, persisted_config}
+        else
+          {:error, reason} ->
+            {:error, save_error(reason, config.onboarding_step)}
+        end
+
+      {:error, reason} ->
+        {:error, save_error({:load_failed, reason}, onboarding_step_from_reason(reason))}
+    end
+  end
+
+  def update(_updater), do: {:error, save_error(:invalid_config_updater, 1)}
 
   @spec update_onboarding_state((onboarding_state() ->
                                    onboarding_state() | {:ok, onboarding_state()} | {:error, term()})) ::
@@ -306,6 +327,30 @@ defmodule JidoCode.Setup.SystemConfig do
     catch
       kind, reason ->
         {:error, {:onboarding_state_update_throw, {kind, reason}}}
+    end
+  end
+
+  defp apply_config_update(updater, %__MODULE__{} = config) when is_function(updater, 1) do
+    try do
+      case updater.(config) do
+        %__MODULE__{} = updated_config ->
+          validate_config(updated_config)
+
+        {:ok, %__MODULE__{} = updated_config} ->
+          validate_config(updated_config)
+
+        {:error, reason} ->
+          {:error, reason}
+
+        other ->
+          {:error, {:invalid_config_update, other}}
+      end
+    rescue
+      exception ->
+        {:error, {:config_update_exception, Exception.message(exception)}}
+    catch
+      kind, reason ->
+        {:error, {:config_update_throw, {kind, reason}}}
     end
   end
 

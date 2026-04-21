@@ -2,14 +2,18 @@ defmodule JidoCodeWeb.SetupLive do
   # covers: baseline.surface.public_entry_routes
   # covers: setup.onboarding.post_bootstrap_start_surface
   # covers: setup.onboarding.deployment_mode_auto_detected
+  # covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
+  # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
   # covers: setup.onboarding.deferred_integrations
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb, :live_view
 
+  alias JidoCode.Setup.EnvironmentDefaults
   alias JidoCode.Setup.DeploymentMode
   alias JidoCode.Setup.SystemConfig
 
   @start_paths [:local_repo, :github, :later]
+  @runtime_environment_options [{"Cloud", "cloud"}, {"Local", "local"}]
 
   @type start_path :: :local_repo | :github | :later
 
@@ -61,6 +65,53 @@ defmodule JidoCodeWeb.SetupLive do
   end
 
   @impl true
+  def handle_event("change_runtime_environment", %{"runtime_environment" => runtime_params}, socket) do
+    {:noreply,
+     socket
+     |> assign_runtime_environment_form(runtime_params)
+     |> assign(:runtime_save_error, nil)}
+  end
+
+  @impl true
+  def handle_event("save_runtime_environment", %{"runtime_environment" => runtime_params}, socket) do
+    runtime_report = EnvironmentDefaults.run(runtime_params)
+
+    cond do
+      socket.assigns.buttons_disabled? ->
+        {:noreply,
+         assign(
+           socket,
+           :runtime_save_error,
+           "Resolve the setup state issue before saving runtime defaults."
+         )}
+
+      EnvironmentDefaults.blocked?(runtime_report) ->
+        {:noreply,
+         socket
+         |> assign_runtime_environment_form(runtime_params)
+         |> assign(:runtime_save_error, runtime_environment_error_message(runtime_report))}
+
+      true ->
+        case persist_runtime_environment(socket.assigns.deployment_mode, runtime_report) do
+          {:ok, %SystemConfig{} = config} ->
+            {:noreply,
+             socket
+             |> assign_start_surface(config, socket.assigns.diagnostic, false)
+             |> put_flash(
+               :info,
+               "#{runtime_environment_title(runtime_report.mode)} runtime defaults saved."
+             )}
+
+          {:error, %{diagnostic: diagnostic}} ->
+            {:noreply,
+             socket
+             |> assign_runtime_environment_form(runtime_params)
+             |> assign(:runtime_save_error, diagnostic)}
+        end
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
@@ -79,34 +130,106 @@ defmodule JidoCodeWeb.SetupLive do
               </p>
             </div>
 
-            <dl class="space-y-4 rounded-2xl border border-base-300 bg-base-100/80 p-5">
-              <div class="space-y-1">
-                <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                  Deployment mode
-                </dt>
-                <dd id="setup-deployment-mode" class="text-sm font-medium">
-                  {deployment_mode_label(@deployment_mode)}
-                </dd>
+            <section
+              id="setup-runtime-defaults-panel"
+              class="space-y-4 rounded-2xl border border-base-300 bg-base-100/80 p-5"
+            >
+              <div class="space-y-2">
+                <p class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                  Runtime defaults
+                </p>
+                <p id="setup-runtime-defaults-description" class="text-sm text-base-content/70">
+                  {runtime_environment_description(@runtime_environment_mode)}
+                </p>
               </div>
 
-              <div class="space-y-1">
-                <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                  Admin email
-                </dt>
-                <dd id="setup-owner-email" class="text-sm font-medium">
-                  {@owner_email}
-                </dd>
+              <div :if={@runtime_save_error} id="setup-runtime-save-error" class="alert alert-error">
+                <.icon name="hero-x-circle-mini" class="size-5" />
+                <span>{@runtime_save_error}</span>
               </div>
 
-              <div class="space-y-1">
-                <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                  Saved choice
-                </dt>
-                <dd id="setup-selected-start-path" class="text-sm font-medium">
-                  {selected_start_path_label(@selected_start_path)}
-                </dd>
-              </div>
-            </dl>
+              <.form
+                id="setup-runtime-environment-form"
+                for={@runtime_environment_form}
+                phx-change="change_runtime_environment"
+                phx-submit="save_runtime_environment"
+                class="space-y-3"
+              >
+                <.input
+                  id="setup-runtime-environment-select"
+                  field={@runtime_environment_form[:mode]}
+                  type="select"
+                  label="Runtime environment"
+                  options={@runtime_environment_options}
+                />
+
+                <.input
+                  :if={@runtime_environment_mode == :local}
+                  id="setup-runtime-workspace-root"
+                  field={@runtime_environment_form[:workspace_root]}
+                  type="text"
+                  label="Workspace root"
+                  placeholder="/absolute/path/to/workspaces"
+                  autocomplete="off"
+                />
+
+                <button
+                  id="setup-runtime-environment-save"
+                  type="submit"
+                  disabled={@buttons_disabled?}
+                  class={[
+                    "btn btn-primary w-full sm:w-auto",
+                    @buttons_disabled? && "btn-disabled"
+                  ]}
+                >
+                  Save runtime default
+                </button>
+              </.form>
+
+              <dl class="space-y-4 border-t border-base-300/70 pt-4">
+                <div class="space-y-1">
+                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    Install flavor
+                  </dt>
+                  <dd id="setup-install-flavor" class="text-sm font-medium">
+                    {deployment_mode_label(@deployment_mode)}
+                  </dd>
+                </div>
+
+                <div class="space-y-1">
+                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    Admin email
+                  </dt>
+                  <dd id="setup-owner-email" class="text-sm font-medium">
+                    {@owner_email}
+                  </dd>
+                </div>
+
+                <div class="space-y-1">
+                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    Saved runtime default
+                  </dt>
+                  <dd id="setup-saved-runtime-environment" class="text-sm font-medium">
+                    {saved_runtime_environment_label(@persisted_default_environment)}
+                  </dd>
+                  <p id="setup-saved-runtime-note" class="text-sm text-base-content/60">
+                    {saved_runtime_environment_note(
+                      @persisted_default_environment,
+                      @persisted_workspace_root
+                    )}
+                  </p>
+                </div>
+
+                <div class="space-y-1">
+                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    Saved choice
+                  </dt>
+                  <dd id="setup-selected-start-path" class="text-sm font-medium">
+                    {selected_start_path_label(@selected_start_path)}
+                  </dd>
+                </div>
+              </dl>
+            </section>
 
             <p id="setup-selected-start-note" class="max-w-md text-sm text-base-content/60">
               {selected_start_path_note(@selected_start_path, @deployment_mode)}
@@ -197,9 +320,14 @@ defmodule JidoCodeWeb.SetupLive do
     |> assign(:onboarding_state, config.onboarding_state)
     |> assign(:owner_email, owner_email(config.onboarding_state, socket.assigns[:current_user]))
     |> assign(:selected_start_path, selected_start_path)
+    |> assign(:persisted_default_environment, config.default_environment)
+    |> assign(:persisted_workspace_root, config.workspace_root)
+    |> assign(:runtime_environment_options, @runtime_environment_options)
     |> assign(:start_options, start_options(deployment_mode))
     |> assign(:diagnostic, diagnostic)
     |> assign(:buttons_disabled?, buttons_disabled?)
+    |> assign_runtime_environment_form(runtime_environment_form_values(config))
+    |> assign(:runtime_save_error, nil)
     |> assign(:save_error, nil)
   end
 
@@ -268,6 +396,30 @@ defmodule JidoCodeWeb.SetupLive do
     end)
   end
 
+  defp persist_runtime_environment(deployment_mode, runtime_report) do
+    runtime_state = EnvironmentDefaults.serialize_for_state(runtime_report)
+    config_updates = EnvironmentDefaults.system_config_updates(runtime_report)
+
+    SystemConfig.update(fn %SystemConfig{} = config ->
+      current_state = normalize_keyed_map(config.onboarding_state)
+      existing_step_state = current_state |> fetch_step_state(3) |> normalize_keyed_map()
+
+      updated_step_state =
+        existing_step_state
+        |> Map.put("deployment_mode", Atom.to_string(deployment_mode))
+        |> Map.put("runtime_environment", runtime_state)
+        |> Map.put("runtime_environment_note", runtime_environment_note(runtime_report))
+
+      {:ok,
+       %SystemConfig{
+         config
+         | default_environment: config_updates.default_environment,
+           workspace_root: config_updates.workspace_root,
+           onboarding_state: Map.put(current_state, "3", updated_step_state)
+       }}
+    end)
+  end
+
   defp selected_start_path(onboarding_state) do
     onboarding_state
     |> fetch_step_state(3)
@@ -295,8 +447,34 @@ defmodule JidoCodeWeb.SetupLive do
   defp setup_description(:cloud),
     do: "Your admin account is ready. Pick the first path you want this install to guide next."
 
+  defp runtime_environment_description(:cloud),
+    do: "Choose whether repository work should default to cloud-backed execution or local workspaces."
+
+  defp runtime_environment_description(:local),
+    do: "Choose whether repository work should default to cloud-backed execution or local workspaces."
+
   defp deployment_mode_label(:desktop), do: "Desktop"
   defp deployment_mode_label(:cloud), do: "Cloud"
+
+  defp saved_runtime_environment_label(:local), do: "Local"
+  defp saved_runtime_environment_label(:sprite), do: "Cloud"
+  defp saved_runtime_environment_label(_default_environment), do: "Cloud"
+
+  defp saved_runtime_environment_note(:local, workspace_root) when is_binary(workspace_root) do
+    "Local execution will use #{workspace_root} as the default workspace root."
+  end
+
+  defp saved_runtime_environment_note(:local, _workspace_root) do
+    "Local execution is selected, but the workspace root still needs to be supplied."
+  end
+
+  defp saved_runtime_environment_note(:sprite, _workspace_root) do
+    "Cloud defaults currently map to Sprite-backed execution with no local workspace root."
+  end
+
+  defp saved_runtime_environment_note(_default_environment, _workspace_root) do
+    "Cloud defaults currently map to Sprite-backed execution with no local workspace root."
+  end
 
   defp selected_start_path_label(nil), do: "Not chosen yet"
   defp selected_start_path_label(start_path), do: start_path_title(start_path)
@@ -334,6 +512,86 @@ defmodule JidoCodeWeb.SetupLive do
   defp start_path_note(:local_repo), do: "Local repo path selected."
   defp start_path_note(:github), do: "GitHub path selected."
   defp start_path_note(:later), do: "Repo setup deferred for now."
+
+  defp runtime_environment_note(%{mode: :local, workspace_root: workspace_root})
+       when is_binary(workspace_root) do
+    "Local runtime defaults saved for #{Path.expand(workspace_root)}."
+  end
+
+  defp runtime_environment_note(%{mode: :local}),
+    do: "Local runtime defaults saved."
+
+  defp runtime_environment_note(%{mode: :cloud}),
+    do: "Cloud runtime defaults saved."
+
+  defp runtime_environment_title(:local), do: "Local"
+  defp runtime_environment_title(:cloud), do: "Cloud"
+  defp runtime_environment_title(_mode), do: "Cloud"
+
+  defp runtime_environment_error_message(runtime_report) do
+    runtime_report
+    |> EnvironmentDefaults.blocked_checks()
+    |> Enum.map(fn check ->
+      [Map.get(check, :detail), Map.get(check, :remediation)]
+      |> Enum.filter(&is_binary/1)
+      |> Enum.join(" ")
+    end)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" ")
+    |> case do
+      "" -> "Runtime defaults could not be validated."
+      message -> message
+    end
+  end
+
+  defp assign_runtime_environment_form(socket, runtime_params) do
+    normalized_form_values = normalize_runtime_environment_form_values(runtime_params)
+
+    socket
+    |> assign(:runtime_environment_form, to_form(normalized_form_values, as: :runtime_environment))
+    |> assign(
+      :runtime_environment_mode,
+      normalized_form_values |> Map.get("mode", "cloud") |> normalize_runtime_environment_mode()
+    )
+  end
+
+  defp runtime_environment_form_values(%SystemConfig{} = config) do
+    %{
+      "mode" => config.default_environment |> runtime_environment_mode() |> Atom.to_string(),
+      "workspace_root" => config.workspace_root || ""
+    }
+  end
+
+  defp normalize_runtime_environment_form_values(runtime_params) when is_map(runtime_params) do
+    %{
+      "mode" =>
+        runtime_params
+        |> map_get(:mode, "mode", "cloud")
+        |> normalize_runtime_environment_mode()
+        |> Atom.to_string(),
+      "workspace_root" =>
+        runtime_params
+        |> map_get(:workspace_root, "workspace_root", "")
+        |> normalize_optional_string()
+        |> case do
+          nil -> ""
+          workspace_root -> workspace_root
+        end
+    }
+  end
+
+  defp normalize_runtime_environment_form_values(_runtime_params),
+    do: %{"mode" => "cloud", "workspace_root" => ""}
+
+  defp runtime_environment_mode(:local), do: :local
+  defp runtime_environment_mode(:sprite), do: :cloud
+  defp runtime_environment_mode(_default_environment), do: :cloud
+
+  defp normalize_runtime_environment_mode("local"), do: :local
+  defp normalize_runtime_environment_mode(:local), do: :local
+  defp normalize_runtime_environment_mode("cloud"), do: :cloud
+  defp normalize_runtime_environment_mode(:cloud), do: :cloud
+  defp normalize_runtime_environment_mode(_mode), do: :cloud
 
   defp fetch_step_state(onboarding_state, onboarding_step) when is_map(onboarding_state) do
     step_key = Integer.to_string(onboarding_step)

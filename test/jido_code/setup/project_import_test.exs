@@ -1,11 +1,13 @@
 defmodule JidoCode.Setup.ProjectImportTest do
   # covers: setup.onboarding.repo_source_per_project
+  # covers: setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
   alias JidoCode.Setup.ProjectImport
 
   @managed_env_keys [
+    :system_config,
     :setup_project_importer,
     :setup_project_clone_provisioner,
     :setup_project_baseline_syncer
@@ -26,6 +28,7 @@ defmodule JidoCode.Setup.ProjectImportTest do
     Application.delete_env(:jido_code, :setup_project_importer)
     Application.delete_env(:jido_code, :setup_project_clone_provisioner)
     Application.delete_env(:jido_code, :setup_project_baseline_syncer)
+    Application.put_env(:jido_code, :system_config, %{})
     :ok
   end
 
@@ -197,6 +200,59 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert managed_repo.workspace_settings["retry_instructions"] =~ "Retry step 7"
   end
 
+  test "run/3 uses persisted runtime defaults from system config when provisioning a local workspace" do
+    workspace_root = tmp_workspace_path!()
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "3" => %{
+          "runtime_environment" => %{
+            "mode" => "local",
+            "default_environment" => "local",
+            "workspace_root" => workspace_root,
+            "status" => "ready"
+          }
+        }
+      },
+      default_environment: :local,
+      workspace_root: workspace_root
+    })
+
+    onboarding_state = %{
+      "4" => %{
+        "github_credentials" => %{
+          "paths" => [
+            %{
+              "status" => "ready",
+              "repositories" => [
+                %{"full_name" => "owner/repo-one", "default_branch" => "main"}
+              ]
+            }
+          ]
+        }
+      }
+    }
+
+    report = ProjectImport.run(nil, "owner/repo-one", onboarding_state)
+
+    refute ProjectImport.blocked?(report)
+    assert report.status == :ready
+    assert report.baseline_metadata.workspace_environment == :local
+    assert report.baseline_metadata.workspace_path == Path.join(workspace_root, "owner__repo-one")
+    assert File.dir?(report.baseline_metadata.workspace_path)
+  end
+
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp tmp_workspace_path! do
+    workspace_path =
+      Path.join(System.tmp_dir!(), "project-import-workspace-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(workspace_path)
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+    workspace_path
+  end
 end

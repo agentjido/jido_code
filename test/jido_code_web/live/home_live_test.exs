@@ -12,11 +12,24 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
   setup do
     original_target = System.get_env("BURRITO_TARGET")
+    original_prerequisite_checker = Application.get_env(:jido_code, :setup_prerequisite_checker, :__missing__)
+    original_prerequisite_timeout_ms =
+      Application.get_env(:jido_code, :setup_prerequisite_timeout_ms, :__missing__)
 
     on_exit(fn ->
       case original_target do
         nil -> System.delete_env("BURRITO_TARGET")
         value -> System.put_env("BURRITO_TARGET", value)
+      end
+
+      case original_prerequisite_checker do
+        :__missing__ -> Application.delete_env(:jido_code, :setup_prerequisite_checker)
+        value -> Application.put_env(:jido_code, :setup_prerequisite_checker, value)
+      end
+
+      case original_prerequisite_timeout_ms do
+        :__missing__ -> Application.delete_env(:jido_code, :setup_prerequisite_timeout_ms)
+        value -> Application.put_env(:jido_code, :setup_prerequisite_timeout_ms, value)
       end
     end)
 
@@ -46,6 +59,30 @@ defmodule JidoCodeWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/welcome")
 
     assert html =~ "brand-new desktop install"
+  end
+
+  test "landing page settles to a timeout state when prerequisite checking hangs", %{conn: conn} do
+    Application.put_env(:jido_code, :setup_prerequisite_timeout_ms, 25)
+
+    Application.put_env(:jido_code, :setup_prerequisite_checker, fn _timeout_ms ->
+      Process.sleep(200)
+
+      %{
+        checked_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        status: :pass,
+        checks: []
+      }
+    end)
+
+    {:ok, view, _html} = live(conn, ~p"/welcome")
+
+    assert_eventually(fn ->
+      rendered = render(view)
+
+      assert rendered =~ "Some checks timed out. Your system may not be fully ready."
+      assert rendered =~ "Complete system check first"
+      refute rendered =~ "Checking your system…"
+    end)
   end
 
   test "landing page exposes sign-in and GitHub login once a local user already exists", %{conn: conn} do
@@ -80,5 +117,19 @@ defmodule JidoCodeWeb.HomeLiveTest do
       )
 
     config
+  end
+
+  defp assert_eventually(assertion_fun, attempts \\ 20)
+
+  defp assert_eventually(assertion_fun, attempts) when attempts > 0 do
+    assertion_fun.()
+  rescue
+    error in [ExUnit.AssertionError] ->
+      if attempts == 1 do
+        reraise error, __STACKTRACE__
+      else
+        Process.sleep(25)
+        assert_eventually(assertion_fun, attempts - 1)
+      end
   end
 end

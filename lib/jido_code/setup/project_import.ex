@@ -1,6 +1,7 @@
 defmodule JidoCode.Setup.ProjectImport do
   # covers: setup.onboarding.repo_source_per_project
   # covers: setup.onboarding.deferred_integrations
+  # covers: setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
   # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
   @moduledoc """
   Imports the selected repository during setup step 7 and initializes baseline project metadata.
@@ -8,6 +9,7 @@ defmodule JidoCode.Setup.ProjectImport do
 
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Operations.Ingress
+  alias JidoCode.Setup.SystemConfig
 
   @default_selection_remediation "Select one of the repositories validated in step 4 and retry import."
   @default_importer_remediation "Verify project import configuration and retry step 7."
@@ -1124,10 +1126,7 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp workspace_context(onboarding_state, selected_repository) do
-    environment_defaults =
-      onboarding_state
-      |> fetch_step_state(5)
-      |> map_get(:environment_defaults, "environment_defaults", %{})
+    environment_defaults = persisted_environment_defaults(onboarding_state)
 
     workspace_environment =
       environment_defaults
@@ -1148,6 +1147,40 @@ defmodule JidoCode.Setup.ProjectImport do
       workspace_root: workspace_root,
       repository_workspace_dir: repository_workspace_dir(selected_repository)
     }
+  end
+
+  defp persisted_environment_defaults(onboarding_state) do
+    case SystemConfig.load() do
+      {:ok, %SystemConfig{} = config} ->
+        legacy_defaults = legacy_environment_defaults(onboarding_state)
+
+        if runtime_defaults_recorded?(config) or legacy_defaults == %{} do
+          %{
+            default_environment: config.default_environment,
+            workspace_root: config.workspace_root
+          }
+        else
+          legacy_defaults
+        end
+
+      {:error, _reason} ->
+        legacy_environment_defaults(onboarding_state)
+    end
+  end
+
+  defp legacy_environment_defaults(onboarding_state) do
+    onboarding_state
+    |> fetch_step_state(5)
+    |> map_get(:environment_defaults, "environment_defaults", %{})
+  end
+
+  defp runtime_defaults_recorded?(%SystemConfig{onboarding_state: onboarding_state}) do
+    runtime_environment =
+      onboarding_state
+      |> fetch_step_state(3)
+      |> map_get(:runtime_environment, "runtime_environment")
+
+    is_map(runtime_environment)
   end
 
   defp repository_workspace_dir(selected_repository) when is_binary(selected_repository) do

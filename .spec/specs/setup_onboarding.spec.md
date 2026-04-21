@@ -8,21 +8,27 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
   - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
+  - jido_code.runtime_environment_selection_is_persisted_setup_metadata
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  - .spec/decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md
   - .spec/specs/baseline_surface.spec.md
   - .spec/specs/user_administration.spec.md
   - .spec/specs/github_identity_and_integration.spec.md
   - lib/jido_code/setup/deployment_mode.ex
+  - lib/jido_code/setup/environment_defaults.ex
   - lib/jido_code/setup/project_import.ex
+  - lib/jido_code/setup/system_config.ex
+  - lib/jido_code/setup/system_config_record.ex
+  - lib/jido_code/setup/system_config_persistence.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
@@ -55,7 +61,17 @@ surface:
   stability: evolving
 
 - id: setup.onboarding.deployment_mode_auto_detected
-  statement: Deployment mode shall be a global, auto-detected product hint used for copy and default start-path emphasis rather than an operator-defined setup choice.
+  statement: Deployment mode shall be a global, auto-detected install-flavor hint used for copy and default start-path emphasis rather than an operator-defined runtime-execution choice.
+  priority: must
+  stability: evolving
+
+- id: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
+  statement: When setup captures local-versus-cloud execution intent, that choice shall describe default runtime environment metadata distinct from the auto-detected install flavor shown for copy and emphasis.
+  priority: must
+  stability: evolving
+
+- id: setup.onboarding.runtime_environment_selection_persisted_metadata
+  statement: When onboarding captures runtime environment choice and optional local workspace root, that choice shall persist through database-backed setup metadata rather than existing only in route-local assigns.
   priority: must
   stability: evolving
 
@@ -93,6 +109,7 @@ surface:
     - setup.onboarding.admin_bootstrap_completion_gate
     - setup.onboarding.post_bootstrap_start_surface
     - setup.onboarding.deployment_mode_auto_detected
+    - setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
     - setup.onboarding.repo_source_per_project
   given:
     - A desktop deployment has completed bootstrap-admin creation.
@@ -100,6 +117,7 @@ surface:
     - The administrator reaches the signed-in start surface.
   then:
     - The app enters a lightweight start flow that can emphasize attaching a local repository and persist that preference without requiring the admin to finish every optional integration first.
+    - Any later local-versus-cloud runtime choice remains distinct from the desktop packaging hint shown for onboarding copy.
 
 - id: setup.onboarding.scenario.local_project_record
   covers:
@@ -117,6 +135,7 @@ surface:
     - setup.onboarding.admin_bootstrap_completion_gate
     - setup.onboarding.post_bootstrap_start_surface
     - setup.onboarding.deployment_mode_auto_detected
+    - setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
     - setup.onboarding.deferred_integrations
   given:
     - A cloud deployment has completed bootstrap-admin creation.
@@ -135,6 +154,16 @@ surface:
     - The operator opens the public bootstrap entry.
   then:
     - The product surfaces the blocking diagnostic instead of burying the failure in optional setup chrome.
+
+- id: setup.onboarding.scenario_runtime_environment_choice_persists_durably
+  covers:
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
+  given:
+    - Setup captures a default runtime environment choice for later repository execution.
+  when:
+    - The operator saves that validated choice.
+  then:
+    - The choice is expected to persist through database-backed setup metadata instead of disappearing on route reload or server restart.
 
 - id: setup.onboarding.scenario_signed_in_surfaces_shift_without_restart
   covers:
@@ -173,12 +202,38 @@ surface:
     - setup.onboarding.deployment_mode_auto_detected
 
 - kind: source_file
+  target: .spec/decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md
+  covers:
+    - setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
+
+- kind: source_file
+  target: lib/jido_code/setup/environment_defaults.ex
+  covers:
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
+
+- kind: source_file
   target: lib/jido_code_web/live/setup_live.ex
   covers:
     - setup.onboarding.post_bootstrap_start_surface
     - setup.onboarding.deployment_mode_auto_detected
     - setup.onboarding.deferred_integrations
     - setup.onboarding.start_path_preference_persisted
+
+- kind: source_file
+  target: lib/jido_code/setup/system_config.ex
+  covers:
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
+
+- kind: source_file
+  target: lib/jido_code/setup/system_config_record.ex
+  covers:
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
+
+- kind: source_file
+  target: lib/jido_code/setup/system_config_persistence.ex
+  covers:
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
 
 - kind: source_file
   target: .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md

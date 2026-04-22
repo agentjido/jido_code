@@ -1,4 +1,7 @@
 defmodule JidoCode.PhaseFortyFourIntegrationTest do
+  # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
+  # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+  # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace

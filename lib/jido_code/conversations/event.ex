@@ -1,4 +1,5 @@
 defmodule JidoCode.Conversations.Event do
+  # covers: architecture.conversation_orchestration.expensive_work_announces_intent
   # covers: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
   @moduledoc """
   Canonical append-only conversation event record.

@@ -65,7 +65,7 @@ defmodule JidoCode.SourceCodeGraph.ResourceLimits do
              store_path: store_path
            }}
 
-        {:error, reason} ->
+        {:error, _reason} ->
           # If we can't determine disk space, allow the operation to proceed
           # but log a warning
           :ok
@@ -177,7 +177,7 @@ defmodule JidoCode.SourceCodeGraph.ResourceLimits do
     end
   end
 
-  defp try_statfs(path) do
+  defp try_statfs(_path) do
     # This is a simplified implementation
     # In production, you might use an Erlang NIF or port
     {:ok, 1_000_000_000}

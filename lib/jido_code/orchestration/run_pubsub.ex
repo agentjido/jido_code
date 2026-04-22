@@ -1,4 +1,5 @@
 defmodule JidoCode.Orchestration.RunPubSub do
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   @moduledoc """
   PubSub helpers for workflow run events.
 

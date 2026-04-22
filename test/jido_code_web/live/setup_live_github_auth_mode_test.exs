@@ -38,6 +38,7 @@ defmodule JidoCodeWeb.SetupLiveGitHubAuthModeTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
+    assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
     assert has_element?(view, "#setup-start-choice-github")
     assert has_element?(view, "#setup-start-choice-later")
     refute has_element?(view, "#setup-start-choice-local_repo")

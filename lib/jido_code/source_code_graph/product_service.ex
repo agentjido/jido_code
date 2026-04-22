@@ -32,7 +32,7 @@ defmodule JidoCode.SourceCodeGraph.ProductService do
 
   @spec health(managed_repo_id(), workspace_path(), keyword()) :: {:ok, map()} | {:error, atom(), map()}
   def health(managed_repo_id, workspace_path, opts \\ []) do
-    graph_store_path = SourceCodeGraph.graph_store_path(workspace_path)
+    graph_store_path = JidoCode.SourceCodeGraph.graph_store_path(workspace_path)
 
     health_opts =
       opts

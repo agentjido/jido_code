@@ -1,5 +1,7 @@
 # Factory Control Plane
 
+<!-- current_truth.reconciled_with_branch: run-detail and workbench conversation coverage continues to project canonical control-plane records. -->
+
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
 

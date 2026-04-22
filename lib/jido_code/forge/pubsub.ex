@@ -1,4 +1,5 @@
 defmodule JidoCode.Forge.PubSub do
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   @moduledoc """
   PubSub helpers for Forge session events.
 

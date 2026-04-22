@@ -10,6 +10,8 @@ affects:
   - architecture.run_governance
 ---
 
+<!-- current_truth.reconciled_with_branch: setup now keeps runtime defaults and optional GitHub repository continuation in persisted onboarding metadata without restoring a blocking wizard. -->
+
 <!-- covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor -->
 <!-- covers: setup.onboarding.runtime_environment_selection_persisted_metadata -->
 <!-- covers: setup.runtime_environment_defaults.selection_is_distinct_from_install_flavor -->

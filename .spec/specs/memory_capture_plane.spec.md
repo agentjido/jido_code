@@ -1,5 +1,7 @@
 # Memory Capture Plane
 
+<!-- current_truth.reconciled_with_branch: durable-memory writer maintenance stays governed by the capture-plane contract described here. -->
+
 This subject defines the bounded write seam that inserts workflow provenance and
 durable coding memories into the repository semantic store over time.
 

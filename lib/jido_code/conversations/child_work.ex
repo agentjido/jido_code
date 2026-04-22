@@ -132,11 +132,12 @@ defmodule JidoCode.Conversations.ChildWork do
 
   @spec settle(t(), settlement(), map()) ::
           {:ok, t()} | {:error, :child_work_already_settled | :invalid_child_work_transition}
+  def settle(child_work, outcome, attrs \\ %{})
+
   def settle(%__MODULE__{state: state}, _outcome, _attrs) when state in @terminal_states,
     do: {:error, :child_work_already_settled}
 
-  def settle(%__MODULE__{} = child_work, outcome, attrs \\ %{})
-      when outcome in @settlement_states do
+  def settle(%__MODULE__{} = child_work, outcome, attrs) when outcome in @settlement_states do
     with {:ok, transitioned} <- transition(child_work, outcome) do
       {:ok,
        %{

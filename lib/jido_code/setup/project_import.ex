@@ -1,6 +1,7 @@
 defmodule JidoCode.Setup.ProjectImport do
   # covers: setup.onboarding.repo_source_per_project
   # covers: setup.onboarding.deferred_integrations
+  # covers: setup.onboarding.github_repository_selection_persisted_metadata
   # covers: setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
   # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
   @moduledoc """

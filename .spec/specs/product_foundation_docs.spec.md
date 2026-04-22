@@ -1,5 +1,7 @@
 # Product Foundation Docs
 
+<!-- current_truth.reconciled_with_branch: contributor-facing product orientation remains aligned with the branch-wide setup, graph, and workflow surface changes. -->
+
 This subject defines the repository-facing docs that orient contributors to what
 `Jido.Code` is, how to run it, and where the durable architecture record now lives.
 

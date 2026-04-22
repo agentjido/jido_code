@@ -1,5 +1,8 @@
 defmodule JidoCodeWeb.SetupLiveTest do
   # covers: baseline.surface.public_entry_routes
+  # covers: architecture.frontend_stack.product_owned_mounting_boundary
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
   # covers: users.admin_system.bootstrap_admin
   # covers: users.admin_system.admin_role_assignment
   # covers: users.admin_system.registration_guardrails
@@ -7,13 +10,17 @@ defmodule JidoCodeWeb.SetupLiveTest do
   # covers: setup.onboarding.deployment_mode_auto_detected
   # covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
   # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
+  # covers: setup.onboarding.explicit_completion_path_to_dashboard
   # covers: setup.onboarding.deferred_integrations
+  # covers: setup.onboarding.github_repository_selection_persisted_metadata
+  # covers: setup.onboarding.github_pat_capture_persisted_secret_ref
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb.ConnCase, async: false
 
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts
   alias JidoCode.Accounts.User
+  alias JidoCode.Security.SecretRefs
   alias JidoCode.Repo
 
   import Phoenix.LiveViewTest
@@ -24,15 +31,33 @@ defmodule JidoCodeWeb.SetupLiveTest do
   setup do
     original_config = Application.get_env(:jido_code, :system_config, :__missing__)
     original_prerequisite_checker = Application.get_env(:jido_code, :setup_prerequisite_checker, :__missing__)
+    original_github_credential_checker = Application.get_env(:jido_code, :setup_github_credential_checker, :__missing__)
+    original_github_http_client = Application.get_env(:jido_code, :setup_github_http_client, :__missing__)
+
+    original_github_http_client_options =
+      Application.get_env(:jido_code, :setup_github_http_client_options, :__missing__)
+
+    original_project_importer = Application.get_env(:jido_code, :setup_project_importer, :__missing__)
+    original_frontend_override = Application.get_env(:jido_code, :frontend_assets_override, :__missing__)
     original_target = fetch_system_env("BURRITO_TARGET")
 
     on_exit(fn ->
       restore_env(:system_config, original_config)
       restore_env(:setup_prerequisite_checker, original_prerequisite_checker)
+      restore_env(:setup_github_credential_checker, original_github_credential_checker)
+      restore_env(:setup_github_http_client, original_github_http_client)
+      restore_env(:setup_github_http_client_options, original_github_http_client_options)
+      restore_env(:setup_project_importer, original_project_importer)
+      restore_env(:frontend_assets_override, original_frontend_override)
       restore_system_env("BURRITO_TARGET", original_target)
     end)
 
     Application.delete_env(:jido_code, :setup_prerequisite_checker)
+    Application.delete_env(:jido_code, :setup_github_credential_checker)
+    Application.delete_env(:jido_code, :setup_github_http_client)
+    Application.delete_env(:jido_code, :setup_github_http_client_options)
+    Application.delete_env(:jido_code, :setup_project_importer)
+    Application.delete_env(:jido_code, :frontend_assets_override)
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -265,6 +290,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-install-flavor", "Desktop")
     assert has_element?(view, "#setup-runtime-environment-select")
     assert has_element?(view, "#setup-saved-runtime-environment", "Cloud")
+    assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
     assert has_element?(view, "#setup-start-choice-local_repo-badge", "Recommended")
     assert has_element?(view, "#setup-start-choice-local_repo-save", "Add local repo")
     assert has_element?(view, "#setup-start-choice-github-save", "Connect GitHub")
@@ -294,6 +320,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-install-flavor", "Cloud")
     assert has_element?(view, "#setup-runtime-environment-select")
     assert has_element?(view, "#setup-saved-runtime-environment", "Cloud")
+    assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
     refute has_element?(view, "#setup-start-choice-local_repo")
     assert has_element?(view, "#setup-start-choice-github-badge", "Recommended")
     assert has_element?(view, "#setup-start-choice-github-save", "Connect GitHub")
@@ -462,6 +489,518 @@ defmodule JidoCodeWeb.SetupLiveTest do
            } = Application.get_env(:jido_code, :system_config)
   end
 
+  test "choosing GitHub surfaces the bounded LiveVue repository selector with linked repository options",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        },
+        "4" => %{
+          "github_credentials" => %{
+            "paths" => [
+              %{
+                "path" => "github_app",
+                "status" => "ready",
+                "repository_access" => "confirmed",
+                "repositories" => [
+                  %{"id" => "repo_100", "full_name" => "owner/repo-one"},
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"}
+                ]
+              }
+            ]
+          }
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    refute has_element?(view, "#setup-github-repository-panel")
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    assert has_element?(view, "#setup-github-repository-panel")
+
+    assert_vue_component(view, "SetupGitHubRepositorySelectorWidget", id: "setup-github-repository-selector")
+
+    assert_vue_handler(view, "selectRepository", "select_github_repository", id: "setup-github-repository-selector")
+
+    assert_vue_handler(view, "refreshRepositories", "refresh_github_repository_listing",
+      id: "setup-github-repository-selector"
+    )
+
+    assert_vue_handler(view, "importRepository", "import_selected_github_repository",
+      id: "setup-github-repository-selector"
+    )
+
+    selector = vue(view, id: "setup-github-repository-selector")
+
+    assert selector.props["selectedRepository"] == "owner/repo-one"
+    assert selector.props["listingStatus"] == "ready"
+    assert selector.props["repositoryCountLabel"] == "2 linked repositories available for import."
+
+    assert Enum.map(selector.props["repositoryOptions"], & &1["fullName"]) == [
+             "owner/repo-one",
+             "owner/repo-two"
+           ]
+  end
+
+  test "choosing GitHub requires PAT capture when deployment-local repository access is not configured",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    assert has_element?(view, "#setup-github-pat-panel")
+    assert has_element?(view, "#setup-github-pat-form")
+
+    assert has_element?(
+             view,
+             "#setup-github-pat-summary",
+             "No GitHub personal access token fallback is configured"
+           )
+
+    assert has_element?(view, "#setup-github-pat-note", "vcs/github/pat")
+  end
+
+  test "saving a GitHub PAT persists encrypted secret storage and refreshes linked repositories",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    managed_app_env_keys = [
+      :github_app_id,
+      :github_app_private_key,
+      :github_app_installation_token,
+      :github_app_accessible_repos,
+      :github_app_expected_repos,
+      :github_pat,
+      :github_pat_accessible_repos
+    ]
+
+    managed_system_env_keys = [
+      "GITHUB_APP_ID",
+      "GITHUB_APP_PRIVATE_KEY",
+      "GITHUB_APP_INSTALLATION_TOKEN",
+      "GITHUB_APP_ACCESSIBLE_REPOS",
+      "GITHUB_APP_EXPECTED_REPOS",
+      "GITHUB_PAT",
+      "GITHUB_PAT_ACCESSIBLE_REPOS"
+    ]
+
+    original_app_env =
+      Enum.map(managed_app_env_keys, fn key ->
+        {key, Application.get_env(:jido_code, key, :__missing__)}
+      end)
+
+    original_system_env =
+      Enum.map(managed_system_env_keys, fn key ->
+        {key, fetch_system_env(key)}
+      end)
+
+    on_exit(fn ->
+      Enum.each(original_app_env, fn {key, value} ->
+        restore_env(key, value)
+      end)
+
+      Enum.each(original_system_env, fn {key, value} ->
+        restore_system_env(key, value)
+      end)
+    end)
+
+    Enum.each(managed_app_env_keys, &Application.delete_env(:jido_code, &1))
+    Enum.each(managed_system_env_keys, &System.delete_env/1)
+
+    test_pid = self()
+
+    Application.put_env(:jido_code, :setup_github_http_client, fn :pat, "ghp_test_token", _opts ->
+      send(test_pid, :github_pat_repository_listing_requested)
+
+      {:ok,
+       [
+         %{id: "repo_100", full_name: "owner/repo-one"},
+         %{id: "repo_200", full_name: "owner/repo-two"}
+       ]}
+    end)
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    view
+    |> form("#setup-github-pat-form", %{"github_pat" => %{"value" => "ghp_test_token"}})
+    |> render_submit()
+
+    assert_receive :github_pat_repository_listing_requested
+    refute has_element?(view, "#setup-github-pat-panel")
+
+    selector = vue(view, id: "setup-github-repository-selector")
+
+    assert selector.props["listingStatus"] == "ready"
+
+    assert Enum.map(selector.props["repositoryOptions"], & &1["fullName"]) == [
+             "owner/repo-one",
+             "owner/repo-two"
+           ]
+
+    assert {:ok, pat_secret} =
+             SecretRefs.operational_secret_value(:integration, "vcs/github/pat")
+
+    assert pat_secret.value == "ghp_test_token"
+    assert pat_secret.source == :onboarding
+
+    assert %{
+             onboarding_state: %{
+               "4" => %{
+                 "github_credentials" => %{
+                   "paths" => [
+                     %{
+                       "path" => "github_app",
+                       "status" => "not_configured"
+                     },
+                     %{
+                       "path" => "pat",
+                       "repository_access" => "confirmed",
+                       "repositories" => ["owner/repo-one", "owner/repo-two"],
+                       "status" => "ready"
+                     }
+                   ],
+                   "status" => "ready"
+                 }
+               },
+               "7" => %{
+                 "repository_listing" => %{
+                   "status" => "ready"
+                 }
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+  end
+
+  test "choosing GitHub hydrates deployment-local credential checks when step 4 state is missing",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :setup_github_credential_checker, fn _context ->
+      %{
+        checked_at: @checked_at,
+        status: :ready,
+        owner_context: "owner@example.com",
+        paths: [
+          %{
+            path: :github_app,
+            name: "GitHub App",
+            status: :ready,
+            previous_status: :not_configured,
+            transition: "activated",
+            owner_context: "owner@example.com",
+            repository_access: :confirmed,
+            repositories: ["owner/repo-one", "owner/repo-two"],
+            expected_repositories: [],
+            missing_repositories: [],
+            detail: "GitHub App credentials resolved with confirmed repository access.",
+            remediation: "Credential path is ready.",
+            error_type: nil,
+            validated_at: @checked_at,
+            checked_at: @checked_at
+          }
+        ]
+      }
+    end)
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    selector = vue(view, id: "setup-github-repository-selector")
+
+    assert selector.props["listingStatus"] == "ready"
+
+    assert Enum.map(selector.props["repositoryOptions"], & &1["fullName"]) == [
+             "owner/repo-one",
+             "owner/repo-two"
+           ]
+
+    assert %{
+             onboarding_state: %{
+               "4" => %{
+                 "github_credentials" => %{
+                   "owner_context" => "owner@example.com",
+                   "status" => "ready",
+                   "paths" => [
+                     %{
+                       "path" => "github_app",
+                       "repository_access" => "confirmed",
+                       "repositories" => ["owner/repo-one", "owner/repo-two"],
+                       "status" => "ready"
+                     }
+                   ]
+                 }
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+  end
+
+  test "fallback GitHub repository selector persists selection and import metadata when richer delivery degrades",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :frontend_assets_override, %{
+      mode: :fallback,
+      reason: :asset_manifest_unavailable
+    })
+
+    Application.put_env(:jido_code, :setup_project_importer, fn context ->
+      selected_repository = context.selected_repository
+
+      %{
+        checked_at: @checked_at,
+        status: :ready,
+        selected_repository: selected_repository,
+        project_record: %{
+          id: "managed-repo-123",
+          name: "repo-two",
+          source_kind: :github,
+          source_identifier: selected_repository,
+          github_full_name: selected_repository,
+          local_path: nil,
+          default_branch: "main",
+          import_mode: :created,
+          imported_at: @checked_at,
+          clone_status: :ready,
+          clone_status_history: [
+            %{status: :pending},
+            %{status: :cloning},
+            %{status: :ready}
+          ],
+          last_synced_at: @checked_at
+        },
+        baseline_metadata: %{
+          workspace_initialized: true,
+          baseline_synced: true,
+          default_workflow_registered: true,
+          agent_configuration_registered: true,
+          status: :ready,
+          initialized_at: @checked_at,
+          synced_branch: "main",
+          last_synced_at: @checked_at,
+          workspace_environment: :sprite,
+          workspace_path: nil
+        },
+        detail: "Imported #{selected_repository} into the managed-repository control plane.",
+        remediation: "Import complete.",
+        error_type: nil
+      }
+    end)
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        },
+        "4" => %{
+          "github_credentials" => %{
+            "paths" => [
+              %{
+                "path" => "github_app",
+                "status" => "ready",
+                "repository_access" => "confirmed",
+                "repositories" => [
+                  %{"id" => "repo_100", "full_name" => "owner/repo-one"},
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"}
+                ]
+              }
+            ]
+          }
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    assert has_element?(view, "#setup-github-repository-selector-fallback")
+    assert has_element?(view, "#setup-github-repository-selector-fallback-body")
+
+    view
+    |> form("#setup-github-repository-selector-fallback-form", %{
+      "repository_selection" => %{"repository_full_name" => "owner/repo-two"}
+    })
+    |> render_change()
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-two"
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    view
+    |> form("#setup-github-repository-selector-fallback-form", %{
+      "repository_selection" => %{"repository_full_name" => "owner/repo-two"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#setup-github-import-fallback-success")
+    assert has_element?(view, "#setup-github-import-fallback-open-repo", "Open managed repo")
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-two",
+                 "project_import" => %{
+                   "selected_repository" => "owner/repo-two",
+                   "project_record" => %{"id" => "managed-repo-123"},
+                   "status" => "ready"
+                 }
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+  end
+
+  test "completing setup after choosing GitHub marks onboarding complete and enters the dashboard", %{
+    conn: conn
+  } do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    authed_conn =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    {:ok, view, _html} = live(authed_conn, ~p"/setup", on_error: :warn)
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    view
+    |> element("#setup-complete-continue")
+    |> render_click()
+
+    assert_redirect(view, "/dashboard?onboarding=completed")
+
+    assert %{
+             onboarding_completed: true,
+             onboarding_step: 4,
+             onboarding_state: %{
+               "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+               "2" => %{"validated_note" => "Owner account bootstrapped."},
+               "3" => %{
+                 "start_path" => "github",
+                 "deployment_mode" => "cloud",
+                 "validated_note" => "GitHub path selected.",
+                 "completion_note" => completion_note
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    assert completion_note =~ "Setup completed."
+
+    {:ok, dashboard_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?onboarding=completed", on_error: :warn)
+
+    assert has_element?(dashboard_view, "#dashboard-run-summaries")
+  end
+
   test "later onboarding states still render the simplified setup start surface instead of the old wizard",
        %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
@@ -545,6 +1084,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-title", "Choose how to start")
     assert has_element?(view, "#setup-description")
     assert has_element?(view, "#setup-runtime-environment-form")
+    assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
     assert has_element?(view, "#setup-owner-email", "owner@example.com")
   end
 

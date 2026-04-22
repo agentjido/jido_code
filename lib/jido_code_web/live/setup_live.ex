@@ -1,17 +1,30 @@
 defmodule JidoCodeWeb.SetupLive do
   # covers: baseline.surface.public_entry_routes
+  # covers: architecture.frontend_stack.liveview_remains_product_host_shell
+  # covers: architecture.frontend_stack.product_owned_mounting_boundary
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: setup.onboarding.post_bootstrap_start_surface
   # covers: setup.onboarding.deployment_mode_auto_detected
   # covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
   # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
+  # covers: setup.onboarding.explicit_completion_path_to_dashboard
   # covers: setup.onboarding.deferred_integrations
+  # covers: setup.onboarding.github_repository_selection_persisted_metadata
+  # covers: setup.onboarding.github_pat_capture_persisted_secret_ref
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb, :live_view
 
+  alias JidoCode.Control.Actor
+  alias JidoCode.GitHub.ServiceCredentials
   alias JidoCode.Setup.EnvironmentDefaults
   alias JidoCode.Setup.DeploymentMode
+  alias JidoCode.Setup.GitHubCredentialChecks
+  alias JidoCode.Setup.GitHubRepositoryListing
+  alias JidoCode.Setup.ProjectImport
   alias JidoCode.Setup.SystemConfig
+  alias JidoCode.Security.SecretRefs
 
+  @github_setup_step 7
   @start_paths [:local_repo, :github, :later]
   @runtime_environment_options [{"Cloud", "cloud"}, {"Local", "local"}]
 
@@ -51,7 +64,11 @@ defmodule JidoCodeWeb.SetupLive do
         {:noreply, assign(socket, :save_error, "Choose a valid way to start.")}
 
       true ->
-        case persist_start_path(socket.assigns.deployment_mode, normalized_choice) do
+        case persist_start_path(
+               socket.assigns.deployment_mode,
+               normalized_choice,
+               socket.assigns.owner_email
+             ) do
           {:ok, %SystemConfig{} = config} ->
             {:noreply,
              socket
@@ -107,6 +124,191 @@ defmodule JidoCodeWeb.SetupLive do
              socket
              |> assign_runtime_environment_form(runtime_params)
              |> assign(:runtime_save_error, diagnostic)}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("complete_setup", _params, socket) do
+    cond do
+      socket.assigns.buttons_disabled? ->
+        {:noreply,
+         assign(
+           socket,
+           :save_error,
+           "Resolve the setup state issue before continuing into the app."
+         )}
+
+      true ->
+        case complete_setup(socket.assigns.deployment_mode, socket.assigns.selected_start_path) do
+          {:ok, _config} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Setup complete. Optional follow-up work remains available from the dashboard.")
+             |> push_navigate(to: ~p"/dashboard?onboarding=completed")}
+
+          {:error, %{diagnostic: diagnostic}} ->
+            {:noreply, assign(socket, :save_error, diagnostic)}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("select_github_repository", params, socket) do
+    selected_repository = extract_repository_selection(params)
+
+    cond do
+      socket.assigns.buttons_disabled? ->
+        {:noreply,
+         assign(
+           socket,
+           :save_error,
+           "Resolve the setup state issue before saving a GitHub repository selection."
+         )}
+
+      not valid_github_repository_selection?(
+        selected_repository,
+        socket.assigns.github_repository_full_names
+      ) ->
+        {:noreply, assign(socket, :save_error, "Choose a validated GitHub repository.")}
+
+      true ->
+        case persist_github_repository_selection(selected_repository) do
+          {:ok, %SystemConfig{} = config} ->
+            {:noreply, assign_start_surface(socket, config, socket.assigns.diagnostic, false)}
+
+          {:error, %{diagnostic: diagnostic}} ->
+            {:noreply, assign(socket, :save_error, diagnostic)}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("refresh_github_repository_listing", _params, socket) do
+    cond do
+      socket.assigns.buttons_disabled? ->
+        {:noreply,
+         assign(
+           socket,
+           :save_error,
+           "Resolve the setup state issue before refreshing GitHub repositories."
+         )}
+
+      true ->
+        case refresh_github_repository_listing(socket.assigns.owner_email) do
+          {:ok, %SystemConfig{} = config} ->
+            {:noreply,
+             socket
+             |> assign_start_surface(config, socket.assigns.diagnostic, false)
+             |> put_flash(:info, "GitHub repository access refreshed.")}
+
+          {:error, %{diagnostic: diagnostic}} ->
+            {:noreply, assign(socket, :save_error, diagnostic)}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("save_github_pat", %{"github_pat" => params}, socket) do
+    github_pat =
+      params
+      |> map_get(:value, "value")
+      |> normalize_optional_string()
+
+    cond do
+      socket.assigns.buttons_disabled? ->
+        {:noreply,
+         assign(
+           socket,
+           :github_pat_save_error,
+           "Resolve the setup state issue before saving GitHub credentials."
+         )}
+
+      is_nil(github_pat) ->
+        {:noreply,
+         socket
+         |> assign_github_pat_form()
+         |> assign(:github_pat_save_error, "Enter a GitHub PAT before saving it.")}
+
+      true ->
+        case SecretRefs.persist_operational_secret(%{
+               scope: :integration,
+               name: ServiceCredentials.service_secret_ref_name(:pat),
+               value: github_pat,
+               source: :onboarding,
+               actor: current_actor(socket)
+             }) do
+          {:ok, _secret_metadata} ->
+            case refresh_github_repository_listing(socket.assigns.owner_email) do
+              {:ok, %SystemConfig{} = config} ->
+                {:noreply,
+                 socket
+                 |> assign_start_surface(config, socket.assigns.diagnostic, false)
+                 |> put_flash(
+                   :info,
+                   "GitHub PAT saved to encrypted deployment-local secret storage. Repository access refreshed."
+                 )}
+
+              {:error, %{diagnostic: diagnostic}} ->
+                {:noreply,
+                 socket
+                 |> assign_github_pat_form()
+                 |> assign(
+                   :github_pat_save_error,
+                   "GitHub PAT was saved, but repository access could not be refreshed. #{diagnostic}"
+                 )}
+            end
+
+          {:error, typed_error} ->
+            {:noreply,
+             socket
+             |> assign_github_pat_form()
+             |> assign(:github_pat_save_error, secret_persistence_error_message(typed_error))}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("import_selected_github_repository", params, socket) do
+    selected_repository =
+      extract_repository_selection(params) || socket.assigns.github_selected_repository
+
+    cond do
+      socket.assigns.buttons_disabled? ->
+        {:noreply,
+         assign(
+           socket,
+           :save_error,
+           "Resolve the setup state issue before importing a GitHub repository."
+         )}
+
+      is_nil(selected_repository) ->
+        {:noreply, assign(socket, :save_error, "Select a GitHub repository before importing it.")}
+
+      not valid_github_repository_selection?(
+        selected_repository,
+        socket.assigns.github_repository_full_names
+      ) ->
+        {:noreply, assign(socket, :save_error, "Choose a validated GitHub repository.")}
+
+      true ->
+        case persist_github_project_import(selected_repository, socket.assigns.owner_email) do
+          {:ok, %SystemConfig{} = config} ->
+            project_import_report = github_project_import_report(config.onboarding_state)
+
+            flash_kind =
+              if github_project_import_ready?(project_import_report), do: :info, else: :error
+
+            {:noreply,
+             socket
+             |> assign_start_surface(config, socket.assigns.diagnostic, false)
+             |> put_flash(
+               flash_kind,
+               github_project_import_flash(project_import_report, selected_repository)
+             )}
+
+          {:error, %{diagnostic: diagnostic}} ->
+            {:noreply, assign(socket, :save_error, diagnostic)}
         end
     end
   end
@@ -288,6 +490,259 @@ defmodule JidoCodeWeb.SetupLive do
                 </button>
               </div>
             </article>
+
+            <section
+              :if={show_github_repository_selector?(@selected_start_path)}
+              id="setup-github-repository-panel"
+              class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-5"
+            >
+              <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-xl font-semibold">Choose a GitHub repository</h2>
+                  <span id="setup-github-repository-badge" class="badge badge-outline text-xs">
+                    Optional follow-up
+                  </span>
+                </div>
+                <p id="setup-github-repository-summary" class="text-sm font-medium text-base-content/80">
+                  {github_repository_panel_summary(
+                    @github_repository_listing_report,
+                    @github_project_import_report
+                  )}
+                </p>
+                <p class="max-w-2xl text-sm text-base-content/60">
+                  Pick one linked GitHub repository to import into the control plane now, or finish onboarding and come back later.
+                </p>
+              </div>
+
+              <section
+                :if={@github_pat_capture_state.required?}
+                id="setup-github-pat-panel"
+                class="space-y-4 rounded-2xl border border-base-300/70 bg-base-200/20 p-4"
+              >
+                <div class="space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-lg font-semibold">Save a GitHub PAT for this install</h3>
+                    <span id="setup-github-pat-badge" class="badge badge-outline text-xs">
+                      Required for repo listing
+                    </span>
+                  </div>
+                  <p id="setup-github-pat-summary" class="text-sm text-base-content/80">
+                    {@github_pat_capture_state.detail}
+                  </p>
+                  <p class="text-sm text-base-content/60">
+                    Save a deployment-local PAT now and setup will retry repository access automatically. The token is stored as an encrypted secret for this install, not in plaintext setup state.
+                  </p>
+                </div>
+
+                <div :if={@github_pat_save_error} id="setup-github-pat-save-error" class="alert alert-error">
+                  <.icon name="hero-x-circle-mini" class="size-5" />
+                  <span>{@github_pat_save_error}</span>
+                </div>
+
+                <.form
+                  id="setup-github-pat-form"
+                  for={@github_pat_form}
+                  phx-submit="save_github_pat"
+                  class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <.input
+                    id="setup-github-pat-input"
+                    field={@github_pat_form[:value]}
+                    type="password"
+                    label="GitHub PAT"
+                    placeholder="github_pat_..."
+                    autocomplete="off"
+                  />
+
+                  <button
+                    id="setup-github-pat-save"
+                    type="submit"
+                    disabled={@buttons_disabled?}
+                    class={[
+                      "btn btn-primary md:self-end",
+                      @buttons_disabled? && "btn-disabled"
+                    ]}
+                  >
+                    Save GitHub PAT
+                  </button>
+                </.form>
+
+                <div
+                  :if={@github_pat_capture_state.remediation}
+                  id="setup-github-pat-remediation"
+                  class="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content/80"
+                >
+                  {@github_pat_capture_state.remediation}
+                </div>
+
+                <p id="setup-github-pat-note" class="text-xs text-base-content/60">
+                  Stored as encrypted SecretRef {@github_pat_capture_state.secret_ref_name}.
+                </p>
+              </section>
+
+              <.vue_surface
+                id="setup-github-repository-selector"
+                component="SetupGitHubRepositorySelectorWidget"
+                socket={@socket}
+                props={github_repository_selector_props(assigns)}
+                events={
+                  %{
+                    "selectRepository" => "select_github_repository",
+                    "refreshRepositories" => "refresh_github_repository_listing",
+                    "importRepository" => "import_selected_github_repository"
+                  }
+                }
+                fallback_title="Interactive GitHub repository picker temporarily unavailable"
+                fallback_detail="Use the server-rendered selector below while the richer picker is unavailable."
+              >
+                <section id="setup-github-repository-selector-fallback-body" class="space-y-4">
+                  <div class="grid gap-3 md:grid-cols-3">
+                    <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
+                      <p class="text-xs uppercase text-base-content/60">Repository access</p>
+                      <p
+                        id="setup-github-repository-fallback-status"
+                        class="mt-1 text-lg font-semibold"
+                      >
+                        {github_listing_status_label(@github_repository_listing_report)}
+                      </p>
+                      <p class="mt-2 text-xs text-base-content/70">
+                        {@github_repository_listing_report.detail}
+                      </p>
+                    </article>
+                    <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
+                      <p class="text-xs uppercase text-base-content/60">Saved selection</p>
+                      <p
+                        id="setup-github-repository-fallback-selection"
+                        class="mt-1 text-lg font-semibold"
+                      >
+                        {@github_selected_repository || "Not selected"}
+                      </p>
+                      <p class="mt-2 text-xs text-base-content/70">
+                        {github_repository_count_label(@github_repository_options)}
+                      </p>
+                    </article>
+                    <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
+                      <p class="text-xs uppercase text-base-content/60">Import state</p>
+                      <p id="setup-github-import-fallback-status" class="mt-1 text-lg font-semibold">
+                        {github_import_status_label(@github_project_import_report)}
+                      </p>
+                      <p class="mt-2 text-xs text-base-content/70">
+                        {github_import_detail(@github_project_import_report)}
+                      </p>
+                    </article>
+                  </div>
+
+                  <div
+                    :if={@github_repository_listing_report.remediation}
+                    id="setup-github-repository-fallback-remediation"
+                    class="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content/80"
+                  >
+                    {@github_repository_listing_report.remediation}
+                  </div>
+
+                  <.form
+                    id="setup-github-repository-selector-fallback-form"
+                    for={@github_repository_selection_form}
+                    phx-change="select_github_repository"
+                    phx-submit="import_selected_github_repository"
+                    class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]"
+                  >
+                    <.input
+                      id="setup-github-repository-fallback-select"
+                      field={@github_repository_selection_form[:repository_full_name]}
+                      type="select"
+                      label="Linked GitHub repository"
+                      options={github_repository_select_options(@github_repository_options)}
+                      prompt="Choose a repository"
+                      disabled={@buttons_disabled? or @github_repository_options == []}
+                    />
+
+                    <button
+                      id="setup-github-repository-fallback-refresh"
+                      type="button"
+                      phx-click="refresh_github_repository_listing"
+                      disabled={@buttons_disabled?}
+                      class={[
+                        "btn btn-outline lg:self-end",
+                        @buttons_disabled? && "btn-disabled"
+                      ]}
+                    >
+                      Refresh repositories
+                    </button>
+
+                    <button
+                      id="setup-github-repository-fallback-import"
+                      type="submit"
+                      disabled={
+                        @buttons_disabled? or is_nil(@github_selected_repository) or
+                          @github_repository_options == []
+                      }
+                      class={[
+                        "btn btn-primary lg:self-end",
+                        (@buttons_disabled? or is_nil(@github_selected_repository) or
+                           @github_repository_options == []) && "btn-disabled"
+                      ]}
+                    >
+                      Import selected repository
+                    </button>
+                  </.form>
+
+                  <div
+                    :if={github_project_import_ready?(@github_project_import_report)}
+                    id="setup-github-import-fallback-success"
+                    class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
+                  >
+                    <div class="space-y-1">
+                      <p class="font-medium">
+                        {github_import_detail(@github_project_import_report)}
+                      </p>
+                      <p class="text-sm text-base-content/70">
+                        You can open the imported managed repository now or continue to the dashboard.
+                      </p>
+                    </div>
+
+                    <.link
+                      :if={github_project_path(@github_project_import_report)}
+                      id="setup-github-import-fallback-open-repo"
+                      navigate={github_project_path(@github_project_import_report)}
+                      class="btn btn-sm btn-outline"
+                    >
+                      Open managed repo
+                    </.link>
+                  </div>
+                </section>
+              </.vue_surface>
+            </section>
+
+            <section id="setup-complete-panel" class="rounded-2xl border border-base-300 bg-base-100 p-5">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h2 class="text-xl font-semibold">Continue into the app</h2>
+                    <span id="setup-complete-badge" class="badge badge-outline text-xs">Available now</span>
+                  </div>
+                  <p class="text-sm font-medium text-base-content/80">
+                    {completion_summary(@selected_start_path)}
+                  </p>
+                  <p class="max-w-2xl text-sm text-base-content/60">
+                    GitHub setup, repo import, and runtime defaults remain editable after onboarding.
+                  </p>
+                </div>
+
+                <button
+                  id="setup-complete-continue"
+                  type="button"
+                  phx-click="complete_setup"
+                  disabled={@buttons_disabled?}
+                  class={[
+                    "btn w-full sm:w-auto btn-primary",
+                    @buttons_disabled? && "btn-disabled"
+                  ]}
+                >
+                  Continue to dashboard
+                </button>
+              </div>
+            </section>
           </div>
         </div>
       </section>
@@ -313,12 +768,33 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp assign_start_surface(socket, %SystemConfig{} = config, diagnostic, buttons_disabled?) do
     deployment_mode = DeploymentMode.current()
+    owner_email = owner_email(config.onboarding_state, socket.assigns[:current_user])
     selected_start_path = selected_start_path(config.onboarding_state)
+
+    onboarding_state =
+      if show_github_repository_selector?(selected_start_path) do
+        hydrate_github_setup_state(config.onboarding_state, owner_email)
+      else
+        normalize_keyed_map(config.onboarding_state)
+      end
+
+    github_repository_listing_report = github_repository_listing_report(onboarding_state)
+    github_project_import_report = github_project_import_report(onboarding_state)
+
+    github_pat_capture_state =
+      github_pat_capture_state(onboarding_state, github_repository_listing_report)
+
+    github_selected_repository =
+      github_selected_repository(
+        onboarding_state,
+        github_repository_listing_report,
+        github_project_import_report
+      )
 
     socket
     |> assign(:deployment_mode, deployment_mode)
-    |> assign(:onboarding_state, config.onboarding_state)
-    |> assign(:owner_email, owner_email(config.onboarding_state, socket.assigns[:current_user]))
+    |> assign(:onboarding_state, onboarding_state)
+    |> assign(:owner_email, owner_email)
     |> assign(:selected_start_path, selected_start_path)
     |> assign(:persisted_default_environment, config.default_environment)
     |> assign(:persisted_workspace_root, config.workspace_root)
@@ -326,9 +802,36 @@ defmodule JidoCodeWeb.SetupLive do
     |> assign(:start_options, start_options(deployment_mode))
     |> assign(:diagnostic, diagnostic)
     |> assign(:buttons_disabled?, buttons_disabled?)
+    |> assign(:github_repository_listing_report, github_repository_listing_report)
+    |> assign(:github_repository_options, GitHubRepositoryListing.repository_options(github_repository_listing_report))
+    |> assign(
+      :github_repository_full_names,
+      GitHubRepositoryListing.repository_full_names(github_repository_listing_report)
+    )
+    |> assign(:github_pat_capture_state, github_pat_capture_state)
+    |> assign(:github_selected_repository, github_selected_repository)
+    |> assign(:github_project_import_report, github_project_import_report)
+    |> assign_github_pat_form()
+    |> assign_github_repository_selection_form(github_selected_repository)
     |> assign_runtime_environment_form(runtime_environment_form_values(config))
+    |> assign(:github_pat_save_error, nil)
     |> assign(:runtime_save_error, nil)
     |> assign(:save_error, nil)
+  end
+
+  defp assign_github_pat_form(socket) do
+    assign(socket, :github_pat_form, to_form(%{"value" => ""}, as: :github_pat))
+  end
+
+  defp assign_github_repository_selection_form(socket, selected_repository) do
+    assign(
+      socket,
+      :github_repository_selection_form,
+      to_form(
+        %{"repository_full_name" => selected_repository || ""},
+        as: :repository_selection
+      )
+    )
   end
 
   defp start_options(:desktop) do
@@ -381,9 +884,13 @@ defmodule JidoCodeWeb.SetupLive do
     ]
   end
 
-  defp persist_start_path(deployment_mode, start_path) do
+  defp persist_start_path(deployment_mode, start_path, owner_context) do
     SystemConfig.update_onboarding_state(fn current_state ->
-      current_state = normalize_keyed_map(current_state)
+      current_state =
+        current_state
+        |> normalize_keyed_map()
+        |> maybe_hydrate_github_setup_state(start_path, owner_context)
+
       existing_step_state = current_state |> fetch_step_state(3) |> normalize_keyed_map()
 
       updated_step_state =
@@ -419,6 +926,392 @@ defmodule JidoCodeWeb.SetupLive do
        }}
     end)
   end
+
+  defp persist_github_repository_selection(selected_repository) do
+    SystemConfig.update_onboarding_state(fn current_state ->
+      current_state = normalize_keyed_map(current_state)
+      existing_step_state = current_state |> fetch_step_state(@github_setup_step) |> normalize_keyed_map()
+
+      updated_step_state =
+        existing_step_state
+        |> maybe_put_selected_repository(selected_repository)
+        |> Map.put(
+          "repository_selection_note",
+          github_repository_selection_note(selected_repository)
+        )
+
+      {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
+    end)
+  end
+
+  defp refresh_github_repository_listing(owner_context) do
+    SystemConfig.update_onboarding_state(fn current_state ->
+      current_state =
+        current_state
+        |> normalize_keyed_map()
+        |> hydrate_github_setup_state(owner_context, force?: true)
+
+      existing_step_state = current_state |> fetch_step_state(@github_setup_step) |> normalize_keyed_map()
+
+      previous_report =
+        existing_step_state
+        |> map_get(:repository_listing, "repository_listing")
+        |> GitHubRepositoryListing.from_state()
+
+      listing_report = GitHubRepositoryListing.run(previous_report, current_state)
+
+      selected_repository =
+        github_selected_repository(
+          current_state,
+          listing_report,
+          existing_step_state |> map_get(:project_import, "project_import") |> ProjectImport.from_state()
+        )
+
+      updated_step_state =
+        existing_step_state
+        |> Map.put(
+          "repository_listing",
+          GitHubRepositoryListing.serialize_for_state(listing_report)
+        )
+        |> maybe_put_selected_repository(selected_repository)
+        |> Map.put(
+          "repository_selection_note",
+          github_repository_selection_note(selected_repository)
+        )
+
+      {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
+    end)
+  end
+
+  defp persist_github_project_import(selected_repository, owner_context) do
+    SystemConfig.update_onboarding_state(fn current_state ->
+      current_state =
+        current_state
+        |> normalize_keyed_map()
+        |> hydrate_github_setup_state(owner_context, force?: true)
+
+      existing_step_state = current_state |> fetch_step_state(@github_setup_step) |> normalize_keyed_map()
+
+      previous_listing =
+        existing_step_state
+        |> map_get(:repository_listing, "repository_listing")
+        |> GitHubRepositoryListing.from_state()
+
+      listing_report = GitHubRepositoryListing.run(previous_listing, current_state)
+
+      previous_import =
+        existing_step_state
+        |> map_get(:project_import, "project_import")
+        |> ProjectImport.from_state()
+
+      project_import_report = ProjectImport.run(previous_import, selected_repository, current_state)
+
+      updated_step_state =
+        existing_step_state
+        |> Map.put(
+          "repository_listing",
+          GitHubRepositoryListing.serialize_for_state(listing_report)
+        )
+        |> Map.put("project_import", ProjectImport.serialize_for_state(project_import_report))
+        |> maybe_put_selected_repository(selected_repository)
+        |> Map.put(
+          "repository_selection_note",
+          github_repository_selection_note(selected_repository)
+        )
+
+      {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
+    end)
+  end
+
+  defp complete_setup(deployment_mode, selected_start_path) do
+    SystemConfig.update(fn %SystemConfig{} = config ->
+      current_state = normalize_keyed_map(config.onboarding_state)
+      existing_step_state = current_state |> fetch_step_state(3) |> normalize_keyed_map()
+
+      completed_start_path =
+        selected_start_path ||
+          existing_step_state |> map_get(:start_path, "start_path") |> normalize_start_path() ||
+          :later
+
+      updated_step_state =
+        existing_step_state
+        |> Map.put("start_path", Atom.to_string(completed_start_path))
+        |> Map.put("deployment_mode", Atom.to_string(deployment_mode))
+        |> Map.put("validated_note", start_path_note(completed_start_path))
+        |> Map.put(
+          "completion_note",
+          "Setup completed. Optional follow-up work remains available from the signed-in app."
+        )
+
+      {:ok,
+       %SystemConfig{
+         config
+         | onboarding_completed: true,
+           onboarding_step: max(config.onboarding_step, 4),
+           onboarding_state: Map.put(current_state, "3", updated_step_state)
+       }}
+    end)
+  end
+
+  defp github_repository_listing_report(onboarding_state) do
+    onboarding_state
+    |> fetch_step_state(@github_setup_step)
+    |> map_get(:repository_listing, "repository_listing")
+    |> GitHubRepositoryListing.from_state()
+    |> case do
+      nil -> GitHubRepositoryListing.run(nil, onboarding_state)
+      report -> report
+    end
+  end
+
+  defp github_project_import_report(onboarding_state) do
+    onboarding_state
+    |> fetch_step_state(@github_setup_step)
+    |> map_get(:project_import, "project_import")
+    |> ProjectImport.from_state()
+  end
+
+  defp github_selected_repository(onboarding_state, listing_report, project_import_report) do
+    step_state = fetch_step_state(onboarding_state, @github_setup_step)
+
+    persisted_selection =
+      step_state
+      |> map_get(:selected_repository, "selected_repository")
+      |> normalize_optional_string()
+
+    available_repositories = GitHubRepositoryListing.repository_full_names(listing_report)
+    imported_selection = ProjectImport.selected_repository(project_import_report)
+
+    cond do
+      repository_selection_available?(persisted_selection, available_repositories) ->
+        persisted_selection
+
+      repository_selection_available?(imported_selection, available_repositories) ->
+        imported_selection
+
+      true ->
+        List.first(available_repositories)
+    end
+  end
+
+  defp show_github_repository_selector?(:github), do: true
+  defp show_github_repository_selector?(_selected_start_path), do: false
+
+  defp github_repository_panel_summary(listing_report, project_import_report) do
+    cond do
+      github_project_import_ready?(project_import_report) ->
+        github_import_detail(project_import_report)
+
+      GitHubRepositoryListing.blocked?(listing_report) ->
+        listing_report.detail
+
+      true ->
+        "Pick one of your linked GitHub repositories and import it into the control plane."
+    end
+  end
+
+  defp github_repository_selector_props(assigns) do
+    %{
+      listingStatus: github_listing_status(assigns.github_repository_listing_report),
+      listingDetail: assigns.github_repository_listing_report.detail,
+      listingRemediation: assigns.github_repository_listing_report.remediation,
+      listingErrorType: assigns.github_repository_listing_report.error_type,
+      listingCheckedAt: checked_at_label(assigns.github_repository_listing_report.checked_at),
+      repositoryCountLabel: github_repository_count_label(assigns.github_repository_options),
+      repositoryOptions: Enum.map(assigns.github_repository_options, &github_repository_option_props/1),
+      selectedRepository: assigns.github_selected_repository,
+      importStatus: github_import_status(assigns.github_project_import_report),
+      importDetail: github_import_detail(assigns.github_project_import_report),
+      importRemediation: github_import_remediation(assigns.github_project_import_report),
+      importErrorType: github_import_error_type(assigns.github_project_import_report),
+      importSelectedRepository: ProjectImport.selected_repository(assigns.github_project_import_report),
+      importProjectId: github_project_id(assigns.github_project_import_report),
+      importProjectDisplayName: github_project_display_name(assigns.github_project_import_report),
+      importProjectPath: github_project_path(assigns.github_project_import_report),
+      importMode: github_project_import_mode(assigns.github_project_import_report),
+      buttonsDisabled: assigns.buttons_disabled?
+    }
+  end
+
+  defp github_pat_capture_state(onboarding_state, listing_report) do
+    pat_path = github_pat_path(onboarding_state)
+
+    %{
+      required?: GitHubRepositoryListing.blocked?(listing_report) and github_pat_capture_required?(pat_path),
+      detail: github_pat_capture_detail(pat_path, listing_report),
+      remediation: github_pat_capture_remediation(pat_path, listing_report),
+      error_type: github_pat_capture_error_type(pat_path),
+      secret_ref_name: ServiceCredentials.service_secret_ref_name(:pat)
+    }
+  end
+
+  defp github_pat_path(onboarding_state) do
+    onboarding_state
+    |> fetch_step_state(4)
+    |> map_get(:github_credentials, "github_credentials")
+    |> GitHubCredentialChecks.from_state()
+    |> case do
+      %{paths: paths} when is_list(paths) -> Enum.find(paths, &(&1.path == :pat))
+      _other -> nil
+    end
+  end
+
+  defp github_pat_capture_required?(%{status: :ready, repository_access: :confirmed}), do: false
+  defp github_pat_capture_required?(_pat_path), do: true
+
+  defp github_pat_capture_detail(%{detail: detail}, _listing_report) when is_binary(detail), do: detail
+  defp github_pat_capture_detail(_pat_path, %{detail: detail}) when is_binary(detail), do: detail
+
+  defp github_pat_capture_detail(_pat_path, _listing_report) do
+    "Save a deployment-local GitHub PAT to validate repository access for this install."
+  end
+
+  defp github_pat_capture_remediation(%{remediation: remediation}, _listing_report)
+       when is_binary(remediation),
+       do: remediation
+
+  defp github_pat_capture_remediation(_pat_path, %{remediation: remediation})
+       when is_binary(remediation),
+       do: remediation
+
+  defp github_pat_capture_remediation(_pat_path, _listing_report), do: nil
+
+  defp github_pat_capture_error_type(%{error_type: error_type}) when is_binary(error_type),
+    do: error_type
+
+  defp github_pat_capture_error_type(_pat_path), do: nil
+
+  defp github_repository_option_props(repository_option) do
+    %{
+      id: Map.get(repository_option, :id),
+      fullName: Map.get(repository_option, :full_name),
+      owner: Map.get(repository_option, :owner),
+      name: Map.get(repository_option, :name)
+    }
+  end
+
+  defp github_repository_select_options(repository_options) do
+    Enum.map(repository_options, fn repository ->
+      {Map.get(repository, :full_name), Map.get(repository, :full_name)}
+    end)
+  end
+
+  defp github_listing_status(%{status: :ready}), do: "ready"
+  defp github_listing_status(%{status: :blocked}), do: "blocked"
+  defp github_listing_status(_report), do: "blocked"
+
+  defp github_listing_status_label(%{status: :ready}), do: "Ready"
+  defp github_listing_status_label(_report), do: "Needs attention"
+
+  defp github_repository_count_label([]), do: "No linked repositories are currently available."
+
+  defp github_repository_count_label(repository_options) do
+    "#{length(repository_options)} linked repositories available for import."
+  end
+
+  defp github_project_import_ready?(%{status: :ready}), do: true
+  defp github_project_import_ready?(_report), do: false
+
+  defp github_import_status(%{status: :ready}), do: "ready"
+  defp github_import_status(%{status: :blocked}), do: "blocked"
+  defp github_import_status(_report), do: "idle"
+
+  defp github_import_status_label(%{status: :ready}), do: "Imported"
+  defp github_import_status_label(%{status: :blocked}), do: "Needs attention"
+  defp github_import_status_label(_report), do: "Not started"
+
+  defp github_import_detail(%{detail: detail}) when is_binary(detail), do: detail
+  defp github_import_detail(_report), do: "No repository import has run yet."
+
+  defp github_import_remediation(%{remediation: remediation}) when is_binary(remediation),
+    do: remediation
+
+  defp github_import_remediation(_report), do: nil
+
+  defp github_import_error_type(%{error_type: error_type}) when is_binary(error_type), do: error_type
+  defp github_import_error_type(_report), do: nil
+
+  defp github_project_import_mode(%{project_record: %{import_mode: import_mode}})
+       when import_mode in [:created, :existing],
+       do: Atom.to_string(import_mode)
+
+  defp github_project_import_mode(_report), do: nil
+
+  defp github_project_id(%{project_record: %{id: id}}) when is_binary(id), do: id
+  defp github_project_id(_report), do: nil
+
+  defp github_project_display_name(%{project_record: %{name: name}}) when is_binary(name), do: name
+
+  defp github_project_display_name(%{selected_repository: selected_repository})
+       when is_binary(selected_repository) do
+    selected_repository
+    |> String.split("/")
+    |> List.last()
+  end
+
+  defp github_project_display_name(_report), do: nil
+
+  defp github_project_path(project_import_report) do
+    case github_project_id(project_import_report) do
+      nil -> nil
+      managed_repo_id -> ~p"/repos/#{managed_repo_id}"
+    end
+  end
+
+  defp github_project_import_flash(project_import_report, selected_repository) do
+    case project_import_report do
+      %{status: :ready} ->
+        "Imported #{selected_repository} into the managed-repository control plane."
+
+      %{detail: detail} when is_binary(detail) ->
+        detail
+
+      _other ->
+        "GitHub repository import could not complete."
+    end
+  end
+
+  defp github_repository_selection_note(selected_repository) when is_binary(selected_repository) do
+    "GitHub repository #{selected_repository} selected for optional import."
+  end
+
+  defp github_repository_selection_note(_selected_repository) do
+    "GitHub repository selection cleared."
+  end
+
+  defp maybe_put_selected_repository(step_state, selected_repository) when is_binary(selected_repository),
+    do: Map.put(step_state, "selected_repository", selected_repository)
+
+  defp maybe_put_selected_repository(step_state, _selected_repository),
+    do: Map.delete(step_state, "selected_repository")
+
+  defp extract_repository_selection(%{"repository_selection" => selection_params})
+       when is_map(selection_params),
+       do: extract_repository_selection(selection_params)
+
+  defp extract_repository_selection(%{"repository_full_name" => repository_full_name}),
+    do: normalize_optional_string(repository_full_name)
+
+  defp extract_repository_selection(%{repository_full_name: repository_full_name}),
+    do: normalize_optional_string(repository_full_name)
+
+  defp extract_repository_selection(_params), do: nil
+
+  defp valid_github_repository_selection?(nil, _available_repositories), do: true
+
+  defp valid_github_repository_selection?(selected_repository, []),
+    do: is_binary(selected_repository)
+
+  defp valid_github_repository_selection?(selected_repository, available_repositories),
+    do: selected_repository in available_repositories
+
+  defp repository_selection_available?(selected_repository, []), do: is_binary(selected_repository)
+
+  defp repository_selection_available?(selected_repository, available_repositories),
+    do: selected_repository in available_repositories
+
+  defp checked_at_label(%DateTime{} = checked_at), do: Calendar.strftime(checked_at, "%Y-%m-%d %H:%M UTC")
+  defp checked_at_label(_checked_at), do: "Not checked yet"
 
   defp selected_start_path(onboarding_state) do
     onboarding_state
@@ -494,6 +1387,18 @@ defmodule JidoCodeWeb.SetupLive do
   defp selected_start_path_note(:later, _deployment_mode),
     do: "Repo setup is deferred for now. You can come back and choose a source-control path later."
 
+  defp completion_summary(nil),
+    do: "Finish onboarding now. You can defer source-control setup until you are inside the app."
+
+  defp completion_summary(:local_repo),
+    do: "Local repo is saved as your preferred next step. You can finish onboarding and attach it from inside the app."
+
+  defp completion_summary(:github),
+    do: "GitHub is saved as your preferred next step. You can finish onboarding and connect it from inside the app."
+
+  defp completion_summary(:later),
+    do: "Repository setup is deferred for now. You can finish onboarding and come back later."
+
   defp choice_badge_label(option_id, selected_start_path, _recommended?) when option_id == selected_start_path,
     do: "Saved"
 
@@ -544,6 +1449,17 @@ defmodule JidoCodeWeb.SetupLive do
     end
   end
 
+  defp secret_persistence_error_message(%{
+         message: message,
+         recovery_instruction: recovery_instruction
+       })
+       when is_binary(message) and is_binary(recovery_instruction) do
+    "#{message} #{recovery_instruction}"
+  end
+
+  defp secret_persistence_error_message(%{message: message}) when is_binary(message), do: message
+  defp secret_persistence_error_message(_typed_error), do: "GitHub PAT could not be saved."
+
   defp assign_runtime_environment_form(socket, runtime_params) do
     normalized_form_values = normalize_runtime_environment_form_values(runtime_params)
 
@@ -586,6 +1502,75 @@ defmodule JidoCodeWeb.SetupLive do
   defp runtime_environment_mode(:local), do: :local
   defp runtime_environment_mode(:sprite), do: :cloud
   defp runtime_environment_mode(_default_environment), do: :cloud
+
+  defp maybe_hydrate_github_setup_state(current_state, :github, owner_context),
+    do: hydrate_github_setup_state(current_state, owner_context)
+
+  defp maybe_hydrate_github_setup_state(current_state, _start_path, _owner_context),
+    do: current_state
+
+  defp hydrate_github_setup_state(onboarding_state, owner_context, opts \\ []) do
+    current_state = normalize_keyed_map(onboarding_state)
+    force? = Keyword.get(opts, :force?, false)
+
+    cond do
+      not is_binary(owner_context) ->
+        current_state
+
+      force? or missing_github_credential_snapshot?(current_state) ->
+        step_state = current_state |> fetch_step_state(4) |> normalize_keyed_map()
+
+        github_credentials =
+          step_state
+          |> map_get(:github_credentials, "github_credentials")
+          |> GitHubCredentialChecks.run(owner_context)
+          |> GitHubCredentialChecks.serialize_for_state()
+
+        updated_step_state =
+          step_state
+          |> Map.put("github_credentials", github_credentials)
+          |> Map.put(
+            "validated_note",
+            "GitHub credential readiness captured for optional repository follow-up."
+          )
+
+        Map.put(current_state, "4", updated_step_state)
+
+      true ->
+        current_state
+    end
+  end
+
+  defp missing_github_credential_snapshot?(onboarding_state) when is_map(onboarding_state) do
+    onboarding_state
+    |> fetch_step_state(4)
+    |> map_get(:github_credentials, "github_credentials")
+    |> GitHubCredentialChecks.from_state()
+    |> case do
+      %{paths: [_ | _]} -> false
+      _other -> true
+    end
+  end
+
+  defp missing_github_credential_snapshot?(_onboarding_state), do: true
+
+  defp current_actor(socket) do
+    socket.assigns
+    |> Map.get(:current_user)
+    |> case do
+      %{} = user ->
+        Actor.operator_actor(%{
+          "id" => Map.get(user, :id) || Map.get(user, "id"),
+          "email" => Map.get(user, :email) || Map.get(user, "email")
+        })
+
+      _other ->
+        Actor.operator_actor(%{
+          "id" => "system:setup-live",
+          "email" => "setup-live@system.local"
+        })
+    end
+  end
 
   defp normalize_runtime_environment_mode("local"), do: :local
   defp normalize_runtime_environment_mode(:local), do: :local

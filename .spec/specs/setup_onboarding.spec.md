@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps the preferred local start path aligned to the current browser architecture, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
@@ -25,11 +25,13 @@ surface:
   - .spec/specs/github_identity_and_integration.spec.md
   - lib/jido_code/setup/deployment_mode.ex
   - lib/jido_code/setup/environment_defaults.ex
+  - lib/jido_code/setup/github_repository_listing.ex
   - lib/jido_code/setup/project_import.ex
   - lib/jido_code/setup/system_config.ex
   - lib/jido_code/setup/system_config_record.ex
   - lib/jido_code/setup/system_config_persistence.ex
   - lib/jido_code_web/live/home_live.ex
+  - lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/components/operator_state_components.ex
@@ -52,6 +54,11 @@ surface:
 
 - id: setup.onboarding.post_bootstrap_start_surface
   statement: After bootstrap, `/setup` shall serve as a lightweight signed-in start surface rather than a blocking multi-step verification wizard.
+  priority: must
+  stability: evolving
+
+- id: setup.onboarding.explicit_completion_path_to_dashboard
+  statement: The signed-in start surface shall expose an explicit completion action that marks onboarding complete and enters the dashboard without requiring deferred integrations such as GitHub connection or repository import.
   priority: must
   stability: evolving
 
@@ -78,6 +85,16 @@ surface:
 - id: setup.onboarding.deferred_integrations
   statement: Provider credentials, GitHub integration, webhook readiness, and first repository import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry, and signed-in repository import may normalize durable intake records without turning setup back into a blocking multi-step wizard.
   priority: must
+  stability: evolving
+
+- id: setup.onboarding.github_repository_selection_persisted_metadata
+  statement: When `/setup` surfaces linked GitHub repositories for optional import, the selected repository plus the latest repository-listing and import reports shall persist through database-backed onboarding metadata so the operator can resume that follow-up work after reload or restart.
+  priority: must
+  stability: evolving
+
+- id: setup.onboarding.github_pat_capture_persisted_secret_ref
+  statement: When signed-in GitHub follow-up work needs deployment-local PAT fallback before repository listing can proceed, `/setup` may capture that PAT as encrypted integration secret storage with onboarding provenance and re-run repository readiness without writing plaintext credentials into onboarding state.
+  priority: should
   stability: evolving
 
 - id: setup.onboarding.start_path_preference_persisted
@@ -108,6 +125,7 @@ surface:
   covers:
     - setup.onboarding.admin_bootstrap_completion_gate
     - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.explicit_completion_path_to_dashboard
     - setup.onboarding.deployment_mode_auto_detected
     - setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
     - setup.onboarding.repo_source_per_project
@@ -134,6 +152,7 @@ surface:
   covers:
     - setup.onboarding.admin_bootstrap_completion_gate
     - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.explicit_completion_path_to_dashboard
     - setup.onboarding.deployment_mode_auto_detected
     - setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
     - setup.onboarding.deferred_integrations
@@ -144,6 +163,31 @@ surface:
   then:
     - The app may emphasize hosted source-control follow-up work such as GitHub connection, persist that preference, and still defer those integrations out of the blocking onboarding path.
     - Signed-in follow-up repo import may capture durable intake records while remaining a non-blocking onboarding continuation.
+
+- id: setup.onboarding.scenario_github_repository_selection_resumes_from_persisted_metadata
+  covers:
+    - setup.onboarding.github_repository_selection_persisted_metadata
+    - setup.onboarding.deferred_integrations
+  given:
+    - A signed-in administrator has chosen the GitHub start path and linked repository metadata is available.
+  when:
+    - The operator selects one linked repository or imports it from the optional follow-up surface on `/setup`.
+  then:
+    - The selected repository, repository-listing report, and latest import result persist in database-backed onboarding metadata.
+    - The optional follow-up surface can resume that GitHub repository context after route reload without reintroducing a blocking wizard.
+
+- id: setup.onboarding.scenario_github_pat_capture_unblocks_follow_up_listing
+  covers:
+    - setup.onboarding.deferred_integrations
+    - setup.onboarding.github_pat_capture_persisted_secret_ref
+  given:
+    - A signed-in administrator chooses the GitHub start path.
+    - GitHub repository listing is blocked because deployment-local PAT fallback is not configured yet.
+  when:
+    - The operator saves a GitHub PAT from the signed-in `/setup` follow-up surface.
+  then:
+    - The PAT is persisted through encrypted integration secret storage with onboarding provenance rather than plaintext onboarding metadata.
+    - `/setup` re-runs GitHub repository readiness so linked repository selection can continue without leaving the onboarding follow-up surface.
 
 - id: setup.onboarding.scenario_blocking_runtime_fault
   covers:
@@ -164,6 +208,17 @@ surface:
     - The operator saves that validated choice.
   then:
     - The choice is expected to persist through database-backed setup metadata instead of disappearing on route reload or server restart.
+
+- id: setup.onboarding.scenario_start_surface_completes_into_dashboard
+  covers:
+    - setup.onboarding.explicit_completion_path_to_dashboard
+  given:
+    - A signed-in administrator has reached `/setup`.
+  when:
+    - The operator chooses to continue into the app from the lightweight start surface.
+  then:
+    - Onboarding is marked complete without requiring deferred integrations first.
+    - The operator is routed into the dashboard so signed-in product work can continue.
 
 - id: setup.onboarding.scenario_signed_in_surfaces_shift_without_restart
   covers:
@@ -213,17 +268,32 @@ surface:
     - setup.onboarding.runtime_environment_selection_persisted_metadata
 
 - kind: source_file
+  target: lib/jido_code/setup/github_repository_listing.ex
+  covers:
+    - setup.onboarding.deferred_integrations
+    - setup.onboarding.github_repository_selection_persisted_metadata
+
+- kind: source_file
   target: lib/jido_code_web/live/setup_live.ex
   covers:
     - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.explicit_completion_path_to_dashboard
     - setup.onboarding.deployment_mode_auto_detected
     - setup.onboarding.deferred_integrations
+    - setup.onboarding.github_repository_selection_persisted_metadata
+    - setup.onboarding.github_pat_capture_persisted_secret_ref
     - setup.onboarding.start_path_preference_persisted
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
+  covers:
+    - setup.onboarding.github_repository_selection_persisted_metadata
 
 - kind: source_file
   target: lib/jido_code/setup/system_config.ex
   covers:
     - setup.onboarding.runtime_environment_selection_persisted_metadata
+    - setup.onboarding.github_repository_selection_persisted_metadata
 
 - kind: source_file
   target: lib/jido_code/setup/system_config_record.ex
@@ -249,6 +319,7 @@ surface:
   target: lib/jido_code/setup/project_import.ex
   covers:
     - setup.onboarding.deferred_integrations
+    - setup.onboarding.github_repository_selection_persisted_metadata
     - setup.onboarding.repo_source_per_project
 
 - kind: source_file
@@ -265,8 +336,11 @@ surface:
   target: test/jido_code_web/live/setup_live_test.exs
   covers:
     - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.explicit_completion_path_to_dashboard
     - setup.onboarding.deployment_mode_auto_detected
     - setup.onboarding.deferred_integrations
+    - setup.onboarding.github_repository_selection_persisted_metadata
+    - setup.onboarding.github_pat_capture_persisted_secret_ref
     - setup.onboarding.start_path_preference_persisted
 
 - kind: source_file

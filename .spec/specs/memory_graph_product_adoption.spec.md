@@ -1,5 +1,7 @@
 # Memory Graph Product Adoption
 
+<!-- current_truth.reconciled_with_branch: surface feedback, memory components, and governed live surfaces remain product-shaped under this adoption subject. -->
+
 This subject defines how the repository-scoped memory graph becomes a
 product-facing capability in canonical managed-repository surfaces and governed
 workflow entrypoints.

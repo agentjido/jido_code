@@ -1,5 +1,6 @@
 defmodule JidoCode.MemoryGraph.SurfaceFeedback do
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+  # covers: architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
   # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   # covers: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
   @moduledoc false

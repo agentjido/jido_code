@@ -1,6 +1,8 @@
 defmodule JidoCode.PhaseThirtySevenIntegrationTest do
+  # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
   # covers: architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+  # covers: architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records
   # covers: architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
   # covers: architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
   # covers: architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context

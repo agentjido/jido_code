@@ -1,5 +1,7 @@
 # Runtime Service Overlay
 
+<!-- current_truth.reconciled_with_branch: run detail continues to keep runtime narratives product-oriented alongside bounded memory context. -->
+
 This subject defines how `Jido.Code` should integrate with the newer
 authority-backed runtime-services model in `jido_os` without surrendering
 product control-plane ownership.

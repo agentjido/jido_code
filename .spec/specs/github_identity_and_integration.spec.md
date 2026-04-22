@@ -1,5 +1,7 @@
 # GitHub Identity And Integration
 
+<!-- current_truth.reconciled_with_branch: setup GitHub repository follow-up and auth-mode verification remain governed by this subject. -->
+
 This subject defines how GitHub-backed access should relate to the local user system and setup-time repository integration checks, including future local-user resolution through provider identity linking.
 
 <!-- covers: setup.onboarding.deferred_integrations -->

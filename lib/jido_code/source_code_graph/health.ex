@@ -8,7 +8,6 @@ defmodule JidoCode.SourceCodeGraph.Health do
   """
 
   alias JidoCode.SourceCodeGraph
-  alias JidoCode.SourceCodeGraph.Store
 
   @type health_status :: %{
           ready?: boolean(),
@@ -101,8 +100,6 @@ defmodule JidoCode.SourceCodeGraph.Health do
 
   defp check_graph_ready(store, base_status, opts) do
     # Try to query the graph to verify it's functional
-    named_graph = SourceCodeGraph.named_graph_resource()
-
     case TripleStore.query(store, "SELECT (COUNT(*) AS ?count) WHERE { GRAPH ?g { ?s ?p ?o } }") do
       {:ok, results} ->
         triple_count = extract_count(results)

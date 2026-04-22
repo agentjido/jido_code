@@ -429,12 +429,12 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   defp governed_anchor_route(_kind, _record_id, run_route), do: run_route
 
   defp governed_route_from_reference(managed_repo_id, %{kind: kind, id: id}, run_route)
-       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id),
-       do:
-         case GovernedReference.route(managed_repo_id, kind, id) do
-           route when is_binary(route) -> route
-           _other -> governed_anchor_route(kind, id, run_route)
-         end
+       when is_binary(managed_repo_id) and is_atom(kind) and is_binary(id) do
+    case GovernedReference.route(managed_repo_id, kind, id) do
+      route when is_binary(route) -> route
+      _other -> governed_anchor_route(kind, id, run_route)
+    end
+  end
 
   defp governed_route_from_reference(managed_repo_id, %{kind: :work_item}, run_route)
        when is_binary(managed_repo_id),

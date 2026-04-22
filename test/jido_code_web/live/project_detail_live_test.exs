@@ -3,6 +3,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
+  # covers: architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
+  # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations

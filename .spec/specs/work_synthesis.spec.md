@@ -1,5 +1,7 @@
 # Work Synthesis
 
+<!-- current_truth.reconciled_with_branch: conversation-driven work handoff into canonical work items remains part of this synthesis subject. -->
+
 This subject defines how durable assessments become canonical operational work
 records before execution begins.
 

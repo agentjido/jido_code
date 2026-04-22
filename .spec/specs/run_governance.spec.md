@@ -2,6 +2,8 @@
 
 # Run Governance
 
+<!-- current_truth.reconciled_with_branch: run-detail memory-aware verification remains attached to canonical governed run surfaces described here. -->
+
 This subject defines the governed run projection model for `Jido.Code`.
 
 ```spec-meta

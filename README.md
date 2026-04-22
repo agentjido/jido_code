@@ -65,7 +65,7 @@ mix test
 mix ecto.reset
 ```
 
-`.env.example` includes the main runtime overrides. For the normal contributor path, the important rule is still: leave `DATABASE_URL` unset and use the checked-in `config/dev.exs` and `config/test.exs` defaults.
+`.env.example` includes the main runtime overrides. For normal repo-root development, `config/runtime.exs` now auto-loads ignored `.env`, `.env.local`, and `.env.dev.local` files during dev boot so local values like `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` can be set without exporting them in your shell. Shell env vars still take precedence, and the important rule is still: leave `DATABASE_URL` unset and use the checked-in `config/dev.exs` and `config/test.exs` defaults.
 
 You may also need extra credentials depending on what you are exercising:
 

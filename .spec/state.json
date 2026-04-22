@@ -363,428 +363,7 @@
       }
     ]
   },
-  "findings": [
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/conversations/coordinator.ex does not reference covered requirement: architecture.conversation_orchestration.active_turns_can_be_superseded"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/conversations/coordinator.ex does not reference covered requirement: architecture.conversation_orchestration.cancellation_lifecycle_is_evented"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/conversations/coordinator.ex does not reference covered requirement: architecture.conversation_orchestration.control_lane_preempts_work_lane"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/conversations/coordinator.ex does not reference covered requirement: architecture.conversation_orchestration.tool_execution_is_cancellable_child_work"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/conversations/event.ex does not reference covered requirement: architecture.conversation_orchestration.expensive_work_announces_intent"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/conversations/snapshot.ex does not reference covered requirement: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/forge/pubsub.ex does not reference covered requirement: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/orchestration/run_pubsub.ex does not reference covered requirement: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_four_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_four_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_four_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.active_turns_can_be_superseded"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.cancellation_lifecycle_is_evented"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.control_lane_preempts_work_lane"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.tool_execution_is_cancellable_child_work"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_one_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_one_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_one_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_three_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.control_and_work_commands_are_distinct"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_three_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_three_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_three_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.steering_preserves_short_term_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_two_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_two_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_two_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.conversation_orchestration",
-      "file": ".spec/specs/conversation_orchestration.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_forty_two_integration_test.exs does not reference covered requirement: architecture.conversation_orchestration.steering_preserves_short_term_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph",
-      "file": ".spec/specs/memory_graph.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_thirty_seven_integration_test.exs does not reference covered requirement: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code/memory_graph/surface_feedback.ex does not reference covered requirement: architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/components/memory_surface_components.ex does not reference covered requirement: architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code/phase_thirty_seven_integration_test.exs does not reference covered requirement: architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/project_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/project_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/project_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/workbench_live_test.exs does not reference covered requirement: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_product_adoption",
-      "file": ".spec/specs/memory_graph_product_adoption.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/workbench_live_test.exs does not reference covered requirement: architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/governed_memory_helpers.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/governed_memory_helpers.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/decision_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/decision_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/decision_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/evidence_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/evidence_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/evidence_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/work_item_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/work_item_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
-      "file": ".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/work_item_detail_live.ex does not reference covered requirement: architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target .spec/planning/phase-55-memory-rollout-and-governed-surfaces.md does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/decision_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/decision_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/decision_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/evidence_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/evidence_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/evidence_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/work_item_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/work_item_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target lib/jido_code_web/live/work_item_detail_live.ex does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/run_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/run_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/run_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance"
-    },
-    {
-      "code": "verification_target_missing_reference",
-      "entity_id": "architecture.memory_graph_workflow_and_operator_expansion",
-      "file": ".spec/specs/memory_graph_workflow_and_operator_expansion.spec.md",
-      "level": "warning",
-      "message": "Verification target test/jido_code_web/live/run_detail_live_test.exs does not reference covered requirement: architecture.memory_graph_workflow_and_operator_expansion.operator_memory_actions_use_product_owned_boundaries"
-    }
-  ],
+  "findings": [],
   "index": {
     "exceptions": [],
     "requirements": [
@@ -3182,6 +2761,14 @@
       },
       {
         "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow.local_dotenv_bootstrap",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Normal dev runtime boot may source ignored repo-root `.env`, `.env.local`, and `.env.dev.local` files to populate missing environment variables for contributor convenience, but explicit shell env vars shall remain authoritative, command substitution shall stay disabled for this bootstrap path, and non-dev runtime behavior shall remain unchanged.",
+        "subject_id": "developer.workflow"
+      },
+      {
+        "file": ".spec/specs/developer_workflow.spec.md",
         "id": "developer.workflow.phoenix_mix_surface",
         "priority": "must",
         "stability": "evolving",
@@ -3209,7 +2796,7 @@
         "id": "docs.operator_provider_auth_guide.local_quickstart_excludes_operator_setup",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing quickstart docs shall keep deployment-specific provider-login setup out of the normal local development path.",
+        "statement": "Contributor-facing quickstart docs may mention generic local runtime bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY`, but they shall keep deployment-specific provider-login setup out of the normal local development path.",
         "subject_id": "docs.operator_provider_auth_guide"
       },
       {
@@ -3329,7 +2916,7 @@
         "id": "package.jido_code.package_quality_alignment_doc_present",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall keep its package-quality alignment, approved browser-composition conventions, product-oriented fallback messaging expectations, and any explicit product-repo exceptions documented in version-controlled repo files or specs.",
+        "statement": "The repository shall keep its package-quality alignment, approved browser-composition conventions, product-oriented fallback messaging expectations, local dev runtime bootstrap conventions, and any explicit product-repo exceptions documented in version-controlled repo files or specs.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -3386,6 +2973,30 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "Deployment mode shall be a global, auto-detected install-flavor hint used for copy and default start-path emphasis rather than an operator-defined runtime-execution choice.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.explicit_completion_path_to_dashboard",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The signed-in start surface shall expose an explicit completion action that marks onboarding complete and enters the dashboard without requiring deferred integrations such as GitHub connection or repository import.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "When signed-in GitHub follow-up work needs deployment-local PAT fallback before repository listing can proceed, `/setup` may capture that PAT as encrypted integration secret storage with onboarding provenance and re-run repository readiness without writing plaintext credentials into onboarding state.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "When `/setup` surfaces linked GitHub repositories for optional import, the selected repository plus the latest repository-listing and import reports shall persist through database-backed onboarding metadata so the operator can resume that follow-up work after reload or restart.",
         "subject_id": "setup.onboarding"
       },
       {
@@ -6746,6 +6357,7 @@
         "covers": [
           "setup.onboarding.admin_bootstrap_completion_gate",
           "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.explicit_completion_path_to_dashboard",
           "setup.onboarding.deployment_mode_auto_detected",
           "setup.onboarding.runtime_environment_selection_distinct_from_install_flavor",
           "setup.onboarding.repo_source_per_project"
@@ -6803,6 +6415,7 @@
         "covers": [
           "setup.onboarding.admin_bootstrap_completion_gate",
           "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.explicit_completion_path_to_dashboard",
           "setup.onboarding.deployment_mode_auto_detected",
           "setup.onboarding.runtime_environment_selection_distinct_from_install_flavor",
           "setup.onboarding.deferred_integrations"
@@ -6819,6 +6432,45 @@
         ],
         "when": [
           "The administrator reaches the signed-in start surface."
+        ]
+      },
+      {
+        "covers": [
+          "setup.onboarding.deferred_integrations",
+          "setup.onboarding.github_pat_capture_persisted_secret_ref"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A signed-in administrator chooses the GitHub start path.",
+          "GitHub repository listing is blocked because deployment-local PAT fallback is not configured yet."
+        ],
+        "id": "setup.onboarding.scenario_github_pat_capture_unblocks_follow_up_listing",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "The PAT is persisted through encrypted integration secret storage with onboarding provenance rather than plaintext onboarding metadata.",
+          "`/setup` re-runs GitHub repository readiness so linked repository selection can continue without leaving the onboarding follow-up surface."
+        ],
+        "when": [
+          "The operator saves a GitHub PAT from the signed-in `/setup` follow-up surface."
+        ]
+      },
+      {
+        "covers": [
+          "setup.onboarding.github_repository_selection_persisted_metadata",
+          "setup.onboarding.deferred_integrations"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A signed-in administrator has chosen the GitHub start path and linked repository metadata is available."
+        ],
+        "id": "setup.onboarding.scenario_github_repository_selection_resumes_from_persisted_metadata",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "The selected repository, repository-listing report, and latest import result persist in database-backed onboarding metadata.",
+          "The optional follow-up surface can resume that GitHub repository context after route reload without reintroducing a blocking wizard."
+        ],
+        "when": [
+          "The operator selects one linked repository or imports it from the optional follow-up surface on `/setup`."
         ]
       },
       {
@@ -6854,6 +6506,24 @@
         ],
         "when": [
           "The operator opens dashboard, workbench, or repo detail through the post-bootstrap routes."
+        ]
+      },
+      {
+        "covers": [
+          "setup.onboarding.explicit_completion_path_to_dashboard"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A signed-in administrator has reached `/setup`."
+        ],
+        "id": "setup.onboarding.scenario_start_surface_completes_into_dashboard",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "Onboarding is marked complete without requiring deferred integrations first.",
+          "The operator is routed into the dashboard so signed-in product work can continue."
+        ],
+        "when": [
+          "The operator chooses to continue into the app from the lightweight start surface."
         ]
       },
       {
@@ -7218,7 +6888,7 @@
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, allows ignored repo-root dotenv files to populate missing runtime vars during normal dev boot without overriding explicit shell env or changing prod behavior, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
             ".tool-versions",
             "mix.exs",
@@ -7738,7 +7408,7 @@
           "id": "docs.operator_provider_auth_guide",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` paths, semantic graph lifecycle orientation, and product-oriented fallback language.",
+          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` paths, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.",
           "surface": [
             "README.md",
             ".spec/specs/operator_auth_settings.spec.md",
@@ -7813,7 +7483,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology, memory-graph ontology, and TripleStore semantic stack add heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` semantic verification commands, contributor docs that describe both the approved LiveView-plus-LiveVue browser boundary and the repository-scoped source graph plus memory graph workflow as bounded enhancements, the companion ontology pair, the typed governed-reference cutover, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology, memory-graph ontology, TripleStore semantic stack add heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, a direct repo-owned Dotenvy dependency that supports local dev runtime bootstrap without changing the production secret posture, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` semantic verification commands, contributor docs that describe both the approved LiveView-plus-LiveVue browser boundary and the repository-scoped source graph plus memory graph workflow as bounded enhancements, the companion ontology pair, the typed governed-reference cutover, the local dotenv bootstrap contract, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
           "surface": [
             ".doctor.exs",
             "mix.exs",
@@ -8241,7 +7911,7 @@
           "id": "setup.onboarding",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps the preferred local start path aligned to the current browser architecture, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
@@ -8251,11 +7921,13 @@
             ".spec/specs/github_identity_and_integration.spec.md",
             "lib/jido_code/setup/deployment_mode.ex",
             "lib/jido_code/setup/environment_defaults.ex",
+            "lib/jido_code/setup/github_repository_listing.ex",
             "lib/jido_code/setup/project_import.ex",
             "lib/jido_code/setup/system_config.ex",
             "lib/jido_code/setup/system_config_record.ex",
             "lib/jido_code/setup/system_config_persistence.ex",
             "lib/jido_code_web/live/home_live.ex",
+            "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
             "lib/jido_code_web/live/setup_live.ex",
             "lib/jido_code_web/live/dashboard_live.ex",
             "lib/jido_code_web/components/operator_state_components.ex",
@@ -8482,7 +8154,7 @@
           "id": "workflow.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that preserves the legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes and repo-owned contributor start, browser verification, source-graph verification, memory-graph verification, and semantic product verification alias growth even as browser and semantic toolchain dependencies evolve alongside it.",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that preserves the legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes and repo-owned contributor start, browser verification, source-graph verification, memory-graph verification, semantic product verification alias growth, and adjacent direct dependency promotions even as browser and semantic toolchain dependencies evolve alongside it.",
           "surface": [
             "mix.exs",
             "compat/jido_workflow/mix.exs",
@@ -10065,6 +9737,17 @@
       },
       {
         "covers": [
+          "architecture.frontend_stack.liveview_remains_product_host_shell",
+          "architecture.frontend_stack.product_owned_mounting_boundary",
+          "architecture.frontend_stack.server_authored_props_streams_and_events"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/setup_live.ex"
+      },
+      {
+        "covers": [
           "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers"
         ],
         "file": ".spec/specs/frontend_architecture.spec.md",
@@ -10170,6 +9853,17 @@
       },
       {
         "covers": [
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.server_authored_props_streams_and_events",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue"
+      },
+      {
+        "covers": [
           "architecture.frontend_stack.adoption_is_incremental_per_surface",
           "architecture.frontend_stack.server_authored_props_streams_and_events"
         ],
@@ -10217,6 +9911,17 @@
         "kind": "source_file",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/workbench_live_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.product_owned_mounting_boundary",
+          "architecture.frontend_stack.server_authored_props_streams_and_events",
+          "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs"
       },
       {
         "covers": [
@@ -13600,6 +13305,60 @@
       },
       {
         "covers": [
+          "developer.workflow.local_dotenv_bootstrap"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "source_file",
+        "subject_id": "developer.workflow",
+        "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.local_dotenv_bootstrap"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "source_file",
+        "subject_id": "developer.workflow",
+        "target": "config/runtime.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.local_dotenv_bootstrap"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "source_file",
+        "subject_id": "developer.workflow",
+        "target": "lib/jido_code/config/runtime_env.ex"
+      },
+      {
+        "covers": [
+          "developer.workflow.local_dotenv_bootstrap"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "source_file",
+        "subject_id": "developer.workflow",
+        "target": "test/jido_code/config/runtime_env_test.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.local_dotenv_bootstrap"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "mix test test/jido_code/config/runtime_env_test.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.local_dotenv_bootstrap"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '\\.env\\.local|\\.env\\.dev\\.local|JIDO_CODE_SECRET_REF_ENCRYPTION_KEY|DATABASE_URL' README.md .env.example"
+      },
+      {
+        "covers": [
           "developer.workflow.phoenix_mix_surface"
         ],
         "file": ".spec/specs/developer_workflow.spec.md",
@@ -14935,9 +14694,22 @@
       },
       {
         "covers": [
+          "setup.onboarding.deferred_integrations",
+          "setup.onboarding.github_repository_selection_persisted_metadata"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/github_repository_listing.ex"
+      },
+      {
+        "covers": [
           "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.explicit_completion_path_to_dashboard",
           "setup.onboarding.deployment_mode_auto_detected",
           "setup.onboarding.deferred_integrations",
+          "setup.onboarding.github_repository_selection_persisted_metadata",
+          "setup.onboarding.github_pat_capture_persisted_secret_ref",
           "setup.onboarding.start_path_preference_persisted"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -14947,7 +14719,17 @@
       },
       {
         "covers": [
-          "setup.onboarding.runtime_environment_selection_persisted_metadata"
+          "setup.onboarding.github_repository_selection_persisted_metadata"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue"
+      },
+      {
+        "covers": [
+          "setup.onboarding.runtime_environment_selection_persisted_metadata",
+          "setup.onboarding.github_repository_selection_persisted_metadata"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -14993,6 +14775,7 @@
       {
         "covers": [
           "setup.onboarding.deferred_integrations",
+          "setup.onboarding.github_repository_selection_persisted_metadata",
           "setup.onboarding.repo_source_per_project"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15021,8 +14804,11 @@
       {
         "covers": [
           "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.explicit_completion_path_to_dashboard",
           "setup.onboarding.deployment_mode_auto_detected",
           "setup.onboarding.deferred_integrations",
+          "setup.onboarding.github_repository_selection_persisted_metadata",
+          "setup.onboarding.github_pat_capture_persisted_secret_ref",
           "setup.onboarding.start_path_preference_persisted"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15429,11 +15215,11 @@
     "decision_parse_errors": 0,
     "decisions": 26,
     "exceptions": 0,
-    "findings": 60,
-    "requirements": 357,
-    "scenarios": 172,
+    "findings": 0,
+    "requirements": 361,
+    "scenarios": 175,
     "subjects": 44,
-    "verifications": 681
+    "verifications": 692
   },
   "verification": {
     "claims": [
@@ -16741,7 +16527,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
         "verification_index": 4
@@ -16752,7 +16538,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
         "verification_index": 4
@@ -16763,7 +16549,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
         "verification_index": 4
@@ -16796,7 +16582,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
         "verification_index": 4
@@ -17115,7 +16901,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event.ex",
         "verification_index": 15
@@ -17181,7 +16967,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/snapshot.ex",
         "verification_index": 19
@@ -17390,7 +17176,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
         "verification_index": 26
@@ -17401,7 +17187,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
         "verification_index": 26
@@ -17412,7 +17198,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
         "verification_index": 26
@@ -17423,7 +17209,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
         "verification_index": 26
@@ -17467,7 +17253,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
         "verification_index": 28
@@ -17478,7 +17264,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
         "verification_index": 28
@@ -17489,7 +17275,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
         "verification_index": 28
@@ -17500,7 +17286,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
         "verification_index": 29
@@ -17511,7 +17297,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
         "verification_index": 29
@@ -17522,7 +17308,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
         "verification_index": 29
@@ -17533,7 +17319,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
         "verification_index": 29
@@ -17544,7 +17330,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
         "verification_index": 30
@@ -17555,7 +17341,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
         "verification_index": 30
@@ -17566,7 +17352,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
         "verification_index": 30
@@ -17577,7 +17363,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
         "verification_index": 30
@@ -17588,7 +17374,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
         "verification_index": 31
@@ -17599,7 +17385,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
         "verification_index": 31
@@ -17610,7 +17396,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
         "verification_index": 31
@@ -17885,7 +17671,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/forge/pubsub.ex",
         "verification_index": 42
@@ -17896,7 +17682,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/orchestration/run_pubsub.ex",
         "verification_index": 43
@@ -19574,6 +19360,39 @@
         "verification_index": 9
       },
       {
+        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 10
+      },
+      {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
         "file": ".spec/specs/frontend_architecture.spec.md",
         "kind": "source_file",
@@ -19582,28 +19401,6 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/support/live_vue_case.ex",
-        "verification_index": 10
-      },
-      {
-        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
-        "verification_index": 11
-      },
-      {
-        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 11
       },
       {
@@ -19614,7 +19411,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/agents_live_test.exs",
+        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 12
       },
       {
@@ -19625,7 +19422,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/agents_live_test.exs",
+        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 12
       },
       {
@@ -19636,7 +19433,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workflows_live_test.exs",
+        "target": "test/jido_code_web/live/agents_live_test.exs",
         "verification_index": 13
       },
       {
@@ -19647,7 +19444,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workflows_live_test.exs",
+        "target": "test/jido_code_web/live/agents_live_test.exs",
         "verification_index": 13
       },
       {
@@ -19658,29 +19455,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "test/jido_code_web/live/workflows_live_test.exs",
         "verification_index": 14
       },
       {
-        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
         "file": ".spec/specs/frontend_architecture.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
-        "verification_index": 14
-      },
-      {
-        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "test/jido_code_web/live/workflows_live_test.exs",
         "verification_index": 14
       },
       {
@@ -19691,7 +19477,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 15
       },
       {
@@ -19702,7 +19488,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 15
       },
       {
@@ -19713,7 +19499,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 15
       },
       {
@@ -19724,7 +19510,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
         "verification_index": 16
       },
       {
@@ -19735,7 +19521,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
         "verification_index": 16
       },
       {
@@ -19746,7 +19532,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
         "verification_index": 16
       },
       {
@@ -19757,7 +19543,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
         "verification_index": 17
       },
       {
@@ -19768,7 +19554,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
         "verification_index": 17
       },
       {
@@ -19779,7 +19565,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
         "verification_index": 17
       },
       {
@@ -19790,7 +19576,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
         "verification_index": 18
       },
       {
@@ -19801,7 +19587,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
         "verification_index": 18
       },
       {
@@ -19812,7 +19598,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
         "verification_index": 18
       },
       {
@@ -19823,7 +19609,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
         "verification_index": 19
       },
       {
@@ -19834,7 +19620,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
         "verification_index": 19
       },
       {
@@ -19845,7 +19631,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
         "verification_index": 19
       },
       {
@@ -19856,7 +19642,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "verification_index": 20
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
         "verification_index": 20
       },
       {
@@ -19867,7 +19664,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
         "verification_index": 20
       },
       {
@@ -19878,7 +19675,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
+        "verification_index": 21
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
         "verification_index": 21
       },
       {
@@ -19889,7 +19697,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
         "verification_index": 21
       },
       {
@@ -19900,7 +19708,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 22
       },
       {
@@ -19911,7 +19719,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 22
       },
       {
@@ -19922,7 +19730,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 23
       },
       {
@@ -19933,7 +19741,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 23
       },
       {
@@ -19944,7 +19752,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 24
       },
       {
@@ -19955,8 +19763,85 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 24
+      },
+      {
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "verification_index": 25
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "verification_index": 25
+      },
+      {
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "verification_index": 26
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "verification_index": 26
+      },
+      {
+        "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 27
+      },
+      {
+        "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 27
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -19967,7 +19852,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 25
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -19978,7 +19863,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 25
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -19989,7 +19874,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 25
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -20000,7 +19885,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 26
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -20011,7 +19896,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 26
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
@@ -20022,7 +19907,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 26
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -20033,7 +19918,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -20044,7 +19929,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -20055,7 +19940,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -20066,7 +19951,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -20077,7 +19962,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -20088,7 +19973,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -20099,7 +19984,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -20110,7 +19995,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -20121,7 +20006,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -20132,7 +20017,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -20143,7 +20028,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -20154,7 +20039,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -20165,7 +20050,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -20176,7 +20061,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
@@ -21537,7 +21422,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph",
         "target": "test/jido_code/phase_thirty_seven_integration_test.exs",
         "verification_index": 22
@@ -21933,7 +21818,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "lib/jido_code/memory_graph/surface_feedback.ex",
         "verification_index": 4
@@ -21944,7 +21829,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "lib/jido_code_web/components/memory_surface_components.ex",
         "verification_index": 5
@@ -22087,7 +21972,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code/phase_thirty_seven_integration_test.exs",
         "verification_index": 11
@@ -22153,7 +22038,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 13
@@ -22164,7 +22049,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 13
@@ -22175,7 +22060,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 13
@@ -22186,7 +22071,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/workbench_live_test.exs",
         "verification_index": 14
@@ -22197,7 +22082,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_product_adoption",
         "target": "test/jido_code_web/live/workbench_live_test.exs",
         "verification_index": 14
@@ -22505,7 +22390,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/work_item_detail_live.ex",
         "verification_index": 4
@@ -22516,7 +22401,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/work_item_detail_live.ex",
         "verification_index": 4
@@ -22527,7 +22412,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/work_item_detail_live.ex",
         "verification_index": 4
@@ -22560,7 +22445,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/evidence_detail_live.ex",
         "verification_index": 5
@@ -22571,7 +22456,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/evidence_detail_live.ex",
         "verification_index": 5
@@ -22582,7 +22467,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/evidence_detail_live.ex",
         "verification_index": 5
@@ -22615,7 +22500,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/decision_detail_live.ex",
         "verification_index": 6
@@ -22626,7 +22511,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/decision_detail_live.ex",
         "verification_index": 6
@@ -22637,7 +22522,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/live/decision_detail_live.ex",
         "verification_index": 6
@@ -22659,7 +22544,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/governed_memory_helpers.ex",
         "verification_index": 7
@@ -22670,7 +22555,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_surface_rollout_and_governance_actions",
         "target": "lib/jido_code_web/governed_memory_helpers.ex",
         "verification_index": 7
@@ -22956,7 +22841,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": ".spec/planning/phase-55-memory-rollout-and-governed-surfaces.md",
         "verification_index": 4
@@ -23077,7 +22962,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/work_item_detail_live.ex",
         "verification_index": 9
@@ -23099,7 +22984,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/work_item_detail_live.ex",
         "verification_index": 9
@@ -23110,7 +22995,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/work_item_detail_live.ex",
         "verification_index": 9
@@ -23132,7 +23017,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/evidence_detail_live.ex",
         "verification_index": 10
@@ -23154,7 +23039,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/evidence_detail_live.ex",
         "verification_index": 10
@@ -23165,7 +23050,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/evidence_detail_live.ex",
         "verification_index": 10
@@ -23187,7 +23072,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/decision_detail_live.ex",
         "verification_index": 11
@@ -23209,7 +23094,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/decision_detail_live.ex",
         "verification_index": 11
@@ -23220,7 +23105,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "lib/jido_code_web/live/decision_detail_live.ex",
         "verification_index": 11
@@ -23242,7 +23127,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 12
@@ -23253,7 +23138,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 12
@@ -23264,7 +23149,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 12
@@ -23275,7 +23160,7 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.memory_graph_workflow_and_operator_expansion",
         "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 12
@@ -29067,69 +28952,69 @@
         "verification_index": 2
       },
       {
-        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "cover_id": "developer.workflow.local_dotenv_bootstrap",
         "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'setup: \\[\"deps.get\", \"git_hooks.install\", \"ecto.setup\", \"assets.setup\", \"assets.build\"\\]' mix.exs",
+        "target": "mix.exs",
         "verification_index": 3
       },
       {
-        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "cover_id": "developer.workflow.local_dotenv_bootstrap",
         "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "developer.workflow",
-        "target": "rg -n '\"frontend.verify\": \\[\"assets.setup\", \"assets.build\"\\]' mix.exs",
+        "target": "config/runtime.exs",
         "verification_index": 4
       },
       {
-        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "cover_id": "developer.workflow.local_dotenv_bootstrap",
         "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "developer.workflow",
-        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs",
+        "target": "lib/jido_code/config/runtime_env.ex",
         "verification_index": 5
       },
       {
-        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "cover_id": "developer.workflow.local_dotenv_bootstrap",
         "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "developer.workflow",
-        "target": "rg -n '\"memory.verify\": \\[' mix.exs",
+        "target": "test/jido_code/config/runtime_env_test.exs",
         "verification_index": 6
       },
       {
-        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "cover_id": "developer.workflow.local_dotenv_bootstrap",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n '\"semantic.verify\": \\[' mix.exs",
+        "target": "mix test test/jido_code/config/runtime_env_test.exs",
         "verification_index": 7
       },
       {
-        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "cover_id": "developer.workflow.local_dotenv_bootstrap",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "target": "rg -n '\\.env\\.local|\\.env\\.dev\\.local|JIDO_CODE_SECRET_REF_ENCRYPTION_KEY|DATABASE_URL' README.md .env.example",
         "verification_index": 8
       },
       {
@@ -29140,8 +29025,74 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
+        "target": "rg -n 'setup: \\[\"deps.get\", \"git_hooks.install\", \"ecto.setup\", \"assets.setup\", \"assets.build\"\\]' mix.exs",
         "verification_index": 9
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '\"frontend.verify\": \\[\"assets.setup\", \"assets.build\"\\]' mix.exs",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '\"memory.verify\": \\[' mix.exs",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '\"semantic.verify\": \\[' mix.exs",
+        "verification_index": 13
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "verification_index": 14
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
+        "verification_index": 15
       },
       {
         "cover_id": "developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen",
@@ -29152,94 +29103,6 @@
         "strength": "linked",
         "subject_id": "developer.workflow",
         "target": "lib/jido_code_web/endpoint.ex",
-        "verification_index": 10
-      },
-      {
-        "cover_id": "developer.workflow.docs_split",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'extras: \\[\"README.md\", \"CHANGELOG.md\", \"CONTRIBUTING.md\", \"\\.spec/README.md\"\\]' mix.exs",
-        "verification_index": 11
-      },
-      {
-        "cover_id": "developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
-        "verification_index": 12
-      },
-      {
-        "cover_id": "developer.workflow.docs_split",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
-        "verification_index": 12
-      },
-      {
-        "cover_id": "developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
-        "verification_index": 13
-      },
-      {
-        "cover_id": "developer.workflow.docs_split",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
-        "verification_index": 13
-      },
-      {
-        "cover_id": "developer.workflow.repo_toolchain_asdf",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
-        "verification_index": 14
-      },
-      {
-        "cover_id": "developer.workflow.repo_toolchain_asdf",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
-        "verification_index": 15
-      },
-      {
-        "cover_id": "developer.workflow.repo_toolchain_asdf",
-        "file": ".spec/specs/developer_workflow.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "developer.workflow",
-        "target": "rg -n 'asdf install' CONTRIBUTING.md",
         "verification_index": 16
       },
       {
@@ -29250,8 +29113,96 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
+        "target": "rg -n 'extras: \\[\"README.md\", \"CHANGELOG.md\", \"CONTRIBUTING.md\", \"\\.spec/README.md\"\\]' mix.exs",
         "verification_index": 17
+      },
+      {
+        "cover_id": "developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "verification_index": 18
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "verification_index": 18
+      },
+      {
+        "cover_id": "developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
+        "verification_index": 19
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
+        "verification_index": 19
+      },
+      {
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
+        "verification_index": 20
+      },
+      {
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
+        "verification_index": 21
+      },
+      {
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'asdf install' CONTRIBUTING.md",
+        "verification_index": 22
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
+        "verification_index": 23
       },
       {
         "cover_id": "developer.workflow.docs_split",
@@ -29262,7 +29213,7 @@
         "strength": "claimed",
         "subject_id": "developer.workflow",
         "target": "rg -n 'not the normal contributor workflow|mix setup|mix server|DATABASE_URL' tauri/README.md",
-        "verification_index": 18
+        "verification_index": 24
       },
       {
         "cover_id": "docs.operator_provider_auth_guide.external_operator_docs_allowed",
@@ -30823,8 +30774,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/setup_live.ex",
+        "target": "lib/jido_code/setup/github_repository_listing.ex",
         "verification_index": 6
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/github_repository_listing.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "setup.onboarding.deferred_integrations",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 7
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -30835,7 +30808,40 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 6
+        "verification_index": 7
+      },
+      {
+        "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 7
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -30846,7 +30852,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -30857,7 +30863,29 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 6
+        "verification_index": 7
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/system_config.ex",
+        "verification_index": 9
       },
       {
         "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
@@ -30868,7 +30896,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/system_config.ex",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
@@ -30879,7 +30907,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/system_config_record.ex",
-        "verification_index": 8
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
@@ -30890,7 +30918,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/system_config_persistence.ex",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -30901,7 +30929,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "setup.onboarding.greenfield_import_writes_canonical_repo_records",
@@ -30912,7 +30940,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -30923,7 +30951,18 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 12
+        "verification_index": 14
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/project_import.ex",
+        "verification_index": 14
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -30934,7 +30973,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -30945,7 +30984,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/project_import_test.exs",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -30956,7 +30995,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/deployment_mode_test.exs",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -30967,7 +31006,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -30978,7 +31017,40 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 15
+        "verification_index": 17
+      },
+      {
+        "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 17
+      },
+      {
+        "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 17
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 17
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -30989,7 +31061,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -31000,28 +31072,6 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 15
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 16
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 17
       },
       {
@@ -31032,7 +31082,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 18
       },
       {
@@ -31043,7 +31093,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 19
       },
       {
@@ -31054,7 +31104,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 20
       },
       {
@@ -31065,8 +31115,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 21
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "verification_index": 22
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 23
       },
       {
         "cover_id": "setup.runtime_environment_defaults.selection_is_distinct_from_install_flavor",
@@ -31710,9 +31782,9 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 121,
+      "claimed": 63,
       "executed": 0,
-      "linked": 1358
+      "linked": 1442
     },
     "threshold_failures": 0
   },

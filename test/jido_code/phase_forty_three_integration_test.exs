@@ -1,4 +1,8 @@
 defmodule JidoCode.PhaseFortyThreeIntegrationTest do
+  # covers: architecture.conversation_orchestration.control_and_work_commands_are_distinct
+  # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  # covers: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+  # covers: architecture.conversation_orchestration.steering_preserves_short_term_context
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}

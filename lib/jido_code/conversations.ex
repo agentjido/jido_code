@@ -269,7 +269,9 @@ defmodule JidoCode.Conversations do
   end
 
   @spec steer_work(Conversation.t(), map(), keyword()) :: {:ok, steer_result()} | {:error, term()}
-  def steer_work(%Conversation{} = conversation, %{} = payload, opts \\ []) when is_list(opts) do
+  def steer_work(conversation, payload, opts \\ [])
+
+  def steer_work(%Conversation{} = conversation, %{} = payload, opts) when is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
     payload = normalize_map(payload)
     shared_context = normalize_map(Keyword.get(opts, :shared_context))

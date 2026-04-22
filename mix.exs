@@ -3,6 +3,7 @@ defmodule JidoCode.MixProject do
   # covers: package.jido_code.mix_first_cli_surface
   # covers: package.jido_code.package_quality_mix_surface_aligned
   # covers: workflow.runtime.compatibility.local_override_present
+  # covers: developer.workflow.local_dotenv_bootstrap
   use Mix.Project
 
   @version "0.1.0"
@@ -206,6 +207,7 @@ defmodule JidoCode.MixProject do
       {:sprites, git: "https://github.com/mikehostetler/sprites-ex.git", override: true},
 
       # Utilities
+      {:dotenvy, "~> 1.1"},
       {:live_toast, "~> 0.8"},
       {:jason, "~> 1.2"},
       {:picosat_elixir, "~> 0.2"},

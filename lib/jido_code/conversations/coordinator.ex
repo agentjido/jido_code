@@ -1,5 +1,9 @@
 defmodule JidoCode.Conversations.Coordinator do
   # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
+  # covers: architecture.conversation_orchestration.control_lane_preempts_work_lane
+  # covers: architecture.conversation_orchestration.active_turns_can_be_superseded
+  # covers: architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
+  # covers: architecture.conversation_orchestration.cancellation_lifecycle_is_evented
   # covers: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
   # covers: architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
   @moduledoc """
@@ -717,7 +721,7 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp maybe_clear_child_work_pending_input(state, _child_work_id, _actor), do: state
 
-  defp apply_turn_transition(state, %Turn{} = updated_turn, actor \\ %{}, attrs \\ %{}) do
+  defp apply_turn_transition(state, %Turn{} = updated_turn, actor, attrs \\ %{}) do
     next_state =
       state
       |> store_turn(updated_turn,
@@ -739,7 +743,7 @@ defmodule JidoCode.Conversations.Coordinator do
   defp apply_child_work_update(
          state,
          %ChildWork{} = updated_child_work,
-         actor \\ %{},
+         actor,
          attrs \\ %{}
        ) do
     next_state =
@@ -866,7 +870,7 @@ defmodule JidoCode.Conversations.Coordinator do
     end
   end
 
-  defp cancel_tool(state, payload, actor, message_id \\ nil) do
+  defp cancel_tool(state, payload, actor, message_id) do
     with {:ok, child_work_id} <- target_child_work_id(state, payload),
          {:ok, pid} <- fetch_child_worker_pid(state, child_work_id),
          {:ok, next_state} <-
@@ -1274,13 +1278,13 @@ defmodule JidoCode.Conversations.Coordinator do
     })
   end
 
-  defp store_turn(state, %Turn{} = updated_turn, opts \\ []) do
+  defp store_turn(state, %Turn{} = updated_turn, opts) do
     previous_turn = Map.get(state.turns, updated_turn.id)
     next_state = put_in(state, [:turns, updated_turn.id], updated_turn)
     maybe_append_turn_state_event(next_state, previous_turn, updated_turn, opts)
   end
 
-  defp store_child_work(state, %ChildWork{} = updated_child_work, opts \\ []) do
+  defp store_child_work(state, %ChildWork{} = updated_child_work, opts) do
     previous_child_work = Map.get(state.child_works, updated_child_work.id)
     next_state = put_in(state, [:child_works, updated_child_work.id], updated_child_work)
     maybe_append_child_work_state_event(next_state, previous_child_work, updated_child_work, opts)
@@ -1345,7 +1349,7 @@ defmodule JidoCode.Conversations.Coordinator do
          actor,
          payload,
          message_id,
-         child_work \\ nil
+         child_work
        ) do
     append_event(state, event_name, %{
       actor: actor,

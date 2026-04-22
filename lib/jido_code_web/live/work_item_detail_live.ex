@@ -1,8 +1,14 @@
 defmodule JidoCodeWeb.WorkItemDetailLive do
   # covers: architecture.memory_graph_workflow_and_operator_expansion.governed_surfaces_host_memory_context
   # covers: architecture.memory_graph_workflow_and_operator_expansion.operator_memory_actions_use_product_owned_boundaries
+  # covers: architecture.memory_graph_workflow_and_operator_expansion.cross_graph_navigation_connects_memory_code_and_governed_history
+  # covers: architecture.memory_graph_workflow_and_operator_expansion.memory_actions_preserve_freshness_supersession_and_provenance
+  # covers: architecture.memory_graph_workflow_and_operator_expansion.memory_promotions_create_governed_follow_up
   # covers: architecture.memory_graph_surface_rollout_and_governance_actions.operator_memory_actions_are_available_from_canonical_surfaces
+  # covers: architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_and_governed_surfaces_host_bounded_memory_context
   # covers: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+  # covers: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
+  # covers: architecture.memory_graph_surface_rollout_and_governance_actions.memory_aware_workflow_and_governed_follow_up_use_product_projections
   use JidoCodeWeb, :live_view
 
   import JidoCodeWeb.GovernedMemoryHelpers
@@ -447,12 +453,12 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                 </section>
 
                 <button
-                  :if={decision_memory_iri(@memory_context.surface.memories.items) && latest_decision(@decisions)}
+                  :if={decision_memory_iri(@memory_context.surface.memories.items) && latest_record(@decisions)}
                   type="button"
-                  id={"work-item-detail-memory-supersede-#{map_get(latest_decision(@decisions), :id, "id")}"}
+                  id={"work-item-detail-memory-supersede-#{map_get(latest_record(@decisions), :id, "id")}"}
                   phx-click="supersede_memory"
                   phx-value-memory_iri={decision_memory_iri(@memory_context.surface.memories.items)}
-                  phx-value-decision_id={map_get(latest_decision(@decisions), :id, "id")}
+                  phx-value-decision_id={map_get(latest_record(@decisions), :id, "id")}
                   class="btn btn-xs btn-outline"
                 >
                   Supersede with latest decision
@@ -594,14 +600,6 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
     end
   end
 
-  defp load_repo_workspace_path(scope) do
-    scope
-    |> map_get(:managed_repo, "managed_repo", %{})
-    |> map_get(:workspace_settings, "workspace_settings", %{})
-    |> map_get(:workspace_path, "workspace_path")
-    |> normalize_optional_string()
-  end
-
   defp load_memory_follow_up_preview(%{surface: %{memories: projection}}, route_repo_id, %WorkItem{} = work_item) do
     FollowUpSurface.preview(
       projection,
@@ -625,9 +623,6 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
       )
     )
   end
-
-  defp memory_context_graph(%{assigns: %{memory_context: %{graph: graph}}}) when is_map(graph), do: graph
-  defp memory_context_graph(_socket), do: nil
 
   defp memory_operator_opts(socket, extra_opts \\ []) do
     memory_operator_base_opts(

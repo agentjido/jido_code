@@ -1,5 +1,7 @@
 # Source Code Graph Pod
 
+<!-- current_truth.reconciled_with_branch: source-code graph store maintenance remains governed by the pod and load lifecycle described here. -->
+
 This subject defines the repository-scoped semantic analysis pod that uses
 Elixir-aware ontology extraction plus local RDF storage for source-code graph
 ingestion and query.

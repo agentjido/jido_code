@@ -1,5 +1,7 @@
 # Conversation Orchestration
 
+<!-- current_truth.reconciled_with_branch: coordinator, event, snapshot, pubsub, and phase-40-through-44 conversation coverage stay governed by this subject. -->
+
 This subject defines how productive coding conversations are coordinated across
 durable work scope, interruptible execution, and event-driven UI delivery.
 

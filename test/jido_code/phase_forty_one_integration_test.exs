@@ -1,4 +1,7 @@
 defmodule JidoCode.PhaseFortyOneIntegrationTest do
+  # covers: architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+  # covers: architecture.conversation_orchestration.event_log_is_append_only_and_sequenced
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}

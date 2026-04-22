@@ -307,6 +307,13 @@ surface:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
 
 - kind: source_file
+  target: lib/jido_code_web/live/setup_live.ex
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+
+- kind: source_file
   target: test/support/live_vue_case.ex
   covers:
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
@@ -372,6 +379,13 @@ surface:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
 
 - kind: source_file
+  target: lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
@@ -400,6 +414,13 @@ surface:
   covers:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.server_authored_props_streams_and_events
+
+- kind: source_file
+  target: test/jido_code_web/live/setup_live_test.exs
+  covers:
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
 
 - kind: source_file
   target: test/jido_code_web/components/live_vue_components_test.exs

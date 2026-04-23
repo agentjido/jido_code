@@ -127,25 +127,31 @@ defmodule JidoCodeWeb.FrontendAssets do
   defp ssr_available?(_runtime_mode, true), do: is_pid(Process.whereis(NodeJS.Supervisor))
 
   defp normalize_override(override) when is_map(override) do
+    asset_source = override_asset_source(override, compute_status(), @fallback_manifest)
+
     case Map.get(override, :mode) || Map.get(override, "mode") do
       :ready ->
-        %{mode: :ready, reason: nil, manifest: override_manifest(override, @test_manifest)}
+        Map.merge(%{mode: :ready, reason: nil}, asset_source)
 
       :client_only ->
-        %{
-          mode: :client_only,
-          reason: override_reason(override, :ssr_unavailable),
-          manifest: override_manifest(override, @test_manifest)
-        }
+        Map.merge(
+          %{
+            mode: :client_only,
+            reason: override_reason(override, :ssr_unavailable)
+          },
+          asset_source
+        )
 
       :fallback ->
-        %{
-          mode: :fallback,
-          reason: override_reason(override, :asset_manifest_unavailable),
-          manifest: override_manifest(override, @fallback_manifest),
-          title: override_detail(override, :title, @fallback_title),
-          detail: override_detail(override, :detail, @fallback_detail)
-        }
+        Map.merge(
+          %{
+            mode: :fallback,
+            reason: override_reason(override, :asset_manifest_unavailable),
+            title: override_detail(override, :title, @fallback_title),
+            detail: override_detail(override, :detail, @fallback_detail)
+          },
+          asset_source
+        )
 
       other ->
         raise ArgumentError, "unsupported frontend_assets_override mode: #{inspect(other)}"
@@ -156,8 +162,23 @@ defmodule JidoCodeWeb.FrontendAssets do
     raise ArgumentError, "expected :frontend_assets_override to be a map, got: #{inspect(other)}"
   end
 
-  defp override_manifest(override, default) do
-    Map.get(override, :manifest) || Map.get(override, "manifest") || default
+  defp override_asset_source(override, _baseline, _default)
+       when is_map_key(override, :manifest) or is_map_key(override, "manifest") do
+    %{manifest: Map.get(override, :manifest) || Map.get(override, "manifest")}
+  end
+
+  defp override_asset_source(override, _baseline, _default)
+       when is_map_key(override, :manifest_path) or is_map_key(override, "manifest_path") do
+    %{manifest_path: Map.get(override, :manifest_path) || Map.get(override, "manifest_path")}
+  end
+
+  defp override_asset_source(_override, %{manifest_path: manifest_path}, _default),
+    do: %{manifest_path: manifest_path}
+
+  defp override_asset_source(_override, %{manifest: manifest}, _default), do: %{manifest: manifest}
+
+  defp override_asset_source(_override, _baseline, default) do
+    %{manifest: default}
   end
 
   defp override_reason(override, default) do

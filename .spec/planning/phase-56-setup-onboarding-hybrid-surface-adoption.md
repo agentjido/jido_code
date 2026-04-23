@@ -81,19 +81,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 56.3.2.2 Subtask - Keep refresh, selection, and import events mapped back into LiveView without introducing a client-owned import state machine.
       [x] 56.3.2.3 Subtask - Preserve a complete server-rendered fallback selector, including scrollable repository choice and import success affordances.
 
-  [ ] 56.4 Section - Setup Route Browser Verification And Phase Integration Tests
+  [x] 56.4 Section - Setup Route Browser Verification And Phase Integration Tests
     Close the gap between LiveView contract tests and real hybrid behavior before any more sensitive setup controls are considered for client adoption.
 
-    [ ] 56.4.1 Task - Expand setup route hybrid contract coverage
+    [x] 56.4.1 Task - Expand setup route hybrid contract coverage
       Keep `setup_live_test.exs` as the primary routed-surface harness while verifying each new widget boundary explicitly.
 
-      [ ] 56.4.1.1 Subtask - Add LiveVue-aware assertions for new setup widgets, emitted handlers, and bounded prop contracts.
-      [ ] 56.4.1.2 Subtask - Add fallback-path coverage proving new widgets reduce cleanly to server-rendered setup controls.
-      [ ] 56.4.1.3 Subtask - Preserve regression coverage for PAT encryption preflight, persistence gating, and setup completion under the hybrid split.
+      [x] 56.4.1.1 Subtask - Add LiveVue-aware assertions for new setup widgets, emitted handlers, and bounded prop contracts.
+      [x] 56.4.1.2 Subtask - Add fallback-path coverage proving new widgets reduce cleanly to server-rendered setup controls.
+      [x] 56.4.1.3 Subtask - Preserve regression coverage for PAT encryption preflight, persistence gating, and setup completion under the hybrid split.
 
-    [ ] 56.4.2 Task - Add browser-level setup interaction coverage
+    [x] 56.4.2 Task - Add browser-level setup interaction coverage
       Add a real browser harness for setup widgets so client behavior is tested beyond static prop and handler inspection.
 
-      [ ] 56.4.2.1 Subtask - Add browser coverage for start-path and runtime-default widget interaction inside the LiveView-owned `/setup` route.
-      [ ] 56.4.2.2 Subtask - Add browser coverage for GitHub repository filtering, scrollable selection, and import initiation through the hybrid widget.
-      [ ] 56.4.2.3 Subtask - Verify degraded or fallback setup states remain navigable without the richer client path.
+      [x] 56.4.2.1 Subtask - Add browser coverage for start-path and runtime-default widget interaction inside the LiveView-owned `/setup` route.
+      [x] 56.4.2.2 Subtask - Add browser coverage for GitHub repository filtering, scrollable selection, and import initiation through the hybrid widget.
+      [x] 56.4.2.3 Subtask - Verify degraded or fallback setup states remain navigable without the richer client path.

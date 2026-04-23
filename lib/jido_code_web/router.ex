@@ -124,6 +124,15 @@ defmodule JidoCodeWeb.Router do
     )
   end
 
+  if Mix.env() == :test do
+    scope "/_test", JidoCodeWeb do
+      pipe_through(:browser)
+
+      get("/browser/scenario", TestBrowserScenarioController, :update)
+      get("/browser/sign-in", TestBrowserSessionController, :create)
+    end
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", JidoCodeWeb do
   #   pipe_through :api

@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, and setup now has route-level Playwright coverage for both richer and degraded delivery. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
@@ -31,6 +31,7 @@ surface:
   - lib/jido_code/mix/frontend_start.ex
   - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code_web/components/live_vue_components.ex
+  - lib/jido_code_web/frontend_assets.ex
   - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue
@@ -44,6 +45,10 @@ surface:
   - config/
   - test/jido_code/frontend_start_test.exs
   - test/support/live_vue_case.ex
+  - test/support/browser_setup.ex
+  - test/support/test_browser_scenario_controller.ex
+  - test/support/test_browser_session_controller.ex
+  - test/e2e/
   - test/jido_code_web/components/
   - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
@@ -471,6 +476,18 @@ surface:
   covers:
     - architecture.frontend_stack.product_owned_mounting_boundary
     - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: test/e2e/setup-onboarding.spec.ts
+  covers:
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: command
+  target: mix browser.verify
+  covers:
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
     - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
 
 - kind: source_file

@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
@@ -33,6 +33,7 @@ surface:
   - lib/jido_code/setup/system_config_record.ex
   - lib/jido_code/setup/system_config_persistence.ex
   - lib/jido_code/security/encryption.ex
+  - lib/jido_code_web/frontend_assets.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/components/live_vue_components.ex
   - lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
@@ -41,8 +42,14 @@ surface:
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/components/operator_state_components.ex
+  - mix.exs
+  - package.json
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
+  - test/e2e/
+  - test/support/browser_setup.ex
+  - test/support/test_browser_scenario_controller.ex
+  - test/support/test_browser_session_controller.ex
   - test/support/conn_case.ex
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
@@ -420,11 +427,25 @@ surface:
     - setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
     - setup.onboarding.start_path_preference_persisted
 
+- kind: source_file
+  target: test/e2e/setup-onboarding.spec.ts
+  covers:
+    - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
+    - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+
 - kind: command
   target: mix test test/jido_code_web/live/setup_live_test.exs
   covers:
     - setup.onboarding.github_pat_capture_persisted_secret_ref
     - setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
+
+- kind: command
+  target: mix browser.verify
+  covers:
+    - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
+    - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

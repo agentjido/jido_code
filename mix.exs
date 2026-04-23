@@ -59,6 +59,7 @@ defmodule JidoCode.MixProject do
   def cli do
     [
       preferred_envs: [
+        "browser.verify": :test,
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.html": :test,
@@ -258,6 +259,7 @@ defmodule JidoCode.MixProject do
         "phoenix_vite.npm vite build --ssrManifest --emptyOutDir false --ssr js/server.js --outDir ../priv/static"
       ],
       "frontend.verify": ["assets.setup", "assets.build"],
+      "browser.verify": ["frontend.verify", "cmd npm run e2e:test"],
       "source_graph.verify": [
         "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/agent_os/phase_twenty_integration_test.exs test/jido_code/agent_os/phase_twenty_one_integration_test.exs test/jido_code/agent_os/phase_twenty_two_integration_test.exs test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
       ],

@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "e2e:test": "playwright test --config test/e2e/playwright.config.ts",
+    "e2e:test:headed": "playwright test --config test/e2e/playwright.config.ts --headed"
+  },
   "dependencies": {
     "@vueuse/core": "^13.7.0",
     "live_vue": "file:./deps/live_vue",
@@ -9,6 +13,7 @@
     "vue": "^3.4.21"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-vue": "^5.0.4",
     "daisyui": "^5.0.0",

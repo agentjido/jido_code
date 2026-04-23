@@ -10,7 +10,7 @@ affects:
   - architecture.run_governance
 ---
 
-<!-- current_truth.reconciled_with_branch: setup now keeps runtime defaults and optional GitHub repository continuation in persisted onboarding metadata without restoring a blocking wizard. -->
+<!-- current_truth.reconciled_with_branch: setup now keeps runtime defaults and optional GitHub repository continuation in persisted onboarding metadata without restoring a blocking wizard, while PAT-backed follow-up remains gated on secret-encryption readiness in the running process. -->
 
 <!-- covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor -->
 <!-- covers: setup.onboarding.runtime_environment_selection_persisted_metadata -->

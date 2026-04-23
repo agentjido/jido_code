@@ -2,7 +2,9 @@
 // covers: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
 // covers: architecture.frontend_stack.server_authored_props_streams_and_events
 // covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+// covers: architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
 // covers: setup.onboarding.github_repository_selection_persisted_metadata
+// covers: setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
 import { computed, ref, watch } from "vue"
 
 type RepositoryOption = {
@@ -75,6 +77,21 @@ const filteredRepositories = computed(() => {
       .toLowerCase()
       .includes(normalizedQuery)
   )
+})
+
+const filteredRepositoryCountLabel = computed(() => {
+  const filteredCount = filteredRepositories.value.length
+  const totalCount = props.repositoryOptions.length
+
+  if (totalCount === 0) {
+    return "No linked repositories are available yet."
+  }
+
+  if (filteredCount === totalCount) {
+    return `Showing all ${totalCount} linked repositories.`
+  }
+
+  return `Showing ${filteredCount} of ${totalCount} linked repositories.`
 })
 
 const selectedRepositorySummary = computed(() => {
@@ -186,7 +203,7 @@ const importRepository = () => {
       </article>
 
       <div class="space-y-4 rounded-xl border border-base-300/70 bg-base-100 p-4">
-        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <label class="fieldset">
             <span class="label mb-1">Search linked repositories</span>
             <input
@@ -197,26 +214,6 @@ const importRepository = () => {
               placeholder="owner/repository"
               :disabled="props.buttonsDisabled || props.repositoryOptions.length === 0"
             />
-          </label>
-
-          <label class="fieldset">
-            <span class="label mb-1">GitHub repository</span>
-            <select
-              id="setup-github-repository-widget-select"
-              class="select w-full"
-              :disabled="props.buttonsDisabled || filteredRepositories.length === 0"
-              :value="localSelection"
-              @change="selectRepository(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">Choose a repository</option>
-              <option
-                v-for="repository in filteredRepositories"
-                :key="repository.id"
-                :value="repository.fullName"
-              >
-                {{ repository.fullName }}
-              </option>
-            </select>
           </label>
 
           <button
@@ -259,33 +256,51 @@ const importRepository = () => {
           No linked repositories match the current filter.
         </div>
 
-        <div v-else class="grid gap-3 xl:grid-cols-2">
-          <button
-            v-for="repository in filteredRepositories.slice(0, 6)"
-            :id="`setup-github-repository-widget-card-${repository.id}`"
-            :key="repository.id"
-            :class="repositoryCardClass(repository)"
-            type="button"
-            @click="selectRepository(repository.fullName)"
+        <div v-else class="space-y-3">
+          <div
+            id="setup-github-repository-widget-results-summary"
+            class="flex flex-wrap items-center justify-between gap-2 text-sm text-base-content/70"
           >
-            <div class="flex items-start justify-between gap-3">
-              <div class="space-y-1">
-                <p class="font-medium">{{ repository.fullName }}</p>
-                <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
-                  {{ repository.owner }}
-                </p>
-              </div>
-              <span
-                class="badge badge-outline text-xs"
-                :class="repository.fullName === localSelection ? 'badge-primary' : 'badge-ghost'"
-              >
-                {{ repository.fullName === localSelection ? "Selected" : "Linked" }}
-              </span>
-            </div>
-            <p class="mt-3 text-sm text-base-content/70">
-              Import {{ repository.name }} as a managed repository and keep GitHub as its source identity.
+            <p>{{ filteredRepositoryCountLabel }}</p>
+            <p v-if="localSelection !== ''" class="font-medium text-base-content/80">
+              Selected: {{ localSelection }}
             </p>
-          </button>
+          </div>
+
+          <div
+            id="setup-github-repository-widget-results"
+            class="max-h-[28rem] overflow-y-auto pr-1"
+          >
+            <div class="grid gap-3 xl:grid-cols-2">
+              <button
+                v-for="repository in filteredRepositories"
+                :id="`setup-github-repository-widget-card-${repository.id}`"
+                :key="repository.id"
+                :class="repositoryCardClass(repository)"
+                type="button"
+                :aria-pressed="repository.fullName === localSelection"
+                @click="selectRepository(repository.fullName)"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <p class="font-medium">{{ repository.fullName }}</p>
+                    <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
+                      {{ repository.owner }}
+                    </p>
+                  </div>
+                  <span
+                    class="badge badge-outline text-xs"
+                    :class="repository.fullName === localSelection ? 'badge-primary' : 'badge-ghost'"
+                  >
+                    {{ repository.fullName === localSelection ? "Selected" : "Linked" }}
+                  </span>
+                </div>
+                <p class="mt-3 text-sm text-base-content/70">
+                  Import {{ repository.name }} as a managed repository and keep GitHub as its source identity.
+                </p>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="rounded-xl border border-base-300/70 bg-base-200/20 px-4 py-3 space-y-2">

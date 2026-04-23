@@ -1,6 +1,6 @@
 # Package
 
-<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject. -->
+<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers and PAT preflight UI behavior. -->
 
 High-level package contract for `jido_code`.
 

@@ -1,10 +1,27 @@
 defmodule JidoCode.Security.Encryption do
+  # covers: setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
   @moduledoc false
 
   alias Cloak.Ciphers.AES.GCM
 
   @aad_tag "JIDO.SECRETREF.V1"
   @iv_length 12
+
+  @type config_status :: :ready | :missing | :invalid
+
+  @spec config_status() :: config_status()
+  def config_status do
+    case Application.get_env(:jido_code, :secret_ref_encryption_key) do
+      key when is_binary(key) ->
+        case Base.decode64(key) do
+          {:ok, decoded_key} when byte_size(decoded_key) == 32 -> :ready
+          _other -> :invalid
+        end
+
+      _other ->
+        :missing
+    end
+  end
 
   @spec encrypt(String.t()) :: {:ok, String.t()} | {:error, atom()}
   def encrypt(value) when is_binary(value) do

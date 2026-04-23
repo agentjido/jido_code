@@ -14,6 +14,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   # covers: setup.onboarding.deferred_integrations
   # covers: setup.onboarding.github_repository_selection_persisted_metadata
   # covers: setup.onboarding.github_pat_capture_persisted_secret_ref
+  # covers: setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb.ConnCase, async: false
 
@@ -588,6 +589,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert has_element?(view, "#setup-github-pat-panel")
     assert has_element?(view, "#setup-github-pat-form")
+    assert has_element?(view, "#setup-github-repository-selector-deferred")
+    refute has_element?(view, "#setup-github-repository-selector")
 
     assert has_element?(
              view,
@@ -680,9 +683,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     |> element("#setup-start-choice-github-save")
     |> render_click()
 
-    view
-    |> form("#setup-github-pat-form", %{"github_pat" => %{"value" => "ghp_test_token"}})
-    |> render_submit()
+    render_submit(view, "save_github_pat", %{"github_pat" => %{"value" => "ghp_test_token"}})
 
     assert_receive :github_pat_repository_listing_requested
     refute has_element?(view, "#setup-github-pat-panel")
@@ -728,6 +729,65 @@ defmodule JidoCodeWeb.SetupLiveTest do
                }
              }
            } = Application.get_env(:jido_code, :system_config)
+  end
+
+  test "choosing GitHub surfaces encryption preflight before PAT save when secret storage is unavailable",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    original_encryption_key = Application.get_env(:jido_code, :secret_ref_encryption_key, :__missing__)
+
+    on_exit(fn ->
+      restore_env(:secret_ref_encryption_key, original_encryption_key)
+    end)
+
+    Application.delete_env(:jido_code, :secret_ref_encryption_key)
+
+    test_pid = self()
+
+    Application.put_env(:jido_code, :setup_github_http_client, fn _path, _token, _opts ->
+      send(test_pid, :github_pat_repository_listing_requested_unexpectedly)
+      {:ok, []}
+    end)
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    view
+    |> element("#setup-start-choice-github-save")
+    |> render_click()
+
+    assert has_element?(view, "#setup-github-pat-encryption-preflight")
+    assert has_element?(view, "#setup-github-repository-selector-deferred")
+    refute has_element?(view, "#setup-github-repository-selector")
+    assert render(view) =~ "Encrypted secret storage is unavailable in this running JidoCode process."
+    assert render(view) =~ "JIDO_CODE_SECRET_REF_ENCRYPTION_KEY"
+
+    render_submit(view, "save_github_pat", %{"github_pat" => %{"value" => "ghp_test_token"}})
+
+    refute_received :github_pat_repository_listing_requested_unexpectedly
+
+    assert has_element?(
+             view,
+             "#setup-github-pat-save-error",
+             "Encrypted secret storage is unavailable in this running JidoCode process."
+           )
   end
 
   test "choosing GitHub hydrates deployment-local credential checks when step 4 state is missing",
@@ -905,12 +965,17 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert has_element?(view, "#setup-github-repository-selector-fallback")
     assert has_element?(view, "#setup-github-repository-selector-fallback-body")
+    assert has_element?(view, "#setup-github-repository-fallback-list")
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-count",
+             "2 linked repositories available for import."
+           )
 
     view
-    |> form("#setup-github-repository-selector-fallback-form", %{
-      "repository_selection" => %{"repository_full_name" => "owner/repo-two"}
-    })
-    |> render_change()
+    |> element("#setup-github-repository-fallback-option-repo_200")
+    |> render_click()
 
     assert %{
              onboarding_state: %{
@@ -926,9 +991,6 @@ defmodule JidoCodeWeb.SetupLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#setup-github-import-fallback-success")
-    assert has_element?(view, "#setup-github-import-fallback-open-repo", "Open managed repo")
-
     assert %{
              onboarding_state: %{
                "7" => %{
@@ -941,6 +1003,9 @@ defmodule JidoCodeWeb.SetupLiveTest do
                }
              }
            } = Application.get_env(:jido_code, :system_config)
+
+    assert has_element?(view, "#setup-github-import-fallback-success")
+    assert has_element?(view, "#setup-github-import-fallback-open-repo", "Open managed repo")
   end
 
   test "completing setup after choosing GitHub marks onboarding complete and enters the dashboard", %{

@@ -3,6 +3,7 @@ defmodule JidoCodeWeb.SetupLive do
   # covers: architecture.frontend_stack.liveview_remains_product_host_shell
   # covers: architecture.frontend_stack.product_owned_mounting_boundary
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
   # covers: setup.onboarding.post_bootstrap_start_surface
   # covers: setup.onboarding.deployment_mode_auto_detected
   # covers: setup.onboarding.runtime_environment_selection_distinct_from_install_flavor
@@ -10,7 +11,10 @@ defmodule JidoCodeWeb.SetupLive do
   # covers: setup.onboarding.explicit_completion_path_to_dashboard
   # covers: setup.onboarding.deferred_integrations
   # covers: setup.onboarding.github_repository_selection_persisted_metadata
+  # covers: setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
   # covers: setup.onboarding.github_pat_capture_persisted_secret_ref
+  # covers: setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
+  # covers: setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb, :live_view
 
@@ -22,7 +26,7 @@ defmodule JidoCodeWeb.SetupLive do
   alias JidoCode.Setup.GitHubRepositoryListing
   alias JidoCode.Setup.ProjectImport
   alias JidoCode.Setup.SystemConfig
-  alias JidoCode.Security.SecretRefs
+  alias JidoCode.Security.{Encryption, SecretRefs}
 
   @github_setup_step 7
   @start_paths [:local_repo, :github, :later]
@@ -222,6 +226,15 @@ defmodule JidoCodeWeb.SetupLive do
            socket,
            :github_pat_save_error,
            "Resolve the setup state issue before saving GitHub credentials."
+         )}
+
+      not socket.assigns.github_pat_capture_state.encryption_ready? ->
+        {:noreply,
+         socket
+         |> assign_github_pat_form()
+         |> assign(
+           :github_pat_save_error,
+           socket.assigns.github_pat_capture_state.encryption_preflight_detail
          )}
 
       is_nil(github_pat) ->
@@ -505,6 +518,7 @@ defmodule JidoCodeWeb.SetupLive do
                 </div>
                 <p id="setup-github-repository-summary" class="text-sm font-medium text-base-content/80">
                   {github_repository_panel_summary(
+                    @github_pat_capture_state,
                     @github_repository_listing_report,
                     @github_project_import_report
                   )}
@@ -515,7 +529,7 @@ defmodule JidoCodeWeb.SetupLive do
               </div>
 
               <section
-                :if={@github_pat_capture_state.required?}
+                :if={github_pat_capture_visible?(@github_pat_capture_state, @github_project_import_report)}
                 id="setup-github-pat-panel"
                 class="space-y-4 rounded-2xl border border-base-300/70 bg-base-200/20 p-4"
               >
@@ -539,6 +553,15 @@ defmodule JidoCodeWeb.SetupLive do
                   <span>{@github_pat_save_error}</span>
                 </div>
 
+                <div
+                  :if={not @github_pat_capture_state.encryption_ready?}
+                  id="setup-github-pat-encryption-preflight"
+                  class="alert alert-warning"
+                >
+                  <.icon name="hero-exclamation-triangle-mini" class="size-5" />
+                  <span>{@github_pat_capture_state.encryption_preflight_detail}</span>
+                </div>
+
                 <.form
                   id="setup-github-pat-form"
                   for={@github_pat_form}
@@ -552,15 +575,17 @@ defmodule JidoCodeWeb.SetupLive do
                     label="GitHub PAT"
                     placeholder="github_pat_..."
                     autocomplete="off"
+                    disabled={@buttons_disabled? or not @github_pat_capture_state.encryption_ready?}
                   />
 
                   <button
                     id="setup-github-pat-save"
                     type="submit"
-                    disabled={@buttons_disabled?}
+                    disabled={@buttons_disabled? or not @github_pat_capture_state.encryption_ready?}
                     class={[
                       "btn btn-primary md:self-end",
-                      @buttons_disabled? && "btn-disabled"
+                      (@buttons_disabled? or not @github_pat_capture_state.encryption_ready?) &&
+                        "btn-disabled"
                     ]}
                   >
                     Save GitHub PAT
@@ -580,7 +605,28 @@ defmodule JidoCodeWeb.SetupLive do
                 </p>
               </section>
 
+              <section
+                :if={github_repository_selector_deferred?(@github_pat_capture_state, @github_project_import_report)}
+                id="setup-github-repository-selector-deferred"
+                class="rounded-2xl border border-base-300/70 bg-base-200/20 p-4"
+              >
+                <div class="space-y-2">
+                  <p class="text-sm font-medium text-base-content/80">
+                    Repository selection unlocks after this install has a saved GitHub PAT and setup refreshes access.
+                  </p>
+                  <p class="text-sm text-base-content/60">
+                    Once the token is saved successfully, the repository picker will appear here automatically.
+                  </p>
+                </div>
+              </section>
+
               <.vue_surface
+                :if={
+                  not github_repository_selector_deferred?(
+                    @github_pat_capture_state,
+                    @github_project_import_report
+                  )
+                }
                 id="setup-github-repository-selector"
                 component="SetupGitHubRepositorySelectorWidget"
                 socket={@socket}
@@ -645,46 +691,108 @@ defmodule JidoCodeWeb.SetupLive do
                     for={@github_repository_selection_form}
                     phx-change="select_github_repository"
                     phx-submit="import_selected_github_repository"
-                    class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]"
+                    class="space-y-4"
                   >
-                    <.input
-                      id="setup-github-repository-fallback-select"
-                      field={@github_repository_selection_form[:repository_full_name]}
-                      type="select"
-                      label="Linked GitHub repository"
-                      options={github_repository_select_options(@github_repository_options)}
-                      prompt="Choose a repository"
-                      disabled={@buttons_disabled? or @github_repository_options == []}
+                    <input
+                      type="hidden"
+                      name="repository_selection[repository_full_name]"
+                      value={@github_selected_repository || ""}
                     />
 
-                    <button
-                      id="setup-github-repository-fallback-refresh"
-                      type="button"
-                      phx-click="refresh_github_repository_listing"
-                      disabled={@buttons_disabled?}
-                      class={[
-                        "btn btn-outline lg:self-end",
-                        @buttons_disabled? && "btn-disabled"
-                      ]}
-                    >
-                      Refresh repositories
-                    </button>
+                    <div class="space-y-2">
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-sm font-medium text-base-content/80">
+                          Linked GitHub repositories
+                        </p>
+                        <p
+                          id="setup-github-repository-fallback-count"
+                          class="text-xs uppercase tracking-[0.2em] text-base-content/50"
+                        >
+                          {github_repository_count_label(@github_repository_options)}
+                        </p>
+                      </div>
 
-                    <button
-                      id="setup-github-repository-fallback-import"
-                      type="submit"
-                      disabled={
-                        @buttons_disabled? or is_nil(@github_selected_repository) or
-                          @github_repository_options == []
-                      }
-                      class={[
-                        "btn btn-primary lg:self-end",
-                        (@buttons_disabled? or is_nil(@github_selected_repository) or
-                           @github_repository_options == []) && "btn-disabled"
-                      ]}
-                    >
-                      Import selected repository
-                    </button>
+                      <div
+                        id="setup-github-repository-fallback-list"
+                        class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-base-300/70 bg-base-200/10 p-2"
+                      >
+                        <button
+                          :for={repository <- @github_repository_options}
+                          id={"setup-github-repository-fallback-option-#{repository.id}"}
+                          type="button"
+                          phx-click="select_github_repository"
+                          phx-value-repository_full_name={repository.full_name}
+                          disabled={@buttons_disabled?}
+                          class={[
+                            "w-full rounded-xl border p-3 text-left transition",
+                            repository.full_name == @github_selected_repository &&
+                              "border-primary/60 bg-primary/10",
+                            repository.full_name != @github_selected_repository &&
+                              "border-base-300/70 bg-base-100 hover:border-primary/40",
+                            @buttons_disabled? && "opacity-60"
+                          ]}
+                        >
+                          <div class="flex items-start justify-between gap-3">
+                            <div class="space-y-1">
+                              <p class="font-medium">{repository.full_name}</p>
+                              <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
+                                {repository.owner}
+                              </p>
+                            </div>
+                            <span class={[
+                              "badge badge-outline text-xs",
+                              repository.full_name == @github_selected_repository && "badge-primary"
+                            ]}>
+                              {if repository.full_name == @github_selected_repository,
+                                do: "Selected",
+                                else: "Linked"}
+                            </span>
+                          </div>
+                          <p class="mt-3 text-sm text-base-content/70">
+                            Import {repository.name} as a managed repository and keep GitHub as its source identity.
+                          </p>
+                        </button>
+
+                        <div
+                          :if={@github_repository_options == []}
+                          id="setup-github-repository-fallback-empty"
+                          class="rounded-xl border border-dashed border-base-300/70 bg-base-100/70 px-4 py-5 text-sm text-base-content/70"
+                        >
+                          No linked repositories are currently available.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-[auto_auto] lg:justify-end">
+                      <button
+                        id="setup-github-repository-fallback-refresh"
+                        type="button"
+                        phx-click="refresh_github_repository_listing"
+                        disabled={@buttons_disabled?}
+                        class={[
+                          "btn btn-outline",
+                          @buttons_disabled? && "btn-disabled"
+                        ]}
+                      >
+                        Refresh repositories
+                      </button>
+
+                      <button
+                        id="setup-github-repository-fallback-import"
+                        type="submit"
+                        disabled={
+                          @buttons_disabled? or is_nil(@github_selected_repository) or
+                            @github_repository_options == []
+                        }
+                        class={[
+                          "btn btn-primary",
+                          (@buttons_disabled? or is_nil(@github_selected_repository) or
+                             @github_repository_options == []) && "btn-disabled"
+                        ]}
+                      >
+                        Import selected repository
+                      </button>
+                    </div>
                   </.form>
 
                   <div
@@ -1097,10 +1205,13 @@ defmodule JidoCodeWeb.SetupLive do
   defp show_github_repository_selector?(:github), do: true
   defp show_github_repository_selector?(_selected_start_path), do: false
 
-  defp github_repository_panel_summary(listing_report, project_import_report) do
+  defp github_repository_panel_summary(github_pat_capture_state, listing_report, project_import_report) do
     cond do
       github_project_import_ready?(project_import_report) ->
         github_import_detail(project_import_report)
+
+      github_repository_selector_deferred?(github_pat_capture_state, project_import_report) ->
+        "Save a deployment-local GitHub PAT first, then repository selection will unlock automatically."
 
       GitHubRepositoryListing.blocked?(listing_report) ->
         listing_report.detail
@@ -1109,6 +1220,14 @@ defmodule JidoCodeWeb.SetupLive do
         "Pick one of your linked GitHub repositories and import it into the control plane."
     end
   end
+
+  defp github_pat_capture_visible?(%{required?: true}, project_import_report),
+    do: not github_project_import_ready?(project_import_report)
+
+  defp github_pat_capture_visible?(_github_pat_capture_state, _project_import_report), do: false
+
+  defp github_repository_selector_deferred?(github_pat_capture_state, project_import_report),
+    do: github_pat_capture_visible?(github_pat_capture_state, project_import_report)
 
   defp github_repository_selector_props(assigns) do
     %{
@@ -1135,13 +1254,17 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp github_pat_capture_state(onboarding_state, listing_report) do
     pat_path = github_pat_path(onboarding_state)
+    encryption_status = Encryption.config_status()
 
     %{
       required?: GitHubRepositoryListing.blocked?(listing_report) and github_pat_capture_required?(pat_path),
       detail: github_pat_capture_detail(pat_path, listing_report),
       remediation: github_pat_capture_remediation(pat_path, listing_report),
       error_type: github_pat_capture_error_type(pat_path),
-      secret_ref_name: ServiceCredentials.service_secret_ref_name(:pat)
+      secret_ref_name: ServiceCredentials.service_secret_ref_name(:pat),
+      encryption_ready?: encryption_status == :ready,
+      encryption_preflight_detail: github_pat_encryption_preflight_detail(encryption_status),
+      encryption_error_type: github_pat_encryption_error_type(encryption_status)
     }
   end
 
@@ -1181,6 +1304,20 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp github_pat_capture_error_type(_pat_path), do: nil
 
+  defp github_pat_encryption_preflight_detail(:ready), do: nil
+
+  defp github_pat_encryption_preflight_detail(:invalid) do
+    "Encrypted secret storage is unavailable because the configured `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` is invalid. Replace it with a base64-encoded 32-byte key and restart JidoCode before saving a GitHub PAT."
+  end
+
+  defp github_pat_encryption_preflight_detail(:missing) do
+    "Encrypted secret storage is unavailable in this running JidoCode process. Set `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` to a base64-encoded 32-byte key and restart JidoCode before saving a GitHub PAT."
+  end
+
+  defp github_pat_encryption_error_type(:ready), do: nil
+  defp github_pat_encryption_error_type(:invalid), do: "secret_encryption_key_invalid"
+  defp github_pat_encryption_error_type(:missing), do: "secret_encryption_unavailable"
+
   defp github_repository_option_props(repository_option) do
     %{
       id: Map.get(repository_option, :id),
@@ -1188,12 +1325,6 @@ defmodule JidoCodeWeb.SetupLive do
       owner: Map.get(repository_option, :owner),
       name: Map.get(repository_option, :name)
     }
-  end
-
-  defp github_repository_select_options(repository_options) do
-    Enum.map(repository_options, fn repository ->
-      {Map.get(repository, :full_name), Map.get(repository, :full_name)}
-    end)
   end
 
   defp github_listing_status(%{status: :ready}), do: "ready"

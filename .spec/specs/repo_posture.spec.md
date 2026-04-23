@@ -1,5 +1,7 @@
 # Repo Posture
 
+<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces. -->
+
 This subject defines how repo-native state becomes explainable posture and trust
 records for managed repositories.
 

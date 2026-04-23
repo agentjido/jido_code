@@ -15,6 +15,8 @@ defmodule Mix.Tasks.Command do
 
   @impl Mix.Task
   def run(args) when is_list(args) do
-    Jido.Code.Command.Escript.main(args)
+    apply(command_escript_module(), :main, [args])
   end
+
+  defp command_escript_module, do: Module.concat([Jido, Code, Command, Escript])
 end

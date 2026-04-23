@@ -1,5 +1,7 @@
 # Demand Ingress
 
+<!-- current_truth.reconciled_with_branch: setup project import remains part of the durable ingress path into canonical repo records. -->
+
 This subject defines how `Jido.Code` captures inbound repository and operator
 demand into durable control-plane ingress records before downstream planning or
 execution begins.

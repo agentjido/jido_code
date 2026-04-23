@@ -2,6 +2,8 @@
 
 # Runtime Environment Defaults
 
+<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject. -->
+
 This subject defines how `Jido.Code` captures default runtime execution intent
 during setup and persists that choice as durable product metadata.
 

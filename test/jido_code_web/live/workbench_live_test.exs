@@ -3,6 +3,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
+  # covers: architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
   # covers: architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
   # covers: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   use JidoCodeWeb.ConnCase, async: false

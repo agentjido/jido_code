@@ -1,5 +1,7 @@
 # Memory Graph Workflow And Operator Expansion
 
+<!-- current_truth.reconciled_with_branch: governed-route memory actions, cross-graph navigation, follow-up provenance, and shared setup-route host-shell action gating continue to live under this subject. -->
+
 This subject defines how the repository-scoped memory graph expands from
 repository-detail adoption into governed workflow surfaces, operator memory
 actions, and intent-specific memory retrieval.

@@ -6,7 +6,7 @@ This subject defines the normal local development contract for contributors work
 id: developer.workflow
 kind: policy
 status: active
-summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.
+summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, allows ignored repo-root dotenv files to populate missing runtime vars during normal dev boot without overriding explicit shell env or changing prod behavior, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.
 decisions:
   - jido_code.local_developer_workflow
 surface:
@@ -45,6 +45,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: developer.workflow.local_dotenv_bootstrap
+  statement: Normal dev runtime boot may source ignored repo-root `.env`, `.env.local`, and `.env.dev.local` files to populate missing environment variables for contributor convenience, but explicit shell env vars shall remain authoritative, command substitution shall stay disabled for this bootstrap path, and non-dev runtime behavior shall remain unchanged.
+  priority: should
+  stability: evolving
+
 - id: developer.workflow.docs_split
   statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the manual `mix ash.codegen` path for Ash resource changes, the `mix frontend.verify` browser verification path, the `mix source_graph.verify` semantic graph verification path, the `mix memory.verify` path that checks the companion ontology pair, typed governed links, and repo-local rebuild guidance, the `mix semantic.verify` product-facing semantic verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.
   priority: must
@@ -73,6 +78,36 @@ surface:
   target: "rg -n 'BURRITO_TARGET|DATABASE_URL' config/runtime.exs"
   covers:
     - developer.workflow.desktop_runtime_isolated
+
+- kind: source_file
+  target: mix.exs
+  covers:
+    - developer.workflow.local_dotenv_bootstrap
+
+- kind: source_file
+  target: config/runtime.exs
+  covers:
+    - developer.workflow.local_dotenv_bootstrap
+
+- kind: source_file
+  target: lib/jido_code/config/runtime_env.ex
+  covers:
+    - developer.workflow.local_dotenv_bootstrap
+
+- kind: source_file
+  target: test/jido_code/config/runtime_env_test.exs
+  covers:
+    - developer.workflow.local_dotenv_bootstrap
+
+- kind: command
+  target: "mix test test/jido_code/config/runtime_env_test.exs"
+  covers:
+    - developer.workflow.local_dotenv_bootstrap
+
+- kind: command
+  target: "rg -n '\\.env\\.local|\\.env\\.dev\\.local|JIDO_CODE_SECRET_REF_ENCRYPTION_KEY|DATABASE_URL' README.md .env.example"
+  covers:
+    - developer.workflow.local_dotenv_bootstrap
 
 - kind: command
   target: "rg -n 'setup: \\[\"deps.get\", \"git_hooks.install\", \"ecto.setup\", \"assets.setup\", \"assets.build\"\\]' mix.exs"

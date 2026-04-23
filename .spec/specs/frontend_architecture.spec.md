@@ -1,5 +1,7 @@
 # Frontend Architecture
 
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, and setup now has route-level Playwright coverage for both richer and degraded delivery. -->
+
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
 ownership across multiple unrelated frontend stacks.
@@ -13,12 +15,14 @@ decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
+  - jido_code.setup_onboarding_live_vue_surface_split
   - jido_code.memory_graph_product_adoption
   - jido_code.memory_graph_surface_rollout_and_governance_actions
   - jido_code.memory_graph_workflow_and_operator_expansion
   - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
+  - .spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md
   - .spec/specs/frontend_architecture.spec.md
   - .spec/specs/package.spec.md
   - .spec/specs/product_foundation_docs.spec.md
@@ -27,9 +31,12 @@ surface:
   - lib/jido_code/mix/frontend_start.ex
   - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code_web/components/live_vue_components.ex
+  - lib/jido_code_web/frontend_assets.ex
   - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue
+  - lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+  - lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
   - lib/mix/tasks/frontend.start.ex
@@ -38,6 +45,10 @@ surface:
   - config/
   - test/jido_code/frontend_start_test.exs
   - test/support/live_vue_case.ex
+  - test/support/browser_setup.ex
+  - test/support/test_browser_scenario_controller.ex
+  - test/support/test_browser_session_controller.ex
+  - test/e2e/
   - test/jido_code_web/components/
   - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
@@ -81,6 +92,11 @@ surface:
 
 - id: architecture.frontend_stack.adoption_is_incremental_per_surface
   statement: The product may adopt `live_vue` incrementally on the surfaces that justify richer client composition while leaving simpler LiveView-only routes and forms on plain HEEx where that remains the clearer implementation.
+  priority: should
+  stability: evolving
+
+- id: architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+  statement: The signed-in `/setup` route shall stay LiveView-owned and, when richer onboarding follow-up composition is justified, shall expand through bounded `live_vue` regions for choice-heavy interactions rather than a monolithic Vue rewrite of the full setup surface.
   priority: should
   stability: evolving
 
@@ -158,6 +174,23 @@ surface:
     - The route adopts a bounded Vue-backed widget for that summary region.
   then:
     - The route stays LiveView-owned, server-authored props remain bounded, and the Vue-backed region augments rather than replaces the routed product shell.
+
+- id: architecture.frontend_stack.scenario_setup_entry_route_expands_incrementally
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+  given:
+    - The signed-in `/setup` route needs richer scanning or progressive disclosure for onboarding follow-up work.
+  when:
+    - The route introduces a Vue-backed region such as repository selection while keeping sensitive setup control flow on the server.
+  then:
+    - `/setup` remains a LiveView-owned route.
+    - The richer region mounts through the shared product boundary with bounded props and mapped emits.
+    - Credential preflight, secret persistence, and explicit completion continue to degrade safely through server-rendered setup controls rather than a client-owned setup shell.
 
 - id: architecture.frontend_stack.scenario_workflow_route_adopts_bounded_vue_overview
   covers:
@@ -243,6 +276,11 @@ surface:
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
 
 - kind: source_file
+  target: .spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md
+  covers:
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+
+- kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_product_adoption.md
   covers:
     - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
@@ -305,6 +343,14 @@ surface:
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
     - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
+  target: lib/jido_code_web/live/setup_live.ex
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
 
 - kind: source_file
   target: test/support/live_vue_case.ex
@@ -372,6 +418,30 @@ surface:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
 
 - kind: source_file
+  target: lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+
+- kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
@@ -400,6 +470,25 @@ surface:
   covers:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.server_authored_props_streams_and_events
+
+- kind: source_file
+  target: test/jido_code_web/live/setup_live_test.exs
+  covers:
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: test/e2e/setup-onboarding.spec.ts
+  covers:
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: command
+  target: mix browser.verify
+  covers:
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
 
 - kind: source_file
   target: test/jido_code_web/components/live_vue_components_test.exs

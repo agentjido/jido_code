@@ -1,4 +1,8 @@
 defmodule JidoCode.PhaseFortyIntegrationTest do
+  # covers: architecture.conversation_orchestration.active_turns_can_be_superseded
+  # covers: architecture.conversation_orchestration.cancellation_lifecycle_is_evented
+  # covers: architecture.conversation_orchestration.control_lane_preempts_work_lane
+  # covers: architecture.conversation_orchestration.tool_execution_is_cancellable_child_work
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}

@@ -64,6 +64,47 @@ defmodule JidoCode.Setup.GitHubRepositoryListingTest do
     assert repositories_by_name["owner/repo-two"].id == "repo_200"
   end
 
+  test "run/2 surfaces concrete remediation when no GitHub repository path is configured" do
+    onboarding_state = %{
+      "4" => %{
+        "github_credentials" => %{
+          "paths" => [
+            %{
+              "path" => "github_app",
+              "name" => "GitHub App",
+              "status" => "not_configured",
+              "repository_access" => "unconfirmed",
+              "detail" =>
+                "GitHub App credentials are not fully configured (`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are required).",
+              "remediation" =>
+                "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, then retry validation.",
+              "error_type" => "github_app_not_configured"
+            },
+            %{
+              "path" => "pat",
+              "name" => "Personal Access Token (PAT)",
+              "status" => "not_configured",
+              "repository_access" => "unconfirmed",
+              "detail" => "No GitHub personal access token fallback is configured (`GITHUB_PAT`).",
+              "remediation" => "Set `GITHUB_PAT` and retry validation.",
+              "error_type" => "github_pat_not_configured"
+            }
+          ]
+        }
+      }
+    }
+
+    report = GitHubRepositoryListing.run(nil, onboarding_state)
+
+    assert GitHubRepositoryListing.blocked?(report)
+    assert report.error_type == "github_repository_fetch_not_configured"
+    assert report.detail =~ "GitHub credential validation has no confirmed repository access paths."
+    assert report.detail =~ "GitHub App credentials are not fully configured"
+    assert report.detail =~ "No GitHub personal access token fallback is configured"
+    assert report.remediation =~ "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`"
+    assert report.remediation =~ "Set `GITHUB_PAT` and retry validation."
+  end
+
   test "run/2 preserves previously listed repositories when listing fetch fails" do
     onboarding_state = %{
       "4" => %{

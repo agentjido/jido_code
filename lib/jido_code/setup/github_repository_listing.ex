@@ -1,4 +1,6 @@
 defmodule JidoCode.Setup.GitHubRepositoryListing do
+  # covers: setup.onboarding.deferred_integrations
+  # covers: setup.onboarding.github_repository_selection_persisted_metadata
   @moduledoc """
   Lists repositories accessible through validated GitHub credentials for setup step 7.
   """
@@ -226,13 +228,7 @@ defmodule JidoCode.Setup.GitHubRepositoryListing do
 
         cond do
           ready_paths == [] ->
-            blocked_report(
-              checked_at,
-              [],
-              "github_repository_fetch_access_unconfirmed",
-              "GitHub credential validation has no confirmed repository access paths.",
-              @default_no_access_remediation
-            )
+            blocked_paths_report(checked_at, paths)
 
           repositories == [] ->
             blocked_report(
@@ -349,6 +345,93 @@ defmodule JidoCode.Setup.GitHubRepositoryListing do
     }
   end
 
+  defp blocked_paths_report(checked_at, paths) do
+    blocked_report(
+      checked_at,
+      [],
+      blocked_paths_error_type(paths),
+      blocked_paths_detail(paths),
+      blocked_paths_remediation(paths)
+    )
+  end
+
+  defp blocked_paths_error_type(paths) do
+    path_error_types =
+      paths
+      |> Enum.map(fn path ->
+        path
+        |> map_get(:error_type, "error_type", nil)
+        |> normalize_error_type()
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    cond do
+      Enum.all?(paths, &path_not_configured?/1) ->
+        "github_repository_fetch_not_configured"
+
+      length(path_error_types) == 1 ->
+        hd(path_error_types)
+
+      true ->
+        "github_repository_fetch_access_unconfirmed"
+    end
+  end
+
+  defp blocked_paths_detail(paths) do
+    base_detail = "GitHub credential validation has no confirmed repository access paths."
+
+    path_details =
+      paths
+      |> Enum.map(&blocked_path_detail/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    case path_details do
+      [] -> base_detail
+      details -> "#{base_detail} #{Enum.join(details, " ")}"
+    end
+  end
+
+  defp blocked_path_detail(path) when is_map(path) do
+    name =
+      path
+      |> map_get(:name, "name", nil)
+      |> normalize_optional_string()
+
+    detail =
+      path
+      |> map_get(:detail, "detail", nil)
+      |> normalize_optional_string()
+
+    case {name, detail} do
+      {nil, nil} -> nil
+      {nil, normalized_detail} -> normalized_detail
+      {_name, nil} -> nil
+      {normalized_name, normalized_detail} -> "#{normalized_name}: #{normalized_detail}"
+    end
+  end
+
+  defp blocked_path_detail(_path), do: nil
+
+  defp blocked_paths_remediation(paths) do
+    path_remediations =
+      paths
+      |> Enum.map(fn path ->
+        path
+        |> map_get(:remediation, "remediation", nil)
+        |> normalize_optional_string()
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    case path_remediations do
+      [] -> @default_no_access_remediation
+      [remediation] -> remediation
+      remediations -> Enum.join(remediations, " ")
+    end
+  end
+
   defp default_status(repositories) when repositories == [], do: :blocked
   defp default_status(_repositories), do: :ready
 
@@ -402,6 +485,18 @@ defmodule JidoCode.Setup.GitHubRepositoryListing do
   end
 
   defp path_access_confirmed?(_path), do: false
+
+  defp path_not_configured?(path) when is_map(path) do
+    path
+    |> map_get(:status, "status", nil)
+    |> normalize_optional_string()
+    |> case do
+      "not_configured" -> true
+      _other -> false
+    end
+  end
+
+  defp path_not_configured?(_path), do: false
 
   defp normalize_repository_access(:confirmed), do: :confirmed
   defp normalize_repository_access("confirmed"), do: :confirmed

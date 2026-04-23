@@ -42,9 +42,9 @@ defmodule JidoCode.MemoryGraph.Store do
          {:ok, store} <- open_store(graph_context.graph_store_path, create_if_missing: true) do
       try do
         with {:ok, memory_triple_count} <-
-               load_ontology_graph(store, MemoryGraph.memory_named_graph_resource(), []),
+               load_ontology_graph(store, MemoryGraph.memory_named_graph_resource()),
              {:ok, workflow_triple_count} <-
-               load_ontology_graph(store, MemoryGraph.workflow_provenance_named_graph_resource(), []),
+               load_ontology_graph(store, MemoryGraph.workflow_provenance_named_graph_resource()),
              {:ok, semantic_model} <- semantic_model_status(store, graph_context.managed_repo_id) do
           validated_at = DateTime.utc_now()
           current_revision = graph_context.revision_metadata.current_revision

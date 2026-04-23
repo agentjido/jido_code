@@ -9,6 +9,7 @@ The plan aligns to:
 - `../specs/agent_os_integration.spec.md`
 - `../specs/factory_control_plane.spec.md`
 - `../specs/frontend_architecture.spec.md`
+- `../specs/setup_onboarding.spec.md`
 - `../specs/memory_capture_plane.spec.md`
 - `../specs/memory_graph.spec.md`
 - `../specs/memory_graph_product_adoption.spec.md`
@@ -31,6 +32,7 @@ The plan aligns to:
 - `../decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md`
 - `../decisions/jido_code.source_code_graph_product_adoption.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
+- `../decisions/jido_code.setup_onboarding_live_vue_surface_split.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.interruptible_conversation_orchestration.md`
 - `../decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md`
@@ -87,6 +89,7 @@ The plan aligns to:
 47. [Phase 53 - Source Code Graph Enablement and Hardening](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-53-source-code-graph-enablement-and-hardening.md): enable the source code graph feature for development use and add production-hardening including timeouts, retries, resource limits, health monitoring, and graceful degradation.
 48. [Phase 54 - Drift Closure And Current-Truth Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-54-drift-closure-and-current-truth-convergence.md): close the remaining spec-to-implementation drift by finishing canonical repo and run cutovers, converging greenfield fixtures and helpers, promoting shipped semantic and AgentOS subjects out of proposal-only status, and repairing planning plus contributor guidance where chronology or terminology has diverged.
 49. [Phase 55 - Memory Rollout And Governed Surfaces](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-55-memory-rollout-and-governed-surfaces.md): finish the remaining memory rollout by adding canonical work-item, evidence, and decision memory surfaces, reusing product-owned memory actions on those routes, promoting the last proposed memory subjects to active current truth, and aligning the existing `55.6.*` integration coverage with the completed governed-surface narrative.
+50. [Phase 56 - Setup Onboarding Hybrid Surface Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-56-setup-onboarding-hybrid-surface-adoption.md): implement the accepted `/setup` LiveView-plus-`live_vue` split by adding bounded hybrid setup widgets, preserving LiveView-owned sensitive controls and fallbacks, and closing the current browser-test gap for onboarding interactions.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once

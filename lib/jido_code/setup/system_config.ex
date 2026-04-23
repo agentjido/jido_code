@@ -1,6 +1,7 @@
 defmodule JidoCode.Setup.SystemConfig do
   # covers: setup.runtime_environment_defaults.selection_persisted_in_database_backed_system_config
   # covers: setup.onboarding.runtime_environment_selection_persisted_metadata
+  # covers: setup.onboarding.github_repository_selection_persisted_metadata
   @moduledoc """
   Onboarding state loader and progress persistence for setup routing.
   """

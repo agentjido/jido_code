@@ -1,3 +1,4 @@
+## covers: developer.workflow.local_dotenv_bootstrap
 import Config
 
 # config/runtime.exs is executed for all environments, including
@@ -6,6 +7,10 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
+
+# Keep the normal contributor path Phoenix-like: in dev, ignored repo-root
+# dotenv files can fill in missing runtime vars without overriding shell env.
+JidoCode.Config.RuntimeEnv.bootstrap(config_env(), root: Path.expand("..", __DIR__))
 
 # ## Using releases
 #

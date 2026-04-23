@@ -276,7 +276,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
          :ok <- ResourceLimits.validate_concurrent_operations([]) do
       :ok
     else
-      {:error, :graph_size_limit_exceeded, _detail} = error ->
+      {:error, :graph_size_limit_exceeded, _detail} ->
         # Allow write with degraded warning
         log_resource_limit_warning(:graph_size, envelope)
         :ok

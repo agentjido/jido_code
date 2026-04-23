@@ -79,7 +79,7 @@ defmodule JidoCode.SourceCodeGraph.Store do
     end
   end
 
-  defp build_staged_store(staging_store_path, load_artifacts, named_graph, timeout \\ :infinity) do
+  defp build_staged_store(staging_store_path, load_artifacts, named_graph, timeout) do
     task = Task.async(fn ->
       do_build_staged_store(staging_store_path, load_artifacts, named_graph)
     end)

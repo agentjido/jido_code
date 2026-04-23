@@ -1,5 +1,7 @@
 # Memory Graph Surface Rollout And Governance Actions
 
+<!-- current_truth.reconciled_with_branch: governed memory helpers plus work-item, evidence, decision, and neighboring setup-route host-shell messaging remain part of this rollout subject. -->
+
 This subject defines how bounded memory and workflow-provenance adoption should
 roll out across the remaining canonical operator and governed product surfaces.
 

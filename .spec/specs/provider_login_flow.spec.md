@@ -1,5 +1,7 @@
 # Provider Login Flow
 
+<!-- current_truth.reconciled_with_branch: GitHub-auth setup verification continues to rely on this provider-login flow subject. -->
+
 This subject defines the first broker-backed provider login path that is live in `jido_code`. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`. The initial implementation is GitHub-first, but the session-issuance service remains provider-neutral so future GitLab and Bitbucket login can reuse the same local-user and token model.
 
 ```spec-meta

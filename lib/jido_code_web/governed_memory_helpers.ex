@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.GovernedMemoryHelpers do
+  # covers: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
+  # covers: architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
   @moduledoc false
 
   alias JidoCode.Control.Actor

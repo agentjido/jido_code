@@ -5,7 +5,6 @@ defmodule JidoCode.MemoryGraph.CrossGraphNavigation do
 
   alias JidoCode.{MemoryGraph, SourceCodeGraph}
   alias JidoCode.MemoryGraph.GovernedReference
-  alias JidoCode.MemoryGraph.Retry
 
   @spec build(String.t(), String.t(), [map()]) :: map()
   def build(managed_repo_id, workspace_path, bindings)

@@ -1,5 +1,7 @@
 # Baseline Surface
 
+<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including GitHub PAT encryption preflight before secret-backed follow-up actions. -->
+
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
 <!-- covers: setup.onboarding.post_bootstrap_start_surface -->

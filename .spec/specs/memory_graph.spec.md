@@ -1,5 +1,7 @@
 # Memory Graph
 
+<!-- current_truth.reconciled_with_branch: cross-graph navigation, store/resource limits, and freshness-oriented integration coverage remain under this subject. -->
+
 This subject defines the repository-scoped memory-graph architecture that
 complements the existing `source_code` graph with durable coding memory and
 workflow provenance.

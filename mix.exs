@@ -3,6 +3,7 @@ defmodule JidoCode.MixProject do
   # covers: package.jido_code.mix_first_cli_surface
   # covers: package.jido_code.package_quality_mix_surface_aligned
   # covers: workflow.runtime.compatibility.local_override_present
+  # covers: developer.workflow.local_dotenv_bootstrap
   use Mix.Project
 
   @version "0.1.0"
@@ -58,6 +59,7 @@ defmodule JidoCode.MixProject do
   def cli do
     [
       preferred_envs: [
+        "browser.verify": :test,
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.html": :test,
@@ -206,6 +208,7 @@ defmodule JidoCode.MixProject do
       {:sprites, git: "https://github.com/mikehostetler/sprites-ex.git", override: true},
 
       # Utilities
+      {:dotenvy, "~> 1.1"},
       {:live_toast, "~> 0.8"},
       {:jason, "~> 1.2"},
       {:picosat_elixir, "~> 0.2"},
@@ -256,6 +259,7 @@ defmodule JidoCode.MixProject do
         "phoenix_vite.npm vite build --ssrManifest --emptyOutDir false --ssr js/server.js --outDir ../priv/static"
       ],
       "frontend.verify": ["assets.setup", "assets.build"],
+      "browser.verify": ["frontend.verify", "cmd npm run e2e:test"],
       "source_graph.verify": [
         "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/agent_os/phase_twenty_integration_test.exs test/jido_code/agent_os/phase_twenty_one_integration_test.exs test/jido_code/agent_os/phase_twenty_two_integration_test.exs test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
       ],

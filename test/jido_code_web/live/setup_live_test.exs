@@ -106,7 +106,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     {:ok, setup_view, _html} = live(recycle(auth_response), ~p"/setup", on_error: :warn)
 
     assert_setup_start_surface(setup_view)
-    assert has_element?(setup_view, "#setup-selected-start-path", "Not chosen yet")
+    assert runtime_defaults_widget(setup_view).props["selectedStartPathLabel"] == "Not chosen yet"
     assert_owner_count(1)
     assert_single_owner_admin!(true)
 
@@ -288,14 +288,29 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    assert has_element?(view, "#setup-install-flavor", "Desktop")
-    assert has_element?(view, "#setup-runtime-environment-select")
-    assert has_element?(view, "#setup-saved-runtime-environment", "Cloud")
+    runtime_widget = runtime_defaults_widget(view)
+    start_widget = start_path_widget(view)
+
     assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
-    assert has_element?(view, "#setup-start-choice-local_repo-badge", "Recommended")
-    assert has_element?(view, "#setup-start-choice-local_repo-save", "Add local repo")
-    assert has_element?(view, "#setup-start-choice-github-save", "Connect GitHub")
-    assert has_element?(view, "#setup-start-choice-later-save", "Do this later")
+
+    assert runtime_widget.props["installFlavor"] == "Desktop"
+    assert runtime_widget.props["savedRuntimeLabel"] == "Cloud"
+
+    assert_vue_handler(view, "changeRuntimeEnvironment", "change_runtime_environment",
+      id: "setup-runtime-defaults-widget"
+    )
+
+    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment",
+      id: "setup-runtime-defaults-widget"
+    )
+
+    assert Enum.map(start_widget.props["options"], & &1["id"]) == ["local_repo", "github", "later"]
+    assert start_option(start_widget, "local_repo")["badgeLabel"] == "Recommended"
+    assert start_option(start_widget, "local_repo")["buttonLabel"] == "Add local repo"
+    assert start_option(start_widget, "github")["buttonLabel"] == "Connect GitHub"
+    assert start_option(start_widget, "later")["buttonLabel"] == "Do this later"
+
+    assert_vue_handler(view, "chooseStartPath", "choose_start_path", id: "setup-start-path-selector")
   end
 
   test "cloud setup start surface keeps GitHub and later as the only start choices", %{conn: conn} do
@@ -318,14 +333,18 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    assert has_element?(view, "#setup-install-flavor", "Cloud")
-    assert has_element?(view, "#setup-runtime-environment-select")
-    assert has_element?(view, "#setup-saved-runtime-environment", "Cloud")
+    runtime_widget = runtime_defaults_widget(view)
+    start_widget = start_path_widget(view)
+
     assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
-    refute has_element?(view, "#setup-start-choice-local_repo")
-    assert has_element?(view, "#setup-start-choice-github-badge", "Recommended")
-    assert has_element?(view, "#setup-start-choice-github-save", "Connect GitHub")
-    assert has_element?(view, "#setup-start-choice-later-save", "Do this later")
+
+    assert runtime_widget.props["installFlavor"] == "Cloud"
+    assert runtime_widget.props["savedRuntimeLabel"] == "Cloud"
+
+    assert Enum.map(start_widget.props["options"], & &1["id"]) == ["github", "later"]
+    assert start_option(start_widget, "github")["badgeLabel"] == "Recommended"
+    assert start_option(start_widget, "github")["buttonLabel"] == "Connect GitHub"
+    assert start_option(start_widget, "later")["buttonLabel"] == "Do this later"
   end
 
   test "saving a local runtime environment persists validated local defaults without advancing onboarding progress",
@@ -360,7 +379,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       }
     })
 
-    assert has_element?(view, "#setup-runtime-workspace-root")
+    assert runtime_defaults_widget(view).props["form"]["mode"] == "local"
 
     render_submit(view, "save_runtime_environment", %{
       "runtime_environment" => %{
@@ -369,8 +388,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       }
     })
 
-    assert has_element?(view, "#setup-saved-runtime-environment", "Local")
-    assert has_element?(view, "#setup-saved-runtime-note", workspace_root)
+    runtime_widget = runtime_defaults_widget(view)
+    assert runtime_widget.props["savedRuntimeLabel"] == "Local"
+    assert runtime_widget.props["savedRuntimeNote"] ==
+             "Local execution will use #{workspace_root} as the default workspace root."
 
     assert %{
              onboarding_completed: false,
@@ -430,7 +451,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
       }
     })
 
-    assert has_element?(view, "#setup-runtime-save-error", "Workspace root must be an absolute path.")
+    assert runtime_defaults_widget(view).props["saveError"] =~
+             "Workspace root must be an absolute path."
 
     assert %{
              onboarding_completed: false,
@@ -467,13 +489,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
-    assert has_element?(view, "#setup-selected-start-path", "Connect GitHub")
-    assert has_element?(view, "#setup-start-choice-github-badge", "Saved")
-    assert has_element?(view, "#setup-start-choice-github-save[disabled]", "Saved")
+    assert runtime_defaults_widget(view).props["selectedStartPathLabel"] == "Connect GitHub"
+    assert start_option(start_path_widget(view), "github")["badgeLabel"] == "Saved"
+    assert start_option(start_path_widget(view), "github")["buttonLabel"] == "Saved"
+    assert start_option(start_path_widget(view), "github")["disabled"] == true
 
     assert %{
              onboarding_completed: false,
@@ -530,9 +551,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     refute has_element?(view, "#setup-github-repository-panel")
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-repository-panel")
 
@@ -583,9 +602,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-pat-panel")
     assert has_element?(view, "#setup-github-pat-form")
@@ -679,9 +696,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     render_submit(view, "save_github_pat", %{"github_pat" => %{"value" => "ghp_test_token"}})
 
@@ -769,9 +784,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-pat-encryption-preflight")
     assert has_element?(view, "#setup-github-repository-selector-deferred")
@@ -840,9 +853,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     selector = vue(view, id: "setup-github-repository-selector")
 
@@ -959,9 +970,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> authenticate_owner_conn("owner@example.com", "owner-password-123")
       |> live(~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-repository-selector-fallback")
     assert has_element?(view, "#setup-github-repository-selector-fallback-body")
@@ -1033,9 +1042,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     {:ok, view, _html} = live(authed_conn, ~p"/setup", on_error: :warn)
 
-    view
-    |> element("#setup-start-choice-github-save")
-    |> render_click()
+    choose_start_path(view, "github")
 
     view
     |> element("#setup-complete-continue")
@@ -1094,7 +1101,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> live(~p"/setup", on_error: :warn)
 
     assert_setup_start_surface(view)
-    assert has_element?(view, "#setup-selected-start-path", "Do this later")
+    assert runtime_defaults_widget(view).props["selectedStartPathLabel"] == "Do this later"
     refute render(view) =~ "System checks"
     refute render(view) =~ "First project import readiness"
   end
@@ -1148,9 +1155,31 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-start-surface")
     assert has_element?(view, "#setup-title", "Choose how to start")
     assert has_element?(view, "#setup-description")
-    assert has_element?(view, "#setup-runtime-environment-form")
+    assert_vue_component(view, "SetupRuntimeDefaultsWidget", id: "setup-runtime-defaults-widget")
+    assert_vue_component(view, "SetupStartPathSelectorWidget", id: "setup-start-path-selector")
+    assert_vue_handler(view, "changeRuntimeEnvironment", "change_runtime_environment",
+      id: "setup-runtime-defaults-widget"
+    )
+
+    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment",
+      id: "setup-runtime-defaults-widget"
+    )
+
+    assert_vue_handler(view, "chooseStartPath", "choose_start_path", id: "setup-start-path-selector")
     assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")
-    assert has_element?(view, "#setup-owner-email", "owner@example.com")
+    assert runtime_defaults_widget(view).props["ownerEmail"] == "owner@example.com"
+  end
+
+  defp runtime_defaults_widget(view), do: vue(view, id: "setup-runtime-defaults-widget")
+
+  defp start_path_widget(view), do: vue(view, id: "setup-start-path-selector")
+
+  defp start_option(widget, id) do
+    Enum.find(widget.props["options"], &(&1["id"] == id))
+  end
+
+  defp choose_start_path(view, choice) do
+    render_click(view, "choose_start_path", %{"choice" => choice})
   end
 
   defp tmp_workspace_path! do

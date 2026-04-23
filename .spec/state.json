@@ -6495,7 +6495,7 @@
           "PAT capture, server persistence, and completion into the dashboard remain LiveView-owned controls instead of moving into a monolithic client shell."
         ],
         "when": [
-          "The route adds richer UI for choice-heavy setup follow-up such as repository selection or future start-surface summaries."
+          "The route adds richer UI for choice-heavy setup follow-up such as start-path selection, runtime-default summaries, or repository selection."
         ]
       },
       {
@@ -7192,6 +7192,8 @@
             "lib/jido_code_web/components/operator_state_components.ex",
             "lib/jido_code_web/live/project_detail_live.ex",
             "lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue",
+            "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
+            "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
             "lib/jido_code_web/live/",
             "lib/jido_code_web/components/",
             "lib/mix/tasks/frontend.start.ex",
@@ -8043,6 +8045,8 @@
             "lib/jido_code_web/live/home_live.ex",
             "lib/jido_code_web/components/live_vue_components.ex",
             "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
+            "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
+            "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
             "lib/jido_code_web/live/setup_live.ex",
             "lib/jido_code_web/live/dashboard_live.ex",
             "lib/jido_code_web/components/operator_state_components.ex",
@@ -9987,6 +9991,30 @@
         "kind": "source_file",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue"
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.server_authored_props_streams_and_events",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface",
+          "architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue"
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.server_authored_props_streams_and_events",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface",
+          "architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue"
       },
       {
         "covers": [
@@ -14878,6 +14906,26 @@
       {
         "covers": [
           "setup.onboarding.runtime_environment_selection_persisted_metadata",
+          "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue"
+      },
+      {
+        "covers": [
+          "setup.onboarding.start_path_preference_persisted",
+          "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue"
+      },
+      {
+        "covers": [
+          "setup.onboarding.runtime_environment_selection_persisted_metadata",
           "setup.onboarding.github_repository_selection_persisted_metadata"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15379,7 +15427,7 @@
     "requirements": 365,
     "scenarios": 178,
     "subjects": 44,
-    "verifications": 696
+    "verifications": 700
   },
   "verification": {
     "claims": [
@@ -19901,7 +19949,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
+        "verification_index": 23
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
         "verification_index": 23
       },
       {
@@ -19912,7 +19971,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
+        "verification_index": 23
+      },
+      {
+        "cover_id": "architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
         "verification_index": 23
       },
       {
@@ -19923,7 +19993,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
+        "verification_index": 24
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
         "verification_index": 24
       },
       {
@@ -19934,7 +20015,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
+        "verification_index": 24
+      },
+      {
+        "cover_id": "architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
         "verification_index": 24
       },
       {
@@ -19945,7 +20037,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 25
       },
       {
@@ -19956,7 +20048,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 25
       },
       {
@@ -19967,7 +20059,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 26
       },
       {
@@ -19978,7 +20070,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 26
       },
       {
@@ -19989,7 +20081,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 27
       },
       {
@@ -20000,29 +20092,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 27
       },
       {
-        "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
         "file": ".spec/specs/frontend_architecture.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 28
-      },
-      {
-        "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 28
       },
       {
@@ -20033,8 +20114,63 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 28
+      },
+      {
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "verification_index": 29
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "verification_index": 29
+      },
+      {
+        "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 30
+      },
+      {
+        "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 30
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -20045,7 +20181,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 29
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -20056,7 +20192,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 29
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -20067,7 +20203,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 29
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -20078,7 +20214,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 30
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -20089,7 +20225,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 30
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
@@ -20100,7 +20236,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 30
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -20111,7 +20247,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -20122,7 +20258,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -20133,7 +20269,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -20144,7 +20280,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -20155,7 +20291,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -20166,7 +20302,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -20177,7 +20313,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -20188,7 +20324,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -20199,7 +20335,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -20210,7 +20346,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -20221,7 +20357,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -20232,7 +20368,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 35
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -20243,7 +20379,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 35
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -20254,7 +20390,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 35
       },
       {
         "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
@@ -31147,14 +31283,14 @@
         "verification_index": 10
       },
       {
-        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code/setup/system_config.ex",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
         "verification_index": 11
       },
       {
@@ -31165,8 +31301,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code/setup/system_config.ex",
+        "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
         "verification_index": 11
+      },
+      {
+        "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "setup.onboarding.start_path_preference_persisted",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/system_config.ex",
+        "verification_index": 13
+      },
+      {
+        "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/system_config.ex",
+        "verification_index": 13
       },
       {
         "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
@@ -31177,7 +31357,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/system_config_record.ex",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
@@ -31188,7 +31368,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/system_config_persistence.ex",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -31199,7 +31379,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "setup.onboarding.greenfield_import_writes_canonical_repo_records",
@@ -31210,7 +31390,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -31221,7 +31401,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31232,7 +31412,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -31243,7 +31423,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -31254,7 +31434,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/project_import_test.exs",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -31265,7 +31445,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/deployment_mode_test.exs",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -31276,7 +31456,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -31287,7 +31467,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
@@ -31298,7 +31478,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -31309,7 +31489,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -31320,7 +31500,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31331,7 +31511,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -31342,7 +31522,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -31353,7 +31533,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -31364,7 +31544,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -31375,28 +31555,6 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 20
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 21
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 22
       },
       {
@@ -31407,7 +31565,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 23
       },
       {
@@ -31418,7 +31576,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 24
       },
       {
@@ -31429,7 +31587,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 25
       },
       {
@@ -31440,8 +31598,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 26
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "verification_index": 27
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 28
       },
       {
         "cover_id": "setup.runtime_environment_defaults.selection_is_distinct_from_install_flavor",
@@ -32087,7 +32267,7 @@
     "strength_summary": {
       "claimed": 65,
       "executed": 0,
-      "linked": 1453
+      "linked": 1465
     },
     "threshold_failures": 0
   },

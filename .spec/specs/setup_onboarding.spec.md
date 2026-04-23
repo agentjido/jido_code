@@ -36,6 +36,8 @@ surface:
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/components/live_vue_components.ex
   - lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
+  - lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+  - lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/components/operator_state_components.ex
@@ -230,7 +232,7 @@ surface:
   given:
     - A signed-in administrator is using `/setup` for optional follow-up work after bootstrap.
   when:
-    - The route adds richer UI for choice-heavy setup follow-up such as repository selection or future start-surface summaries.
+    - The route adds richer UI for choice-heavy setup follow-up such as start-path selection, runtime-default summaries, or repository selection.
   then:
     - The route may introduce bounded `live_vue` regions for that richer composition.
     - PAT capture, server persistence, and completion into the dashboard remain LiveView-owned controls instead of moving into a monolithic client shell.
@@ -349,6 +351,18 @@ surface:
   covers:
     - setup.onboarding.github_repository_selection_persisted_metadata
     - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+  covers:
+    - setup.onboarding.runtime_environment_selection_persisted_metadata
+    - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
+  covers:
+    - setup.onboarding.start_path_preference_persisted
+    - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 
 - kind: source_file
   target: lib/jido_code/setup/system_config.ex

@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while the GitHub repository selector remains a bounded live_vue region with server fallback. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
@@ -34,6 +34,8 @@ surface:
   - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue
+  - lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+  - lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
   - lib/mix/tasks/frontend.start.ex
@@ -412,6 +414,22 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
+
+- kind: source_file
+  target: lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
   covers:
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
     - architecture.frontend_stack.server_authored_props_streams_and_events

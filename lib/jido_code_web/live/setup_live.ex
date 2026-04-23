@@ -345,106 +345,121 @@ defmodule JidoCodeWeb.SetupLive do
               </p>
             </div>
 
-            <section
-              id="setup-runtime-defaults-panel"
-              class="space-y-4 rounded-2xl border border-base-300 bg-base-100/80 p-5"
+            <.vue_surface
+              id="setup-runtime-defaults-widget"
+              component="SetupRuntimeDefaultsWidget"
+              socket={@socket}
+              props={runtime_defaults_widget_props(assigns)}
+              events={
+                %{
+                  "changeRuntimeEnvironment" => "change_runtime_environment",
+                  "saveRuntimeEnvironment" => "save_runtime_environment"
+                }
+              }
+              fallback_title="Interactive runtime defaults panel temporarily unavailable"
+              fallback_detail="Use the server-rendered runtime defaults panel below while the richer setup widget is unavailable."
             >
-              <div class="space-y-2">
-                <p class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                  Runtime defaults
-                </p>
-                <p id="setup-runtime-defaults-description" class="text-sm text-base-content/70">
-                  {runtime_environment_description(@runtime_environment_mode)}
-                </p>
-              </div>
-
-              <div :if={@runtime_save_error} id="setup-runtime-save-error" class="alert alert-error">
-                <.icon name="hero-x-circle-mini" class="size-5" />
-                <span>{@runtime_save_error}</span>
-              </div>
-
-              <.form
-                id="setup-runtime-environment-form"
-                for={@runtime_environment_form}
-                phx-change="change_runtime_environment"
-                phx-submit="save_runtime_environment"
-                class="space-y-3"
+              <section
+                id="setup-runtime-defaults-panel"
+                class="space-y-4 rounded-2xl border border-base-300 bg-base-100/80 p-5"
               >
-                <.input
-                  id="setup-runtime-environment-select"
-                  field={@runtime_environment_form[:mode]}
-                  type="select"
-                  label="Runtime environment"
-                  options={@runtime_environment_options}
-                />
-
-                <.input
-                  :if={@runtime_environment_mode == :local}
-                  id="setup-runtime-workspace-root"
-                  field={@runtime_environment_form[:workspace_root]}
-                  type="text"
-                  label="Workspace root"
-                  placeholder="/absolute/path/to/workspaces"
-                  autocomplete="off"
-                />
-
-                <button
-                  id="setup-runtime-environment-save"
-                  type="submit"
-                  disabled={@buttons_disabled?}
-                  class={[
-                    "btn btn-primary w-full sm:w-auto",
-                    @buttons_disabled? && "btn-disabled"
-                  ]}
-                >
-                  Save runtime default
-                </button>
-              </.form>
-
-              <dl class="space-y-4 border-t border-base-300/70 pt-4">
-                <div class="space-y-1">
-                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                    Install flavor
-                  </dt>
-                  <dd id="setup-install-flavor" class="text-sm font-medium">
-                    {deployment_mode_label(@deployment_mode)}
-                  </dd>
-                </div>
-
-                <div class="space-y-1">
-                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                    Admin email
-                  </dt>
-                  <dd id="setup-owner-email" class="text-sm font-medium">
-                    {@owner_email}
-                  </dd>
-                </div>
-
-                <div class="space-y-1">
-                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                    Saved runtime default
-                  </dt>
-                  <dd id="setup-saved-runtime-environment" class="text-sm font-medium">
-                    {saved_runtime_environment_label(@persisted_default_environment)}
-                  </dd>
-                  <p id="setup-saved-runtime-note" class="text-sm text-base-content/60">
-                    {saved_runtime_environment_note(
-                      @persisted_default_environment,
-                      @persisted_workspace_root
-                    )}
+                <div class="space-y-2">
+                  <p class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    Runtime defaults
+                  </p>
+                  <p id="setup-runtime-defaults-description" class="text-sm text-base-content/70">
+                    {runtime_environment_description(@runtime_environment_mode)}
                   </p>
                 </div>
 
-                <div class="space-y-1">
-                  <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
-                    Saved choice
-                  </dt>
-                  <dd id="setup-selected-start-path" class="text-sm font-medium">
-                    {selected_start_path_label(@selected_start_path)}
-                  </dd>
+                <div :if={@runtime_save_error} id="setup-runtime-save-error" class="alert alert-error">
+                  <.icon name="hero-x-circle-mini" class="size-5" />
+                  <span>{@runtime_save_error}</span>
                 </div>
-              </dl>
-            </section>
+
+                <.form
+                  id="setup-runtime-environment-form"
+                  for={@runtime_environment_form}
+                  phx-change="change_runtime_environment"
+                  phx-submit="save_runtime_environment"
+                  class="space-y-3"
+                >
+                  <.input
+                    id="setup-runtime-environment-select"
+                    field={@runtime_environment_form[:mode]}
+                    type="select"
+                    label="Runtime environment"
+                    options={@runtime_environment_options}
+                  />
+
+                  <.input
+                    :if={@runtime_environment_mode == :local}
+                    id="setup-runtime-workspace-root"
+                    field={@runtime_environment_form[:workspace_root]}
+                    type="text"
+                    label="Workspace root"
+                    placeholder="/absolute/path/to/workspaces"
+                    autocomplete="off"
+                  />
+
+                  <button
+                    id="setup-runtime-environment-save"
+                    type="submit"
+                    disabled={@buttons_disabled?}
+                    class={[
+                      "btn btn-primary w-full sm:w-auto",
+                      @buttons_disabled? && "btn-disabled"
+                    ]}
+                  >
+                    Save runtime default
+                  </button>
+                </.form>
+
+                <dl class="space-y-4 border-t border-base-300/70 pt-4">
+                  <div class="space-y-1">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                      Install flavor
+                    </dt>
+                    <dd id="setup-install-flavor" class="text-sm font-medium">
+                      {deployment_mode_label(@deployment_mode)}
+                    </dd>
+                  </div>
+
+                  <div class="space-y-1">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                      Admin email
+                    </dt>
+                    <dd id="setup-owner-email" class="text-sm font-medium">
+                      {@owner_email}
+                    </dd>
+                  </div>
+
+                  <div class="space-y-1">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                      Saved runtime default
+                    </dt>
+                    <dd id="setup-saved-runtime-environment" class="text-sm font-medium">
+                      {saved_runtime_environment_label(@persisted_default_environment)}
+                    </dd>
+                    <p id="setup-saved-runtime-note" class="text-sm text-base-content/60">
+                      {saved_runtime_environment_note(
+                        @persisted_default_environment,
+                        @persisted_workspace_root
+                      )}
+                    </p>
+                  </div>
+
+                  <div class="space-y-1">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                      Saved choice
+                    </dt>
+                    <dd id="setup-selected-start-path" class="text-sm font-medium">
+                      {selected_start_path_label(@selected_start_path)}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            </.vue_surface>
 
             <p id="setup-selected-start-note" class="max-w-md text-sm text-base-content/60">
               {selected_start_path_note(@selected_start_path, @deployment_mode)}
@@ -462,47 +477,57 @@ defmodule JidoCodeWeb.SetupLive do
               <span>{@save_error}</span>
             </div>
 
-            <article
-              :for={option <- @start_options}
-              id={"setup-start-choice-#{option.id}"}
-              class={[
-                "rounded-2xl border p-5 transition",
-                @selected_start_path == option.id && "border-primary/50 bg-base-100 shadow-sm",
-                @selected_start_path != option.id && "border-base-300 bg-base-100/80"
-              ]}
+            <.vue_surface
+              id="setup-start-path-selector"
+              component="SetupStartPathSelectorWidget"
+              socket={@socket}
+              props={start_path_selector_props(assigns)}
+              events={%{"chooseStartPath" => "choose_start_path"}}
+              fallback_title="Interactive start-path chooser temporarily unavailable"
+              fallback_detail="Use the server-rendered setup choices below while the richer chooser is unavailable."
             >
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div class="space-y-2">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <h2 class="text-xl font-semibold">{option.title}</h2>
-                    <span
-                      :if={choice_badge_label(option.id, @selected_start_path, option.recommended?)}
-                      id={"setup-start-choice-#{option.id}-badge"}
-                      class="badge badge-outline text-xs"
-                    >
-                      {choice_badge_label(option.id, @selected_start_path, option.recommended?)}
-                    </span>
+              <article
+                :for={option <- @start_options}
+                id={"setup-start-choice-#{option.id}"}
+                class={[
+                  "rounded-2xl border p-5 transition",
+                  @selected_start_path == option.id && "border-primary/50 bg-base-100 shadow-sm",
+                  @selected_start_path != option.id && "border-base-300 bg-base-100/80"
+                ]}
+              >
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h2 class="text-xl font-semibold">{option.title}</h2>
+                      <span
+                        :if={choice_badge_label(option.id, @selected_start_path, option.recommended?)}
+                        id={"setup-start-choice-#{option.id}-badge"}
+                        class="badge badge-outline text-xs"
+                      >
+                        {choice_badge_label(option.id, @selected_start_path, option.recommended?)}
+                      </span>
+                    </div>
+                    <p class="text-sm font-medium text-base-content/80">{option.summary}</p>
+                    <p class="max-w-2xl text-sm text-base-content/60">{option.detail}</p>
                   </div>
-                  <p class="text-sm font-medium text-base-content/80">{option.summary}</p>
-                  <p class="max-w-2xl text-sm text-base-content/60">{option.detail}</p>
-                </div>
 
-                <button
-                  id={"setup-start-choice-#{option.id}-save"}
-                  type="button"
-                  phx-click="choose_start_path"
-                  phx-value-choice={option.id}
-                  disabled={@buttons_disabled? or @selected_start_path == option.id}
-                  class={[
-                    "btn btn-sm w-full sm:w-auto",
-                    option.button_class,
-                    (@buttons_disabled? or @selected_start_path == option.id) && "btn-disabled"
-                  ]}
-                >
-                  {choice_button_label(option.id, @selected_start_path)}
-                </button>
-              </div>
-            </article>
+                  <button
+                    id={"setup-start-choice-#{option.id}-save"}
+                    type="button"
+                    phx-click="choose_start_path"
+                    phx-value-choice={option.id}
+                    disabled={@buttons_disabled? or @selected_start_path == option.id}
+                    class={[
+                      "btn btn-sm w-full sm:w-auto",
+                      option.button_class,
+                      (@buttons_disabled? or @selected_start_path == option.id) && "btn-disabled"
+                    ]}
+                  >
+                    {choice_button_label(option.id, @selected_start_path)}
+                  </button>
+                </div>
+              </article>
+            </.vue_surface>
 
             <section
               :if={show_github_repository_selector?(@selected_start_path)}
@@ -1252,6 +1277,62 @@ defmodule JidoCodeWeb.SetupLive do
     }
   end
 
+  defp start_path_selector_props(assigns) do
+    %{
+      options:
+        Enum.map(
+          assigns.start_options,
+          &start_path_selector_option_props(&1, assigns.selected_start_path, assigns.buttons_disabled?)
+        ),
+      selectedStartPath:
+        case assigns.selected_start_path do
+          nil -> nil
+          selected_start_path -> Atom.to_string(selected_start_path)
+        end
+    }
+  end
+
+  defp start_path_selector_option_props(option, selected_start_path, buttons_disabled?) do
+    %{
+      id: Atom.to_string(option.id),
+      title: option.title,
+      summary: option.summary,
+      detail: option.detail,
+      badgeLabel: choice_badge_label(option.id, selected_start_path, option.recommended?),
+      buttonLabel: choice_button_label(option.id, selected_start_path),
+      buttonClass: option.button_class,
+      selected: selected_start_path == option.id,
+      disabled: buttons_disabled? or selected_start_path == option.id
+    }
+  end
+
+  defp runtime_defaults_widget_props(assigns) do
+    form_values = Map.get(assigns, :runtime_environment_form_values, %{"mode" => "cloud", "workspace_root" => ""})
+
+    %{
+      runtimeDescription: runtime_environment_description(assigns.runtime_environment_mode),
+      saveError: assigns.runtime_save_error,
+      form: %{
+        mode: Map.get(form_values, "mode", "cloud"),
+        workspaceRoot: Map.get(form_values, "workspace_root", "")
+      },
+      runtimeOptions:
+        Enum.map(assigns.runtime_environment_options, fn {label, value} ->
+          %{label: label, value: value}
+        end),
+      installFlavor: deployment_mode_label(assigns.deployment_mode),
+      ownerEmail: assigns.owner_email,
+      savedRuntimeLabel: saved_runtime_environment_label(assigns.persisted_default_environment),
+      savedRuntimeNote:
+        saved_runtime_environment_note(
+          assigns.persisted_default_environment,
+          assigns.persisted_workspace_root
+        ),
+      selectedStartPathLabel: selected_start_path_label(assigns.selected_start_path),
+      buttonsDisabled: assigns.buttons_disabled?
+    }
+  end
+
   defp github_pat_capture_state(onboarding_state, listing_report) do
     pat_path = github_pat_path(onboarding_state)
     encryption_status = Encryption.config_status()
@@ -1596,6 +1677,7 @@ defmodule JidoCodeWeb.SetupLive do
 
     socket
     |> assign(:runtime_environment_form, to_form(normalized_form_values, as: :runtime_environment))
+    |> assign(:runtime_environment_form_values, normalized_form_values)
     |> assign(
       :runtime_environment_mode,
       normalized_form_values |> Map.get("mode", "cloud") |> normalize_runtime_environment_mode()

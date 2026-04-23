@@ -30,39 +30,39 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 [ ] 56 Phase 56 - Setup Onboarding Hybrid Surface Adoption
   Implement the accepted `/setup` LiveView-plus-`live_vue` split by extracting bounded, choice-heavy onboarding regions into hybrid widgets while preserving server-owned setup gating, fallback behavior, and browser-level verification.
 
-  [ ] 56.1 Section - LiveView-Owned Setup Shell And View Models
+  [x] 56.1 Section - LiveView-Owned Setup Shell And View Models
     Keep `/setup` authoritative on the server while preparing section-level props and handlers that make bounded widget adoption safe and predictable.
 
-    [ ] 56.1.1 Task - Extract section-level setup view models
+    [x] 56.1.1 Task - Extract section-level setup view models
       Shape start-path, runtime-default, and GitHub follow-up data as bounded props and explicit emits rather than relying on ad hoc assigns inside larger template blocks.
 
-      [ ] 56.1.1.1 Subtask - Define stable prop shapes for start-path choice, runtime-default selection, and GitHub follow-up status that mirror server-authored state without leaking persistence internals.
-      [ ] 56.1.1.2 Subtask - Keep all persistence mutations, flash or navigation behavior, and blocking validation in LiveView events even when widgets initiate the interaction.
-      [ ] 56.1.1.3 Subtask - Preserve stable DOM IDs and section anchors so existing setup tests and fallback states remain selector-driven and legible.
+      [x] 56.1.1.1 Subtask - Define stable prop shapes for start-path choice, runtime-default selection, and GitHub follow-up status that mirror server-authored state without leaking persistence internals.
+      [x] 56.1.1.2 Subtask - Keep all persistence mutations, flash or navigation behavior, and blocking validation in LiveView events even when widgets initiate the interaction.
+      [x] 56.1.1.3 Subtask - Preserve stable DOM IDs and section anchors so existing setup tests and fallback states remain selector-driven and legible.
 
-    [ ] 56.1.2 Task - Standardize setup-region fallback and deferred states
+    [x] 56.1.2 Task - Standardize setup-region fallback and deferred states
       Make each new hybrid region degrade safely so `/setup` stays usable when `live_vue` delivery is reduced or unavailable.
 
-      [ ] 56.1.2.1 Subtask - Reuse `vue_surface` fallback behavior for each new setup widget rather than bespoke client checks.
-      [ ] 56.1.2.2 Subtask - Keep deferred or prerequisite-gated states product-shaped in HEEx so PAT-first and restart-required flows stay clear without client code.
-      [ ] 56.1.2.3 Subtask - Ensure server fallbacks keep parity with the core choices and actions exposed by each richer widget.
+      [x] 56.1.2.1 Subtask - Reuse `vue_surface` fallback behavior for each new setup widget rather than bespoke client checks.
+      [x] 56.1.2.2 Subtask - Keep deferred or prerequisite-gated states product-shaped in HEEx so PAT-first and restart-required flows stay clear without client code.
+      [x] 56.1.2.3 Subtask - Ensure server fallbacks keep parity with the core choices and actions exposed by each richer widget.
 
-  [ ] 56.2 Section - Start Path And Runtime Default Hybrid Adoption
+  [x] 56.2 Section - Start Path And Runtime Default Hybrid Adoption
     Move the highest-value choice-heavy setup regions into bounded widgets after the shell contract is explicit.
 
-    [ ] 56.2.1 Task - Introduce a bounded start-path selection widget
+    [x] 56.2.1 Task - Introduce a bounded start-path selection widget
       Replace the large server-rendered start-choice card set with a richer widget only if it improves scanning and selection without owning the route.
 
-      [ ] 56.2.1.1 Subtask - Create one setup start-path widget that renders choice cards from LiveView-authored props and emits explicit selection intents back to `choose_start_path`.
-      [ ] 56.2.1.2 Subtask - Keep recommendation badges, deployment-mode emphasis, and save gating server-authored rather than recreated in client-owned heuristics.
-      [ ] 56.2.1.3 Subtask - Add a server-rendered fallback that preserves the current start-path experience if the richer path degrades.
+      [x] 56.2.1.1 Subtask - Create one setup start-path widget that renders choice cards from LiveView-authored props and emits explicit selection intents back to `choose_start_path`.
+      [x] 56.2.1.2 Subtask - Keep recommendation badges, deployment-mode emphasis, and save gating server-authored rather than recreated in client-owned heuristics.
+      [x] 56.2.1.3 Subtask - Add a server-rendered fallback that preserves the current start-path experience if the richer path degrades.
 
-    [ ] 56.2.2 Task - Introduce a bounded runtime-environment widget
+    [x] 56.2.2 Task - Introduce a bounded runtime-environment widget
       Give runtime-default selection richer layout and progressive disclosure while leaving validation and persistence on the server.
 
-      [ ] 56.2.2.1 Subtask - Render local-versus-cloud runtime defaults, persisted selection context, and workspace-root affordances through bounded props rather than a client-owned store.
-      [ ] 56.2.2.2 Subtask - Route validation and save behavior back through `change_runtime_environment` and `save_runtime_environment` without moving environment checks into Vue.
-      [ ] 56.2.2.3 Subtask - Keep local workspace-root errors, disabled states, and fallback submission usable in plain LiveView.
+      [x] 56.2.2.1 Subtask - Render local-versus-cloud runtime defaults, persisted selection context, and workspace-root affordances through bounded props rather than a client-owned store.
+      [x] 56.2.2.2 Subtask - Route validation and save behavior back through `change_runtime_environment` and `save_runtime_environment` without moving environment checks into Vue.
+      [x] 56.2.2.3 Subtask - Keep local workspace-root errors, disabled states, and fallback submission usable in plain LiveView.
 
   [ ] 56.3 Section - GitHub Follow-Up Hybrid Convergence
     Expand the existing hybrid GitHub follow-up pattern without crossing the sensitive-control boundary defined by the ADR.

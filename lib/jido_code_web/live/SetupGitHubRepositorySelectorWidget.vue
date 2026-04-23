@@ -5,6 +5,7 @@
 // covers: architecture.frontend_stack.setup_entry_surface_uses_bounded_live_vue_regions
 // covers: setup.onboarding.github_repository_selection_persisted_metadata
 // covers: setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+// covers: setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 import { computed, ref, watch } from "vue"
 
 type RepositoryOption = {
@@ -15,6 +16,11 @@ type RepositoryOption = {
 }
 
 const props = defineProps<{
+  panelTitle: string
+  panelBadgeLabel: string
+  panelSummary: string
+  panelDetail: string
+  boundaryNote: string
   listingStatus: string
   listingDetail: string
   listingRemediation: string | null
@@ -140,6 +146,23 @@ const importRepository = () => {
 
 <template>
   <section class="space-y-4">
+    <div class="space-y-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 id="setup-github-repository-widget-title" class="text-xl font-semibold">
+          {{ props.panelTitle }}
+        </h2>
+        <span id="setup-github-repository-widget-badge" class="badge badge-outline text-xs">
+          {{ props.panelBadgeLabel }}
+        </span>
+      </div>
+      <p id="setup-github-repository-widget-summary" class="text-sm font-medium text-base-content/80">
+        {{ props.panelSummary }}
+      </p>
+      <p id="setup-github-repository-widget-detail" class="max-w-2xl text-sm text-base-content/60">
+        {{ props.panelDetail }}
+      </p>
+    </div>
+
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="space-y-1">
         <div class="flex flex-wrap items-center gap-2">
@@ -148,8 +171,8 @@ const importRepository = () => {
             {{ props.listingStatus === "ready" ? "Ready" : "Needs attention" }}
           </span>
         </div>
-        <p class="text-sm text-base-content/70">
-          LiveView still owns the saved selection and import state; this widget only makes repository choice easier to scan and resume.
+        <p id="setup-github-repository-widget-boundary-note" class="text-sm text-base-content/70">
+          {{ props.boundaryNote }}
         </p>
       </div>
 

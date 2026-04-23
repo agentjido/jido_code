@@ -64,22 +64,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 56.2.2.2 Subtask - Route validation and save behavior back through `change_runtime_environment` and `save_runtime_environment` without moving environment checks into Vue.
       [x] 56.2.2.3 Subtask - Keep local workspace-root errors, disabled states, and fallback submission usable in plain LiveView.
 
-  [ ] 56.3 Section - GitHub Follow-Up Hybrid Convergence
+  [x] 56.3 Section - GitHub Follow-Up Hybrid Convergence
     Expand the existing hybrid GitHub follow-up pattern without crossing the sensitive-control boundary defined by the ADR.
 
-    [ ] 56.3.1 Task - Keep PAT capture and explicit completion server-owned
+    [x] 56.3.1 Task - Keep PAT capture and explicit completion server-owned
       Make the non-negotiable LiveView-owned setup controls explicit while richer GitHub follow-up regions evolve around them.
 
-      [ ] 56.3.1.1 Subtask - Preserve PAT entry, encryption preflight, and secret-persistence messaging in HEEx rather than migrating those controls into Vue.
-      [ ] 56.3.1.2 Subtask - Preserve explicit completion into the dashboard as a LiveView-owned control that remains available under degraded frontend delivery.
-      [ ] 56.3.1.3 Subtask - Keep GitHub prerequisite gating and deferred selector messaging server-authored so fallback behavior stays clear.
+      [x] 56.3.1.1 Subtask - Preserve PAT entry, encryption preflight, and secret-persistence messaging in HEEx rather than migrating those controls into Vue.
+      [x] 56.3.1.2 Subtask - Preserve explicit completion into the dashboard as a LiveView-owned control that remains available under degraded frontend delivery.
+      [x] 56.3.1.3 Subtask - Keep GitHub prerequisite gating and deferred selector messaging server-authored so fallback behavior stays clear.
 
-    [ ] 56.3.2 Task - Deepen the repository-selection widget and follow-up overview
+    [x] 56.3.2 Task - Deepen the repository-selection widget and follow-up overview
       Improve the existing GitHub hybrid region by pushing more choice-heavy, non-sensitive follow-up UI into bounded widgets.
 
-      [ ] 56.3.2.1 Subtask - Move repository listing status, selected-repository summary, and import-status chrome fully into the GitHub widget where that improves scanning and resume behavior.
-      [ ] 56.3.2.2 Subtask - Keep refresh, selection, and import events mapped back into LiveView without introducing a client-owned import state machine.
-      [ ] 56.3.2.3 Subtask - Preserve a complete server-rendered fallback selector, including scrollable repository choice and import success affordances.
+      [x] 56.3.2.1 Subtask - Move repository listing status, selected-repository summary, and import-status chrome fully into the GitHub widget where that improves scanning and resume behavior.
+      [x] 56.3.2.2 Subtask - Keep refresh, selection, and import events mapped back into LiveView without introducing a client-owned import state machine.
+      [x] 56.3.2.3 Subtask - Preserve a complete server-rendered fallback selector, including scrollable repository choice and import success affordances.
 
   [ ] 56.4 Section - Setup Route Browser Verification And Phase Integration Tests
     Close the gap between LiveView contract tests and real hybrid behavior before any more sensitive setup controls are considered for client adoption.

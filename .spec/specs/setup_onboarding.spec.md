@@ -351,6 +351,7 @@ surface:
   covers:
     - setup.onboarding.github_repository_selection_persisted_metadata
     - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+    - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 
 - kind: source_file
   target: lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue

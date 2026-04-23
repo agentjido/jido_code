@@ -534,7 +534,10 @@ defmodule JidoCodeWeb.SetupLive do
               id="setup-github-repository-panel"
               class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-5"
             >
-              <div class="space-y-2">
+              <div
+                :if={github_repository_selector_deferred?(@github_pat_capture_state, @github_project_import_report)}
+                class="space-y-2"
+              >
                 <div class="flex flex-wrap items-center gap-2">
                   <h2 class="text-xl font-semibold">Choose a GitHub repository</h2>
                   <span id="setup-github-repository-badge" class="badge badge-outline text-xs">
@@ -667,6 +670,45 @@ defmodule JidoCodeWeb.SetupLive do
                 fallback_detail="Use the server-rendered selector below while the richer picker is unavailable."
               >
                 <section id="setup-github-repository-selector-fallback-body" class="space-y-4">
+                  <div class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h2
+                        id="setup-github-repository-fallback-title"
+                        class="text-xl font-semibold"
+                      >
+                        {github_repository_panel_title()}
+                      </h2>
+                      <span
+                        id="setup-github-repository-fallback-badge"
+                        class="badge badge-outline text-xs"
+                      >
+                        {github_repository_panel_badge_label()}
+                      </span>
+                    </div>
+                    <p
+                      id="setup-github-repository-fallback-summary"
+                      class="text-sm font-medium text-base-content/80"
+                    >
+                      {github_repository_panel_summary(
+                        @github_pat_capture_state,
+                        @github_repository_listing_report,
+                        @github_project_import_report
+                      )}
+                    </p>
+                    <p
+                      id="setup-github-repository-fallback-detail"
+                      class="max-w-2xl text-sm text-base-content/60"
+                    >
+                      {github_repository_panel_detail()}
+                    </p>
+                    <p
+                      id="setup-github-repository-fallback-boundary-note"
+                      class="text-sm text-base-content/70"
+                    >
+                      {github_repository_widget_boundary_note()}
+                    </p>
+                  </div>
+
                   <div class="grid gap-3 md:grid-cols-3">
                     <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
                       <p class="text-xs uppercase text-base-content/60">Repository access</p>
@@ -1230,6 +1272,9 @@ defmodule JidoCodeWeb.SetupLive do
   defp show_github_repository_selector?(:github), do: true
   defp show_github_repository_selector?(_selected_start_path), do: false
 
+  defp github_repository_panel_title, do: "Choose a GitHub repository"
+  defp github_repository_panel_badge_label, do: "Optional follow-up"
+
   defp github_repository_panel_summary(github_pat_capture_state, listing_report, project_import_report) do
     cond do
       github_project_import_ready?(project_import_report) ->
@@ -1246,6 +1291,14 @@ defmodule JidoCodeWeb.SetupLive do
     end
   end
 
+  defp github_repository_panel_detail do
+    "Pick one linked GitHub repository to import into the control plane now, or finish onboarding and come back later."
+  end
+
+  defp github_repository_widget_boundary_note do
+    "LiveView still owns PAT capture, persistence, and completion; this widget only makes repository follow-up easier to scan and resume."
+  end
+
   defp github_pat_capture_visible?(%{required?: true}, project_import_report),
     do: not github_project_import_ready?(project_import_report)
 
@@ -1256,6 +1309,16 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp github_repository_selector_props(assigns) do
     %{
+      panelTitle: github_repository_panel_title(),
+      panelBadgeLabel: github_repository_panel_badge_label(),
+      panelSummary:
+        github_repository_panel_summary(
+          assigns.github_pat_capture_state,
+          assigns.github_repository_listing_report,
+          assigns.github_project_import_report
+        ),
+      panelDetail: github_repository_panel_detail(),
+      boundaryNote: github_repository_widget_boundary_note(),
       listingStatus: github_listing_status(assigns.github_repository_listing_report),
       listingDetail: assigns.github_repository_listing_report.detail,
       listingRemediation: assigns.github_repository_listing_report.remediation,

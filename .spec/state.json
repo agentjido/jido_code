@@ -14896,7 +14896,8 @@
       {
         "covers": [
           "setup.onboarding.github_repository_selection_persisted_metadata",
-          "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback"
+          "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+          "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -31290,6 +31291,17 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
         "verification_index": 11
       },
@@ -32267,7 +32279,7 @@
     "strength_summary": {
       "claimed": 65,
       "executed": 0,
-      "linked": 1465
+      "linked": 1466
     },
     "threshold_failures": 0
   },

@@ -554,6 +554,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-repository-panel")
+    refute has_element?(view, "#setup-github-repository-summary")
 
     assert_vue_component(view, "SetupGitHubRepositorySelectorWidget", id: "setup-github-repository-selector")
 
@@ -568,6 +569,17 @@ defmodule JidoCodeWeb.SetupLiveTest do
     )
 
     selector = vue(view, id: "setup-github-repository-selector")
+
+    assert selector.props["panelTitle"] == "Choose a GitHub repository"
+    assert selector.props["panelBadgeLabel"] == "Optional follow-up"
+    assert selector.props["panelSummary"] ==
+             "Pick one of your linked GitHub repositories and import it into the control plane."
+
+    assert selector.props["panelDetail"] ==
+             "Pick one linked GitHub repository to import into the control plane now, or finish onboarding and come back later."
+
+    assert selector.props["boundaryNote"] ==
+             "LiveView still owns PAT capture, persistence, and completion; this widget only makes repository follow-up easier to scan and resume."
 
     assert selector.props["selectedRepository"] == "owner/repo-one"
     assert selector.props["listingStatus"] == "ready"
@@ -605,6 +617,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
     choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-pat-panel")
+    assert has_element?(
+             view,
+             "#setup-github-repository-summary",
+             "Save a deployment-local GitHub PAT first, then repository selection will unlock automatically."
+           )
+
     assert has_element?(view, "#setup-github-pat-form")
     assert has_element?(view, "#setup-github-repository-selector-deferred")
     refute has_element?(view, "#setup-github-repository-selector")
@@ -974,6 +992,21 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert has_element?(view, "#setup-github-repository-selector-fallback")
     assert has_element?(view, "#setup-github-repository-selector-fallback-body")
+    assert has_element?(view, "#setup-github-repository-fallback-title", "Choose a GitHub repository")
+    assert has_element?(view, "#setup-github-repository-fallback-badge", "Optional follow-up")
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-summary",
+             "Pick one of your linked GitHub repositories and import it into the control plane."
+           )
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-boundary-note",
+             "LiveView still owns PAT capture, persistence, and completion; this widget only makes repository follow-up easier to scan and resume."
+           )
+
     assert has_element?(view, "#setup-github-repository-fallback-list")
 
     assert has_element?(

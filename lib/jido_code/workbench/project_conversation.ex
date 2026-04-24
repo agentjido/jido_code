@@ -44,6 +44,12 @@ defmodule JidoCode.Workbench.ProjectConversation do
           resumed?: boolean()
         }
 
+  @type roster_result :: %{
+          managed_repo_id: String.t() | nil,
+          entries: [work_item_projection()],
+          notice: notice() | nil
+        }
+
   @type work_item_projection :: %{
           available?: boolean(),
           managed_repo_id: String.t() | nil,
@@ -82,7 +88,7 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
     case scope(project_like) do
       {:ok, managed_repo_id} ->
-        load_projection(managed_repo_id, actor, selected_work_item_id)
+        load_detail_projection(managed_repo_id, actor, selected_work_item_id)
 
       {:error, notice} ->
         unavailable_projection(notice)
@@ -94,6 +100,40 @@ defmodule JidoCode.Workbench.ProjectConversation do
       when is_binary(managed_repo_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
     load_projection(managed_repo_id, actor, nil)
+  end
+
+  @spec load_active_work_item_roster(map() | String.t() | nil, keyword()) :: roster_result()
+  def load_active_work_item_roster(project_like_or_managed_repo_id, opts \\ []) when is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    case managed_repo_scope(project_like_or_managed_repo_id) do
+      {:ok, managed_repo_id} ->
+        case AgentWorkspace.active_work_item_conversations(managed_repo_id, actor: actor) do
+          {:ok, conversations} ->
+            %{
+              managed_repo_id: managed_repo_id,
+              entries:
+                conversations
+                |> Enum.map(&load_work_item_linkage(&1.work_item_id, actor: actor))
+                |> Enum.sort_by(&roster_sort_key/1, :desc),
+              notice: nil
+            }
+
+          {:error, reason} ->
+            %{
+              managed_repo_id: managed_repo_id,
+              entries: [],
+              notice: load_error_notice(reason)
+            }
+        end
+
+      {:error, notice} ->
+        %{
+          managed_repo_id: nil,
+          entries: [],
+          notice: notice
+        }
+    end
   end
 
   @spec load_work_item_linkage(WorkItem.t() | map() | String.t() | nil, keyword()) :: work_item_projection()
@@ -199,6 +239,46 @@ defmodule JidoCode.Workbench.ProjectConversation do
     end
   end
 
+  defp load_detail_projection(managed_repo_id, actor, selected_work_item_id) do
+    if is_binary(selected_work_item_id) do
+      load_projection(managed_repo_id, actor, selected_work_item_id)
+    else
+      case load_projection(managed_repo_id, actor, nil) do
+        %{conversation: nil} = empty_projection ->
+          fallback_detail_projection(managed_repo_id, actor, empty_projection)
+
+        projection ->
+          projection
+      end
+    end
+  end
+
+  defp fallback_detail_projection(managed_repo_id, actor, empty_projection) do
+    case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: actor) do
+      {:ok, %Conversation{} = conversation} ->
+        case AgentWorkspace.conversation_snapshot(conversation.id) do
+          {:ok, snapshot} ->
+            projection_for(conversation, snapshot, managed_repo_id, actor)
+
+          {:error, reason} ->
+            %{
+              available?: true,
+              managed_repo_id: managed_repo_id,
+              conversation: conversation_summary(conversation, nil),
+              historical_conversation: nil,
+              work_item: load_attached_work_item(conversation.work_item_id, actor: actor),
+              snapshot: nil,
+              recent_events: [],
+              notice: snapshot_unavailable_notice(reason),
+              action_label: repo_action_label(conversation)
+            }
+        end
+
+      _other ->
+        empty_projection
+    end
+  end
+
   defp open_repo_conversation(managed_repo_id, attrs, actor, restart?) do
     if restart? do
       start_repo_conversation(managed_repo_id, attrs, actor)
@@ -270,6 +350,9 @@ defmodule JidoCode.Workbench.ProjectConversation do
   end
 
   defp scope(_project_like), do: {:error, unavailable_notice()}
+
+  defp managed_repo_scope(managed_repo_id) when is_binary(managed_repo_id), do: {:ok, managed_repo_id}
+  defp managed_repo_scope(project_like), do: scope(project_like)
 
   defp projection_for(%Conversation{} = conversation, snapshot, managed_repo_id, actor) do
     %{
@@ -410,6 +493,17 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp recent_events(%{events: events}) when is_list(events), do: Enum.take(events, -10)
   defp recent_events(_snapshot), do: []
+
+  defp roster_sort_key(%{} = entry) do
+    entry
+    |> map_get(:conversation, "conversation", %{})
+    |> map_get(:last_activity_at, "last_activity_at")
+    |> normalize_sortable_timestamp() ||
+      entry
+      |> map_get(:work_item, "work_item", %{})
+      |> map_get(:updated_at, "updated_at")
+      |> normalize_sortable_timestamp() || 0
+  end
 
   defp action_label(%Conversation{status: status}) when status in [:active, :paused],
     do: "Continue repo conversation"
@@ -836,4 +930,15 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp empty_map_to_nil(map) when is_map(map) and map_size(map) == 0, do: nil
   defp empty_map_to_nil(map), do: map
+
+  defp normalize_sortable_timestamp(%DateTime{} = value), do: DateTime.to_unix(value, :microsecond)
+
+  defp normalize_sortable_timestamp(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> DateTime.to_unix(datetime, :microsecond)
+      _other -> nil
+    end
+  end
+
+  defp normalize_sortable_timestamp(_value), do: nil
 end

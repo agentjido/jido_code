@@ -59,16 +59,19 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
   attr :excerpt, :string, default: nil
   attr :occurred_at, :string, default: nil
   attr :event_name, :string, default: nil
+  attr :tone, :any, default: :neutral
 
   def conversation_event_row(assigns) do
     ~H"""
-    <article id={@id} class="rounded-md border border-base-300/70 bg-base-200/30 p-3">
+    <article id={@id} class={["rounded-md border p-3", event_row_class(@tone)]}>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <span :if={!is_nil(@sequence)} class="font-mono text-xs text-base-content/60">
             ##{@sequence}
           </span>
-          <span class="badge badge-sm badge-outline font-semibold">{@label}</span>
+          <span class={["badge badge-sm badge-outline font-semibold", event_label_class(@tone)]}>
+            {@label}
+          </span>
           <span :if={present_string?(@event_name)} class="text-xs text-base-content/60">
             {@event_name}
           </span>
@@ -162,6 +165,26 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
   defp normalize_status(value) when is_atom(value), do: value |> Atom.to_string() |> normalize_status()
   defp normalize_status(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_status(_value), do: "unknown"
+
+  defp event_row_class(:error), do: "border-error/60 bg-error/10"
+  defp event_row_class(:warning), do: "border-warning/60 bg-warning/10"
+  defp event_row_class(:success), do: "border-success/60 bg-success/10"
+  defp event_row_class(:status), do: "border-info/50 bg-info/10"
+  defp event_row_class(:input), do: "border-primary/50 bg-primary/5"
+  defp event_row_class(:progress), do: "border-info/40 bg-info/5"
+  defp event_row_class(:tool), do: "border-base-300/70 bg-base-100"
+  defp event_row_class(:turn), do: "border-base-300/70 bg-base-200/20"
+  defp event_row_class(_tone), do: "border-base-300/70 bg-base-200/30"
+
+  defp event_label_class(:error), do: "badge-error"
+  defp event_label_class(:warning), do: "badge-warning"
+  defp event_label_class(:success), do: "badge-success"
+  defp event_label_class(:status), do: "badge-info"
+  defp event_label_class(:input), do: "badge-primary"
+  defp event_label_class(:progress), do: "badge-info"
+  defp event_label_class(:tool), do: "badge-neutral"
+  defp event_label_class(:turn), do: "badge-ghost"
+  defp event_label_class(_tone), do: "badge-ghost"
 
   defp present_string?(value) when is_binary(value), do: String.trim(value) != ""
   defp present_string?(_value), do: false

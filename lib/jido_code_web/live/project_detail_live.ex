@@ -17,6 +17,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Conversations.PubSub, as: ConversationPubSub
+  alias JidoCode.Conversations.RuntimeReadiness
+  alias JidoCode.LLMSelection
   alias JidoCode.Workbench.ProjectDetail
   alias JidoCode.Workbench.ProjectConversation
   alias JidoCode.Workbench.ProjectMemoryInspection
@@ -41,6 +43,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:conversation_roster_notice, nil)
      |> assign(:conversation_snapshot, nil)
      |> assign(:conversation_events, [])
+     |> assign(:conversation_runtime, empty_conversation_runtime())
      |> assign(:conversation_last_event_sequence, 0)
      |> assign(:conversation_input, "")
      |> assign(:conversation_action_feedback, nil)
@@ -685,6 +688,76 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   compact={true}
                 />
 
+                <section
+                  id="project-detail-conversation-runtime"
+                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-3"
+                >
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                      <h4 class="font-semibold">Conversation runtime readiness</h4>
+                      <p class="text-xs text-base-content/60">
+                        Provider selection, workspace scope, and readiness stay visible on the route before runtime metadata.
+                      </p>
+                    </div>
+                    <span
+                      id="project-detail-conversation-runtime-status"
+                      class={[
+                        "badge badge-sm badge-outline font-medium",
+                        conversation_runtime_status_class(@conversation_runtime)
+                      ]}
+                    >
+                      {conversation_runtime_status_label(@conversation_runtime)}
+                    </span>
+                  </div>
+
+                  <div class="grid gap-2 md:grid-cols-3">
+                    <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
+                      <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                        Selected LLM
+                      </p>
+                      <p id="project-detail-conversation-runtime-llm" class="mt-1 text-sm font-medium break-all">
+                        {conversation_runtime_llm_label(@conversation_runtime)}
+                      </p>
+                    </article>
+                    <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
+                      <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                        Selection source
+                      </p>
+                      <p id="project-detail-conversation-runtime-source" class="mt-1 text-sm font-medium">
+                        {conversation_runtime_source_label(@conversation_runtime)}
+                      </p>
+                    </article>
+                    <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
+                      <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                        Workspace path
+                      </p>
+                      <p
+                        id="project-detail-conversation-runtime-workspace"
+                        class="mt-1 text-sm font-medium break-all"
+                      >
+                        {conversation_runtime_workspace_label(@conversation_runtime)}
+                      </p>
+                    </article>
+                  </div>
+
+                  <.operator_state_notice
+                    :if={conversation_runtime_notice_visible?(@conversation_runtime)}
+                    id="project-detail-conversation-runtime-notice"
+                    title="Conversation runtime readiness"
+                    state={@conversation_runtime.notice}
+                    kind={:error}
+                    compact={true}
+                  >
+                    <p
+                      :if={conversation_runtime_preserves_state?(@conversation_runtime, @conversation_surface)}
+                      id="project-detail-conversation-runtime-preserved"
+                      class="text-sm"
+                    >
+                      Latest transcript and governed linkage remain visible below while runtime prerequisites recover.
+                    </p>
+                  </.operator_state_notice>
+                </section>
+
                 <div
                   :if={@conversation_stream_mode == :degraded}
                   id="project-detail-conversation-degraded"
@@ -700,33 +773,74 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <div class="grid gap-3 lg:grid-cols-[2fr,1fr] p-4">
                     <section class="rounded-lg border border-base-300/70 bg-base-100">
                       <div class="border-b border-base-300/70 px-4 py-3">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <h3 class="font-semibold">Conversation transcript</h3>
                             <p class="text-xs text-base-content/60">
                               Recent event-driven transcript and operator controls for the selected conversation.
                             </p>
                           </div>
+                        </div>
 
-                          <div class="flex flex-wrap items-center gap-2 text-xs">
-                            <.conversation_stream_badge
-                              id="project-detail-conversation-stream-mode"
-                              stream_mode={@conversation_stream_mode}
-                              discontinuity_count={@conversation_stream_discontinuity_count}
-                            />
-                            <span
-                              id="project-detail-conversation-sequence"
-                              class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                        <div id="project-detail-conversation-continuity" class="mt-3 grid gap-2 md:grid-cols-3">
+                          <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                              Stream continuity
+                            </p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                              <.conversation_stream_badge
+                                id="project-detail-conversation-stream-mode"
+                                stream_mode={@conversation_stream_mode}
+                                discontinuity_count={@conversation_stream_discontinuity_count}
+                              />
+                            </div>
+                            <p
+                              id="project-detail-conversation-continuity-detail"
+                              class="mt-2 text-xs text-base-content/70"
                             >
-                              seq {@conversation_last_event_sequence}
-                            </span>
-                            <span
-                              id="project-detail-conversation-discontinuities"
-                              class="rounded-full bg-base-200 px-3 py-1 font-medium"
+                              {conversation_continuity_detail(
+                                @conversation_stream_mode,
+                                @conversation_stream_discontinuity_count
+                              )}
+                            </p>
+                          </article>
+
+                          <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                              Latest activity
+                            </p>
+                            <p
+                              id="project-detail-conversation-latest-activity"
+                              class="mt-1 text-sm font-medium"
                             >
-                              discontinuities: {@conversation_stream_discontinuity_count}
-                            </span>
-                          </div>
+                              {conversation_latest_activity_label(@conversation_surface) ||
+                                "No recent conversation activity"}
+                            </p>
+                            <p class="mt-2 text-xs text-base-content/70">
+                              Route continuity stays anchored to the latest durable snapshot.
+                            </p>
+                          </article>
+
+                          <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                              Current turn
+                            </p>
+                            <p
+                              id="project-detail-conversation-turn-state"
+                              class="mt-1 text-sm font-medium"
+                            >
+                              {conversation_turn_summary(@conversation_snapshot)}
+                            </p>
+                            <p
+                              id="project-detail-conversation-sequence-summary"
+                              class="mt-2 text-xs text-base-content/70"
+                            >
+                              {conversation_sequence_summary(
+                                @conversation_last_event_sequence,
+                                @conversation_stream_discontinuity_count
+                              )}
+                            </p>
+                          </article>
                         </div>
                       </div>
 
@@ -740,6 +854,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             occurred_at={format_time(map_get(event, :occurred_at, "occurred_at"))}
                             title={conversation_event_title(event)}
                             excerpt={conversation_event_excerpt(event)}
+                            tone={conversation_event_tone(event)}
                           />
                         <% end %>
                       </div>
@@ -1353,6 +1468,82 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     }
   end
 
+  defp empty_conversation_runtime do
+    %{
+      status: :idle,
+      notice: nil,
+      llm_selection: nil,
+      workspace_path: nil
+    }
+  end
+
+  defp assign_conversation_runtime(socket, project_detail) do
+    assign(socket, :conversation_runtime, load_conversation_runtime(project_detail))
+  end
+
+  defp load_conversation_runtime(%{} = project_detail) do
+    managed_repo_id =
+      project_detail
+      |> Map.get(:managed_repo_id)
+      |> present_optional_string()
+
+    llm_selection = resolve_runtime_llm_selection(project_detail)
+    workspace_path = project_detail |> runtime_workspace_path() |> present_optional_string()
+
+    case managed_repo_id do
+      nil ->
+        %{
+          status: :blocked,
+          notice: %{
+            error_type: "conversation_runtime_repo_scope_invalid",
+            detail: "Managed repository scope is missing for real conversation runtime.",
+            remediation: "Open the repository from a managed-repository route and retry the conversation."
+          },
+          llm_selection: llm_selection,
+          workspace_path: workspace_path
+        }
+
+      _managed_repo_id ->
+        case RuntimeReadiness.resolve(managed_repo_id) do
+          {:ok, readiness} ->
+            %{
+              status: :ready,
+              notice: nil,
+              llm_selection: LLMSelection.summary(readiness.llm_selection),
+              workspace_path: readiness.workspace_path
+            }
+
+          {:error, %{} = notice} ->
+            %{
+              status: :blocked,
+              notice: notice,
+              llm_selection: llm_selection,
+              workspace_path: workspace_path
+            }
+        end
+    end
+  end
+
+  defp load_conversation_runtime(_project_detail), do: empty_conversation_runtime()
+
+  defp resolve_runtime_llm_selection(project_detail) do
+    case LLMSelection.resolve_from_project_detail(project_detail) do
+      {:ok, selection} -> LLMSelection.summary(selection)
+      _other -> nil
+    end
+  end
+
+  defp runtime_workspace_path(%{} = project_detail) do
+    project_detail
+    |> Map.get(:settings)
+    |> Kernel.||(%{})
+    |> Map.get("workspace")
+    |> Kernel.||(%{})
+    |> Map.get("workspace_path")
+  end
+
+  defp runtime_workspace_path(_project_detail), do: nil
+
   defp assign_project_conversation(socket, project_detail, selected_work_item_id) do
     previous_conversation_id = conversation_id(socket)
     actor = initiating_actor(socket)
@@ -1383,6 +1574,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_roster, roster_result.entries)
     |> assign(:conversation_roster_notice, roster_result.notice)
     |> assign(:selected_work_item_id, effective_selected_work_item_id)
+    |> assign_conversation_runtime(project_detail)
     |> assign_conversation_surface(selected_surface)
     |> sync_conversation_subscription(previous_conversation_id)
   end
@@ -1395,6 +1587,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> assign(:conversation_surface, empty_conversation_surface())
     |> assign(:conversation_snapshot, nil)
     |> assign(:conversation_events, [])
+    |> assign(:conversation_runtime, empty_conversation_runtime())
     |> assign(:conversation_last_event_sequence, 0)
     |> assign(:conversation_input, "")
     |> assign(:conversation_action_feedback, nil)
@@ -1715,6 +1908,85 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp conversation_latest_activity_label(_surface), do: nil
 
+  defp conversation_runtime_notice_visible?(%{notice: %{} = _notice}), do: true
+  defp conversation_runtime_notice_visible?(_runtime), do: false
+
+  defp conversation_runtime_preserves_state?(%{status: :blocked}, %{snapshot: %{} = _snapshot}), do: true
+  defp conversation_runtime_preserves_state?(%{status: :blocked}, %{work_item: %{} = _work_item}), do: true
+  defp conversation_runtime_preserves_state?(_runtime, _surface), do: false
+
+  defp conversation_runtime_status_label(%{status: :ready}), do: "Ready"
+  defp conversation_runtime_status_label(%{status: :blocked}), do: "Blocked"
+  defp conversation_runtime_status_label(_runtime), do: "Idle"
+
+  defp conversation_runtime_status_class(%{status: :ready}), do: "badge-success"
+  defp conversation_runtime_status_class(%{status: :blocked}), do: "badge-error"
+  defp conversation_runtime_status_class(_runtime), do: "badge-ghost"
+
+  defp conversation_runtime_llm_label(%{llm_selection: %{model_spec: model_spec}})
+       when is_binary(model_spec),
+       do: model_spec
+
+  defp conversation_runtime_llm_label(_runtime), do: "No provider/model selected"
+
+  defp conversation_runtime_source_label(%{llm_selection: %{source: source}}) when is_atom(source) do
+    case source do
+      :explicit -> "Explicit override"
+      :conversation -> "Conversation metadata"
+      :repo_default -> "Managed repo default"
+      :system_default -> "System default"
+      other -> other |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
+    end
+  end
+
+  defp conversation_runtime_source_label(_runtime), do: "Unavailable"
+
+  defp conversation_runtime_workspace_label(%{workspace_path: path}) when is_binary(path), do: path
+  defp conversation_runtime_workspace_label(_runtime), do: "Workspace path unavailable"
+
+  defp conversation_continuity_detail(:live, 0), do: "Live events are arriving without detected gaps."
+
+  defp conversation_continuity_detail(:live, discontinuity_count) when discontinuity_count > 0 do
+    "Live delivery recovered from #{discontinuity_count} continuity gap(s)."
+  end
+
+  defp conversation_continuity_detail(:degraded, discontinuity_count) when discontinuity_count > 0 do
+    "Showing the durable snapshot after #{discontinuity_count} continuity gap(s)."
+  end
+
+  defp conversation_continuity_detail(:degraded, _discontinuity_count) do
+    "Showing the durable snapshot while live delivery is unavailable."
+  end
+
+  defp conversation_continuity_detail(_stream_mode, _discontinuity_count) do
+    "Conversation continuity metadata will appear once a route-owned transcript is available."
+  end
+
+  defp conversation_turn_summary(snapshot) do
+    cond do
+      conversation_awaiting_input?(snapshot) ->
+        "Clarification required"
+
+      conversation_active_turn?(snapshot) ->
+        "Turn in progress"
+
+      conversation_paused?(snapshot) ->
+        "Conversation paused"
+
+      true ->
+        "No active turn"
+    end
+  end
+
+  defp conversation_sequence_summary(last_event_sequence, discontinuity_count)
+       when is_integer(last_event_sequence) do
+    "Sequence #{last_event_sequence}. Continuity gaps #{discontinuity_count}."
+  end
+
+  defp conversation_sequence_summary(_last_event_sequence, discontinuity_count) do
+    "Sequence unavailable. Continuity gaps #{discontinuity_count}."
+  end
+
   defp conversation_roster_selected?(selected_work_item_id, %{} = entry) when is_binary(selected_work_item_id) do
     entry_work_item_id =
       entry
@@ -1807,11 +2079,95 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp conversation_stdout_preview(_snapshot), do: []
 
   defp conversation_event_label(event) do
-    event
-    |> map_get(:name, "name", "")
-    |> case do
-      "" -> "event"
-      name -> name |> String.split(".", parts: 2) |> List.first()
+    case map_get(event, :name, "name", "") do
+      "conversation.message_added" ->
+        "input"
+
+      "conversation.status_changed" ->
+        "status"
+
+      "turn.awaiting_input" ->
+        "clarification"
+
+      "turn.delta" ->
+        "progress"
+
+      "tool.progress" ->
+        "progress"
+
+      "tool.stdout" ->
+        "tool output"
+
+      "tool.failed" ->
+        "failure"
+
+      "tool.cancel_failed" ->
+        "failure"
+
+      "" ->
+        "event"
+
+      name when is_binary(name) ->
+        cond do
+          String.starts_with?(name, "tool.") -> "tool"
+          String.starts_with?(name, "turn.") -> "turn"
+          true -> name |> String.split(".", parts: 2) |> List.first()
+        end
+
+      _other ->
+        "event"
+    end
+  end
+
+  defp conversation_event_tone(event) do
+    case map_get(event, :name, "name", "") do
+      "conversation.message_added" ->
+        :input
+
+      "conversation.status_changed" ->
+        :status
+
+      "turn.awaiting_input" ->
+        :warning
+
+      "turn.completed" ->
+        :success
+
+      "turn.cancelled" ->
+        :warning
+
+      "turn.cancelling" ->
+        :warning
+
+      "turn.delta" ->
+        :progress
+
+      "tool.progress" ->
+        :progress
+
+      "tool.stdout" ->
+        :tool
+
+      "tool.started" ->
+        :tool
+
+      "tool.completed" ->
+        :success
+
+      "tool.cancelled" ->
+        :warning
+
+      "tool.failed" ->
+        :error
+
+      "tool.cancel_failed" ->
+        :error
+
+      name when is_binary(name) ->
+        if String.starts_with?(name, "turn."), do: :turn, else: :neutral
+
+      _other ->
+        :neutral
     end
   end
 

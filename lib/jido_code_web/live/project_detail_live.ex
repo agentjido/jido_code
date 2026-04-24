@@ -442,6 +442,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </p>
                   </div>
                   <.conversation_role_badge
+                    :if={@repo_intake_surface && @repo_intake_surface.conversation}
                     id="project-detail-conversation-intake-role"
                     scope={Map.get(@repo_intake_surface.conversation, :scope)}
                     attachment_mode={Map.get(@repo_intake_surface.conversation, :attachment_mode)}
@@ -653,6 +654,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   </div>
                   <div class="flex flex-wrap items-center gap-2 text-xs">
                     <.conversation_role_badge
+                      :if={@conversation_surface.conversation}
                       id="project-detail-conversation-role"
                       scope={Map.get(@conversation_surface.conversation, :scope)}
                       attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
@@ -992,7 +994,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         </button>
                         <button
                           :if={!@selected_work_item_id}
-                          id="project-detail-conversation-open"
+                          id="project-detail-conversation-open-detail"
                           type="button"
                           class="btn btn-sm btn-primary"
                           phx-click="open_repo_conversation"
@@ -1009,7 +1011,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         Open a repository conversation to coordinate repo-scoped work without leaving the managed-repository detail route.
                       </p>
                       <button
-                        id="project-detail-conversation-open"
+                        id="project-detail-conversation-open-empty"
                         type="button"
                         class="btn btn-primary btn-sm"
                         phx-click="open_repo_conversation"
@@ -1647,8 +1649,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp repo_intake_handoff_work_item_id(%{} = surface) do
     surface
-    |> Map.get(:conversation, %{})
-    |> Map.get(:intake_handoff, %{})
+    |> Map.get(:conversation)
+    |> Kernel.||(%{})
+    |> Map.get(:intake_handoff)
+    |> Kernel.||(%{})
     |> Map.get("work_item_id")
     |> present_optional_string()
   end
@@ -1658,8 +1662,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp repo_intake_handoff_detail(%{} = surface) do
     handoff =
       surface
-      |> Map.get(:conversation, %{})
-      |> Map.get(:intake_handoff, %{})
+      |> Map.get(:conversation)
+      |> Kernel.||(%{})
+      |> Map.get(:intake_handoff)
+      |> Kernel.||(%{})
 
     case handoff do
       %{"handoff_kind" => "repo_intake_to_work_item", "work_item_id" => work_item_id}
@@ -1694,12 +1700,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp conversation_latest_activity_label(%{} = surface) do
     surface
-    |> Map.get(:conversation, %{})
+    |> Map.get(:conversation)
+    |> Kernel.||(%{})
     |> Map.get(:last_activity_at)
     |> format_activity_time()
     |> Kernel.||(
       surface
-      |> Map.get(:work_item, %{})
+      |> Map.get(:work_item)
+      |> Kernel.||(%{})
       |> Map.get(:updated_at)
       |> format_activity_time()
     )
@@ -1710,7 +1718,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp conversation_roster_selected?(selected_work_item_id, %{} = entry) when is_binary(selected_work_item_id) do
     entry_work_item_id =
       entry
-      |> Map.get(:work_item, %{})
+      |> Map.get(:work_item)
+      |> Kernel.||(%{})
       |> Map.get(:id)
       |> present_optional_string()
 
@@ -1932,15 +1941,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp resolve_selected_work_item_id(selected_work_item_id, repo_intake_surface, roster_entries) do
     selected_work_item_id ||
       repo_intake_surface
-      |> Map.get(:conversation, %{})
-      |> Map.get(:work_item_id)
+      |> case do
+        %{} = intake_surface ->
+          intake_surface
+          |> Map.get(:conversation)
+          |> Kernel.||(%{})
+          |> Map.get(:work_item_id)
+
+        _other ->
+          nil
+      end
       |> present_optional_string() ||
       roster_entries
       |> List.first()
       |> case do
         %{} = entry ->
           entry
-          |> Map.get(:work_item, %{})
+          |> Map.get(:work_item)
+          |> Kernel.||(%{})
           |> Map.get(:id)
           |> present_optional_string()
 

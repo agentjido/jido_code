@@ -63,6 +63,18 @@ defmodule JidoCode.Workbench.ProjectConversation do
           action_label: String.t()
         }
 
+  @type supervision_summary :: %{
+          available?: boolean(),
+          managed_repo_id: String.t() | nil,
+          repo_intake: projection() | nil,
+          active_entries: [work_item_projection()],
+          active_count: non_neg_integer(),
+          clarification_count: non_neg_integer(),
+          latest_entry: work_item_projection() | nil,
+          latest_activity_at: DateTime.t() | nil,
+          notice: notice() | nil
+        }
+
   @spec load_attached_work_item(String.t() | nil, keyword()) :: map() | nil
   def load_attached_work_item(work_item_id, opts \\ [])
 
@@ -131,6 +143,47 @@ defmodule JidoCode.Workbench.ProjectConversation do
         %{
           managed_repo_id: nil,
           entries: [],
+          notice: notice
+        }
+    end
+  end
+
+  @spec load_supervision_summary(map() | String.t() | nil, keyword()) :: supervision_summary()
+  def load_supervision_summary(project_like_or_managed_repo_id, opts \\ []) when is_list(opts) do
+    actor = normalize_actor(Keyword.get(opts, :actor))
+
+    case managed_repo_scope(project_like_or_managed_repo_id) do
+      {:ok, managed_repo_id} ->
+        repo_intake =
+          managed_repo_id
+          |> load_managed_repo(actor: actor)
+          |> normalize_repo_intake_projection()
+
+        roster = load_active_work_item_roster(managed_repo_id, actor: actor)
+        active_entries = Map.get(roster, :entries, [])
+
+        %{
+          available?: true,
+          managed_repo_id: managed_repo_id,
+          repo_intake: repo_intake,
+          active_entries: active_entries,
+          active_count: length(active_entries),
+          clarification_count: clarification_count(repo_intake, active_entries),
+          latest_entry: List.first(active_entries),
+          latest_activity_at: latest_supervision_activity_at(repo_intake, active_entries),
+          notice: Map.get(roster, :notice) || repo_intake_notice(repo_intake)
+        }
+
+      {:error, notice} ->
+        %{
+          available?: false,
+          managed_repo_id: nil,
+          repo_intake: nil,
+          active_entries: [],
+          active_count: 0,
+          clarification_count: 0,
+          latest_entry: nil,
+          latest_activity_at: nil,
           notice: notice
         }
     end
@@ -504,6 +557,68 @@ defmodule JidoCode.Workbench.ProjectConversation do
       |> map_get(:updated_at, "updated_at")
       |> normalize_sortable_timestamp() || 0
   end
+
+  defp normalize_repo_intake_projection(%{conversation: nil, notice: nil} = projection) do
+    if projection_pending_clarification?(projection), do: projection, else: nil
+  end
+
+  defp normalize_repo_intake_projection(%{} = projection), do: projection
+  defp normalize_repo_intake_projection(_projection), do: nil
+
+  defp repo_intake_notice(%{} = projection), do: Map.get(projection, :notice)
+  defp repo_intake_notice(_projection), do: nil
+
+  defp clarification_count(repo_intake, active_entries) when is_list(active_entries) do
+    active_entries_clarification_count =
+      Enum.count(active_entries, &projection_pending_clarification?/1)
+
+    if projection_pending_clarification?(repo_intake) do
+      active_entries_clarification_count + 1
+    else
+      active_entries_clarification_count
+    end
+  end
+
+  defp latest_supervision_activity_at(repo_intake, active_entries) when is_list(active_entries) do
+    [projection_activity_at(repo_intake) | Enum.map(active_entries, &projection_activity_at/1)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort_by(&normalize_sortable_timestamp/1, :desc)
+    |> List.first()
+  end
+
+  defp projection_activity_at(%{} = projection) do
+    projection
+    |> map_get(:conversation, "conversation", %{})
+    |> map_get(:last_activity_at, "last_activity_at")
+    |> normalize_datetime() ||
+      projection
+      |> map_get(:work_item, "work_item", %{})
+      |> map_get(:updated_at, "updated_at")
+      |> normalize_datetime()
+  end
+
+  defp projection_activity_at(_projection), do: nil
+
+  defp projection_pending_clarification?(%{} = projection) do
+    projection
+    |> map_get(:snapshot, "snapshot", %{})
+    |> snapshot_pending_clarification?()
+  end
+
+  defp projection_pending_clarification?(_projection), do: false
+
+  defp snapshot_pending_clarification?(snapshot) when is_map(snapshot) do
+    snapshot
+    |> snapshot_value(:shared_context, %{})
+    |> normalize_map()
+    |> Map.get("pending_clarification")
+    |> case do
+      %{} = pending_clarification when map_size(pending_clarification) > 0 -> true
+      _other -> false
+    end
+  end
+
+  defp snapshot_pending_clarification?(_snapshot), do: false
 
   defp action_label(%Conversation{status: status}) when status in [:active, :paused],
     do: "Continue repo conversation"
@@ -930,6 +1045,17 @@ defmodule JidoCode.Workbench.ProjectConversation do
 
   defp empty_map_to_nil(map) when is_map(map) and map_size(map) == 0, do: nil
   defp empty_map_to_nil(map), do: map
+
+  defp normalize_datetime(%DateTime{} = value), do: value
+
+  defp normalize_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      _other -> nil
+    end
+  end
+
+  defp normalize_datetime(_value), do: nil
 
   defp normalize_sortable_timestamp(%DateTime{} = value), do: DateTime.to_unix(value, :microsecond)
 

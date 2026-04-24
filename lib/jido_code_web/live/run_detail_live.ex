@@ -462,13 +462,22 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <% @conversation_linkage && @conversation_linkage.conversation -> %>
                   <div
                     id="run-detail-conversation-entry"
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
                   >
+                    <div class="flex flex-wrap items-center gap-2">
+                      <.conversation_role_badge
+                        id="run-detail-conversation-role"
+                        scope={Map.get(@conversation_linkage.conversation, :scope)}
+                        attachment_mode={Map.get(@conversation_linkage.conversation, :attachment_mode)}
+                        work_item_id={Map.get(@conversation_linkage.conversation, :work_item_id)}
+                      />
+                      <.conversation_status_badge
+                        id="run-detail-conversation-status"
+                        status={Map.get(@conversation_linkage.conversation, :status)}
+                      />
+                    </div>
                     <p id="run-detail-conversation-id" class="text-sm font-medium">
                       Conversation: {@conversation_linkage.conversation.id}
-                    </p>
-                    <p id="run-detail-conversation-status" class="text-xs text-base-content/80">
-                      Status: {Map.get(@conversation_linkage.conversation, :status) |> status_label()}
                     </p>
                     <p
                       :if={conversation_resolution_action(@conversation_linkage.conversation)}
@@ -507,10 +516,15 @@ defmodule JidoCodeWeb.RunDetailLive do
                     </p>
                     <p
                       :if={@conversation_linkage.historical_conversation}
-                      id="run-detail-conversation-historical-id"
-                      class="text-xs text-base-content/70"
+                      class="flex flex-wrap items-center gap-2"
                     >
-                      Historical origin: {@conversation_linkage.historical_conversation.id}
+                      <.conversation_role_badge
+                        id="run-detail-conversation-historical-role"
+                        historical={true}
+                      />
+                      <span id="run-detail-conversation-historical-id" class="text-xs text-base-content/70">
+                        Historical origin: {@conversation_linkage.historical_conversation.id}
+                      </span>
                     </p>
                     <.link
                       id="run-detail-conversation-open-repo"
@@ -523,10 +537,11 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <% @conversation_linkage && @conversation_linkage.origin -> %>
                   <div
                     id="run-detail-conversation-origin-only"
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
                   >
+                    <.conversation_role_badge id="run-detail-conversation-origin-role" historical={true} />
                     <p id="run-detail-conversation-origin-label" class="text-sm font-medium">
-                      Productive conversation origin preserved on this work item.
+                      Historical conversation lineage is preserved on this work item.
                     </p>
                     <p
                       :if={@conversation_linkage.origin["workflow"]}
@@ -1875,6 +1890,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp route_for_conversation_linkage(project_id, conversation_linkage) do
     project_id = present_string(project_id)
+
     work_item_id =
       conversation_linkage
       |> map_get(:work_item, "work_item", %{})

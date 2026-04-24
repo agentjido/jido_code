@@ -343,6 +343,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     assert has_element?(view, "#run-detail-conversation-entry")
+    assert has_element?(view, "#run-detail-conversation-role", "Governed conversation")
     assert has_element?(view, "#run-detail-conversation-status", "active")
     assert has_element?(view, "#run-detail-conversation-resolution", "created")
 
@@ -486,9 +487,11 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     assert has_element?(view, "#run-detail-conversation-entry")
+    assert has_element?(view, "#run-detail-conversation-role", "Governed conversation")
     assert has_element?(view, "#run-detail-conversation-id", current_conversation.id)
     assert has_element?(view, "#run-detail-conversation-status", "active")
     assert has_element?(view, "#run-detail-conversation-lineage-note", historical_conversation.id)
+    assert has_element?(view, "#run-detail-conversation-historical-role", "Historical lineage")
     assert has_element?(view, "#run-detail-conversation-historical-id", historical_conversation.id)
 
     assert has_element?(

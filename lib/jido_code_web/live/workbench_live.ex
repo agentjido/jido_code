@@ -431,28 +431,51 @@ defmodule JidoCodeWeb.WorkbenchLive do
                   </.link>
                 </div>
                 <div
-                  :if={repo_conversation_summary(project)}
+                  :if={conversation_supervision_projection(project)}
                   id={"workbench-project-conversation-hint-#{project.id}"}
-                  class="space-y-1 pt-2"
+                  class="space-y-2 pt-2"
                 >
-                  <span
-                    id={"workbench-project-conversation-hint-badge-#{project.id}"}
-                    class={repo_conversation_badge_class(project)}
-                  >
-                    {repo_conversation_badge_label(project)}
-                  </span>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <.conversation_role_badge
+                      id={"workbench-project-conversation-role-#{project.id}"}
+                      scope={conversation_supervision_role_scope(project)}
+                      attachment_mode={conversation_supervision_role_attachment_mode(project)}
+                      work_item_id={conversation_supervision_role_work_item_id(project)}
+                    />
+                    <.conversation_status_badge
+                      :if={conversation_supervision_status(project)}
+                      id={"workbench-project-conversation-status-#{project.id}"}
+                      status={conversation_supervision_status(project)}
+                    />
+                    <span
+                      :if={conversation_supervision_active_count(project) > 0}
+                      id={"workbench-project-conversation-hint-badge-#{project.id}"}
+                      class="badge badge-sm badge-primary badge-outline font-medium"
+                    >
+                      {conversation_supervision_active_count_label(project)}
+                    </span>
+                    <span
+                      :if={conversation_supervision_clarification_count(project) > 0}
+                      id={"workbench-project-conversation-clarification-#{project.id}"}
+                      class="badge badge-sm badge-warning badge-outline font-medium"
+                    >
+                      {conversation_supervision_clarification_count_label(project)}
+                    </span>
+                  </div>
                   <p
                     id={"workbench-project-conversation-hint-detail-#{project.id}"}
                     class="text-[11px] text-base-content/65"
                   >
-                    {repo_conversation_detail(project)}
+                    {conversation_supervision_detail(project)}
                   </p>
                   <p
-                    :if={repo_conversation_work_item(project)}
+                    :if={conversation_supervision_work_item(project)}
                     id={"workbench-project-conversation-work-item-#{project.id}"}
                     class="text-[11px] text-base-content/70"
                   >
-                    Governed work: {repo_conversation_work_item(project).summary} ( {repo_conversation_work_item(project).status
+                    Latest governed work: {conversation_supervision_work_item(project).summary} ( {conversation_supervision_work_item(
+                      project
+                    ).status
                     |> conversation_status_label()})
                   </p>
                   <.link
@@ -460,11 +483,11 @@ defmodule JidoCodeWeb.WorkbenchLive do
                     class="link link-primary text-[11px]"
                     navigate={project_detail_path(project, @filter_values)}
                   >
-                    {repo_conversation_action_label(project)}
+                    {conversation_supervision_action_label(project)}
                   </.link>
                 </div>
                 <div
-                  :if={repo_conversation_notice(project)}
+                  :if={conversation_supervision_notice(project)}
                   id={"workbench-project-conversation-notice-#{project.id}"}
                   class="space-y-1 pt-2"
                 >
@@ -478,7 +501,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
                     id={"workbench-project-conversation-notice-detail-#{project.id}"}
                     class="text-[11px] text-base-content/65"
                   >
-                    {repo_conversation_notice(project).detail}
+                    {conversation_supervision_notice(project).detail}
                   </p>
                   <.link
                     id={"workbench-project-conversation-notice-link-#{project.id}"}
@@ -1483,83 +1506,195 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   defp recent_run_outcome(_outcomes, _project_id), do: nil
 
-  defp repo_conversation_projection(project) when is_map(project) do
-    case Map.get(project, :repo_conversation) do
-      %{} = projection -> projection
+  defp conversation_supervision(project) when is_map(project) do
+    case Map.get(project, :conversation_supervision) do
+      %{} = supervision ->
+        supervision
+
+      _other ->
+        case Map.get(project, :repo_conversation) do
+          %{} = repo_intake_projection ->
+            %{
+              available?: true,
+              managed_repo_id: Map.get(project, :managed_repo_id),
+              repo_intake: repo_intake_projection,
+              active_entries: [],
+              active_count: 0,
+              clarification_count: 0,
+              latest_entry: nil,
+              latest_activity_at: nil,
+              notice: conversation_projection_value(repo_intake_projection, :notice)
+            }
+
+          _other ->
+            nil
+        end
+    end
+  end
+
+  defp conversation_supervision(_project), do: nil
+
+  defp conversation_supervision_projection(project) do
+    case conversation_supervision(project) do
+      %{active_count: active_count} = supervision when active_count > 0 ->
+        supervision
+
+      %{repo_intake: %{} = repo_intake} = supervision ->
+        if conversation_projection_value(repo_intake, :conversation) do
+          supervision
+        end
+
+      _other ->
+        nil
+    end
+  end
+
+  defp conversation_supervision_notice(project) do
+    project
+    |> conversation_supervision()
+    |> conversation_projection_value(:notice)
+  end
+
+  defp conversation_supervision_active_count(project) do
+    project
+    |> conversation_supervision()
+    |> conversation_projection_value(:active_count, 0)
+  end
+
+  defp conversation_supervision_clarification_count(project) do
+    project
+    |> conversation_supervision()
+    |> conversation_projection_value(:clarification_count, 0)
+  end
+
+  defp conversation_supervision_role_projection(project) do
+    case conversation_supervision(project) do
+      %{latest_entry: %{} = latest_entry, active_count: active_count} when active_count > 0 ->
+        latest_entry
+
+      %{repo_intake: %{} = repo_intake} ->
+        repo_intake
+
+      _other ->
+        nil
+    end
+  end
+
+  defp conversation_supervision_role_scope(project) do
+    project
+    |> conversation_supervision_role_projection()
+    |> conversation_projection_value(:conversation, %{})
+    |> conversation_projection_value(:scope)
+  end
+
+  defp conversation_supervision_role_attachment_mode(project) do
+    project
+    |> conversation_supervision_role_projection()
+    |> conversation_projection_value(:conversation, %{})
+    |> conversation_projection_value(:attachment_mode)
+  end
+
+  defp conversation_supervision_role_work_item_id(project) do
+    project
+    |> conversation_supervision_role_projection()
+    |> conversation_projection_value(:conversation, %{})
+    |> conversation_projection_value(:work_item_id)
+  end
+
+  defp conversation_supervision_status(project) do
+    project
+    |> conversation_supervision_role_projection()
+    |> conversation_projection_value(:conversation, %{})
+    |> conversation_projection_value(:status)
+  end
+
+  defp conversation_supervision_work_item(project) do
+    case conversation_supervision(project) do
+      %{latest_entry: %{} = latest_entry, active_count: active_count} when active_count > 0 ->
+        conversation_projection_value(latest_entry, :work_item)
+
+      _other ->
+        nil
+    end
+  end
+
+  defp conversation_supervision_active_count_label(project) do
+    case conversation_supervision_active_count(project) do
+      1 -> "1 active work item"
+      count when is_integer(count) and count > 1 -> "#{count} active work items"
       _other -> nil
     end
   end
 
-  defp repo_conversation_projection(_project), do: nil
-
-  defp repo_conversation_summary(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:conversation)
+  defp conversation_supervision_clarification_count_label(project) do
+    case conversation_supervision_clarification_count(project) do
+      1 -> "1 clarification needed"
+      count when is_integer(count) and count > 1 -> "#{count} clarification turns needed"
+      _other -> nil
+    end
   end
 
-  defp repo_conversation_work_item(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:work_item)
+  defp conversation_supervision_detail(project) do
+    case conversation_supervision(project) do
+      %{latest_entry: %{} = latest_entry, active_count: active_count, repo_intake: %{}}
+      when active_count > 0 ->
+        conversation_projection_detail(
+          latest_entry,
+          "Repo intake has already settled onto active governed work."
+        )
+
+      %{latest_entry: %{} = latest_entry, active_count: active_count} when active_count > 0 ->
+        conversation_projection_detail(latest_entry, "Governed work is active from repo detail.")
+
+      %{repo_intake: %{} = repo_intake} ->
+        conversation_projection_detail(repo_intake, "Repository intake is active from repo detail.")
+
+      _other ->
+        "Conversation supervision is available from repo detail."
+    end
   end
 
-  defp repo_conversation_notice(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:notice)
+  defp conversation_supervision_action_label(project) do
+    case conversation_supervision(project) do
+      %{active_count: active_count} when active_count > 0 ->
+        "Open governed supervision"
+
+      %{clarification_count: clarification_count} when clarification_count > 0 ->
+        "Open repo intake"
+
+      %{repo_intake: %{} = repo_intake} ->
+        conversation_projection_value(repo_intake, :action_label, "Open repo intake")
+
+      _other ->
+        "Open repo detail"
+    end
   end
 
-  defp repo_conversation_action_label(project) do
-    project
-    |> repo_conversation_projection()
-    |> repo_conversation_projection_value(:action_label, "Open repo conversation")
-  end
-
-  defp repo_conversation_detail(project) do
-    conversation = repo_conversation_summary(project)
+  defp conversation_projection_detail(%{} = projection, fallback) do
+    conversation = conversation_projection_value(projection, :conversation, %{})
 
     work_resolution =
       conversation
-      |> repo_conversation_projection_value(:work_resolution, %{})
+      |> conversation_projection_value(:work_resolution, %{})
 
-    normalize_optional_string(repo_conversation_projection_value(work_resolution, :detail)) ||
-      normalize_optional_string(repo_conversation_projection_value(conversation, :objective)) ||
-      "Repository conversation is available from repo detail."
+    normalize_optional_string(conversation_projection_value(work_resolution, :detail)) ||
+      normalize_optional_string(conversation_projection_value(conversation, :objective)) ||
+      fallback
   end
 
-  defp repo_conversation_badge_label(project) do
-    conversation =
-      repo_conversation_summary(project)
-
-    "Repo conversation #{conversation |> repo_conversation_projection_value(:status) |> conversation_status_label()}"
-  end
-
-  defp repo_conversation_badge_class(project) do
-    case repo_conversation_summary(project) |> repo_conversation_projection_value(:status) do
-      :active -> "badge badge-success badge-outline"
-      :paused -> "badge badge-warning badge-outline"
-      :completed -> "badge badge-info badge-outline"
-      :cancelled -> "badge badge-error badge-outline"
-      "active" -> "badge badge-success badge-outline"
-      "paused" -> "badge badge-warning badge-outline"
-      "completed" -> "badge badge-info badge-outline"
-      "cancelled" -> "badge badge-error badge-outline"
-      _other -> "badge badge-outline"
-    end
-  end
+  defp conversation_projection_detail(_projection, fallback), do: fallback
 
   defp conversation_status_label(status) when is_binary(status), do: status
   defp conversation_status_label(status) when is_atom(status), do: Atom.to_string(status)
   defp conversation_status_label(_status), do: "unknown"
 
-  defp repo_conversation_projection_value(projection, key, default \\ nil)
+  defp conversation_projection_value(projection, key, default \\ nil)
 
-  defp repo_conversation_projection_value(%{} = projection, key, default) when is_atom(key) do
+  defp conversation_projection_value(%{} = projection, key, default) when is_atom(key) do
     Map.get(projection, key, Map.get(projection, Atom.to_string(key), default))
   end
 
-  defp repo_conversation_projection_value(_projection, _key, default), do: default
+  defp conversation_projection_value(_projection, _key, default), do: default
 
   defp semantic_graph_hint(project) when is_map(project) do
     case Map.get(project, :semantic_graph_hint) do

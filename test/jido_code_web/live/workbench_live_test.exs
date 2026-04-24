@@ -199,6 +199,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
+
     seed_memory_graph!(route_id, workspace_path, "phase-32-workbench-ready")
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
@@ -266,14 +267,25 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-conversation-hint-badge-#{route_id}",
-             "Repo conversation active"
+             "#workbench-project-conversation-role-#{route_id}",
+             "Governed conversation"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-conversation-hint-detail-#{route_id}",
-             "Governed follow-up"
+             "#workbench-project-conversation-status-#{route_id}",
+             "active"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-hint-badge-#{route_id}",
+             "1 active work item"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-conversation-hint-detail-#{route_id}"
            )
 
     assert has_element?(
@@ -285,7 +297,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(
              view,
              "#workbench-project-conversation-link-#{route_id}[href='/repos/#{route_id}']",
-             "Open repo conversation"
+             "Open governed supervision"
            )
   end
 
@@ -316,6 +328,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
+
     seed_memory_graph!(route_id, workspace_path, "phase-32-workbench-stale")
     rewrite_semantic_workspace_module!(workspace_path, "WorkbenchMemory.Refreshed")
 
@@ -528,6 +541,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
+
     run_id = "workbench-refresh-run-#{System.unique_integer([:positive])}"
     run_detail_path = "/repos/#{route_id}/runs/#{run_id}"
     loader_state = start_supervised!({Agent, fn -> :initial end}, id: make_ref())
@@ -822,6 +836,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
+
     launcher_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn kickoff_request ->
@@ -915,6 +930,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
           }
         }
       })
+
     launcher_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(
@@ -1729,17 +1745,23 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
   end
 
   defp create_workbench_run(repo_identifier, run_id, started_at, attrs \\ %{}) do
-    create_governed_run(repo_identifier, Map.merge(%{
-      run_id: run_id,
-      workflow_name: "fix_failing_tests",
-      workflow_version: 1,
-      trigger: %{source: "workbench", mode: "manual"},
-      inputs: %{"failure_signal" => "workbench indicator test"},
-      input_metadata: %{"failure_signal" => %{required: true, source: "workbench_quick_action"}},
-      initiating_actor: %{id: "owner-1", email: "owner@example.com"},
-      current_step: "queued",
-      started_at: started_at
-    }, attrs))
+    create_governed_run(
+      repo_identifier,
+      Map.merge(
+        %{
+          run_id: run_id,
+          workflow_name: "fix_failing_tests",
+          workflow_version: 1,
+          trigger: %{source: "workbench", mode: "manual"},
+          inputs: %{"failure_signal" => "workbench indicator test"},
+          input_metadata: %{"failure_signal" => %{required: true, source: "workbench_quick_action"}},
+          initiating_actor: %{id: "owner-1", email: "owner@example.com"},
+          current_step: "queued",
+          started_at: started_at
+        },
+        attrs
+      )
+    )
   end
 
   defp create_semantic_workspace_path!(module_name) do

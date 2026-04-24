@@ -1,6 +1,6 @@
 # User Administration
 
-<!-- current_truth.reconciled_with_branch: bootstrap-admin creation and entry into the signed-in setup start surface remain current truth here, while later GitHub PAT and multi-repository GitHub import follow-up still depend on setup-owned server gating rather than changing the bootstrap gate. -->
+<!-- current_truth.reconciled_with_branch: bootstrap-admin creation and entry into the signed-in setup start surface remain current truth here, while later GitHub PAT and multi-repository GitHub import follow-up still depend on setup-owned server gating and do not keep completed imports selected as a new bootstrap gate. -->
 
 This subject defines the target user-management model for `jido_code` as it evolves from owner bootstrap toward a durable admin-managed account system. Local users remain the shared directory even when a user later gains linked external identities or is first provisioned from a provider login.
 

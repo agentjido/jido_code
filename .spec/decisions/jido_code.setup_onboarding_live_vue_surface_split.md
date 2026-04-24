@@ -56,7 +56,8 @@ The split is:
 4. GitHub repository selection is the reference setup pattern for this split:
    LiveView authors the repository state and import actions, the Vue widget
    renders the richer picker with toggle-based multi-selection, and the route
-   carries a server-rendered fallback.
+   carries a server-rendered fallback while completed imports return the picker
+   to an unselected state instead of treating import history as active intent.
 5. Future setup-facing `live_vue` adoption should prefer additional bounded
    widgets, such as start-path or runtime-default summaries, rather than
    collapsing the whole setup surface into a client-owned application.

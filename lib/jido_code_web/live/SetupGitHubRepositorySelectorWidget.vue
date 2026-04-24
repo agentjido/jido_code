@@ -101,7 +101,7 @@ const filteredRepositoryCountLabel = computed(() => {
 
 const selectedRepositorySummary = computed(() => {
   if (localSelection.value.length === 0) {
-    return "Choose repositories from the linked list below."
+    return "Not selected"
   }
 
   if (localSelection.value.length === 1) {
@@ -255,7 +255,7 @@ const importRepository = () => {
                 }}
               </span>
               <span v-if="props.importMode" class="badge badge-outline text-xs">
-                {{ props.importMode === "existing" ? "Existing repo" : "New repo" }}
+                {{ props.importMode === "existing" ? "Existing managed repo" : "Created managed repo" }}
               </span>
             </div>
           </div>

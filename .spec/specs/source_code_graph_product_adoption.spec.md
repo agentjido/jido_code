@@ -1,6 +1,6 @@
 # Source Code Graph Product Adoption
 
-<!-- current_truth.reconciled_with_branch: source-code graph health, resource limits, product services, and bounded live surfaces remain under this subject, including setup-host-shell fallback behavior and bounded multi-repository selector refinement that stay product-owned. -->
+<!-- current_truth.reconciled_with_branch: source-code graph health, resource limits, product services, and bounded live surfaces remain under this subject, including setup-host-shell fallback behavior and bounded multi-repository selector refinement whose completed imports remain product history instead of active selection state. -->
 
 This subject defines how the repository-scoped semantic source-code graph
 becomes a product-facing capability in operator surfaces and governed workflow

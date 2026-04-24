@@ -3077,6 +3077,14 @@
       },
       {
         "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.reset_mix_task",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The repository shall expose an explicit `mix onboarding.reset` command that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and that reset shall clear onboarding-managed GitHub PAT fallback state without removing unrelated deployment credentials.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
         "id": "setup.onboarding.runtime_environment_selection_distinct_from_install_flavor",
         "priority": "must",
         "stability": "evolving",
@@ -6584,6 +6592,25 @@
       },
       {
         "covers": [
+          "setup.onboarding.reset_mix_task"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A local install has bootstrap or signed-in onboarding state plus an onboarding-managed GitHub PAT fallback."
+        ],
+        "id": "setup.onboarding.scenario_reset_mix_task_rewinds_or_restarts_setup",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "`--keep-owner` preserves the bootstrap owner, clears the onboarding-managed GitHub PAT fallback, and rewinds onboarding to the signed-in `/setup` surface.",
+          "`--full` clears local bootstrap users, clears the onboarding-managed GitHub PAT fallback, and returns the install to first-run bootstrap.",
+          "Deployment credentials that are not onboarding-managed PAT fallback remain untouched."
+        ],
+        "when": [
+          "The operator runs `mix onboarding.reset --keep-owner` or `mix onboarding.reset --full`."
+        ]
+      },
+      {
+        "covers": [
           "setup.onboarding.runtime_environment_selection_persisted_metadata"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -6997,13 +7024,15 @@
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, allows ignored repo-root dotenv files to populate missing runtime vars during normal dev boot without overriding explicit shell env or changing prod behavior, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, and onboarding-reset commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, allows ignored repo-root dotenv files to populate missing runtime vars during normal dev boot without overriding explicit shell env or changing prod behavior, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
             ".tool-versions",
             "mix.exs",
             "config/dev.exs",
             "config/test.exs",
             "config/runtime.exs",
+            "lib/jido_code/mix/onboarding_reset.ex",
+            "lib/mix/tasks/onboarding.reset.ex",
             "lib/jido_code_web/endpoint.ex",
             "README.md",
             "CONTRIBUTING.md",
@@ -7526,7 +7555,7 @@
           "id": "docs.operator_provider_auth_guide",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` paths, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.",
+          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, and onboarding-reset paths, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.",
           "surface": [
             "README.md",
             ".spec/specs/operator_auth_settings.spec.md",
@@ -7560,7 +7589,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, product-owned semantic memory-adoption helpers, dashboard memory summary shaping, governed surface context loaders, canonical operator memory actions, follow-up preview boundaries, the companion governed control-plane ontology, and the typed governed-reference helper boundary under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, now treats `governed_references` as the canonical capture-envelope input for governed links while compatibility artifact shapes remain internal to the cutover, now emits typed governed control-plane relations from the writer layer and detects legacy governed-artifact store state as recovery-required memory-graph metadata, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, and operator memory-action expansion as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, eager collaboration-state action surfaces, and repo-owned onboarding-reset entrypoints version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, product-owned semantic memory-adoption helpers, dashboard memory summary shaping, governed surface context loaders, canonical operator memory actions, follow-up preview boundaries, the companion governed control-plane ontology, and the typed governed-reference helper boundary under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, now treats `governed_references` as the canonical capture-envelope input for governed links while compatibility artifact shapes remain internal to the cutover, now emits typed governed control-plane relations from the writer layer and detects legacy governed-artifact store state as recovery-required memory-graph metadata, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, and operator memory-action expansion as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -7601,7 +7630,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology, memory-graph ontology, TripleStore semantic stack add heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, a direct repo-owned Dotenvy dependency that supports local dev runtime bootstrap without changing the production secret posture, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` semantic verification commands, contributor docs that describe both the approved LiveView-plus-LiveVue browser boundary and the repository-scoped source graph plus memory graph workflow as bounded enhancements, the companion ontology pair, the typed governed-reference cutover, the local dotenv bootstrap contract, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology, memory-graph ontology, TripleStore semantic stack add heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, a direct repo-owned Dotenvy dependency that supports local dev runtime bootstrap without changing the production secret posture, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, repo-owned `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, and onboarding-reset commands, contributor docs that describe both the approved LiveView-plus-LiveVue browser boundary and the repository-scoped source graph plus memory graph workflow as bounded enhancements, the companion ontology pair, the typed governed-reference cutover, the local dotenv bootstrap contract, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
           "surface": [
             ".doctor.exs",
             "mix.exs",
@@ -7700,7 +7729,7 @@
           "id": "docs.product_foundation",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that points back to `.spec` as current truth plus the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.",
+          "summary": "Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that points back to `.spec` as current truth plus the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -7943,7 +7972,7 @@
           "id": "setup.runtime_environment_defaults",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, and lets later setup helpers resolve workspace context from that durable metadata until repo-level overrides take over.",
+          "summary": "Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, keeps that singleton writable through the shared `SystemConfig` boundary so setup reset flows can safely restore canonical defaults, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, and lets later setup helpers resolve workspace context from that durable metadata until repo-level overrides take over.",
           "surface": [
             ".spec/decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md",
             ".spec/decisions/jido_code.runic_execution_model.md",
@@ -8030,7 +8059,7 @@
           "id": "setup.onboarding",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
@@ -8042,7 +8071,10 @@
             "lib/jido_code/setup/deployment_mode.ex",
             "lib/jido_code/setup/environment_defaults.ex",
             "lib/jido_code/setup/github_repository_listing.ex",
+            "lib/jido_code/setup/onboarding_reset.ex",
             "lib/jido_code/setup/project_import.ex",
+            "lib/jido_code/mix/onboarding_reset.ex",
+            "lib/mix/tasks/onboarding.reset.ex",
             "lib/jido_code/setup/system_config.ex",
             "lib/jido_code/setup/system_config_record.ex",
             "lib/jido_code/setup/system_config_persistence.ex",
@@ -8065,6 +8097,8 @@
             "test/support/test_browser_scenario_controller.ex",
             "test/support/test_browser_session_controller.ex",
             "test/support/conn_case.ex",
+            "test/jido_code/setup/onboarding_reset_test.exs",
+            "test/jido_code/mix/onboarding_reset_test.exs",
             "test/jido_code_web/live/setup_live_test.exs",
             "test/jido_code_web/live/dashboard_live_test.exs",
             "test/jido_code/setup/project_import_test.exs",
@@ -13632,7 +13666,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
       },
       {
         "covers": [
@@ -13642,7 +13676,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
       },
       {
         "covers": [
@@ -14899,6 +14933,15 @@
       },
       {
         "covers": [
+          "setup.onboarding.reset_mix_task"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/onboarding_reset.ex"
+      },
+      {
+        "covers": [
           "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
           "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback"
         ],
@@ -15067,6 +15110,15 @@
         "kind": "command",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs"
+      },
+      {
+        "covers": [
+          "setup.onboarding.reset_mix_task"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "command",
+        "subject_id": "setup.onboarding",
+        "target": "mix test test/jido_code/setup/onboarding_reset_test.exs test/jido_code/mix/onboarding_reset_test.exs"
       },
       {
         "covers": [
@@ -15479,10 +15531,10 @@
     "decisions": 27,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 365,
-    "scenarios": 178,
+    "requirements": 366,
+    "scenarios": 179,
     "subjects": 44,
-    "verifications": 704
+    "verifications": 706
   },
   "verification": {
     "claims": [
@@ -29552,7 +29604,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
         "verification_index": 18
       },
       {
@@ -29563,7 +29615,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
         "verification_index": 18
       },
       {
@@ -29574,7 +29626,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
         "verification_index": 19
       },
       {
@@ -29585,7 +29637,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
         "verification_index": 19
       },
       {
@@ -31228,6 +31280,17 @@
         "verification_index": 7
       },
       {
+        "cover_id": "setup.onboarding.reset_mix_task",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/onboarding_reset.ex",
+        "verification_index": 8
+      },
+      {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -31236,7 +31299,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31247,7 +31310,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -31258,7 +31321,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -31269,7 +31332,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
@@ -31280,7 +31343,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -31291,7 +31354,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -31302,7 +31365,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31313,7 +31376,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -31324,7 +31387,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31335,7 +31398,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -31346,7 +31409,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -31357,7 +31420,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/setup_live.ex",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31368,7 +31431,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -31379,7 +31442,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31390,7 +31453,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31401,7 +31464,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
@@ -31412,7 +31475,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31423,7 +31486,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -31434,7 +31497,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code_web/live/SetupStartPathSelectorWidget.vue",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31445,28 +31508,6 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/system_config.ex",
-        "verification_index": 13
-      },
-      {
-        "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": "lib/jido_code/setup/system_config.ex",
-        "verification_index": 13
-      },
-      {
-        "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": "lib/jido_code/setup/system_config_record.ex",
         "verification_index": 14
       },
       {
@@ -31477,8 +31518,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code/setup/system_config_persistence.ex",
+        "target": "lib/jido_code/setup/system_config.ex",
+        "verification_index": 14
+      },
+      {
+        "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/system_config_record.ex",
         "verification_index": 15
+      },
+      {
+        "cover_id": "setup.onboarding.runtime_environment_selection_persisted_metadata",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/system_config_persistence.ex",
+        "verification_index": 16
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -31489,7 +31552,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
-        "verification_index": 16
+        "verification_index": 17
       },
       {
         "cover_id": "setup.onboarding.greenfield_import_writes_canonical_repo_records",
@@ -31500,7 +31563,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
-        "verification_index": 17
+        "verification_index": 18
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -31511,7 +31574,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31522,7 +31585,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -31533,7 +31596,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/setup/project_import.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -31544,7 +31607,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/project_import_test.exs",
-        "verification_index": 19
+        "verification_index": 20
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -31555,7 +31618,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/deployment_mode_test.exs",
-        "verification_index": 20
+        "verification_index": 21
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -31566,7 +31629,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -31577,7 +31640,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
@@ -31588,7 +31651,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -31599,7 +31662,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -31610,7 +31673,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -31621,7 +31684,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -31632,7 +31695,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -31643,7 +31706,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -31654,7 +31717,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31665,7 +31728,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -31676,7 +31739,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -31687,7 +31750,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -31698,7 +31761,18 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
+      },
+      {
+        "cover_id": "setup.onboarding.reset_mix_task",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "setup.onboarding",
+        "target": "mix test test/jido_code/setup/onboarding_reset_test.exs test/jido_code/mix/onboarding_reset_test.exs",
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -31709,7 +31783,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -31720,7 +31794,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -31731,28 +31805,6 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 24
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 25
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 26
       },
       {
@@ -31763,7 +31815,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 27
       },
       {
@@ -31774,7 +31826,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 28
       },
       {
@@ -31785,7 +31837,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 29
       },
       {
@@ -31796,8 +31848,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 30
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "verification_index": 31
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 32
       },
       {
         "cover_id": "setup.runtime_environment_defaults.selection_is_distinct_from_install_flavor",
@@ -32441,9 +32515,9 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 70,
+      "claimed": 71,
       "executed": 0,
-      "linked": 1471
+      "linked": 1472
     },
     "threshold_failures": 0
   },

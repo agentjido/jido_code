@@ -8,7 +8,7 @@ This subject defines the repo-local boundary around self-hosted provider login a
 id: docs.operator_provider_auth_guide
 kind: feature
 status: active
-summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` paths, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.
+summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, and onboarding-reset paths, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.
 surface:
   - README.md
   - .spec/specs/operator_auth_settings.spec.md

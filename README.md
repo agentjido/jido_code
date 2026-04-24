@@ -63,6 +63,8 @@ mix frontend.verify
 mix server
 mix test
 mix ecto.reset
+mix onboarding.reset --keep-owner
+mix onboarding.reset --full
 ```
 
 `.env.example` includes the main runtime overrides. For normal repo-root development, `config/runtime.exs` now auto-loads ignored `.env`, `.env.local`, and `.env.dev.local` files during dev boot so local values like `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` can be set without exporting them in your shell. Shell env vars still take precedence, and the important rule is still: leave `DATABASE_URL` unset and use the checked-in `config/dev.exs` and `config/test.exs` defaults.
@@ -150,6 +152,8 @@ mix memory.verify       # verify the ontology pair, typed governed links, and re
 mix semantic.verify     # run the full product-facing semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
+mix onboarding.reset --keep-owner # keep the bootstrap owner and rewind to signed-in /setup
+mix onboarding.reset --full       # clear bootstrap users and return to first-run bootstrap
 mix test                # create/migrate the test DB and run tests
 mix q                   # fast merge-safe quality gate
 mix quality             # fast gate plus frontend verification, doctor, and dialyzer debt surfacing

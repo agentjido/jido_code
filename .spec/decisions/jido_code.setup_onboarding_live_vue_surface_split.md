@@ -33,7 +33,8 @@ for being pushed into a larger client-owned shell because they are sensitive,
 server-driven, and need a product-owned fallback when richer delivery degrades.
 
 What is missing is a durable rule for how `/setup` should grow if more of the
-surface adopts richer interaction.
+surface adopts richer interaction, including later layout refinements inside
+the bounded GitHub selector region.
 
 ## Decision
 
@@ -86,3 +87,6 @@ Current setup truth already follows this split:
 - GitHub repository selection is the bounded `live_vue` region.
 - The route includes a server-rendered fallback selector for that richer
   repository picker.
+- Selector-level refinements such as full-width scrolling results and
+  non-overlapping control rows remain inside that bounded Vue region rather
+  than pulling the surrounding setup shell out of LiveView ownership.

@@ -187,47 +187,53 @@ const importRepository = () => {
       </button>
     </div>
 
-    <div class="grid gap-3 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-      <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3">
-        <div class="space-y-1">
-          <p class="text-xs uppercase text-base-content/60">Saved selection</p>
-          <p id="setup-github-repository-widget-selection" class="text-base font-semibold">
-            {{ selectedRepositorySummary }}
-          </p>
-        </div>
-
-        <div class="space-y-1">
-          <p class="text-xs uppercase text-base-content/60">Linked access</p>
-          <p id="setup-github-repository-widget-count" class="text-sm text-base-content/80">
-            {{ props.repositoryCountLabel }}
-          </p>
-          <p id="setup-github-repository-widget-checked-at" class="text-xs text-base-content/60">
-            Refreshed: {{ props.listingCheckedAt }}
-          </p>
-        </div>
-
-        <div class="space-y-1">
-          <p class="text-xs uppercase text-base-content/60">Import state</p>
-          <div class="flex flex-wrap items-center gap-2">
-            <span id="setup-github-repository-widget-import-status" :class="importBadgeClass">
-              {{
-                props.importStatus === "ready"
-                  ? "Imported"
-                  : props.importStatus === "blocked"
-                    ? "Needs attention"
-                    : "Not started"
-              }}
-            </span>
-            <span v-if="props.importMode" class="badge badge-outline text-xs">
-              {{ props.importMode === "existing" ? "Existing repo" : "New repo" }}
-            </span>
+    <div class="space-y-4 rounded-xl border border-base-300/70 bg-base-100 p-4">
+      <div class="grid gap-3 md:grid-cols-3">
+        <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3">
+          <div class="space-y-1">
+            <p class="text-xs uppercase text-base-content/60">Saved selection</p>
+            <p id="setup-github-repository-widget-selection" class="text-base font-semibold break-words">
+              {{ selectedRepositorySummary }}
+            </p>
           </div>
-        </div>
-      </article>
+        </article>
 
-      <div class="space-y-4 rounded-xl border border-base-300/70 bg-base-100 p-4">
-        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-          <label class="fieldset">
+        <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3">
+          <div class="space-y-1">
+            <p class="text-xs uppercase text-base-content/60">Linked access</p>
+            <p id="setup-github-repository-widget-count" class="text-sm text-base-content/80">
+              {{ props.repositoryCountLabel }}
+            </p>
+            <p id="setup-github-repository-widget-checked-at" class="text-xs text-base-content/60">
+              Refreshed: {{ props.listingCheckedAt }}
+            </p>
+          </div>
+        </article>
+
+        <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3">
+          <div class="space-y-1">
+            <p class="text-xs uppercase text-base-content/60">Import state</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="setup-github-repository-widget-import-status" :class="importBadgeClass">
+                {{
+                  props.importStatus === "ready"
+                    ? "Imported"
+                    : props.importStatus === "blocked"
+                      ? "Needs attention"
+                      : "Not started"
+                }}
+              </span>
+              <span v-if="props.importMode" class="badge badge-outline text-xs">
+                {{ props.importMode === "existing" ? "Existing repo" : "New repo" }}
+              </span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex flex-col gap-3 xl:flex-row xl:items-end">
+          <label class="fieldset min-w-0 flex-1">
             <span class="label mb-1">Search linked repositories</span>
             <input
               id="setup-github-repository-widget-search"
@@ -242,7 +248,7 @@ const importRepository = () => {
           <button
             id="setup-github-repository-widget-import"
             type="button"
-            class="btn btn-primary md:self-end"
+            class="btn btn-primary w-full xl:w-auto xl:shrink-0"
             :disabled="importButtonDisabled"
             @click="importRepository"
           >

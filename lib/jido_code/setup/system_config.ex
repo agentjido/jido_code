@@ -98,6 +98,19 @@ defmodule JidoCode.Setup.SystemConfig do
   def save_step_progress(_validated_state, _config_updates),
     do: {:error, save_error(:invalid_step_state, 1)}
 
+  @spec save(t()) :: {:ok, t()} | {:error, save_error()}
+  def save(%__MODULE__{} = config) do
+    with {:ok, validated_config} <- normalize_config(config),
+         {:ok, persisted_config} <- persist_config(validated_config) do
+      {:ok, persisted_config}
+    else
+      {:error, reason} ->
+        {:error, save_error(reason, config.onboarding_step)}
+    end
+  end
+
+  def save(_config), do: {:error, save_error(:invalid_config, 1)}
+
   @spec update((t() -> t() | {:ok, t()} | {:error, term()})) :: {:ok, t()} | {:error, save_error()}
   def update(updater) when is_function(updater, 1) do
     case load() do

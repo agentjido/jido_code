@@ -11,7 +11,7 @@ during setup and persists that choice as durable product metadata.
 id: setup.runtime_environment_defaults
 kind: feature
 status: active
-summary: Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, and lets later setup helpers resolve workspace context from that durable metadata until repo-level overrides take over.
+summary: Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, keeps that singleton writable through the shared `SystemConfig` boundary so setup reset flows can safely restore canonical defaults, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, and lets later setup helpers resolve workspace context from that durable metadata until repo-level overrides take over.
 decisions:
   - jido_code.runtime_environment_selection_is_persisted_setup_metadata
   - jido_code.runic_execution_model

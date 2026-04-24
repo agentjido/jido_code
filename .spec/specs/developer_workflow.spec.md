@@ -6,7 +6,7 @@ This subject defines the normal local development contract for contributors work
 id: developer.workflow
 kind: policy
 status: active
-summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, allows ignored repo-root dotenv files to populate missing runtime vars during normal dev boot without overriding explicit shell env or changing prod behavior, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.
+summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, and onboarding-reset commands, keeps `mix memory.verify` aligned to the companion ontology pair, typed governed-link cutover, and repository-local rebuild guidance, keeps Ash resource code generation explicit instead of browser-triggered during dev requests, allows ignored repo-root dotenv files to populate missing runtime vars during normal dev boot without overriding explicit shell env or changing prod behavior, adds the source-code graph and memory-graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.
 decisions:
   - jido_code.local_developer_workflow
 surface:
@@ -15,6 +15,8 @@ surface:
   - config/dev.exs
   - config/test.exs
   - config/runtime.exs
+  - lib/jido_code/mix/onboarding_reset.ex
+  - lib/mix/tasks/onboarding.reset.ex
   - lib/jido_code_web/endpoint.ex
   - README.md
   - CONTRIBUTING.md
@@ -155,13 +157,13 @@ surface:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
   covers:
     - developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
   covers:
     - developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen
     - developer.workflow.docs_split

@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository choice and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
@@ -28,7 +28,10 @@ surface:
   - lib/jido_code/setup/deployment_mode.ex
   - lib/jido_code/setup/environment_defaults.ex
   - lib/jido_code/setup/github_repository_listing.ex
+  - lib/jido_code/setup/onboarding_reset.ex
   - lib/jido_code/setup/project_import.ex
+  - lib/jido_code/mix/onboarding_reset.ex
+  - lib/mix/tasks/onboarding.reset.ex
   - lib/jido_code/setup/system_config.ex
   - lib/jido_code/setup/system_config_record.ex
   - lib/jido_code/setup/system_config_persistence.ex
@@ -51,6 +54,8 @@ surface:
   - test/support/test_browser_scenario_controller.ex
   - test/support/test_browser_session_controller.ex
   - test/support/conn_case.ex
+  - test/jido_code/setup/onboarding_reset_test.exs
+  - test/jido_code/mix/onboarding_reset_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code/setup/project_import_test.exs
@@ -128,6 +133,11 @@ surface:
 - id: setup.onboarding.start_path_preference_persisted
   statement: The signed-in start surface shall let the administrator save a preferred first path such as local repo, GitHub, or later without reintroducing blocking step-gated verification.
   priority: must
+  stability: evolving
+
+- id: setup.onboarding.reset_mix_task
+  statement: The repository shall expose an explicit `mix onboarding.reset` command that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and that reset shall clear onboarding-managed GitHub PAT fallback state without removing unrelated deployment credentials.
+  priority: should
   stability: evolving
 
 - id: setup.onboarding.repo_source_per_project
@@ -232,6 +242,18 @@ surface:
     - `/setup` warns that encrypted secret storage is unavailable for the running process.
     - The PAT save path stays blocked until the encryption key is configured correctly and JidoCode is restarted.
 
+- id: setup.onboarding.scenario_reset_mix_task_rewinds_or_restarts_setup
+  covers:
+    - setup.onboarding.reset_mix_task
+  given:
+    - A local install has bootstrap or signed-in onboarding state plus an onboarding-managed GitHub PAT fallback.
+  when:
+    - The operator runs `mix onboarding.reset --keep-owner` or `mix onboarding.reset --full`.
+  then:
+    - `--keep-owner` preserves the bootstrap owner, clears the onboarding-managed GitHub PAT fallback, and rewinds onboarding to the signed-in `/setup` surface.
+    - `--full` clears local bootstrap users, clears the onboarding-managed GitHub PAT fallback, and returns the install to first-run bootstrap.
+    - Deployment credentials that are not onboarding-managed PAT fallback remain untouched.
+
 - id: setup.onboarding.scenario_choice_heavy_follow_up_uses_bounded_hybrid_regions
   covers:
     - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
@@ -332,6 +354,11 @@ surface:
   target: lib/jido_code/security/encryption.ex
   covers:
     - setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
+
+- kind: source_file
+  target: lib/jido_code/setup/onboarding_reset.ex
+  covers:
+    - setup.onboarding.reset_mix_task
 
 - kind: source_file
   target: .spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md
@@ -439,6 +466,11 @@ surface:
   covers:
     - setup.onboarding.github_pat_capture_persisted_secret_ref
     - setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
+
+- kind: command
+  target: mix test test/jido_code/setup/onboarding_reset_test.exs test/jido_code/mix/onboarding_reset_test.exs
+  covers:
+    - setup.onboarding.reset_mix_task
 
 - kind: command
   target: mix browser.verify

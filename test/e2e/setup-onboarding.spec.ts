@@ -42,9 +42,67 @@ async function signIn(page: Page) {
   await waitForLiveViewConnection(page)
 }
 
+async function expectLocatorsNotToOverlap(page: Page, firstSelector: string, secondSelector: string) {
+  const overlaps = await page.evaluate(
+    ([first, second]) => {
+      const firstElement = document.querySelector(first)
+      const secondElement = document.querySelector(second)
+
+      if (!(firstElement instanceof HTMLElement) || !(secondElement instanceof HTMLElement)) {
+        return null
+      }
+
+      const firstBox = firstElement.getBoundingClientRect()
+      const secondBox = secondElement.getBoundingClientRect()
+
+      return !(
+        firstBox.right <= secondBox.left ||
+        secondBox.right <= firstBox.left ||
+        firstBox.bottom <= secondBox.top ||
+        secondBox.bottom <= firstBox.top
+      )
+    },
+    [firstSelector, secondSelector]
+  )
+
+  expect(overlaps).toBe(false)
+}
+
+async function expectLocatorWidthRatio(
+  page: Page,
+  containerSelector: string,
+  contentSelector: string,
+  minimumRatio: number
+) {
+  const ratio = await page.evaluate(
+    ([container, content]) => {
+      const containerElement = document.querySelector(container)
+      const contentElement = document.querySelector(content)
+
+      if (!(containerElement instanceof HTMLElement) || !(contentElement instanceof HTMLElement)) {
+        return null
+      }
+
+      const containerWidth = containerElement.getBoundingClientRect().width
+      const contentWidth = contentElement.getBoundingClientRect().width
+
+      if (containerWidth === 0) {
+        return null
+      }
+
+      return contentWidth / containerWidth
+    },
+    [containerSelector, contentSelector]
+  )
+
+  expect(ratio).not.toBeNull()
+  expect(ratio ?? 0).toBeGreaterThanOrEqual(minimumRatio)
+}
+
 test("rich setup widgets stay interactive inside the LiveView-owned setup route", async ({ page, request }) => {
   await prepareScenario(request, "normal")
   mkdirSync(workspaceRoot, { recursive: true })
+  await page.setViewportSize({ width: 960, height: 1100 })
   await signIn(page)
 
   await expect(page.locator("#setup-runtime-environment-select")).toBeVisible()
@@ -63,6 +121,17 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
   await expect(page.locator("#setup-github-repository-summary")).toHaveCount(0)
   await expect(page.locator("#setup-github-repository-widget-boundary-note")).toContainText(
     "LiveView still owns PAT capture, persistence, and completion"
+  )
+  await expectLocatorsNotToOverlap(
+    page,
+    "#setup-github-repository-widget-search",
+    "#setup-github-repository-widget-import"
+  )
+  await expectLocatorWidthRatio(
+    page,
+    "#setup-github-repository-selector",
+    "#setup-github-repository-widget-results",
+    0.85
   )
 
   await page.fill("#setup-github-repository-widget-search", "repo-two")

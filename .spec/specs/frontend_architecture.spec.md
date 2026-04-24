@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, and setup now has route-level Playwright coverage for both richer and degraded delivery. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, and the GitHub selector layout continues to use the bounded Vue region for full-width scrollable repository scanning without overlapping control rows. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product

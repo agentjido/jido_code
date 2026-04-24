@@ -414,12 +414,17 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2 text-xs">
-                      <span
+                      <.conversation_role_badge
+                        id="project-detail-conversation-role"
+                        scope={Map.get(@conversation_surface.conversation, :scope)}
+                        attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
+                        work_item_id={Map.get(@conversation_surface.conversation, :work_item_id)}
+                      />
+                      <.conversation_stream_badge
                         id="project-detail-conversation-stream-mode"
-                        class="rounded-full bg-base-200 px-3 py-1 font-medium"
-                      >
-                        {@conversation_stream_mode}
-                      </span>
+                        stream_mode={@conversation_stream_mode}
+                        discontinuity_count={@conversation_stream_discontinuity_count}
+                      />
                       <span
                         id="project-detail-conversation-sequence"
                         class="rounded-full bg-base-200 px-3 py-1 font-medium"
@@ -438,36 +443,15 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                 <div id="project-detail-conversation-events" class="max-h-96 space-y-3 overflow-y-auto px-4 py-4">
                   <%= for event <- @conversation_events do %>
-                    <article
+                    <.conversation_event_row
                       id={"project-detail-conversation-event-#{map_get(event, :id, "id")}"}
-                      class="rounded-md border border-base-300/70 bg-base-200/30 p-3"
-                    >
-                      <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                          <span class="font-mono text-xs text-base-content/60">
-                            #{map_get(event, :sequence, "sequence")}
-                          </span>
-                          <span class="rounded-full bg-base-200 px-2.5 py-1 text-xs font-semibold">
-                            {conversation_event_label(event)}
-                          </span>
-                          <span class="text-xs text-base-content/60">
-                            {map_get(event, :name, "name")}
-                          </span>
-                        </div>
-                        <time class="text-xs text-base-content/60">
-                          {format_time(map_get(event, :occurred_at, "occurred_at"))}
-                        </time>
-                      </div>
-                      <p class="mt-2 text-sm font-medium">
-                        {conversation_event_title(event)}
-                      </p>
-                      <p
-                        :if={conversation_event_excerpt(event)}
-                        class="mt-1 whitespace-pre-wrap text-xs text-base-content/70"
-                      >
-                        {conversation_event_excerpt(event)}
-                      </p>
-                    </article>
+                      sequence={map_get(event, :sequence, "sequence")}
+                      label={conversation_event_label(event)}
+                      event_name={map_get(event, :name, "name")}
+                      occurred_at={format_time(map_get(event, :occurred_at, "occurred_at"))}
+                      title={conversation_event_title(event)}
+                      excerpt={conversation_event_excerpt(event)}
+                    />
                   <% end %>
                 </div>
 
@@ -526,14 +510,22 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <dl class="mt-3 space-y-2 text-sm">
                     <div class="flex justify-between gap-3">
                       <dt class="text-base-content/70">Status</dt>
-                      <dd id="project-detail-conversation-status" class="font-medium">
-                        {Map.get(@conversation_surface.conversation, :status)}
+                      <dd class="font-medium">
+                        <.conversation_status_badge
+                          id="project-detail-conversation-status"
+                          status={Map.get(@conversation_surface.conversation, :status)}
+                        />
                       </dd>
                     </div>
                     <div class="flex justify-between gap-3">
                       <dt class="text-base-content/70">Scope</dt>
-                      <dd id="project-detail-conversation-scope" class="font-medium">
-                        {Map.get(@conversation_surface.conversation, :scope)}
+                      <dd class="font-medium">
+                        <.conversation_role_badge
+                          id="project-detail-conversation-scope"
+                          scope={Map.get(@conversation_surface.conversation, :scope)}
+                          attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
+                          work_item_id={Map.get(@conversation_surface.conversation, :work_item_id)}
+                        />
                       </dd>
                     </div>
                     <div class="flex justify-between gap-3">

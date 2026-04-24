@@ -93,6 +93,7 @@ defmodule JidoCodeWeb do
       import Phoenix.HTML
       # Core UI components
       import JidoCodeWeb.CoreComponents
+      import JidoCodeWeb.ConversationSurfaceComponents
       import JidoCodeWeb.LiveVueComponents
       import JidoCodeWeb.MemorySurfaceComponents
       import JidoCodeWeb.OperatorStateComponents

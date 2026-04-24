@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, and the GitHub selector layout continues to use the bounded Vue region for full-width scrollable repository scanning without overlapping control rows. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, and the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning without overlapping control rows. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
@@ -186,7 +186,7 @@ surface:
   given:
     - The signed-in `/setup` route needs richer scanning or progressive disclosure for onboarding follow-up work.
   when:
-    - The route introduces a Vue-backed region such as repository selection while keeping sensitive setup control flow on the server.
+    - The route introduces a Vue-backed region such as toggle-based repository multi-selection while keeping sensitive setup control flow on the server.
   then:
     - `/setup` remains a LiveView-owned route.
     - The richer region mounts through the shared product boundary with bounded props and mapped emits.

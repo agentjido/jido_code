@@ -28,12 +28,12 @@ const props = defineProps<{
   listingCheckedAt: string
   repositoryCountLabel: string
   repositoryOptions: RepositoryOption[]
-  selectedRepository: string | null
+  selectedRepositories: string[]
   importStatus: string
   importDetail: string
   importRemediation: string | null
   importErrorType: string | null
-  importSelectedRepository: string | null
+  importSelectedRepositories: string[]
   importProjectId: string | null
   importProjectDisplayName: string | null
   importProjectPath: string | null
@@ -42,19 +42,18 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (event: "selectRepository", payload: { repository_full_name: string }): void
+  (event: "selectRepository", payload: { repository_full_names: string[] }): void
   (event: "refreshRepositories"): void
-  (event: "importRepository", payload: { repository_full_name: string }): void
+  (event: "importRepository", payload: { repository_full_names: string[] }): void
 }>()
 
 const filterQuery = ref("")
-const localSelection = ref(props.selectedRepository ?? props.repositoryOptions[0]?.fullName ?? "")
+const localSelection = ref([...props.selectedRepositories])
 
 watch(
-  () => props.selectedRepository,
-  selectedRepository => {
-    const fallbackSelection = props.repositoryOptions[0]?.fullName ?? ""
-    localSelection.value = selectedRepository ?? fallbackSelection
+  () => props.selectedRepositories,
+  selectedRepositories => {
+    localSelection.value = [...selectedRepositories]
   }
 )
 
@@ -63,9 +62,9 @@ watch(
   repositoryOptions => {
     const availableNames = repositoryOptions.map(repository => repository.fullName)
 
-    if (!availableNames.includes(localSelection.value)) {
-      localSelection.value = props.selectedRepository ?? repositoryOptions[0]?.fullName ?? ""
-    }
+    localSelection.value = localSelection.value.filter(repositoryFullName =>
+      availableNames.includes(repositoryFullName)
+    )
   },
   { deep: true }
 )
@@ -101,11 +100,27 @@ const filteredRepositoryCountLabel = computed(() => {
 })
 
 const selectedRepositorySummary = computed(() => {
-  if (localSelection.value !== "") {
-    return localSelection.value
+  if (localSelection.value.length === 0) {
+    return "Choose repositories from the linked list below."
   }
 
-  return "Choose one of the linked repositories below."
+  if (localSelection.value.length === 1) {
+    return localSelection.value[0]
+  }
+
+  return `${localSelection.value.length} repositories selected`
+})
+
+const selectedResultsSummary = computed(() => {
+  if (localSelection.value.length === 0) {
+    return "Selected: none"
+  }
+
+  if (localSelection.value.length === 1) {
+    return `Selected: ${localSelection.value[0]}`
+  }
+
+  return `Selected: ${localSelection.value.length} repositories`
 })
 
 const listingBadgeClass = computed(() => [
@@ -123,24 +138,40 @@ const importBadgeClass = computed(() => [
 ])
 
 const importButtonDisabled = computed(
-  () => props.buttonsDisabled || localSelection.value === "" || props.repositoryOptions.length === 0
+  () => props.buttonsDisabled || localSelection.value.length === 0 || props.repositoryOptions.length === 0
 )
+
+const importButtonLabel = computed(() => {
+  if (localSelection.value.length === 0) {
+    return "Select repositories to import"
+  }
+
+  if (localSelection.value.length === 1) {
+    return "Import selected repository"
+  }
+
+  return `Import ${localSelection.value.length} selected repositories`
+})
 
 const repositoryCardClass = (repository: RepositoryOption) => [
   "rounded-xl border p-3 text-left transition",
-  repository.fullName === localSelection.value
+  localSelection.value.includes(repository.fullName)
     ? "border-primary/60 bg-primary/10"
     : "border-base-300/70 bg-base-200/20 hover:border-primary/40",
 ]
 
-const selectRepository = (repositoryFullName: string) => {
-  localSelection.value = repositoryFullName
-  emit("selectRepository", { repository_full_name: repositoryFullName })
+const toggleRepository = (repositoryFullName: string) => {
+  const nextSelection = localSelection.value.includes(repositoryFullName)
+    ? localSelection.value.filter(selectedRepository => selectedRepository !== repositoryFullName)
+    : [...localSelection.value, repositoryFullName]
+
+  localSelection.value = nextSelection
+  emit("selectRepository", { repository_full_names: nextSelection })
 }
 
 const importRepository = () => {
   if (importButtonDisabled.value) return
-  emit("importRepository", { repository_full_name: localSelection.value })
+  emit("importRepository", { repository_full_names: localSelection.value })
 }
 </script>
 
@@ -252,7 +283,7 @@ const importRepository = () => {
             :disabled="importButtonDisabled"
             @click="importRepository"
           >
-            Import selected repository
+            {{ importButtonLabel }}
           </button>
         </div>
 
@@ -291,8 +322,8 @@ const importRepository = () => {
             class="flex flex-wrap items-center justify-between gap-2 text-sm text-base-content/70"
           >
             <p>{{ filteredRepositoryCountLabel }}</p>
-            <p v-if="localSelection !== ''" class="font-medium text-base-content/80">
-              Selected: {{ localSelection }}
+            <p class="font-medium text-base-content/80">
+              {{ selectedResultsSummary }}
             </p>
           </div>
 
@@ -307,8 +338,8 @@ const importRepository = () => {
                 :key="repository.id"
                 :class="repositoryCardClass(repository)"
                 type="button"
-                :aria-pressed="repository.fullName === localSelection"
-                @click="selectRepository(repository.fullName)"
+                :aria-pressed="localSelection.includes(repository.fullName)"
+                @click="toggleRepository(repository.fullName)"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="space-y-1">
@@ -319,9 +350,9 @@ const importRepository = () => {
                   </div>
                   <span
                     class="badge badge-outline text-xs"
-                    :class="repository.fullName === localSelection ? 'badge-primary' : 'badge-ghost'"
+                    :class="localSelection.includes(repository.fullName) ? 'badge-primary' : 'badge-ghost'"
                   >
-                    {{ repository.fullName === localSelection ? "Selected" : "Linked" }}
+                    {{ localSelection.includes(repository.fullName) ? "Selected" : "Linked" }}
                   </span>
                 </div>
                 <p class="mt-3 text-sm text-base-content/70">

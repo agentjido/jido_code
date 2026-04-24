@@ -117,7 +117,7 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
 
   await page.click("#setup-start-choice-github-save")
 
-  await expect(page.locator("#setup-github-repository-widget-title")).toHaveText("Choose a GitHub repository")
+  await expect(page.locator("#setup-github-repository-widget-title")).toHaveText("Choose GitHub repositories")
   await expect(page.locator("#setup-github-repository-summary")).toHaveCount(0)
   await expect(page.locator("#setup-github-repository-widget-boundary-note")).toContainText(
     "LiveView still owns PAT capture, persistence, and completion"
@@ -134,11 +134,38 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
     0.85
   )
 
+  await expect(page.locator("#setup-github-repository-widget-import")).toBeDisabled()
+  await expect(page.locator("#setup-github-repository-widget-import")).toHaveText(
+    "Select repositories to import"
+  )
+
+  await page.click("#setup-github-repository-widget-card-repo_100")
+  await expect(page.locator("#setup-github-repository-widget-import")).toBeEnabled()
+  await expect(page.locator("#setup-github-repository-widget-import")).toHaveText(
+    "Import selected repository"
+  )
+
+  await page.click("#setup-github-repository-widget-card-repo_100")
+  await expect(page.locator("#setup-github-repository-widget-import")).toBeDisabled()
+  await expect(page.locator("#setup-github-repository-widget-import")).toHaveText(
+    "Select repositories to import"
+  )
+
+  await page.click("#setup-github-repository-widget-card-repo_100")
+  await page.click("#setup-github-repository-widget-card-repo_200")
+  await expect(page.locator("#setup-github-repository-widget-import")).toHaveText(
+    "Import 2 selected repositories"
+  )
+
+  await page.click("#setup-github-repository-widget-card-repo_100")
+  await expect(page.locator("#setup-github-repository-widget-import")).toHaveText(
+    "Import selected repository"
+  )
+
   await page.fill("#setup-github-repository-widget-search", "repo-two")
   await expect(page.locator("#setup-github-repository-widget-card-repo_100")).toHaveCount(0)
   await expect(page.locator("#setup-github-repository-widget-card-repo_200")).toBeVisible()
 
-  await page.click("#setup-github-repository-widget-card-repo_200")
   await page.click("#setup-github-repository-widget-import")
 
   await expect(page.locator("#setup-github-repository-widget-import-status")).toHaveText("Imported")
@@ -157,13 +184,28 @@ test("fallback setup controls stay navigable when richer delivery degrades", asy
   await expect(page.locator("#setup-selected-start-path")).toHaveText("Connect GitHub")
 
   await expect(page.locator("#setup-github-repository-selector-fallback")).toBeVisible()
-  await expect(page.locator("#setup-github-repository-fallback-title")).toHaveText("Choose a GitHub repository")
+  await expect(page.locator("#setup-github-repository-fallback-title")).toHaveText("Choose GitHub repositories")
   await expect(page.locator("#setup-github-repository-fallback-list")).toBeVisible()
 
+  await expect(page.locator("#setup-github-repository-fallback-import")).toBeDisabled()
+  await expect(page.locator("#setup-github-repository-fallback-import")).toHaveText(
+    "Select repositories to import"
+  )
+
+  await page.click("#setup-github-repository-fallback-option-repo_100")
+  await expect(page.locator("#setup-github-repository-fallback-import")).toHaveText(
+    "Import selected repository"
+  )
+
   await page.click("#setup-github-repository-fallback-option-repo_200")
+  await expect(page.locator("#setup-github-repository-fallback-import")).toHaveText(
+    "Import 2 selected repositories"
+  )
+
   await page.click("#setup-github-repository-fallback-import")
 
   await expect(page.locator("#setup-github-import-fallback-success")).toContainText(
-    "Imported owner/repo-two into the managed-repository control plane."
+    "Imported 2 GitHub repositories into the managed-repository control plane."
   )
+  await expect(page.locator("#setup-github-import-fallback-open-repo")).toHaveCount(0)
 })

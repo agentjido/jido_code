@@ -570,18 +570,19 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     selector = vue(view, id: "setup-github-repository-selector")
 
-    assert selector.props["panelTitle"] == "Choose a GitHub repository"
+    assert selector.props["panelTitle"] == "Choose GitHub repositories"
     assert selector.props["panelBadgeLabel"] == "Optional follow-up"
     assert selector.props["panelSummary"] ==
-             "Pick one of your linked GitHub repositories and import it into the control plane."
+             "Pick one or more linked GitHub repositories and import them into the control plane."
 
     assert selector.props["panelDetail"] ==
-             "Pick one linked GitHub repository to import into the control plane now, or finish onboarding and come back later."
+             "Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later."
 
     assert selector.props["boundaryNote"] ==
              "LiveView still owns PAT capture, persistence, and completion; this widget only makes repository follow-up easier to scan and resume."
 
-    assert selector.props["selectedRepository"] == "owner/repo-one"
+    assert selector.props["selectedRepositories"] == []
+    assert selector.props["importSelectedRepositories"] == []
     assert selector.props["listingStatus"] == "ready"
     assert selector.props["repositoryCountLabel"] == "2 linked repositories available for import."
 
@@ -589,6 +590,105 @@ defmodule JidoCodeWeb.SetupLiveTest do
              "owner/repo-one",
              "owner/repo-two"
            ]
+  end
+
+  test "GitHub repository selector persists multi-selection toggles through the LiveView event contract",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        },
+        "4" => %{
+          "github_credentials" => %{
+            "paths" => [
+              %{
+                "path" => "github_app",
+                "status" => "ready",
+                "repository_access" => "confirmed",
+                "repositories" => [
+                  %{"id" => "repo_100", "full_name" => "owner/repo-one"},
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"}
+                ]
+              }
+            ]
+          }
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    choose_start_path(view, "github")
+
+    render_click(view, "select_github_repository", %{"repository_full_name" => "owner/repo-one"})
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-one",
+                 "selected_repositories" => ["owner/repo-one"]
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    assert vue(view, id: "setup-github-repository-selector").props["selectedRepositories"] == [
+             "owner/repo-one"
+           ]
+
+    render_click(view, "select_github_repository", %{"repository_full_name" => "owner/repo-two"})
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-one",
+                 "selected_repositories" => ["owner/repo-one", "owner/repo-two"]
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    assert vue(view, id: "setup-github-repository-selector").props["selectedRepositories"] == [
+             "owner/repo-one",
+             "owner/repo-two"
+           ]
+
+    render_click(view, "select_github_repository", %{"repository_full_name" => "owner/repo-one"})
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-two",
+                 "selected_repositories" => ["owner/repo-two"]
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    assert vue(view, id: "setup-github-repository-selector").props["selectedRepositories"] == [
+             "owner/repo-two"
+           ]
+
+    render_click(view, "select_github_repository", %{"repository_full_name" => "owner/repo-two"})
+
+    assert %{
+             onboarding_state: %{
+               "7" => step_state
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    refute Map.has_key?(step_state, "selected_repository")
+    refute Map.has_key?(step_state, "selected_repositories")
+    assert vue(view, id: "setup-github-repository-selector").props["selectedRepositories"] == []
   end
 
   test "choosing GitHub requires PAT capture when deployment-local repository access is not configured",
@@ -913,14 +1013,16 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     Application.put_env(:jido_code, :setup_project_importer, fn context ->
       selected_repository = context.selected_repository
+      repo_name = selected_repository |> String.split("/") |> List.last()
+      managed_repo_id = "managed-repo-#{repo_name}"
 
       %{
         checked_at: @checked_at,
         status: :ready,
         selected_repository: selected_repository,
         project_record: %{
-          id: "managed-repo-123",
-          name: "repo-two",
+          id: managed_repo_id,
+          name: repo_name,
           source_kind: :github,
           source_identifier: selected_repository,
           github_full_name: selected_repository,
@@ -992,13 +1094,13 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert has_element?(view, "#setup-github-repository-selector-fallback")
     assert has_element?(view, "#setup-github-repository-selector-fallback-body")
-    assert has_element?(view, "#setup-github-repository-fallback-title", "Choose a GitHub repository")
+    assert has_element?(view, "#setup-github-repository-fallback-title", "Choose GitHub repositories")
     assert has_element?(view, "#setup-github-repository-fallback-badge", "Optional follow-up")
 
     assert has_element?(
              view,
              "#setup-github-repository-fallback-summary",
-             "Pick one of your linked GitHub repositories and import it into the control plane."
+             "Pick one or more linked GitHub repositories and import them into the control plane."
            )
 
     assert has_element?(
@@ -1016,30 +1118,50 @@ defmodule JidoCodeWeb.SetupLiveTest do
            )
 
     view
+    |> element("#setup-github-repository-fallback-option-repo_100")
+    |> render_click()
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-one",
+                 "selected_repositories" => ["owner/repo-one"]
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    view
     |> element("#setup-github-repository-fallback-option-repo_200")
     |> render_click()
 
     assert %{
              onboarding_state: %{
                "7" => %{
-                 "selected_repository" => "owner/repo-two"
+                 "selected_repository" => "owner/repo-one",
+                 "selected_repositories" => ["owner/repo-one", "owner/repo-two"]
                }
              }
            } = Application.get_env(:jido_code, :system_config)
 
     view
     |> form("#setup-github-repository-selector-fallback-form", %{
-      "repository_selection" => %{"repository_full_name" => "owner/repo-two"}
+      "repository_selection" => %{"repository_full_names" => ["owner/repo-one", "owner/repo-two"]}
     })
     |> render_submit()
 
     assert %{
              onboarding_state: %{
                "7" => %{
-                 "selected_repository" => "owner/repo-two",
+                 "selected_repository" => "owner/repo-one",
+                 "selected_repositories" => ["owner/repo-one", "owner/repo-two"],
                  "project_import" => %{
                    "selected_repository" => "owner/repo-two",
-                   "project_record" => %{"id" => "managed-repo-123"},
+                   "project_record" => %{"id" => "managed-repo-repo-two"},
+                   "status" => "ready"
+                 },
+                 "project_import_batch" => %{
+                   "selected_repositories" => ["owner/repo-one", "owner/repo-two"],
+                   "imported_repositories" => ["owner/repo-one", "owner/repo-two"],
                    "status" => "ready"
                  }
                }
@@ -1047,7 +1169,13 @@ defmodule JidoCodeWeb.SetupLiveTest do
            } = Application.get_env(:jido_code, :system_config)
 
     assert has_element?(view, "#setup-github-import-fallback-success")
-    assert has_element?(view, "#setup-github-import-fallback-open-repo", "Open managed repo")
+    assert has_element?(
+             view,
+             "#setup-github-import-fallback-success",
+             "Imported 2 GitHub repositories into the managed-repository control plane."
+           )
+
+    refute has_element?(view, "#setup-github-import-fallback-open-repo")
   end
 
   test "completing setup after choosing GitHub marks onboarding complete and enters the dashboard", %{

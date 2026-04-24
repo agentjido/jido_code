@@ -159,7 +159,8 @@ defmodule JidoCodeWeb.SetupLive do
 
   @impl true
   def handle_event("select_github_repository", params, socket) do
-    selected_repository = extract_repository_selection(params)
+    selected_repositories =
+      resolve_selected_repositories(params, socket.assigns.github_selected_repositories)
 
     cond do
       socket.assigns.buttons_disabled? ->
@@ -171,13 +172,13 @@ defmodule JidoCodeWeb.SetupLive do
          )}
 
       not valid_github_repository_selection?(
-        selected_repository,
+        selected_repositories,
         socket.assigns.github_repository_full_names
       ) ->
-        {:noreply, assign(socket, :save_error, "Choose a validated GitHub repository.")}
+        {:noreply, assign(socket, :save_error, "Choose validated GitHub repositories.")}
 
       true ->
-        case persist_github_repository_selection(selected_repository) do
+        case persist_github_repository_selection(selected_repositories) do
           {:ok, %SystemConfig{} = config} ->
             {:noreply, assign_start_surface(socket, config, socket.assigns.diagnostic, false)}
 
@@ -283,8 +284,8 @@ defmodule JidoCodeWeb.SetupLive do
 
   @impl true
   def handle_event("import_selected_github_repository", params, socket) do
-    selected_repository =
-      extract_repository_selection(params) || socket.assigns.github_selected_repository
+    selected_repositories =
+      resolve_selected_repositories(params, socket.assigns.github_selected_repositories)
 
     cond do
       socket.assigns.buttons_disabled? ->
@@ -295,17 +296,17 @@ defmodule JidoCodeWeb.SetupLive do
            "Resolve the setup state issue before importing a GitHub repository."
          )}
 
-      is_nil(selected_repository) ->
-        {:noreply, assign(socket, :save_error, "Select a GitHub repository before importing it.")}
+      selected_repositories == [] ->
+        {:noreply, assign(socket, :save_error, "Select at least one GitHub repository before importing it.")}
 
       not valid_github_repository_selection?(
-        selected_repository,
+        selected_repositories,
         socket.assigns.github_repository_full_names
       ) ->
-        {:noreply, assign(socket, :save_error, "Choose a validated GitHub repository.")}
+        {:noreply, assign(socket, :save_error, "Choose validated GitHub repositories.")}
 
       true ->
-        case persist_github_project_import(selected_repository, socket.assigns.owner_email) do
+        case persist_github_project_import(selected_repositories, socket.assigns.owner_email) do
           {:ok, %SystemConfig{} = config} ->
             project_import_report = github_project_import_report(config.onboarding_state)
 
@@ -317,7 +318,7 @@ defmodule JidoCodeWeb.SetupLive do
              |> assign_start_surface(config, socket.assigns.diagnostic, false)
              |> put_flash(
                flash_kind,
-               github_project_import_flash(project_import_report, selected_repository)
+               github_project_import_flash(project_import_report, selected_repositories)
              )}
 
           {:error, %{diagnostic: diagnostic}} ->
@@ -539,7 +540,7 @@ defmodule JidoCodeWeb.SetupLive do
                 class="space-y-2"
               >
                 <div class="flex flex-wrap items-center gap-2">
-                  <h2 class="text-xl font-semibold">Choose a GitHub repository</h2>
+                  <h2 class="text-xl font-semibold">Choose GitHub repositories</h2>
                   <span id="setup-github-repository-badge" class="badge badge-outline text-xs">
                     Optional follow-up
                   </span>
@@ -552,7 +553,7 @@ defmodule JidoCodeWeb.SetupLive do
                   )}
                 </p>
                 <p class="max-w-2xl text-sm text-base-content/60">
-                  Pick one linked GitHub repository to import into the control plane now, or finish onboarding and come back later.
+                  Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later.
                 </p>
               </div>
 
@@ -728,7 +729,7 @@ defmodule JidoCodeWeb.SetupLive do
                         id="setup-github-repository-fallback-selection"
                         class="mt-1 text-lg font-semibold"
                       >
-                        {@github_selected_repository || "Not selected"}
+                        {github_selected_repository_summary(@github_selected_repositories)}
                       </p>
                       <p class="mt-2 text-xs text-base-content/70">
                         {github_repository_count_label(@github_repository_options)}
@@ -755,15 +756,15 @@ defmodule JidoCodeWeb.SetupLive do
 
                   <.form
                     id="setup-github-repository-selector-fallback-form"
-                    for={@github_repository_selection_form}
-                    phx-change="select_github_repository"
+                    for={%{}}
                     phx-submit="import_selected_github_repository"
                     class="space-y-4"
                   >
                     <input
+                      :for={repository_full_name <- @github_selected_repositories}
                       type="hidden"
-                      name="repository_selection[repository_full_name]"
-                      value={@github_selected_repository || ""}
+                      name="repository_selection[repository_full_names][]"
+                      value={repository_full_name}
                     />
 
                     <div class="space-y-2">
@@ -792,9 +793,9 @@ defmodule JidoCodeWeb.SetupLive do
                           disabled={@buttons_disabled?}
                           class={[
                             "w-full rounded-xl border p-3 text-left transition",
-                            repository.full_name == @github_selected_repository &&
+                            repository.full_name in @github_selected_repositories &&
                               "border-primary/60 bg-primary/10",
-                            repository.full_name != @github_selected_repository &&
+                            repository.full_name not in @github_selected_repositories &&
                               "border-base-300/70 bg-base-100 hover:border-primary/40",
                             @buttons_disabled? && "opacity-60"
                           ]}
@@ -808,9 +809,9 @@ defmodule JidoCodeWeb.SetupLive do
                             </div>
                             <span class={[
                               "badge badge-outline text-xs",
-                              repository.full_name == @github_selected_repository && "badge-primary"
+                              repository.full_name in @github_selected_repositories && "badge-primary"
                             ]}>
-                              {if repository.full_name == @github_selected_repository,
+                              {if repository.full_name in @github_selected_repositories,
                                 do: "Selected",
                                 else: "Linked"}
                             </span>
@@ -848,16 +849,16 @@ defmodule JidoCodeWeb.SetupLive do
                         id="setup-github-repository-fallback-import"
                         type="submit"
                         disabled={
-                          @buttons_disabled? or is_nil(@github_selected_repository) or
+                          @buttons_disabled? or @github_selected_repositories == [] or
                             @github_repository_options == []
                         }
                         class={[
                           "btn btn-primary",
-                          (@buttons_disabled? or is_nil(@github_selected_repository) or
+                          (@buttons_disabled? or @github_selected_repositories == [] or
                              @github_repository_options == []) && "btn-disabled"
                         ]}
                       >
-                        Import selected repository
+                        {github_import_button_label(@github_selected_repositories)}
                       </button>
                     </div>
                   </.form>
@@ -959,8 +960,8 @@ defmodule JidoCodeWeb.SetupLive do
     github_pat_capture_state =
       github_pat_capture_state(onboarding_state, github_repository_listing_report)
 
-    github_selected_repository =
-      github_selected_repository(
+    github_selected_repositories =
+      github_selected_repositories(
         onboarding_state,
         github_repository_listing_report,
         github_project_import_report
@@ -984,10 +985,9 @@ defmodule JidoCodeWeb.SetupLive do
       GitHubRepositoryListing.repository_full_names(github_repository_listing_report)
     )
     |> assign(:github_pat_capture_state, github_pat_capture_state)
-    |> assign(:github_selected_repository, github_selected_repository)
+    |> assign(:github_selected_repositories, github_selected_repositories)
     |> assign(:github_project_import_report, github_project_import_report)
     |> assign_github_pat_form()
-    |> assign_github_repository_selection_form(github_selected_repository)
     |> assign_runtime_environment_form(runtime_environment_form_values(config))
     |> assign(:github_pat_save_error, nil)
     |> assign(:runtime_save_error, nil)
@@ -996,17 +996,6 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp assign_github_pat_form(socket) do
     assign(socket, :github_pat_form, to_form(%{"value" => ""}, as: :github_pat))
-  end
-
-  defp assign_github_repository_selection_form(socket, selected_repository) do
-    assign(
-      socket,
-      :github_repository_selection_form,
-      to_form(
-        %{"repository_full_name" => selected_repository || ""},
-        as: :repository_selection
-      )
-    )
   end
 
   defp start_options(:desktop) do
@@ -1102,17 +1091,17 @@ defmodule JidoCodeWeb.SetupLive do
     end)
   end
 
-  defp persist_github_repository_selection(selected_repository) do
+  defp persist_github_repository_selection(selected_repositories) do
     SystemConfig.update_onboarding_state(fn current_state ->
       current_state = normalize_keyed_map(current_state)
       existing_step_state = current_state |> fetch_step_state(@github_setup_step) |> normalize_keyed_map()
 
       updated_step_state =
         existing_step_state
-        |> maybe_put_selected_repository(selected_repository)
+        |> maybe_put_selected_repositories(selected_repositories)
         |> Map.put(
           "repository_selection_note",
-          github_repository_selection_note(selected_repository)
+          github_repository_selection_note(selected_repositories)
         )
 
       {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
@@ -1135,8 +1124,8 @@ defmodule JidoCodeWeb.SetupLive do
 
       listing_report = GitHubRepositoryListing.run(previous_report, current_state)
 
-      selected_repository =
-        github_selected_repository(
+      selected_repositories =
+        github_selected_repositories(
           current_state,
           listing_report,
           existing_step_state |> map_get(:project_import, "project_import") |> ProjectImport.from_state()
@@ -1148,17 +1137,17 @@ defmodule JidoCodeWeb.SetupLive do
           "repository_listing",
           GitHubRepositoryListing.serialize_for_state(listing_report)
         )
-        |> maybe_put_selected_repository(selected_repository)
+        |> maybe_put_selected_repositories(selected_repositories)
         |> Map.put(
           "repository_selection_note",
-          github_repository_selection_note(selected_repository)
+          github_repository_selection_note(selected_repositories)
         )
 
       {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
     end)
   end
 
-  defp persist_github_project_import(selected_repository, owner_context) do
+  defp persist_github_project_import(selected_repositories, owner_context) do
     SystemConfig.update_onboarding_state(fn current_state ->
       current_state =
         current_state
@@ -1179,7 +1168,8 @@ defmodule JidoCodeWeb.SetupLive do
         |> map_get(:project_import, "project_import")
         |> ProjectImport.from_state()
 
-      project_import_report = ProjectImport.run(previous_import, selected_repository, current_state)
+      {project_import_report, batch_import_report} =
+        run_github_project_import_batch(previous_import, selected_repositories, current_state)
 
       updated_step_state =
         existing_step_state
@@ -1188,10 +1178,11 @@ defmodule JidoCodeWeb.SetupLive do
           GitHubRepositoryListing.serialize_for_state(listing_report)
         )
         |> Map.put("project_import", ProjectImport.serialize_for_state(project_import_report))
-        |> maybe_put_selected_repository(selected_repository)
+        |> Map.put("project_import_batch", serialize_github_project_import_batch(batch_import_report))
+        |> maybe_put_selected_repositories(selected_repositories)
         |> Map.put(
           "repository_selection_note",
-          github_repository_selection_note(selected_repository)
+          github_repository_selection_note(selected_repositories)
         )
 
       {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
@@ -1240,14 +1231,27 @@ defmodule JidoCodeWeb.SetupLive do
   end
 
   defp github_project_import_report(onboarding_state) do
-    onboarding_state
-    |> fetch_step_state(@github_setup_step)
-    |> map_get(:project_import, "project_import")
-    |> ProjectImport.from_state()
+    step_state = fetch_step_state(onboarding_state, @github_setup_step)
+
+    case step_state |> map_get(:project_import_batch, "project_import_batch") |> github_project_import_batch_from_state() do
+      nil ->
+        step_state
+        |> map_get(:project_import, "project_import")
+        |> ProjectImport.from_state()
+        |> github_project_import_batch_from_single_report()
+
+      batch_report ->
+        batch_report
+    end
   end
 
-  defp github_selected_repository(onboarding_state, listing_report, project_import_report) do
+  defp github_selected_repositories(onboarding_state, listing_report, project_import_report) do
     step_state = fetch_step_state(onboarding_state, @github_setup_step)
+
+    persisted_selections =
+      step_state
+      |> map_get(:selected_repositories, "selected_repositories")
+      |> normalize_repository_list()
 
     persisted_selection =
       step_state
@@ -1255,24 +1259,19 @@ defmodule JidoCodeWeb.SetupLive do
       |> normalize_optional_string()
 
     available_repositories = GitHubRepositoryListing.repository_full_names(listing_report)
-    imported_selection = ProjectImport.selected_repository(project_import_report)
+    imported_selections = github_project_import_selected_repositories(project_import_report)
 
-    cond do
-      repository_selection_available?(persisted_selection, available_repositories) ->
-        persisted_selection
-
-      repository_selection_available?(imported_selection, available_repositories) ->
-        imported_selection
-
-      true ->
-        List.first(available_repositories)
-    end
+    persisted_selections
+    |> Kernel.++(List.wrap(persisted_selection))
+    |> Kernel.++(imported_selections)
+    |> Enum.uniq()
+    |> Enum.filter(&repository_selection_available?(&1, available_repositories))
   end
 
   defp show_github_repository_selector?(:github), do: true
   defp show_github_repository_selector?(_selected_start_path), do: false
 
-  defp github_repository_panel_title, do: "Choose a GitHub repository"
+  defp github_repository_panel_title, do: "Choose GitHub repositories"
   defp github_repository_panel_badge_label, do: "Optional follow-up"
 
   defp github_repository_panel_summary(github_pat_capture_state, listing_report, project_import_report) do
@@ -1287,12 +1286,12 @@ defmodule JidoCodeWeb.SetupLive do
         listing_report.detail
 
       true ->
-        "Pick one of your linked GitHub repositories and import it into the control plane."
+        "Pick one or more linked GitHub repositories and import them into the control plane."
     end
   end
 
   defp github_repository_panel_detail do
-    "Pick one linked GitHub repository to import into the control plane now, or finish onboarding and come back later."
+    "Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later."
   end
 
   defp github_repository_widget_boundary_note do
@@ -1326,12 +1325,13 @@ defmodule JidoCodeWeb.SetupLive do
       listingCheckedAt: checked_at_label(assigns.github_repository_listing_report.checked_at),
       repositoryCountLabel: github_repository_count_label(assigns.github_repository_options),
       repositoryOptions: Enum.map(assigns.github_repository_options, &github_repository_option_props/1),
-      selectedRepository: assigns.github_selected_repository,
+      selectedRepositories: assigns.github_selected_repositories,
       importStatus: github_import_status(assigns.github_project_import_report),
       importDetail: github_import_detail(assigns.github_project_import_report),
       importRemediation: github_import_remediation(assigns.github_project_import_report),
       importErrorType: github_import_error_type(assigns.github_project_import_report),
-      importSelectedRepository: ProjectImport.selected_repository(assigns.github_project_import_report),
+      importSelectedRepositories:
+        github_project_import_selected_repositories(assigns.github_project_import_report),
       importProjectId: github_project_id(assigns.github_project_import_report),
       importProjectDisplayName: github_project_display_name(assigns.github_project_import_report),
       importProjectPath: github_project_path(assigns.github_project_import_report),
@@ -1484,6 +1484,22 @@ defmodule JidoCodeWeb.SetupLive do
     "#{length(repository_options)} linked repositories available for import."
   end
 
+  defp github_selected_repository_summary([]), do: "Not selected"
+
+  defp github_selected_repository_summary([selected_repository]),
+    do: selected_repository
+
+  defp github_selected_repository_summary(selected_repositories) when is_list(selected_repositories) do
+    "#{length(selected_repositories)} repositories selected"
+  end
+
+  defp github_import_button_label([]), do: "Select repositories to import"
+  defp github_import_button_label([_selected_repository]), do: "Import selected repository"
+
+  defp github_import_button_label(selected_repositories) when is_list(selected_repositories) do
+    "Import #{length(selected_repositories)} selected repositories"
+  end
+
   defp github_project_import_ready?(%{status: :ready}), do: true
   defp github_project_import_ready?(_report), do: false
 
@@ -1506,25 +1522,48 @@ defmodule JidoCodeWeb.SetupLive do
   defp github_import_error_type(%{error_type: error_type}) when is_binary(error_type), do: error_type
   defp github_import_error_type(_report), do: nil
 
+  defp github_project_import_mode(%{project_paths: [_project_path], last_project_import: last_project_import})
+       when is_map(last_project_import),
+       do: github_project_import_mode(last_project_import)
+
   defp github_project_import_mode(%{project_record: %{import_mode: import_mode}})
        when import_mode in [:created, :existing],
        do: Atom.to_string(import_mode)
 
   defp github_project_import_mode(_report), do: nil
 
+  defp github_project_id(%{project_paths: [%{managed_repo_id: managed_repo_id}]})
+       when is_binary(managed_repo_id),
+       do: managed_repo_id
+
   defp github_project_id(%{project_record: %{id: id}}) when is_binary(id), do: id
   defp github_project_id(_report), do: nil
+
+  defp github_project_display_name(%{project_paths: [%{repository_full_name: repository_full_name}]})
+       when is_binary(repository_full_name) do
+    repository_name(repository_full_name)
+  end
+
+  defp github_project_display_name(%{imported_repositories: imported_repositories})
+       when is_list(imported_repositories) and length(imported_repositories) > 1 do
+    "#{length(imported_repositories)} repositories imported"
+  end
+
+  defp github_project_display_name(%{selected_repositories: selected_repositories})
+       when is_list(selected_repositories) and length(selected_repositories) > 1 do
+    "#{length(selected_repositories)} repositories selected"
+  end
 
   defp github_project_display_name(%{project_record: %{name: name}}) when is_binary(name), do: name
 
   defp github_project_display_name(%{selected_repository: selected_repository})
        when is_binary(selected_repository) do
-    selected_repository
-    |> String.split("/")
-    |> List.last()
+    repository_name(selected_repository)
   end
 
   defp github_project_display_name(_report), do: nil
+
+  defp github_project_path(%{project_paths: [%{path: path}]}) when is_binary(path), do: path
 
   defp github_project_path(project_import_report) do
     case github_project_id(project_import_report) do
@@ -1533,25 +1572,51 @@ defmodule JidoCodeWeb.SetupLive do
     end
   end
 
-  defp github_project_import_flash(project_import_report, selected_repository) do
+  defp github_project_import_flash(%{detail: detail}, _selected_repositories)
+       when is_binary(detail) and detail != "" do
+    detail
+  end
+
+  defp github_project_import_flash(project_import_report, selected_repositories) do
     case project_import_report do
       %{status: :ready} ->
-        "Imported #{selected_repository} into the managed-repository control plane."
+        case selected_repositories do
+          [selected_repository] ->
+            "Imported #{selected_repository} into the managed-repository control plane."
 
-      %{detail: detail} when is_binary(detail) ->
-        detail
+          repositories when is_list(repositories) ->
+            "Imported #{length(repositories)} GitHub repositories into the managed-repository control plane."
+        end
 
       _other ->
         "GitHub repository import could not complete."
     end
   end
 
-  defp github_repository_selection_note(selected_repository) when is_binary(selected_repository) do
+  defp github_repository_selection_note([selected_repository]) do
     "GitHub repository #{selected_repository} selected for optional import."
   end
 
-  defp github_repository_selection_note(_selected_repository) do
+  defp github_repository_selection_note(selected_repositories) when is_list(selected_repositories) and selected_repositories != [] do
+    "#{length(selected_repositories)} GitHub repositories selected for optional import."
+  end
+
+  defp github_repository_selection_note(_selected_repositories) do
     "GitHub repository selection cleared."
+  end
+
+  defp maybe_put_selected_repositories(step_state, selected_repositories) do
+    normalized_selected_repositories = normalize_repository_list(selected_repositories)
+
+    step_state
+    |> maybe_put_selected_repository(List.first(normalized_selected_repositories))
+    |> case do
+      updated_step_state when normalized_selected_repositories == [] ->
+        Map.delete(updated_step_state, "selected_repositories")
+
+      updated_step_state ->
+        Map.put(updated_step_state, "selected_repositories", normalized_selected_repositories)
+    end
   end
 
   defp maybe_put_selected_repository(step_state, selected_repository) when is_binary(selected_repository),
@@ -1560,30 +1625,346 @@ defmodule JidoCodeWeb.SetupLive do
   defp maybe_put_selected_repository(step_state, _selected_repository),
     do: Map.delete(step_state, "selected_repository")
 
-  defp extract_repository_selection(%{"repository_selection" => selection_params})
+  defp resolve_selected_repositories(params, current_selected_repositories) do
+    case extract_repository_selections(params) do
+      {:toggle, selected_repository} ->
+        toggle_selected_repository(current_selected_repositories, selected_repository)
+
+      {:replace, selected_repositories} ->
+        selected_repositories
+
+      :none ->
+        normalize_repository_list(current_selected_repositories)
+    end
+  end
+
+  defp extract_repository_selections(%{"repository_selection" => selection_params})
        when is_map(selection_params),
-       do: extract_repository_selection(selection_params)
+       do: extract_repository_selections(selection_params)
 
-  defp extract_repository_selection(%{"repository_full_name" => repository_full_name}),
-    do: normalize_optional_string(repository_full_name)
+  defp extract_repository_selections(%{"repository_full_names" => repository_full_names}),
+    do: {:replace, normalize_repository_list(repository_full_names)}
 
-  defp extract_repository_selection(%{repository_full_name: repository_full_name}),
-    do: normalize_optional_string(repository_full_name)
+  defp extract_repository_selections(%{repository_full_names: repository_full_names}),
+    do: {:replace, normalize_repository_list(repository_full_names)}
 
-  defp extract_repository_selection(_params), do: nil
+  defp extract_repository_selections(%{"repository_full_name" => repository_full_name}) do
+    case normalize_optional_string(repository_full_name) do
+      nil -> :none
+      selected_repository -> {:toggle, selected_repository}
+    end
+  end
 
-  defp valid_github_repository_selection?(nil, _available_repositories), do: true
+  defp extract_repository_selections(%{repository_full_name: repository_full_name}),
+    do: extract_repository_selections(%{"repository_full_name" => repository_full_name})
 
-  defp valid_github_repository_selection?(selected_repository, []),
-    do: is_binary(selected_repository)
+  defp extract_repository_selections(_params), do: :none
 
-  defp valid_github_repository_selection?(selected_repository, available_repositories),
-    do: selected_repository in available_repositories
+  defp valid_github_repository_selection?(selected_repositories, []),
+    do: Enum.all?(normalize_repository_list(selected_repositories), &is_binary/1)
+
+  defp valid_github_repository_selection?(selected_repositories, available_repositories) do
+    selected_repositories
+    |> normalize_repository_list()
+    |> Enum.all?(&(&1 in available_repositories))
+  end
 
   defp repository_selection_available?(selected_repository, []), do: is_binary(selected_repository)
 
   defp repository_selection_available?(selected_repository, available_repositories),
     do: selected_repository in available_repositories
+
+  defp toggle_selected_repository(current_selected_repositories, selected_repository) do
+    normalized_current_selection = normalize_repository_list(current_selected_repositories)
+
+    if selected_repository in normalized_current_selection do
+      Enum.reject(normalized_current_selection, &(&1 == selected_repository))
+    else
+      normalized_current_selection ++ [selected_repository]
+    end
+  end
+
+  defp normalize_repository_list(selected_repositories) when is_list(selected_repositories) do
+    selected_repositories
+    |> Enum.map(&normalize_optional_string/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_repository_list(selected_repository) when is_binary(selected_repository),
+    do: normalize_repository_list([selected_repository])
+
+  defp normalize_repository_list(_selected_repositories), do: []
+
+  defp github_project_import_selected_repositories(%{selected_repositories: selected_repositories})
+       when is_list(selected_repositories),
+       do: normalize_repository_list(selected_repositories)
+
+  defp github_project_import_selected_repositories(project_import_report),
+    do: normalize_repository_list(ProjectImport.selected_repository(project_import_report))
+
+  defp github_project_import_batch_from_single_report(nil), do: nil
+
+  defp github_project_import_batch_from_single_report(project_import_report) do
+    selected_repositories = github_project_import_selected_repositories(project_import_report)
+    imported_repositories = if github_project_import_ready?(project_import_report), do: selected_repositories, else: []
+
+    %{
+      checked_at: Map.get(project_import_report, :checked_at),
+      status: Map.get(project_import_report, :status, :idle),
+      selected_repositories: selected_repositories,
+      imported_repositories: imported_repositories,
+      project_paths: github_project_paths_from_report(project_import_report),
+      detail: Map.get(project_import_report, :detail),
+      remediation: Map.get(project_import_report, :remediation),
+      error_type: Map.get(project_import_report, :error_type),
+      last_project_import: project_import_report
+    }
+  end
+
+  defp github_project_import_batch_from_state(nil), do: nil
+
+  defp github_project_import_batch_from_state(state) when is_map(state) do
+    %{
+      checked_at:
+        state
+        |> map_get(:checked_at, "checked_at")
+        |> normalize_optional_datetime() ||
+          (DateTime.utc_now() |> DateTime.truncate(:second)),
+      status:
+        state
+        |> map_get(:status, "status")
+        |> normalize_project_import_batch_status(),
+      selected_repositories:
+        state
+        |> map_get(:selected_repositories, "selected_repositories")
+        |> normalize_repository_list(),
+      imported_repositories:
+        state
+        |> map_get(:imported_repositories, "imported_repositories")
+        |> normalize_repository_list(),
+      project_paths:
+        state
+        |> map_get(:project_paths, "project_paths", [])
+        |> normalize_github_project_paths(),
+      detail: state |> map_get(:detail, "detail") |> normalize_optional_string(),
+      remediation: state |> map_get(:remediation, "remediation") |> normalize_optional_string(),
+      error_type: state |> map_get(:error_type, "error_type") |> normalize_optional_string(),
+      last_project_import:
+        state
+        |> map_get(:last_project_import, "last_project_import")
+        |> ProjectImport.from_state()
+    }
+  end
+
+  defp github_project_import_batch_from_state(_state), do: nil
+
+  defp serialize_github_project_import_batch(batch_import_report) do
+    %{
+      "checked_at" => batch_import_report.checked_at && DateTime.to_iso8601(batch_import_report.checked_at),
+      "status" => Atom.to_string(batch_import_report.status),
+      "selected_repositories" => batch_import_report.selected_repositories,
+      "imported_repositories" => batch_import_report.imported_repositories,
+      "project_paths" =>
+        Enum.map(batch_import_report.project_paths, fn project_path ->
+          %{
+            "repository_full_name" => project_path.repository_full_name,
+            "managed_repo_id" => project_path.managed_repo_id,
+            "path" => project_path.path
+          }
+        end),
+      "detail" => batch_import_report.detail,
+      "remediation" => batch_import_report.remediation,
+      "error_type" => batch_import_report.error_type,
+      "last_project_import" => ProjectImport.serialize_for_state(batch_import_report.last_project_import)
+    }
+  end
+
+  defp run_github_project_import_batch(previous_import, selected_repositories, onboarding_state) do
+    selected_repositories = normalize_repository_list(selected_repositories)
+
+    import_reports =
+      Enum.map(selected_repositories, fn selected_repository ->
+        previous_report =
+          if ProjectImport.selected_repository(previous_import) == selected_repository do
+            previous_import
+          else
+            nil
+          end
+
+        {selected_repository, ProjectImport.run(previous_report, selected_repository, onboarding_state)}
+      end)
+
+    {last_project_import(import_reports), github_project_import_batch(import_reports)}
+  end
+
+  defp github_project_import_batch(import_reports) do
+    selected_repositories = Enum.map(import_reports, fn {selected_repository, _report} -> selected_repository end)
+
+    successful_imports =
+      Enum.filter(import_reports, fn {_selected_repository, report} ->
+        github_project_import_ready?(report)
+      end)
+
+    imported_repositories =
+      Enum.map(successful_imports, fn {selected_repository, _report} -> selected_repository end)
+
+    failed_imports = Enum.reject(import_reports, fn import -> import in successful_imports end)
+    last_import_report = last_project_import(import_reports)
+
+    %{
+      checked_at:
+        last_import_report &&
+          Map.get(last_import_report, :checked_at, DateTime.utc_now() |> DateTime.truncate(:second)),
+      status: github_project_import_batch_status(successful_imports, failed_imports),
+      selected_repositories: selected_repositories,
+      imported_repositories: imported_repositories,
+      project_paths:
+        Enum.flat_map(successful_imports, fn {selected_repository, report} ->
+          github_project_paths_from_report(report, selected_repository)
+        end),
+      detail:
+        github_project_import_batch_detail(
+          selected_repositories,
+          imported_repositories,
+          failed_imports,
+          last_import_report
+        ),
+      remediation:
+        github_project_import_batch_remediation(failed_imports, last_import_report),
+      error_type:
+        github_project_import_batch_error_type(failed_imports, last_import_report),
+      last_project_import: last_import_report
+    }
+  end
+
+  defp last_project_import([]), do: nil
+  defp last_project_import(import_reports), do: import_reports |> List.last() |> elem(1)
+
+  defp github_project_import_batch_status(_successful_imports, []), do: :ready
+  defp github_project_import_batch_status([], _failed_imports), do: :blocked
+  defp github_project_import_batch_status(_successful_imports, _failed_imports), do: :blocked
+
+  defp normalize_project_import_batch_status("ready"), do: :ready
+  defp normalize_project_import_batch_status(:ready), do: :ready
+  defp normalize_project_import_batch_status("blocked"), do: :blocked
+  defp normalize_project_import_batch_status(:blocked), do: :blocked
+  defp normalize_project_import_batch_status(_status), do: :idle
+
+  defp github_project_import_batch_detail(
+         selected_repositories,
+         _imported_repositories,
+         [],
+         last_import_report
+       )
+       when length(selected_repositories) <= 1 do
+    Map.get(last_import_report || %{}, :detail, "No repository import has run yet.")
+  end
+
+  defp github_project_import_batch_detail(
+         _selected_repositories,
+         imported_repositories,
+         [],
+         _last_import_report
+       ) do
+    "Imported #{length(imported_repositories)} GitHub repositories into the managed-repository control plane."
+  end
+
+  defp github_project_import_batch_detail(
+         selected_repositories,
+         imported_repositories,
+         _failed_imports,
+         last_import_report
+       )
+       when imported_repositories == [] and length(selected_repositories) <= 1 do
+    Map.get(last_import_report || %{}, :detail, "GitHub repository import could not complete.")
+  end
+
+  defp github_project_import_batch_detail(selected_repositories, imported_repositories, _failed_imports, _last_import_report)
+       when imported_repositories != [] do
+    "Imported #{length(imported_repositories)} of #{length(selected_repositories)} GitHub repositories into the managed-repository control plane."
+  end
+
+  defp github_project_import_batch_detail(
+         selected_repositories,
+         _imported_repositories,
+         _failed_imports,
+         _last_import_report
+       ) do
+    "GitHub repository imports could not complete for #{length(selected_repositories)} selected repositories."
+  end
+
+  defp github_project_import_batch_remediation([], _last_import_report), do: nil
+
+  defp github_project_import_batch_remediation([{_selected_repository, failed_report} | _rest], _last_import_report) do
+    github_import_remediation(failed_report)
+  end
+
+  defp github_project_import_batch_error_type([], _last_import_report), do: nil
+
+  defp github_project_import_batch_error_type([{_selected_repository, failed_report}], _last_import_report) do
+    github_import_error_type(failed_report)
+  end
+
+  defp github_project_import_batch_error_type(_failed_imports, _last_import_report),
+    do: "github_repository_import_batch_incomplete"
+
+  defp github_project_paths_from_report(project_import_report, selected_repository_override \\ nil) do
+    case github_project_path(project_import_report) do
+      nil ->
+        []
+
+      path ->
+        [
+          %{
+            repository_full_name:
+              selected_repository_override ||
+                ProjectImport.selected_repository(project_import_report),
+            managed_repo_id: github_project_id(project_import_report),
+            path: path
+          }
+        ]
+    end
+  end
+
+  defp normalize_github_project_paths(project_paths) when is_list(project_paths) do
+    Enum.flat_map(project_paths, fn project_path ->
+      repository_full_name =
+        project_path
+        |> map_get(:repository_full_name, "repository_full_name")
+        |> normalize_optional_string()
+
+      managed_repo_id =
+        project_path
+        |> map_get(:managed_repo_id, "managed_repo_id")
+        |> normalize_optional_string()
+
+      path =
+        project_path
+        |> map_get(:path, "path")
+        |> normalize_optional_string()
+
+      if is_nil(repository_full_name) or is_nil(managed_repo_id) or is_nil(path) do
+        []
+      else
+        [
+          %{
+            repository_full_name: repository_full_name,
+            managed_repo_id: managed_repo_id,
+            path: path
+          }
+        ]
+      end
+    end)
+  end
+
+  defp normalize_github_project_paths(_project_paths), do: []
+
+  defp repository_name(selected_repository) when is_binary(selected_repository) do
+    selected_repository
+    |> String.split("/")
+    |> List.last()
+  end
 
   defp checked_at_label(%DateTime{} = checked_at), do: Calendar.strftime(checked_at, "%Y-%m-%d %H:%M UTC")
   defp checked_at_label(_checked_at), do: "Not checked yet"
@@ -1907,4 +2288,28 @@ defmodule JidoCodeWeb.SetupLive do
   end
 
   defp normalize_optional_string(_value), do: nil
+
+  defp normalize_optional_datetime(%DateTime{} = datetime), do: datetime
+
+  defp normalize_optional_datetime(%NaiveDateTime{} = datetime) do
+    case DateTime.from_naive(datetime, "Etc/UTC") do
+      {:ok, converted_datetime} -> converted_datetime
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp normalize_optional_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} ->
+        datetime
+
+      {:error, _reason} ->
+        case NaiveDateTime.from_iso8601(value) do
+          {:ok, naive_datetime} -> normalize_optional_datetime(naive_datetime)
+          {:error, _reason} -> nil
+        end
+    end
+  end
+
+  defp normalize_optional_datetime(_value), do: nil
 end

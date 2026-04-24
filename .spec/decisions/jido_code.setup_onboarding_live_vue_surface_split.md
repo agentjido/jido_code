@@ -33,8 +33,9 @@ for being pushed into a larger client-owned shell because they are sensitive,
 server-driven, and need a product-owned fallback when richer delivery degrades.
 
 What is missing is a durable rule for how `/setup` should grow if more of the
-surface adopts richer interaction, including later layout refinements inside
-the bounded GitHub selector region.
+surface adopts richer interaction, including later layout refinements and
+toggle-based multi-repository selection inside the bounded GitHub selector
+region.
 
 ## Decision
 
@@ -54,7 +55,8 @@ The split is:
    taking route ownership away from LiveView.
 4. GitHub repository selection is the reference setup pattern for this split:
    LiveView authors the repository state and import actions, the Vue widget
-   renders the richer picker, and the route carries a server-rendered fallback.
+   renders the richer picker with toggle-based multi-selection, and the route
+   carries a server-rendered fallback.
 5. Future setup-facing `live_vue` adoption should prefer additional bounded
    widgets, such as start-path or runtime-default summaries, rather than
    collapsing the whole setup surface into a client-owned application.

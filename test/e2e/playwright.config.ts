@@ -7,7 +7,7 @@ const repoRoot = path.resolve(__dirname, "../..")
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["setup-onboarding.spec.ts"],
+  testMatch: ["*.spec.ts"],
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,

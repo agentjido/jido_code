@@ -1,6 +1,6 @@
 # Package
 
-<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers, PAT preflight UI behavior, bounded multi-repository GitHub import follow-up on the signed-in setup surface, the rule that completed GitHub imports persist import history without staying selected as active follow-up work, and the planning workspace now includes a dedicated conversation UI spec-convergence phase for the routed operator surfaces. -->
+<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers, PAT preflight UI behavior, bounded multi-repository GitHub import follow-up on the signed-in setup surface, the rule that completed GitHub imports persist import history without staying selected as active follow-up work, the planning workspace phase for conversation UI convergence, and the routed repo-detail conversation shell plus browser-harness verification work that now keeps clarification, readiness, and degraded continuity under version-controlled package surfaces. -->
 
 High-level package contract for `jido_code`.
 

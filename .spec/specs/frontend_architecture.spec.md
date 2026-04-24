@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, and the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning while completed imports clear active selection and the import-state badge stays distinct from selectable repos. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning while completed imports clear active selection and the import-state badge stays distinct from selectable repos, and repo detail now keeps its productive conversation shell, runtime readiness, and degraded continuity LiveView-owned while browser coverage exercises clarification, reload recovery, and snapshot fallback on that routed surface. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
@@ -33,6 +33,7 @@ surface:
   - lib/jido_code_web/components/live_vue_components.ex
   - lib/jido_code_web/frontend_assets.ex
   - lib/jido_code_web/components/operator_state_components.ex
+  - lib/jido_code_web/components/conversation_surface_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue
   - lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
@@ -46,9 +47,11 @@ surface:
   - test/jido_code/frontend_start_test.exs
   - test/support/live_vue_case.ex
   - test/support/browser_setup.ex
+  - test/support/failing_conversation_subscriber.ex
   - test/support/test_browser_scenario_controller.ex
   - test/support/test_browser_session_controller.ex
   - test/e2e/
+  - test/e2e/conversation-ui.spec.ts
   - test/jido_code_web/components/
   - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
@@ -102,6 +105,11 @@ surface:
 
 - id: architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
   statement: Browser-facing verification shall keep LiveView tests as the primary routed-surface harness and should add LiveVue-aware test helpers for Vue-mounted surfaces instead of assuming a standalone SPA testing model.
+  priority: should
+  stability: evolving
+
+- id: architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
+  statement: Managed-repository conversation routes should keep transcript, runtime readiness, clarification handling, and degraded continuity in the LiveView-owned route shell even when adjacent overview or summary widgets use bounded Vue regions.
   priority: should
   stability: evolving
 
@@ -205,6 +213,21 @@ surface:
   then:
     - Conversation, governance, filters, and runtime evidence continue to flow through LiveView-owned product boundaries while the Vue-backed region only renders bounded projections and mapped emits.
 
+- id: architecture.frontend_stack.scenario_repo_detail_conversation_shell_stays_liveview_owned
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+    - architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+  given:
+    - Repo detail already uses a bounded Vue-backed overview widget while also hosting the productive conversation route shell.
+  when:
+    - Browser coverage exercises clarification, blocked runtime readiness, reload recovery, or snapshot-only degraded continuity on that route.
+  then:
+    - The transcript, readiness notices, and recovery state remain LiveView-owned and route-authored instead of moving into a client-owned conversation shell.
+    - Any richer Vue region remains bounded to overview or summary composition and does not own productive conversation control flow.
+
 - id: architecture.frontend_stack.scenario_semantic_repo_inspection_uses_hybrid_region
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
@@ -297,6 +320,7 @@ surface:
     - architecture.frontend_stack.product_owned_mounting_boundary
     - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+    - architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
 
 - kind: source_file
   target: .spec/specs/frontend_architecture.spec.md
@@ -335,6 +359,11 @@ surface:
   target: lib/jido_code_web/frontend_assets.ex
   covers:
     - architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling
+
+- kind: source_file
+  target: test/e2e/conversation-ui.spec.ts
+  covers:
+    - architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
     - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
     - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 

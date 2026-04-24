@@ -137,7 +137,9 @@ Keep the semantic graph as a bounded enhancement, not a hidden dependency:
 Productive coding conversations are managed-repository scoped and usually attach to one canonical `WorkItem`.
 
 - Use the conversation driver and sequenced event stream for conversation UX. Snapshots are for cold load, reconnect recovery, and degraded continuity, not steady-state polling.
+- Treat repo detail as the canonical conversation host surface. Workbench, run detail, and dashboard should project bounded conversation supervision and route operators back into repo detail or governed work paths instead of growing their own transcript or composer state.
 - Route steering through canonical work records. If a conversation narrows, redirects, or promotes work, the durable outcome should rejoin `ManagedRepo` and `WorkItem` surfaces instead of living as free-floating chat state.
+- Keep runtime readiness operator-readable. Selected provider/model, workspace prerequisites, and degraded continuity should stay visible on the route-owned conversation shell while raw sequence metadata remains secondary.
 - Keep short-term collaboration context bounded and explainable. Referenced files, accepted tool results, and pending clarification state should remain explicit enough to steer follow-up work without turning conversations into hidden long-term memory.
 
 ## Day-To-Day Commands

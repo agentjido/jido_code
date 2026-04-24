@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: run-detail and workbench conversation coverage continues to project canonical control-plane records. -->
+<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical productive-conversation host while workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.

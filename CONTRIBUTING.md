@@ -173,8 +173,10 @@ Conversation work in this repo is product work, not a parallel chat lane.
 
 - Keep conversations bound to an explicit `ManagedRepo` and, when durable work is in play, to one canonical `WorkItem`.
 - Prefer the event-driven conversation path. Live updates should flow through the product-owned conversation event stream, with snapshots reserved for bootstrap, reconnect recovery, and degraded continuity instead of polling-first UI.
+- Treat repo detail as the canonical productive-conversation host. Workbench, governed run detail, and dashboard should only project bounded supervision state and link back rather than introducing page-local transcript or composer ownership.
 - Treat `turn.steer`, `turn.stop`, `tool.cancel`, pause, and resume as explicit control-lane commands rather than ad hoc message priorities or browser-local state.
 - When a conversation redirects or promotes work, send that demand back through the governed work loop so `WorkItem` auditability stays canonical.
+- Keep provider/model readiness, workspace prerequisites, and degraded continuity visible in the route-owned shell instead of burying them in raw runtime metadata.
 - Keep short-term shared context bounded and explainable. Referenced files, accepted tool results, and pending clarification state may inform steering, but they should remain visible, product-shaped context rather than hidden memory.
 
 ## Commit Messages

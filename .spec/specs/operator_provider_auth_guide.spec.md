@@ -1,5 +1,7 @@
 # Operator Provider Auth Guide
 
+<!-- current_truth.reconciled_with_branch: repo-facing docs still keep deployment-specific provider setup out of the contributor quickstart even as README and CONTRIBUTING add conversation-host and readiness guidance alongside the existing generic local secret-bootstrap note. -->
+
 This subject defines the repo-local boundary around self-hosted provider login and deployment-local GitHub automation guidance in `jido_code`. The full step-by-step operator prose may live outside this repo, but the repo must keep the implementation contract and contributor-facing separation current.
 
 <!-- covers: package.jido_code.auth_provider_foundation_in_repo -->

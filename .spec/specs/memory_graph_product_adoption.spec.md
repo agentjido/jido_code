@@ -1,6 +1,6 @@
 # Memory Graph Product Adoption
 
-<!-- current_truth.reconciled_with_branch: surface feedback, memory components, governed live surfaces, setup-host-shell fallback messaging, adjacent multi-repository setup follow-up that clears completed selections, and repo-owned onboarding-reset coverage continue to leave memory adoption product-shaped under this subject. -->
+<!-- current_truth.reconciled_with_branch: surface feedback, memory components, governed live surfaces, repo-detail cohosting beside the route-owned conversation shell, setup-host-shell fallback messaging, adjacent multi-repository setup follow-up that clears completed selections, and repo-owned onboarding-reset coverage continue to leave memory adoption product-shaped under this subject. -->
 
 This subject defines how the repository-scoped memory graph becomes a
 product-facing capability in canonical managed-repository surfaces and governed

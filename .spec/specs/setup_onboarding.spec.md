@@ -1,5 +1,7 @@
 # Setup Onboarding
 
+<!-- current_truth.reconciled_with_branch: `/setup` remains the LiveView-owned signed-in start surface with bounded hybrid follow-up work, and the shared browser harness now covers setup scenarios alongside conversation-route scenarios without changing setup ownership, fallback behavior, or persisted GitHub follow-up state. -->
+
 This subject defines the first signed-in product entry contract after bootstrap administrator creation. The goal is to keep first-run onboarding simple: create the first admin, enter the app, and defer optional repo and integration setup into signed-in follow-up flows.
 
 <!-- covers: package.jido_code.bootstrap_and_start_surfaces_in_repo -->

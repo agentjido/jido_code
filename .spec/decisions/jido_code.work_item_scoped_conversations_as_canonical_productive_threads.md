@@ -76,5 +76,9 @@ collapsing active work onto one repo-global chat lane.
   product boundaries instead of incidental persistence details.
 - Operator surfaces must move from "latest repo conversation" projection toward
   "repo intake plus active work-item conversation roster" projection.
+- Repo detail becomes the canonical productive-conversation host surface, while
+  Workbench, dashboard summaries, and governed run detail stay bounded
+  supervision and routing surfaces that project linkage back into repo detail or
+  governed work.
 - Runtime helpers and surface APIs should enforce uniqueness per active work
   item, not per repository.

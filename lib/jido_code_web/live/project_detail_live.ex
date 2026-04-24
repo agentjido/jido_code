@@ -3,6 +3,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.product_owned_mounting_boundary
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
   # covers: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
   # covers: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
   # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
@@ -13,6 +14,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
   # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+  # covers: architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 

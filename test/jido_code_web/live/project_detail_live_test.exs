@@ -1,6 +1,7 @@
 defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
@@ -12,6 +13,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
   # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+  # covers: architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -21,11 +23,6 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
   alias JidoCode.Projects.Project
-
-  defmodule FailingConversationSubscriber do
-    def subscribe(_pubsub, _topic), do: {:error, :subscription_unavailable}
-    def unsubscribe(_pubsub, _topic), do: :ok
-  end
 
   setup do
     original_fix_workflow_launcher =
@@ -519,7 +516,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     Application.put_env(
       :jido_code,
       :conversation_pubsub_subscriber,
-      FailingConversationSubscriber
+      JidoCodeWeb.FailingConversationSubscriber
     )
 
     register_owner("conversation-degraded-owner@example.com", "owner-password-123")

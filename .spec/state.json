@@ -743,7 +743,7 @@
         "id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
         "priority": "should",
         "stability": "proposed",
-        "statement": "Managed-repository operator routes should be able to open bounded repo-scoped intake conversations, list active work-item conversations for the repository, and resume the canonical conversation for a selected `WorkItem` through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.",
+        "statement": "Managed-repository operator routes should be able to open bounded repo-scoped intake conversations, list active work-item conversations for the repository, and resume the canonical conversation for a selected `WorkItem` through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface, including when repo detail presents conversation inside a dedicated route-owned family.",
         "subject_id": "architecture.conversation_orchestration"
       },
       {
@@ -799,7 +799,7 @@
         "id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
         "priority": "should",
         "stability": "proposed",
-        "statement": "The canonical repo-detail conversation host surface should keep selected provider/model, workspace readiness, clarification state, and degraded snapshot continuity visible in bounded operator-readable panels while leaving raw sequence and discontinuity metadata visually secondary to actionable conversation state.",
+        "statement": "The canonical repo-detail conversation host surface should keep selected provider/model, workspace readiness, clarification state, and degraded snapshot continuity visible in bounded operator-readable panels while leaving raw sequence and discontinuity metadata visually secondary to actionable conversation state, even when the operator reaches that host through route-owned sidebar or tab selection.",
         "subject_id": "architecture.conversation_orchestration"
       },
       {
@@ -1151,7 +1151,7 @@
         "id": "architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Managed-repository conversation routes should keep transcript, runtime readiness, clarification handling, and degraded continuity in the LiveView-owned route shell even when adjacent overview or summary widgets use bounded Vue regions.",
+        "statement": "Managed-repository conversation routes should keep transcript, runtime readiness, clarification handling, and degraded continuity in the LiveView-owned route shell even when adjacent overview or summary widgets use bounded Vue regions and the route uses LiveView-owned family navigation.",
         "subject_id": "architecture.frontend_stack"
       },
       {
@@ -4272,6 +4272,7 @@
         "subject_id": "architecture.factory_control_plane",
         "then": [
           "The product resolves and presents canonical managed-repository and governed-run records directly.",
+          "Repo detail may separate overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned families so long as those families remain one canonical managed-repository route rather than a second browser-owned application.",
           "Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.",
           "Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.",
           "Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary."
@@ -4394,7 +4395,7 @@
           "Server-owned freshness, invalidation, and recovery state remain explicit in the LiveView-owned contract."
         ],
         "when": [
-          "The route adopts a memory or provenance exploration region."
+          "The route adopts a memory or provenance exploration region inside a dedicated repo-detail family."
         ]
       },
       {
@@ -4427,16 +4428,17 @@
         ],
         "file": ".spec/specs/frontend_architecture.spec.md",
         "given": [
-          "Repo detail already uses a bounded Vue-backed overview widget while also hosting the productive conversation route shell."
+          "Repo detail already uses LiveView-owned family navigation, a bounded Vue-backed overview widget, and the productive conversation route shell."
         ],
         "id": "architecture.frontend_stack.scenario_repo_detail_conversation_shell_stays_liveview_owned",
         "subject_id": "architecture.frontend_stack",
         "then": [
+          "Family selection remains route-authored rather than becoming client-owned tab state.",
           "The transcript, readiness notices, and recovery state remain LiveView-owned and route-authored instead of moving into a client-owned conversation shell.",
           "Any richer Vue region remains bounded to overview or summary composition and does not own productive conversation control flow."
         ],
         "when": [
-          "Browser coverage exercises clarification, blocked runtime readiness, reload recovery, or snapshot-only degraded continuity on that route."
+          "Browser coverage exercises clarification, blocked runtime readiness, reload recovery, snapshot-only degraded continuity, or switching between repo-detail families on that route."
         ]
       },
       {
@@ -4480,7 +4482,7 @@
           "Server-owned semantic freshness and recovery state remain explicit in the LiveView-owned contract."
         ],
         "when": [
-          "The route adopts a semantic inspection region."
+          "The route adopts a semantic inspection region inside a dedicated repo-detail family."
         ]
       },
       {
@@ -4857,6 +4859,7 @@
         "subject_id": "architecture.memory_graph_product_adoption",
         "then": [
           "The route remains a canonical managed-repository product surface.",
+          "Memory and provenance inspection live inside the route-owned `Memory` family rather than being mixed back into overview or conversation panels.",
           "The page consumes memory and provenance through a product-owned boundary over AgentWorkspace.",
           "The operator sees bounded memory and provenance projections without raw graph-engine internals.",
           "Route-less governed references still remain visible as typed governed labels instead of disappearing from the surface."
@@ -5629,6 +5632,7 @@
         "subject_id": "architecture.source_code_graph_product_adoption",
         "then": [
           "The route remains a canonical managed-repository product surface.",
+          "Semantic inspection lives inside the route-owned `Semantic` family rather than being mixed back into overview, conversations, or workflow panels.",
           "The page consumes semantic projections through a product-owned boundary over AgentWorkspace.",
           "The operator sees bounded semantic views such as modules, functions, runtime patterns, or impact traces without raw graph-engine internals.",
           "Co-located memory and provenance regions may coexist in the same route as long as semantic inspection remains bounded and product-owned."
@@ -7029,7 +7033,7 @@
           "id": "architecture.conversation_orchestration",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.",
+          "summary": "Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.",
           "surface": [
             ".spec/decisions/jido_code.llm_provider_and_model_selection.md",
             "lib/jido_code/conversations.ex",
@@ -7222,7 +7226,7 @@
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families instead of one long mixed-context page, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -7311,7 +7315,7 @@
           "id": "architecture.frontend_stack",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including product-shaped memory follow-up previews and cross-graph navigation that still degrade safely to LiveView-owned contracts.",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including repo detail as a LiveView-owned route with route-selected overview, conversations, semantic, memory, and workflows families plus product-shaped memory follow-up previews and cross-graph navigation that still degrade safely to LiveView-owned contracts.",
           "surface": [
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md",
@@ -7511,7 +7515,7 @@
           "id": "architecture.memory_graph_product_adoption",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes, dashboard summaries, governed run detail, and workbench memory hints while broader governed-surface expansion remains phase-scoped, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, coding, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract.",
+          "summary": "Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes, dashboard summaries, governed run detail, and workbench memory hints while broader governed-surface expansion remains phase-scoped, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, coding, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, and now grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, managed-repository detail, governed run detail, and workbench memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract, with repo detail presenting memory/provenance through a dedicated route-owned `Memory` family that can cross-link back to the corresponding semantic family.",
           "surface": [
             ".spec/decisions/jido_code.memory_graph_product_adoption.md",
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
@@ -8272,7 +8276,7 @@
           "id": "architecture.source_code_graph_product_adoption",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, letting semantic workflow preparation and governed adoption extend the shared workflow-provenance capture plane through typed envelopes rather than raw triples, now emitting typed governed references from those capture requests instead of generic governed-context naming, using repository-scoped memory-graph recovery before bounded provenance or durable-memory capture proceeds, coexisting with bounded memory and provenance inspection in the same managed-repository and governed-run routes without leaking shared pod or store topology into product code, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals while cross-graph links remain product-shaped on the cohosted surfaces.",
+          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, letting semantic workflow preparation and governed adoption extend the shared workflow-provenance capture plane through typed envelopes rather than raw triples, now emitting typed governed references from those capture requests instead of generic governed-context naming, using repository-scoped memory-graph recovery before bounded provenance or durable-memory capture proceeds, coexisting with bounded memory and provenance inspection in the same managed-repository and governed-run routes without leaking shared pod or store topology into product code, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals while cross-graph links remain product-shaped on the cohosted surfaces, with repo detail presenting semantic inspection through a dedicated route-owned `Semantic` family that can cross-link into the `Memory` family without collapsing those graph-backed concerns together.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",

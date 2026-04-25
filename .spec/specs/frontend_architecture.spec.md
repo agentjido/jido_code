@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning while completed imports clear active selection and the import-state badge stays distinct from selectable repos, phase-58 through phase-60 route integration coverage now exercise the shared LiveView route harness across bootstrap, continue-setup, ready-state auth boundaries, provider-auth redirects, and the settings-owned auth-settings cutover, the settings-owned `/settings/auth` destination now keeps provider-login and Git integration management inside that same routed LiveView shell through a shared helper boundary, ready-state auth handoff now enters dashboard by default across that harness, signed-in `/welcome` now uses a dashboard-first handoff card above a compact auth-settings cue, and repo detail now keeps its productive conversation shell, runtime readiness, and degraded continuity LiveView-owned while browser coverage exercises clarification, reload recovery, and snapshot fallback on that routed surface. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning while completed imports clear active selection and the import-state badge stays distinct from selectable repos, phase-58 through phase-60 route integration coverage now exercise the shared LiveView route harness across bootstrap, continue-setup, ready-state auth boundaries, provider-auth redirects, and the settings-owned auth-settings cutover, the settings-owned `/settings/auth` destination now keeps provider-login and Git integration management inside that same routed LiveView shell through a shared helper boundary, ready-state auth handoff now enters dashboard by default across that harness, signed-in `/welcome` now uses a dashboard-first handoff card above a compact auth-settings cue, and repo detail now keeps sidebar-selected family navigation, its productive conversation shell, runtime readiness, and degraded continuity LiveView-owned while overview and graph exploration remain bounded hybrid regions and browser coverage exercises clarification, reload recovery, snapshot fallback, desktop sidebar behavior, and narrow-screen fallback navigation on that routed surface. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
@@ -10,7 +10,7 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including product-shaped memory follow-up previews and cross-graph navigation that still degrade safely to LiveView-owned contracts.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including repo detail as a LiveView-owned route with route-selected overview, conversations, semantic, memory, and workflows families plus product-shaped memory follow-up previews and cross-graph navigation that still degrade safely to LiveView-owned contracts.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -109,7 +109,7 @@ surface:
   stability: evolving
 
 - id: architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
-  statement: Managed-repository conversation routes should keep transcript, runtime readiness, clarification handling, and degraded continuity in the LiveView-owned route shell even when adjacent overview or summary widgets use bounded Vue regions.
+  statement: Managed-repository conversation routes should keep transcript, runtime readiness, clarification handling, and degraded continuity in the LiveView-owned route shell even when adjacent overview or summary widgets use bounded Vue regions and the route uses LiveView-owned family navigation.
   priority: should
   stability: evolving
 
@@ -221,10 +221,11 @@ surface:
     - architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
     - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
   given:
-    - Repo detail already uses a bounded Vue-backed overview widget while also hosting the productive conversation route shell.
+    - Repo detail already uses LiveView-owned family navigation, a bounded Vue-backed overview widget, and the productive conversation route shell.
   when:
-    - Browser coverage exercises clarification, blocked runtime readiness, reload recovery, or snapshot-only degraded continuity on that route.
+    - Browser coverage exercises clarification, blocked runtime readiness, reload recovery, snapshot-only degraded continuity, or switching between repo-detail families on that route.
   then:
+    - Family selection remains route-authored rather than becoming client-owned tab state.
     - The transcript, readiness notices, and recovery state remain LiveView-owned and route-authored instead of moving into a client-owned conversation shell.
     - Any richer Vue region remains bounded to overview or summary composition and does not own productive conversation control flow.
 
@@ -237,7 +238,7 @@ surface:
   given:
     - A managed-repository surface needs richer semantic repository inspection such as module exploration or bounded impact visualization.
   when:
-    - The route adopts a semantic inspection region.
+    - The route adopts a semantic inspection region inside a dedicated repo-detail family.
   then:
     - The route remains LiveView-owned and repository-scoped.
     - Any Vue-backed semantic region mounts through the shared product boundary.
@@ -252,7 +253,7 @@ surface:
   given:
     - A managed-repository surface needs richer memory history or workflow provenance exploration such as decision timelines, memory freshness context, or cross-graph navigation.
   when:
-    - The route adopts a memory or provenance exploration region.
+    - The route adopts a memory or provenance exploration region inside a dedicated repo-detail family.
   then:
     - The route remains LiveView-owned and repository-scoped.
     - Any Vue-backed memory/provenance region mounts through the shared product boundary.

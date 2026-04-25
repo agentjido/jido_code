@@ -1,6 +1,6 @@
 # Conversation Orchestration
 
-<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, Workbench plus run detail plus dashboard reuse shared conversation supervision language, and browser coverage now exercises ready, blocked, clarification-reload, and degraded repo-detail conversation states. -->
+<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host through a route-owned `Conversations` family with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, Workbench plus run detail plus dashboard reuse shared conversation supervision language, and browser coverage now exercises ready, blocked, clarification-reload, degraded, desktop-sidebar, and narrow-screen repo-detail conversation states. -->
 
 This subject defines how productive coding conversations are coordinated across
 durable work scope, interruptible execution, and event-driven UI delivery.
@@ -9,7 +9,7 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
@@ -150,7 +150,7 @@ surface:
   stability: proposed
 
 - id: architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
-  statement: Managed-repository operator routes should be able to open bounded repo-scoped intake conversations, list active work-item conversations for the repository, and resume the canonical conversation for a selected `WorkItem` through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface.
+  statement: Managed-repository operator routes should be able to open bounded repo-scoped intake conversations, list active work-item conversations for the repository, and resume the canonical conversation for a selected `WorkItem` through product-owned workspace and service boundaries without forcing the operator onto a separate chat-only surface, including when repo detail presents conversation inside a dedicated route-owned family.
   priority: should
   stability: proposed
 
@@ -210,7 +210,7 @@ surface:
   stability: proposed
 
 - id: architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
-  statement: The canonical repo-detail conversation host surface should keep selected provider/model, workspace readiness, clarification state, and degraded snapshot continuity visible in bounded operator-readable panels while leaving raw sequence and discontinuity metadata visually secondary to actionable conversation state.
+  statement: The canonical repo-detail conversation host surface should keep selected provider/model, workspace readiness, clarification state, and degraded snapshot continuity visible in bounded operator-readable panels while leaving raw sequence and discontinuity metadata visually secondary to actionable conversation state, even when the operator reaches that host through route-owned sidebar or tab selection.
   priority: should
   stability: proposed
 

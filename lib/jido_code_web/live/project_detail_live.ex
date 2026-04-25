@@ -781,7 +781,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     <h3 id="project-detail-conversation-detail-title" class="font-semibold">
                       {selected_conversation_title(@selected_work_item_id, @conversation_surface)}
                     </h3>
-                    <p class="text-sm text-base-content/70">
+                    <p id="project-detail-conversation-detail-summary" class="text-sm text-base-content/70">
                       {selected_conversation_summary(@selected_work_item_id, @conversation_surface)}
                     </p>
                     <p
@@ -880,7 +880,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <.operator_state_notice
                     :if={conversation_runtime_notice_visible?(@conversation_runtime)}
                     id="project-detail-conversation-runtime-notice"
-                    title="Conversation runtime readiness"
+                    title="Runtime prerequisite blocked"
                     state={@conversation_runtime.notice}
                     kind={:error}
                     compact={true}
@@ -1218,7 +1218,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         id="project-detail-conversation-detail-summary"
                         class="text-sm text-base-content/80"
                       >
-                        {conversation_surface_summary(@conversation_surface)}
+                        {selected_conversation_summary(@selected_work_item_id, @conversation_surface)}
                       </p>
                       <p
                         :if={@conversation_surface.work_item}
@@ -2344,12 +2344,20 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp repo_intake_summary(%{} = surface) do
     repo_intake_handoff_detail(surface) ||
-      conversation_surface_summary(surface) ||
+      repo_intake_conversation_summary(surface) ||
       "Repo intake is available from this managed-repository route."
   end
 
   defp repo_intake_summary(_surface),
     do: "Repo intake is available from this managed-repository route."
+
+  defp repo_intake_conversation_summary(%{conversation: %{} = conversation} = surface) do
+    present_optional_string(conversation_work_resolution_detail(surface)) ||
+      present_optional_string(Map.get(conversation, :objective)) ||
+      present_optional_string(Map.get(conversation, :title))
+  end
+
+  defp repo_intake_conversation_summary(_surface), do: nil
 
   defp repo_intake_handoff_work_item_id(%{} = surface) do
     surface
@@ -2384,9 +2392,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp repo_intake_handoff_detail(_surface), do: nil
 
   defp conversation_surface_summary(%{conversation: %{} = conversation} = surface) do
-    normalize_optional_string(conversation_work_resolution_detail(surface)) ||
-      normalize_optional_string(Map.get(conversation, :objective)) ||
-      normalize_optional_string(Map.get(conversation, :title)) ||
+    present_optional_string(conversation_work_resolution_detail(surface)) ||
+      present_optional_string(Map.get(conversation, :objective)) ||
+      present_optional_string(Map.get(conversation, :title)) ||
       case Map.get(surface, :work_item) do
         %{} = work_item ->
           "Governed conversation is attached to #{Map.get(work_item, :summary) || Map.get(work_item, "summary") || "the selected work item"}."

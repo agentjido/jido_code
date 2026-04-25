@@ -619,6 +619,15 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-conversation-open")
     |> render_click()
 
+    assert has_element?(view, "#project-detail-conversation-detail-summary")
+    refute has_element?(view, "#project-detail-conversation-detail-summary", "nil")
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-runtime-notice-label",
+             "Runtime prerequisite blocked"
+           )
+
     conversation_id = latest_repo_conversation_id!(managed_repo_id)
 
     _html =

@@ -99,8 +99,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     )
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project_id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project_id}?section=workflows", on_error: :warn)
 
+    assert has_element?(view, "#project-detail-workflow-readiness-summary")
+    assert has_element?(view, "#project-detail-workflow-readiness-badge", "Ready")
     assert has_element?(view, "#project-detail-workflow-controls")
 
     assert has_element?(
@@ -188,6 +191,154 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
            end)
   end
 
+  test "repo detail keeps route-owned section selection with overview as the default family", %{
+    conn: _conn
+  } do
+    register_owner("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-sections",
+        github_full_name: "owner/repo-sections",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, default_view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(
+             default_view,
+             "section[id^='project-detail-panel-'][data-detail-section='overview']"
+           )
+
+    assert has_element?(default_view, "#project-detail-section-nav-overview[aria-current='page']")
+    assert has_element?(default_view, "#project-detail-overview-panel")
+    assert has_element?(default_view, "#project-detail-overview-open-workflows")
+    refute has_element?(default_view, "#project-detail-conversation-panel")
+    refute has_element?(default_view, "#project-detail-workflow-controls")
+
+    {:ok, memory_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+
+    assert has_element?(
+             memory_view,
+             "section[id^='project-detail-panel-'][data-detail-section='memory']"
+           )
+
+    assert has_element?(memory_view, "#project-detail-section-nav-memory[aria-current='page']")
+    assert has_element?(memory_view, "#project-detail-memory-inspection")
+    refute has_element?(memory_view, "#project-detail-workflow-controls")
+
+    {:ok, conversations_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
+
+    assert has_element?(
+             conversations_view,
+             "section[id^='project-detail-panel-'][data-detail-section='conversations']"
+           )
+
+    assert has_element?(
+             conversations_view,
+             "#project-detail-section-nav-conversations[aria-current='page']"
+           )
+
+    assert has_element?(conversations_view, "#project-detail-conversation-panel")
+    refute has_element?(conversations_view, "#project-detail-memory-inspection")
+
+    {:ok, invalid_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=unknown", on_error: :warn)
+
+    assert has_element?(
+             invalid_view,
+             "section[id^='project-detail-panel-'][data-detail-section='overview']"
+           )
+  end
+
+  test "route-owned section navigation switches repo-detail families in place", %{conn: _conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-section-navigation",
+        github_full_name: "owner/repo-section-navigation",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          },
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    view
+    |> element("#project-detail-section-nav-workflows")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=workflows")
+    assert has_element?(view, "#project-detail-section-nav-workflows[aria-current='page']")
+    assert has_element?(view, "#project-detail-workflows-panel")
+    refute has_element?(view, "#project-detail-overview-panel")
+
+    view
+    |> element("#project-detail-section-nav-conversations")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations")
+    assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
+    assert has_element?(view, "#project-detail-conversation-panel")
+    assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
+    refute has_element?(view, "#project-detail-workflows-panel")
+
+    view
+    |> element("#project-detail-section-nav-semantic")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic")
+    assert has_element?(view, "#project-detail-section-nav-semantic[aria-current='page']")
+    assert has_element?(view, "#project-detail-semantic-inspection")
+    refute has_element?(view, "#project-detail-conversation-panel")
+
+    view
+    |> element("#project-detail-semantic-open-memory")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=memory")
+    assert has_element?(view, "#project-detail-section-nav-memory[aria-current='page']")
+    assert has_element?(view, "#project-detail-memory-inspection")
+    refute has_element?(view, "#project-detail-semantic-inspection")
+
+    view
+    |> element("#project-detail-memory-open-semantic")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic")
+    assert has_element?(view, "#project-detail-semantic-inspection")
+    refute has_element?(view, "#project-detail-memory-inspection")
+  end
+
   test "disables project-detail launch controls with remediation when execution prerequisites are blocked",
        %{
          conn: _conn
@@ -227,8 +378,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     )
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=workflows", on_error: :warn)
 
+    assert has_element?(view, "#project-detail-workflow-readiness-summary")
+    assert has_element?(view, "#project-detail-workflow-readiness-badge", "Blocked")
     assert has_element?(view, "#project-detail-launch-disabled-guidance")
 
     assert has_element?(
@@ -259,7 +413,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert %{fix: 0, triage: 0} = Agent.get(launcher_invocations, & &1)
   end
 
-  test "renders project overview with a repo conversation entrypoint", %{conn: _conn} do
+  test "renders project overview inside the overview family", %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -291,9 +445,13 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert vue.props["launchReady"] == true
     assert length(vue.props["workflowCards"]) == 2
 
-    assert has_element?(view, "#project-detail-conversation-panel")
-    assert has_element?(view, "#project-detail-conversation-open", "Open repo conversation")
-    refute render(view) =~ "Start conversation"
+    assert has_element?(view, "#project-detail-overview-panel")
+    assert has_element?(view, "#project-detail-section-nav-overview[aria-current='page']")
+    assert has_element?(view, "#project-detail-overview-family-guides")
+    assert has_element?(view, "#project-detail-overview-open-conversations")
+    assert has_element?(view, "#project-detail-overview-open-workflows")
+    refute has_element?(view, "#project-detail-conversation-panel")
+    refute has_element?(view, "#project-detail-workflow-controls")
   end
 
   test "hosts repo conversation interaction inside the managed repo detail route", %{conn: _conn} do
@@ -335,7 +493,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-conversation-workspace-summary")
+    assert has_element?(view, "#project-detail-conversation-governed-count")
 
     view
     |> element("#project-detail-conversation-open")
@@ -432,6 +594,12 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
+    assert has_element?(view, "#project-detail-section-nav-conversations-badge", "Blocked")
+
+    view
+    |> element("#project-detail-overview-open-conversations")
+    |> render_click()
+
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Blocked")
     assert has_element?(view, "#project-detail-conversation-runtime-notice")
 
@@ -500,7 +668,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         }
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
     assert has_element?(view, "#project-detail-conversation-runtime")
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
@@ -559,7 +728,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
     view
     |> element("#project-detail-conversation-open")
@@ -613,9 +783,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                revision: "phase-25-ready"
              )
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
 
     assert has_element?(view, "#project-detail-semantic-inspection")
+    assert has_element?(view, "#project-detail-semantic-open-memory")
     refute has_element?(view, "#project-detail-semantic-notice")
 
     vue =
@@ -670,7 +842,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     rewrite_semantic_workspace_module!(workspace_path, "ProjectDetailSemantic.Refreshed")
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
 
     assert has_element?(view, "#project-detail-semantic-notice")
     assert has_element?(view, "#project-detail-semantic-notice-type", "source_code_graph_stale")
@@ -729,7 +902,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert {:ok, _load_result} =
              AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
 
     assert has_element?(
              view,
@@ -786,17 +960,16 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
 
     assert has_element?(view, "#project-detail-memory-inspection")
+    assert has_element?(view, "#project-detail-memory-open-semantic")
     assert has_element?(view, "#project-detail-memory-summary-memories")
     assert has_element?(view, "#project-detail-memory-summary-provenance")
     assert has_element?(view, "#project-detail-memory-list")
     assert has_element?(view, "#project-detail-provenance-list")
     assert has_element?(view, "#project-detail-memory-summary-memories")
-    assert render(view) =~ "Governed context"
-    assert render(view) =~ "Work item work-32"
-    assert render(view) =~ "ProjectDetailMemory.Alpha"
   end
 
   test "surfaces stale memory inspection with recovery on repo detail", %{conn: _conn} do
@@ -835,7 +1008,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                reason: :manual_invalidation
              )
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
 
     assert has_element?(view, "#project-detail-memory-notice")
     assert has_element?(view, "#project-detail-memory-recover", "Validate memory graph")

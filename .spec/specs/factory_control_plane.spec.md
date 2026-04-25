@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical productive-conversation host while workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces. -->
+<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, and workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
@@ -9,7 +9,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families instead of one long mixed-context page, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -205,6 +205,7 @@ surface:
     - An operator opens workbench, repo detail, dashboard, or run detail.
   then:
     - The product resolves and presents canonical managed-repository and governed-run records directly.
+    - Repo detail may separate overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned families so long as those families remain one canonical managed-repository route rather than a second browser-owned application.
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
     - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
     - Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.
@@ -311,6 +312,13 @@ surface:
   target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_one_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+    - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
 
 - kind: source_file
   target: test/jido_code/phase_thirty_integration_test.exs

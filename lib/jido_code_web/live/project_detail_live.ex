@@ -28,6 +28,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
 
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
+  @detail_sections [:overview, :conversations, :semantic, :memory, :workflows]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -57,6 +58,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
+     |> assign(:selected_detail_section, :overview)
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
   end
 
@@ -65,6 +67,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     project_id = Map.get(params, "id")
     return_to_path = normalize_return_to_path(Map.get(params, "return_to"))
     selected_work_item_id = present_optional_string(Map.get(params, "work_item_id"))
+    selected_detail_section = normalize_detail_section(Map.get(params, "section"))
 
     socket =
       socket
@@ -100,7 +103,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     {:noreply,
      socket
      |> assign(:workflow_launch_states, %{})
-     |> assign(:return_to_path, return_to_path)}
+     |> assign(:return_to_path, return_to_path)
+     |> assign(:selected_detail_section, selected_detail_section)}
   end
 
   @impl true
@@ -219,7 +223,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     {:noreply,
      push_patch(
        socket,
-       to: project_detail_conversation_path(socket.assigns.project_detail, socket.assigns.return_to_path)
+       to:
+         project_detail_conversation_path(
+           socket.assigns.project_detail,
+           socket.assigns.return_to_path,
+           nil
+         )
      )}
   end
 
@@ -394,6 +403,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       <section
         :if={@project_detail}
         id={"project-detail-panel-#{@project_detail.id}"}
+        data-detail-section={Atom.to_string(@selected_detail_section)}
         class="space-y-4 rounded-lg border border-base-300 bg-base-100 p-4"
       >
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -410,20 +420,145 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           </.link>
         </div>
 
-        <.vue_surface
-          id="project-detail-overview-widget"
-          component="ProjectDetailOverviewWidget"
-          socket={@socket}
-          props={project_detail_overview_props(assigns)}
-        />
+        <div class="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
+          <aside id="project-detail-section-sidebar" class="min-w-0">
+            <.detail_section_nav
+              id="project-detail-section-nav"
+              project_detail={@project_detail}
+              return_to_path={@return_to_path}
+              selected_detail_section={@selected_detail_section}
+              selected_work_item_id={@selected_work_item_id}
+              conversation_roster={@conversation_roster}
+              repo_intake_surface={@repo_intake_surface}
+              conversation_snapshot={@conversation_snapshot}
+              conversation_runtime={@conversation_runtime}
+              conversation_stream_mode={@conversation_stream_mode}
+              semantic_inspection={@semantic_inspection}
+              memory_inspection={@memory_inspection}
+            />
+          </aside>
 
-        <section id="project-detail-conversation-panel" class="space-y-4">
+          <div id="project-detail-section-content" class="min-w-0 space-y-4">
+            <section :if={@selected_detail_section == :overview} id="project-detail-overview-panel" class="space-y-4">
+              <div class="space-y-1">
+                <h2 class="text-lg font-semibold">Repository overview</h2>
+                <p class="text-sm text-base-content/70">
+                  Start with repository identity, launch posture, and high-level workflow readiness before drilling into work, knowledge, or execution detail.
+                </p>
+              </div>
+
+              <.vue_surface
+                id="project-detail-overview-widget"
+                component="ProjectDetailOverviewWidget"
+                socket={@socket}
+                props={project_detail_overview_props(assigns)}
+              />
+
+              <section id="project-detail-overview-family-guides" class="grid gap-3 md:grid-cols-2">
+                <article
+                  :for={section <- overview_family_guides(assigns)}
+                  id={"project-detail-overview-guide-#{section.section}"}
+                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="space-y-1">
+                      <h3 class="font-semibold">{section.label}</h3>
+                      <p
+                        id={"project-detail-overview-guide-#{section.section}-summary"}
+                        class="text-sm text-base-content/70"
+                      >
+                        {section.summary}
+                      </p>
+                    </div>
+                    <span
+                      :if={section.badge}
+                      id={"project-detail-overview-guide-#{section.section}-badge"}
+                      class={[
+                        "badge badge-sm border font-medium",
+                        detail_section_badge_class(section.badge.tone)
+                      ]}
+                    >
+                      {section.badge.label}
+                    </span>
+                  </div>
+
+                  <.link
+                    id={"project-detail-overview-open-#{section.section}"}
+                    class="btn btn-xs btn-outline"
+                    patch={
+                      project_detail_section_path(
+                        @project_detail,
+                        @return_to_path,
+                        section: section.section,
+                        work_item_id: @selected_work_item_id
+                      )
+                    }
+                  >
+                    Open {section.label}
+                  </.link>
+                </article>
+              </section>
+            </section>
+
+            <section :if={@selected_detail_section == :conversations} id="project-detail-conversation-panel" class="space-y-4">
           <div class="space-y-1">
             <h2 class="text-lg font-semibold">Repository conversation</h2>
             <p class="text-sm text-base-content/70">
               Repository conversations stay product-owned on this managed-repository route: repo intake stays bounded here, governed work-item conversations stay resumable here, and live delivery recovers from the latest durable snapshot when the stream degrades.
             </p>
           </div>
+
+          <section id="project-detail-conversation-workspace-summary" class="grid gap-3 md:grid-cols-3">
+            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Current focus
+              </p>
+              <p id="project-detail-conversation-workspace-focus" class="font-semibold">
+                {conversation_workspace_focus_label(
+                  @selected_work_item_id,
+                  @conversation_surface,
+                  @repo_intake_surface
+                )}
+              </p>
+              <p class="text-sm text-base-content/70">
+                {conversation_workspace_focus_summary(
+                  @selected_work_item_id,
+                  @conversation_surface,
+                  @repo_intake_surface
+                )}
+              </p>
+            </article>
+
+            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Governed work
+              </p>
+              <p id="project-detail-conversation-governed-count" class="font-semibold">
+                {length(@conversation_roster)} active thread{if length(@conversation_roster) == 1, do: "", else: "s"}
+              </p>
+              <p class="text-sm text-base-content/70">
+                {conversation_governed_summary(@conversation_roster)}
+              </p>
+            </article>
+
+            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Runtime posture
+              </p>
+              <p id="project-detail-conversation-workspace-runtime" class="font-semibold">
+                {conversation_workspace_runtime_label(
+                  @conversation_runtime,
+                  @conversation_stream_mode
+                )}
+              </p>
+              <p class="text-sm text-base-content/70">
+                {conversation_workspace_runtime_summary(
+                  @conversation_runtime,
+                  @conversation_stream_mode
+                )}
+              </p>
+            </article>
+          </section>
 
           <.operator_state_notice
             :if={@conversation_action_feedback}
@@ -1140,14 +1275,30 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <% end %>
             </section>
           </div>
-        </section>
+            </section>
 
-        <section id="project-detail-semantic-inspection" class="space-y-4">
-          <div class="space-y-1">
-            <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
-            <p class="text-sm text-base-content/70">
-              Semantic source-code graph insights stay repo-scoped, bounded, and product-owned on this managed-repository route.
-            </p>
+            <section :if={@selected_detail_section == :semantic} id="project-detail-semantic-inspection" class="space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
+              <p class="text-sm text-base-content/70">
+                Semantic source-code graph insights stay repo-scoped, bounded, and product-owned on this managed-repository route.
+              </p>
+            </div>
+            <.link
+              id="project-detail-semantic-open-memory"
+              class="btn btn-xs btn-outline"
+              patch={
+                project_detail_section_path(
+                  @project_detail,
+                  @return_to_path,
+                  section: :memory,
+                  work_item_id: @selected_work_item_id
+                )
+              }
+            >
+              Open memory and provenance
+            </.link>
           </div>
 
           <.operator_state_notice
@@ -1254,14 +1405,30 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               </div>
             </section>
           </.vue_surface>
-        </section>
+            </section>
 
-        <section id="project-detail-memory-inspection" class="space-y-4">
-          <div class="space-y-1">
-            <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
-            <p class="text-sm text-base-content/70">
-              Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, and product-owned on this managed-repository route.
-            </p>
+            <section :if={@selected_detail_section == :memory} id="project-detail-memory-inspection" class="space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
+              <p class="text-sm text-base-content/70">
+                Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, and product-owned on this managed-repository route.
+              </p>
+            </div>
+            <.link
+              id="project-detail-memory-open-semantic"
+              class="btn btn-xs btn-outline"
+              patch={
+                project_detail_section_path(
+                  @project_detail,
+                  @return_to_path,
+                  section: :semantic,
+                  work_item_id: @selected_work_item_id
+                )
+              }
+            >
+              Open semantic inspection
+            </.link>
           </div>
 
           <.operator_state_notice
@@ -1363,97 +1530,439 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               </ul>
             </section>
           </div>
-        </section>
+            </section>
 
-        <section
-          id="project-detail-workflow-defaults"
-          class="rounded-lg border border-base-300 bg-base-200/40 p-3 space-y-1"
-        >
-          <p class="text-sm font-medium">Managed repository launch defaults</p>
-          <p id="project-detail-default-branch" class="text-sm text-base-content/80">
-            Default branch: {@project_detail.default_branch}
-          </p>
-          <p id="project-detail-default-repository" class="text-sm text-base-content/80">
-            Repository: {@project_detail.github_full_name}
-          </p>
-          <p
-            :if={@project_detail.managed_repo_id}
-            id="project-detail-managed-repo-id"
-            class="text-xs text-base-content/70"
-          >
-            Managed repo: {@project_detail.managed_repo_id}
-          </p>
-        </section>
+            <div :if={@selected_detail_section == :workflows} id="project-detail-workflows-panel" class="space-y-4">
+              <section class="space-y-2">
+                <div class="space-y-1">
+                  <h2 class="text-lg font-semibold">Workflow launch and defaults</h2>
+                  <p class="text-sm text-base-content/70">
+                    Keep launch defaults, readiness remediation, and governed workflow kickoff together so this route stays an action surface instead of generic repository tooling.
+                  </p>
+                </div>
 
-        <section
-          :if={!project_ready_for_launch?(@project_detail)}
-          id="project-detail-launch-disabled-guidance"
-          class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-1"
-        >
-          <p id="project-detail-launch-disabled-label" class="font-semibold">
-            Workflow launch controls are disabled
-          </p>
-          <p id="project-detail-launch-disabled-type" class="text-xs">
-            Typed readiness state: {project_readiness(@project_detail).error_type}
-          </p>
-          <p id="project-detail-launch-disabled-detail" class="text-sm">
-            {project_readiness(@project_detail).detail}
-          </p>
-          <p id="project-detail-launch-disabled-remediation" class="text-sm">
-            {project_readiness(@project_detail).remediation}
-          </p>
-        </section>
+                <article
+                  id="project-detail-workflow-readiness-summary"
+                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+                >
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                      <h3 class="font-semibold">Governed launch posture</h3>
+                      <p
+                        id="project-detail-workflow-readiness-detail"
+                        class="text-sm text-base-content/70"
+                      >
+                        {workflow_family_summary(@project_detail)}
+                      </p>
+                    </div>
+                    <span
+                      id="project-detail-workflow-readiness-badge"
+                      class={[
+                        "badge border font-medium",
+                        workflow_family_badge_class(@project_detail)
+                      ]}
+                    >
+                      {workflow_family_badge_label(@project_detail)}
+                    </span>
+                  </div>
+                </article>
+              </section>
 
-        <section id="project-detail-workflow-controls" class="grid gap-3 md:grid-cols-2">
-          <article
-            :for={workflow <- @supported_workflows}
-            id={"project-detail-workflow-card-#{workflow_dom_id(workflow.name)}"}
-            class="rounded-lg border border-base-300 p-3 space-y-2"
-          >
-            <div>
-              <h2
-                id={"project-detail-workflow-label-#{workflow_dom_id(workflow.name)}"}
-                class="font-semibold"
+              <section
+                id="project-detail-workflow-defaults"
+                class="rounded-lg border border-base-300 bg-base-200/40 p-3 space-y-1"
               >
-                {workflow.label}
-              </h2>
-              <p
-                id={"project-detail-workflow-name-#{workflow_dom_id(workflow.name)}"}
-                class="text-xs font-mono text-base-content/70"
+                <p class="text-sm font-medium">Managed repository launch defaults</p>
+                <p id="project-detail-default-branch" class="text-sm text-base-content/80">
+                  Default branch: {@project_detail.default_branch}
+                </p>
+                <p id="project-detail-default-repository" class="text-sm text-base-content/80">
+                  Repository: {@project_detail.github_full_name}
+                </p>
+                <p
+                  :if={@project_detail.managed_repo_id}
+                  id="project-detail-managed-repo-id"
+                  class="text-xs text-base-content/70"
+                >
+                  Managed repo: {@project_detail.managed_repo_id}
+                </p>
+              </section>
+
+              <section
+                :if={!project_ready_for_launch?(@project_detail)}
+                id="project-detail-launch-disabled-guidance"
+                class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-1"
               >
-                {workflow.name}
-              </p>
+                <p id="project-detail-launch-disabled-label" class="font-semibold">
+                  Workflow launch controls are disabled
+                </p>
+                <p id="project-detail-launch-disabled-type" class="text-xs">
+                  Typed readiness state: {project_readiness(@project_detail).error_type}
+                </p>
+                <p id="project-detail-launch-disabled-detail" class="text-sm">
+                  {project_readiness(@project_detail).detail}
+                </p>
+                <p id="project-detail-launch-disabled-remediation" class="text-sm">
+                  {project_readiness(@project_detail).remediation}
+                </p>
+              </section>
+
+              <section id="project-detail-workflow-controls" class="grid gap-3 md:grid-cols-2">
+                <article
+                  :for={workflow <- @supported_workflows}
+                  id={"project-detail-workflow-card-#{workflow_dom_id(workflow.name)}"}
+                  class="rounded-lg border border-base-300 p-3 space-y-2"
+                >
+                  <div>
+                    <h2
+                      id={"project-detail-workflow-label-#{workflow_dom_id(workflow.name)}"}
+                      class="font-semibold"
+                    >
+                      {workflow.label}
+                    </h2>
+                    <p
+                      id={"project-detail-workflow-name-#{workflow_dom_id(workflow.name)}"}
+                      class="text-xs font-mono text-base-content/70"
+                    >
+                      {workflow.name}
+                    </p>
+                  </div>
+
+                  <%= if project_ready_for_launch?(@project_detail) do %>
+                    <button
+                      id={"project-detail-launch-#{workflow_dom_id(workflow.name)}"}
+                      type="button"
+                      class="btn btn-sm btn-primary"
+                      phx-click="kickoff_workflow"
+                      phx-value-workflow_name={workflow.name}
+                    >
+                      Launch workflow
+                    </button>
+                  <% else %>
+                    <span
+                      id={"project-detail-launch-disabled-#{workflow_dom_id(workflow.name)}"}
+                      class="btn btn-sm btn-disabled cursor-not-allowed"
+                      aria-disabled="true"
+                    >
+                      Launch workflow
+                    </span>
+                  <% end %>
+
+                  <.workflow_launch_feedback
+                    feedback={workflow_launch_feedback(@workflow_launch_states, workflow.name)}
+                    dom_prefix={"project-detail-launch-#{workflow_dom_id(workflow.name)}"}
+                  />
+                </article>
+              </section>
             </div>
-
-            <%= if project_ready_for_launch?(@project_detail) do %>
-              <button
-                id={"project-detail-launch-#{workflow_dom_id(workflow.name)}"}
-                type="button"
-                class="btn btn-sm btn-primary"
-                phx-click="kickoff_workflow"
-                phx-value-workflow_name={workflow.name}
-              >
-                Launch workflow
-              </button>
-            <% else %>
-              <span
-                id={"project-detail-launch-disabled-#{workflow_dom_id(workflow.name)}"}
-                class="btn btn-sm btn-disabled cursor-not-allowed"
-                aria-disabled="true"
-              >
-                Launch workflow
-              </span>
-            <% end %>
-
-            <.workflow_launch_feedback
-              feedback={workflow_launch_feedback(@workflow_launch_states, workflow.name)}
-              dom_prefix={"project-detail-launch-#{workflow_dom_id(workflow.name)}"}
-            />
-          </article>
-        </section>
+          </div>
+        </div>
       </section>
     </Layouts.app>
     """
+  end
+
+  attr :id, :string, required: true
+  attr :project_detail, :map, required: true
+  attr :return_to_path, :string, required: true
+  attr :selected_detail_section, :atom, required: true
+  attr :selected_work_item_id, :string, default: nil
+  attr :conversation_roster, :list, default: []
+  attr :repo_intake_surface, :map, default: %{}
+  attr :conversation_snapshot, :map, default: nil
+  attr :conversation_runtime, :map, default: %{}
+  attr :conversation_stream_mode, :atom, default: :idle
+  attr :semantic_inspection, :map, default: nil
+  attr :memory_inspection, :map, default: nil
+
+  defp detail_section_nav(assigns) do
+    assigns =
+      assign(assigns, :sections, detail_section_items(assigns))
+
+    ~H"""
+    <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-3">
+      <div class="space-y-1 px-1">
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+          Repo sections
+        </p>
+        <p class="text-sm text-base-content/70">
+          Move between repository summary, productive work, knowledge, and launch controls without leaving this managed-repository route.
+        </p>
+      </div>
+
+      <nav id={@id} class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+        <.link
+          :for={section <- @sections}
+          id={"#{@id}-#{section.section}"}
+          patch={
+            project_detail_section_path(
+              @project_detail,
+              @return_to_path,
+              section: section.section,
+              work_item_id: @selected_work_item_id
+            )
+          }
+          aria-current={if(section.selected?, do: "page", else: nil)}
+          class={[
+            "min-w-[13rem] rounded-lg border px-3 py-3 text-left transition lg:min-w-0",
+            if(section.selected?,
+              do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
+              else:
+                "border-base-300/70 bg-base-100/80 text-base-content/80 hover:border-base-300 hover:bg-base-100"
+            )
+          ]}
+        >
+          <div class="space-y-2">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-semibold">{section.label}</p>
+              </div>
+              <span
+                :if={section.badge}
+                id={"#{@id}-#{section.section}-badge"}
+                class={[
+                  "badge badge-sm border font-medium",
+                  detail_section_badge_class(section.badge.tone)
+                ]}
+              >
+                {section.badge.label}
+              </span>
+            </div>
+            <p
+              id={"#{@id}-#{section.section}-summary"}
+              class="text-xs leading-5 text-base-content/65"
+            >
+              {section.summary}
+            </p>
+          </div>
+        </.link>
+      </nav>
+    </section>
+    """
+  end
+
+  defp detail_section_items(assigns) do
+    [
+      %{section: :overview, label: "Overview"},
+      %{section: :conversations, label: "Conversations"},
+      %{section: :semantic, label: "Semantic"},
+      %{section: :memory, label: "Memory"},
+      %{section: :workflows, label: "Workflows"}
+    ]
+    |> Enum.map(fn section ->
+      section
+      |> Map.put(:selected?, assigns.selected_detail_section == section.section)
+      |> Map.put(:summary, detail_section_summary(section.section, assigns))
+      |> Map.put(:badge, detail_section_badge(section.section, assigns))
+    end)
+  end
+
+  defp overview_family_guides(assigns) do
+    assigns
+    |> detail_section_items()
+    |> Enum.reject(&(&1.section == :overview))
+  end
+
+  defp detail_section_summary(:overview, _assigns),
+    do: "Repository identity, launch posture, and the next place to drill in."
+
+  defp detail_section_summary(:conversations, assigns) do
+    governed_count = length(Map.get(assigns, :conversation_roster, []))
+    repo_intake_open? = is_map(Map.get(Map.get(assigns, :repo_intake_surface, %{}), :conversation))
+
+    cond do
+      repo_intake_open? and governed_count > 0 ->
+        "Repo intake plus #{governed_count} governed conversation threads."
+
+      repo_intake_open? ->
+        "Repo intake is open for bounded clarification before work settles."
+
+      governed_count > 0 ->
+        "#{governed_count} governed work-item conversations remain active here."
+
+      true ->
+        "Repo intake and governed work stay hosted on this route."
+    end
+  end
+
+  defp detail_section_summary(:semantic, _assigns),
+    do: "Source-code graph freshness, recovery, and bounded structural inspection."
+
+  defp detail_section_summary(:memory, _assigns),
+    do: "Durable coding memory, workflow provenance, and freshness validation."
+
+  defp detail_section_summary(:workflows, assigns) do
+    if project_ready_for_launch?(Map.get(assigns, :project_detail)) do
+      "Launch defaults and governed workflow kickoff are ready."
+    else
+      "Workflow launch posture is blocked and needs remediation."
+    end
+  end
+
+  defp detail_section_badge(:overview, _assigns), do: nil
+
+  defp detail_section_badge(:conversations, assigns) do
+    governed_count = length(Map.get(assigns, :conversation_roster, []))
+    repo_intake_open? = is_map(Map.get(Map.get(assigns, :repo_intake_surface, %{}), :conversation))
+    runtime_status = Map.get(Map.get(assigns, :conversation_runtime, %{}), :status)
+    snapshot = Map.get(assigns, :conversation_snapshot)
+    stream_mode = Map.get(assigns, :conversation_stream_mode)
+
+    cond do
+      runtime_status == :blocked -> %{label: "Blocked", tone: :error}
+      conversation_pending_clarification(snapshot) -> %{label: "Input", tone: :warning}
+      stream_mode == :degraded -> %{label: "Snapshot", tone: :warning}
+      governed_count > 0 -> %{label: Integer.to_string(governed_count), tone: :info}
+      repo_intake_open? -> %{label: "Intake", tone: :info}
+      true -> %{label: "Idle", tone: :neutral}
+    end
+  end
+
+  defp detail_section_badge(:semantic, assigns) do
+    detail_section_graph_badge(
+      Map.get(assigns, :semantic_inspection),
+      &semantic_notice_visible?/1
+    )
+  end
+
+  defp detail_section_badge(:memory, assigns) do
+    detail_section_graph_badge(
+      Map.get(assigns, :memory_inspection),
+      &memory_notice_visible?/1
+    )
+  end
+
+  defp detail_section_badge(:workflows, assigns) do
+    if project_ready_for_launch?(Map.get(assigns, :project_detail)) do
+      %{label: "Ready", tone: :success}
+    else
+      %{label: "Blocked", tone: :warning}
+    end
+  end
+
+  defp detail_section_graph_badge(%{} = inspection, notice_visible?) when is_function(notice_visible?, 1) do
+    state =
+      inspection
+      |> Map.get(:graph, %{})
+      |> Map.get(:state, :unavailable)
+
+    tone =
+      cond do
+        notice_visible?.(inspection) -> :warning
+        state in [:ready, "ready"] -> :success
+        state in [:stale, "stale"] -> :warning
+        true -> :neutral
+      end
+
+    %{label: detail_section_state_label(state), tone: tone}
+  end
+
+  defp detail_section_graph_badge(_inspection, _notice_visible?),
+    do: %{label: "Unavailable", tone: :neutral}
+
+  defp detail_section_state_label(state) when is_atom(state) do
+    state
+    |> Atom.to_string()
+    |> detail_section_state_label()
+  end
+
+  defp detail_section_state_label(state) when is_binary(state) do
+    case String.trim(state) do
+      "" -> "Unavailable"
+      value -> value |> String.replace("_", " ") |> String.capitalize()
+    end
+  end
+
+  defp detail_section_state_label(_state), do: "Unavailable"
+
+  defp detail_section_badge_class(:success), do: "border-success/50 bg-success/10 text-success"
+  defp detail_section_badge_class(:warning), do: "border-warning/50 bg-warning/10 text-warning-content"
+  defp detail_section_badge_class(:error), do: "border-error/50 bg-error/10 text-error"
+  defp detail_section_badge_class(:info), do: "border-info/50 bg-info/10 text-info"
+  defp detail_section_badge_class(:neutral), do: "border-base-300 bg-base-200/70 text-base-content/75"
+
+  defp workflow_family_badge_label(project_detail) do
+    if project_ready_for_launch?(project_detail), do: "Ready", else: "Blocked"
+  end
+
+  defp workflow_family_badge_class(project_detail) do
+    if project_ready_for_launch?(project_detail) do
+      detail_section_badge_class(:success)
+    else
+      detail_section_badge_class(:warning)
+    end
+  end
+
+  defp workflow_family_summary(project_detail) do
+    if project_ready_for_launch?(project_detail) do
+      "Launch defaults are ready and workflow kickoff from this route preserves governed run traceability."
+    else
+      readiness = project_readiness(project_detail)
+
+      [Map.get(readiness, :detail), Map.get(readiness, :remediation)]
+      |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+      |> Enum.join(" ")
+      |> case do
+        "" ->
+          "Workflow launch is currently blocked for this managed repository."
+
+        summary ->
+          summary
+      end
+    end
+  end
+
+  defp conversation_workspace_focus_label(selected_work_item_id, conversation_surface, repo_intake_surface) do
+    cond do
+      is_binary(selected_work_item_id) and is_map(Map.get(conversation_surface, :work_item)) ->
+        Map.get(Map.get(conversation_surface, :work_item), :summary) || selected_work_item_id
+
+      is_map(Map.get(repo_intake_surface, :conversation)) ->
+        "Repo intake"
+
+      true ->
+        "No active selection"
+    end
+  end
+
+  defp conversation_workspace_focus_summary(selected_work_item_id, _conversation_surface, repo_intake_surface) do
+    cond do
+      is_binary(selected_work_item_id) ->
+        "Following the productive conversation, transcript, and runtime posture for the selected governed work item."
+
+      is_map(Map.get(repo_intake_surface, :conversation)) ->
+        "Repo-scoped intake remains available for pre-work clarification and demand shaping."
+
+      true ->
+        "Open or resume a repository conversation here to coordinate work without leaving the managed-repository route."
+    end
+  end
+
+  defp conversation_governed_summary(conversation_roster) when is_list(conversation_roster) do
+    case length(conversation_roster) do
+      0 -> "No governed work-item conversations are active on this repository yet."
+      1 -> "One governed work-item thread is currently active and resumable from this route."
+      count -> "#{count} governed work-item threads are currently active and resumable from this route."
+    end
+  end
+
+  defp conversation_workspace_runtime_label(conversation_runtime, :degraded),
+    do: "#{conversation_runtime_status_label(conversation_runtime)} / snapshot only"
+
+  defp conversation_workspace_runtime_label(conversation_runtime, _stream_mode),
+    do: conversation_runtime_status_label(conversation_runtime)
+
+  defp conversation_workspace_runtime_summary(conversation_runtime, stream_mode) do
+    cond do
+      Map.get(conversation_runtime, :status) == :blocked ->
+        "Runtime prerequisites are blocked, but the latest durable conversation state remains visible on this route."
+
+      stream_mode == :degraded ->
+        "Live delivery is degraded, so the conversation family is showing the latest durable snapshot."
+
+      true ->
+        "Runtime posture, selected model, and continuity remain legible while work continues."
+    end
   end
 
   defp empty_conversation_surface do
@@ -2325,16 +2834,42 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       end
   end
 
-  defp project_detail_conversation_path(project_detail, return_to_path, work_item_id \\ nil) do
+  defp project_detail_conversation_path(project_detail, return_to_path, work_item_id) do
+    project_detail_section_path(
+      project_detail,
+      return_to_path,
+      section: :conversations,
+      work_item_id: work_item_id,
+      anchor: "project-detail-conversation-panel"
+    )
+  end
+
+  defp project_detail_section_path(project_detail, return_to_path, opts) do
     project_id =
       project_detail
       |> Map.get(:id)
       |> present_optional_string()
 
+    section =
+      opts
+      |> Keyword.get(:section, :overview)
+      |> normalize_detail_section()
+
+    work_item_id =
+      opts
+      |> Keyword.get(:work_item_id)
+      |> present_optional_string()
+
+    anchor =
+      opts
+      |> Keyword.get(:anchor)
+      |> present_optional_string()
+
     query =
       %{}
       |> maybe_put("return_to", normalized_return_to_param(return_to_path))
-      |> maybe_put("work_item_id", present_optional_string(work_item_id))
+      |> maybe_put("section", detail_section_param(section))
+      |> maybe_put("work_item_id", work_item_id)
 
     query_suffix =
       case query do
@@ -2342,11 +2877,38 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         params -> "?" <> URI.encode_query(params)
       end
 
+    anchor_suffix =
+      case anchor do
+        nil -> ""
+        value -> "##{value}"
+      end
+
     case project_id do
       nil -> "/repos"
-      id -> "/repos/#{id}#{query_suffix}#project-detail-conversation-panel"
+      id -> "/repos/#{id}#{query_suffix}#{anchor_suffix}"
     end
   end
+
+  defp detail_section_param(:overview), do: nil
+  defp detail_section_param(section), do: Atom.to_string(section)
+
+  defp normalize_detail_section(section) when is_atom(section) and section in @detail_sections,
+    do: section
+
+  defp normalize_detail_section(section) when is_binary(section) do
+    section
+    |> normalize_optional_string()
+    |> case do
+      "overview" -> :overview
+      "conversations" -> :conversations
+      "semantic" -> :semantic
+      "memory" -> :memory
+      "workflows" -> :workflows
+      _other -> :overview
+    end
+  end
+
+  defp normalize_detail_section(_section), do: :overview
 
   defp normalized_return_to_param("/workbench"), do: nil
   defp normalized_return_to_param(value), do: present_optional_string(value)
@@ -2566,6 +3128,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp semantic_notice_visible?(%{notice: notice}) when is_map(notice), do: true
   defp semantic_notice_visible?(_inspection), do: false
+
+  defp memory_notice_visible?(%{notice: notice}) when is_map(notice), do: true
+  defp memory_notice_visible?(_inspection), do: false
 
   defp semantic_notice_kind(%{notice_kind: notice_kind}) when is_atom(notice_kind), do: notice_kind
   defp semantic_notice_kind(_inspection), do: :warning

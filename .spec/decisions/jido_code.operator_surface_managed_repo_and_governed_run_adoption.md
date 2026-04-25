@@ -49,6 +49,12 @@ from workflow-local maps alone.
 This migration cuts the product over to the managed-repo control plane for
 operator-facing routes, labels, and primary record loading.
 
+Repo detail continues to land inside that same decision boundary: the canonical
+`/repos/:id` route now keeps overview, conversations, semantic inspection,
+memory/provenance inspection, and workflow launch as route-owned families inside
+one managed-repository surface instead of splintering those concerns into
+separate browser-owned applications.
+
 ## Consequences
 
 - Operators will see managed-repository and governed-run concepts directly in the

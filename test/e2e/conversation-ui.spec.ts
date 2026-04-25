@@ -7,7 +7,7 @@
 // covers: architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
 // covers: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
 // covers: architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
-import type { APIRequestContext, Page } from "@playwright/test"
+import type { APIRequestContext, Locator, Page } from "@playwright/test"
 import { expect, test } from "@playwright/test"
 
 async function waitForLiveViewConnection(page: Page) {
@@ -49,6 +49,21 @@ async function openRepoDetailFromWorkbench(page: Page, githubFullName: string) {
   await waitForLiveViewConnection(page)
 }
 
+async function openConversationFamily(page: Page) {
+  await page.click("#project-detail-section-nav-conversations")
+  await expect(page).toHaveURL(/section=conversations/)
+}
+
+async function requiredBox(locator: Locator) {
+  const box = await locator.boundingBox()
+
+  if (!box) {
+    throw new Error("expected locator to have a visible bounding box")
+  }
+
+  return box
+}
+
 test("repo detail keeps runtime readiness and clarification continuity readable across reload", async ({
   page,
   request
@@ -56,6 +71,7 @@ test("repo detail keeps runtime readiness and clarification continuity readable 
   await prepareScenario(request, "conversation_ready")
   await signIn(page, "/workbench")
   await openRepoDetailFromWorkbench(page, "owner/browser-conversation-ready")
+  await openConversationFamily(page)
 
   await expect(page.locator("#project-detail-conversation-runtime-status")).toHaveText("Ready")
   await expect(page.locator("#project-detail-conversation-runtime-llm")).toContainText("openai:gpt-5-mini")
@@ -93,6 +109,7 @@ test("repo detail exposes blocked runtime readiness without pretending execution
   await prepareScenario(request, "conversation_runtime_blocked")
   await signIn(page, "/workbench")
   await openRepoDetailFromWorkbench(page, "owner/browser-conversation-blocked")
+  await openConversationFamily(page)
 
   await expect(page.locator("#project-detail-conversation-runtime-status")).toHaveText("Blocked")
   await expect(page.locator("#project-detail-conversation-runtime-notice")).toBeVisible()
@@ -111,6 +128,7 @@ test("repo detail falls back to snapshot continuity when live conversation deliv
   await prepareScenario(request, "conversation_degraded")
   await signIn(page, "/workbench")
   await openRepoDetailFromWorkbench(page, "owner/browser-conversation-degraded")
+  await openConversationFamily(page)
 
   await page.click("#project-detail-conversation-open")
 
@@ -122,4 +140,79 @@ test("repo detail falls back to snapshot continuity when live conversation deliv
   await expect(page.locator("#project-detail-conversation-sequence-summary")).toContainText(
     "Sequence 0"
   )
+})
+
+test("repo detail keeps desktop sidebar family navigation on the left while panels switch in place", async ({
+  page,
+  request
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1200 })
+  await prepareScenario(request, "conversation_ready")
+  await signIn(page, "/workbench")
+  await openRepoDetailFromWorkbench(page, "owner/browser-conversation-ready")
+
+  const sidebar = page.locator("#project-detail-section-sidebar")
+  const content = page.locator("#project-detail-section-content")
+  const overviewLink = page.locator("#project-detail-section-nav-overview")
+  const conversationsLink = page.locator("#project-detail-section-nav-conversations")
+  const workflowsLink = page.locator("#project-detail-section-nav-workflows")
+
+  await expect(page.locator("#project-detail-overview-panel")).toBeVisible()
+
+  const sidebarBox = await requiredBox(sidebar)
+  const contentBox = await requiredBox(content)
+  const overviewBox = await requiredBox(overviewLink)
+  const workflowsBox = await requiredBox(workflowsLink)
+
+  expect(sidebarBox.x).toBeLessThan(contentBox.x)
+  expect(Math.abs(workflowsBox.x - overviewBox.x)).toBeLessThan(24)
+  expect(workflowsBox.y).toBeGreaterThan(overviewBox.y + 40)
+
+  await workflowsLink.click()
+  await expect(page).toHaveURL(/section=workflows/)
+  await expect(page.locator("#project-detail-workflows-panel")).toBeVisible()
+  await expect(page.locator("#project-detail-overview-panel")).toHaveCount(0)
+
+  await conversationsLink.click()
+  await expect(page).toHaveURL(/section=conversations/)
+  await expect(page.locator("#project-detail-conversation-panel")).toBeVisible()
+  await expect(page.locator("#project-detail-conversation-runtime-status")).toHaveText("Ready")
+})
+
+test("repo detail keeps narrow-screen family navigation usable as a horizontal fallback rail", async ({
+  page,
+  request
+}) => {
+  await page.setViewportSize({ width: 430, height: 900 })
+  await prepareScenario(request, "conversation_ready")
+  await signIn(page, "/workbench")
+  await openRepoDetailFromWorkbench(page, "owner/browser-conversation-ready")
+
+  const nav = page.locator("#project-detail-section-nav")
+  const content = page.locator("#project-detail-section-content")
+  const overviewLink = page.locator("#project-detail-section-nav-overview")
+  const conversationsLink = page.locator("#project-detail-section-nav-conversations")
+
+  await expect(nav).toBeVisible()
+
+  const navBox = await requiredBox(nav)
+  const contentBox = await requiredBox(content)
+  const overviewBox = await requiredBox(overviewLink)
+  const conversationsBox = await requiredBox(conversationsLink)
+
+  expect(navBox.y).toBeLessThan(contentBox.y)
+  expect(Math.abs(overviewBox.y - conversationsBox.y)).toBeLessThan(20)
+  expect(conversationsBox.x).toBeGreaterThan(overviewBox.x)
+
+  const memoryLink = page.locator("#project-detail-section-nav-memory")
+  await memoryLink.scrollIntoViewIfNeeded()
+  await memoryLink.click()
+
+  await expect(page).toHaveURL(/section=memory/)
+  await expect(page.locator("#project-detail-memory-inspection")).toBeVisible()
+
+  await page.locator("#project-detail-memory-open-semantic").click()
+
+  await expect(page).toHaveURL(/section=semantic/)
+  await expect(page.locator("#project-detail-semantic-inspection")).toBeVisible()
 })

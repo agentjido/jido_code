@@ -199,6 +199,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code_web/live/phase_fifty_nine_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   covers:
     - package.jido_code.spec_led_workspace

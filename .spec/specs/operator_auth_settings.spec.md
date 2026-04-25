@@ -17,6 +17,7 @@ surface:
   - lib/jido_code_web/live/settings_live.ex
   - test/support/conn_case.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
+  - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
 ```
@@ -130,6 +131,15 @@ surface:
     - auth.operator_settings.broker_trust_configuration_ui
     - auth.operator_settings.github_service_validation_feedback
     - auth.operator_settings.integration_boundary_visible
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_nine_integration_test.exs
+  covers:
+    - auth.operator_settings.sections_separated
+    - auth.operator_settings.broker_trust_configuration_ui
+    - auth.operator_settings.github_service_validation_feedback
+    - auth.operator_settings.integration_boundary_visible
+    - auth.operator_settings.hidden_during_bootstrap_entry
 
 - kind: source_file
   target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs

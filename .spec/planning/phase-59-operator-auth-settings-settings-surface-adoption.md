@@ -22,12 +22,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - `test/jido_code_web/live/settings_live_test.exs`
 
 ## Relevant Assumptions / Defaults
-- Provider Login and Git Provider Integrations remain one operator boundary even though they currently render from `HomeLive`.
+- Provider Login and Git Provider Integrations remain one operator boundary while moving from the ready-state welcome view onto a settings-owned authenticated surface.
 - The settings route already exists and is the intended durable authenticated home for operator-managed configuration.
 - This phase should preserve the separation between provider-login broker trust and deployment-local Git automation credentials instead of collapsing them into one generic secrets form.
 - The public `/welcome` route should not regain ownership of durable operator configuration once this migration begins.
 
-[ ] 59 Phase 59 - Operator Auth Settings Settings-Surface Adoption
+[x] 59 Phase 59 - Operator Auth Settings Settings-Surface Adoption
   Move provider-login and Git provider integration management onto a settings-owned authenticated surface so durable operator configuration no longer depends on the ready-state welcome view.
 
   [x] 59.1 Section - Settings Information Architecture And Route Ownership
@@ -64,12 +64,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 59.2.2.2 Subtask - Keep contributor-facing docs and repo-local specs clear that detailed operator configuration now lives on a settings-owned product surface.
       [x] 59.2.2.3 Subtask - Preserve future GitLab and Bitbucket placeholder treatment on the settings-owned operator console.
 
-  [ ] 59.3 Section - Phase Integration Tests
+  [x] 59.3 Section - Phase Integration Tests
     Verify the settings migration end to end so the operator console remains functional after leaving `/welcome`.
 
-    [ ] 59.3.1 Task - Add routed-surface coverage for the settings-owned operator console
+    [x] 59.3.1 Task - Add routed-surface coverage for the settings-owned operator console
       Prove the migrated settings surface preserves persistence, readiness checks, and public-route handoff behavior.
 
-      [ ] 59.3.1.1 Subtask - Cover direct navigation to the settings auth-and-integrations destination and visibility rules for eligible operators.
-      [ ] 59.3.1.2 Subtask - Cover provider-login save flows and GitHub readiness refresh flows on the settings-owned surface.
-      [ ] 59.3.1.3 Subtask - Cover `/welcome` offering only compact handoff cues after the console has moved.
+      [x] 59.3.1.1 Subtask - Cover direct navigation to the settings auth-and-integrations destination and visibility rules for eligible operators.
+      [x] 59.3.1.2 Subtask - Cover provider-login save flows and GitHub readiness refresh flows on the settings-owned surface.
+      [x] 59.3.1.3 Subtask - Cover `/welcome` offering only compact handoff cues after the console has moved.

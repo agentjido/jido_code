@@ -25,6 +25,7 @@ surface:
   - priv/repo/migrations/20260325220016_migrate_resources1_dev.exs
   - priv/resource_snapshots/repo/users/20260325220016_dev.json
   - test/jido_code_web/live/phase_sixty_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_three_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
 ```
 

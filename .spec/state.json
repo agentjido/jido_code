@@ -7088,6 +7088,7 @@
             "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
             "test/jido_code_web/live/phase_fifty_nine_integration_test.exs",
             "test/jido_code_web/live/phase_sixty_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/setup_live_test.exs",
             "test/jido_code_web/live/welcome_live_test.exs"
           ],
@@ -7177,6 +7178,7 @@
             "test/jido_code/phase_forty_one_integration_test.exs",
             "test/jido_code/phase_forty_two_integration_test.exs",
             "test/jido_code_web/live/project_detail_live_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/workbench_live_test.exs",
             "test/jido_code_web/live/run_detail_live_test.exs",
             "test/jido_code_web/live/dashboard_live_test.exs",
@@ -7386,6 +7388,7 @@
             "test/jido_code/phase_forty_eight_integration_test.exs",
             "test/jido_code_web/live/dashboard_live_test.exs",
             "test/jido_code_web/live/workbench_live_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/phase_sixteen_integration_test.exs",
             "test/jido_code_web/live/run_detail_live_test.exs",
             "test/jido_code_web/live/phase_eleven_integration_test.exs",
@@ -7448,6 +7451,7 @@
             "test/jido_code_web/components/",
             "test/jido_code_web/components/operator_state_components_test.exs",
             "test/jido_code_web/live/",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
             "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
             "test/jido_code_web/live/phase_sixteen_integration_test.exs"
@@ -7641,6 +7645,7 @@
             "test/jido_code/memory_graph_governed_adoption_test.exs",
             "test/jido_code/phase_thirty_two_integration_test.exs",
             "test/jido_code_web/live/phase_thirty_two_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code/",
             "test/jido_code_web/live/"
           ],
@@ -7674,6 +7679,7 @@
             "lib/jido_code_web/live/",
             "lib/jido_code_web/components/",
             "test/jido_code/",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/"
           ],
           "verification_minimum_strength": null
@@ -7708,6 +7714,7 @@
             "lib/jido_code/workbench/",
             "lib/jido_code_web/live/",
             "test/jido_code/",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/"
           ],
           "verification_minimum_strength": null
@@ -7830,6 +7837,7 @@
             "priv/ontologies/",
             "priv/repo/migrations/",
             "test/",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/support/conn_case.ex"
           ],
           "verification_minimum_strength": null
@@ -8327,6 +8335,7 @@
             "test/jido_code/mix/onboarding_reset_test.exs",
             "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
             "test/jido_code_web/live/phase_sixty_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/setup_live_test.exs",
             "test/jido_code_web/live/dashboard_live_test.exs",
             "test/jido_code/setup/project_import_test.exs",
@@ -8412,6 +8421,7 @@
             "test/jido_code/source_code_graph_workspace_test.exs",
             "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
             "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/"
           ],
           "verification_minimum_strength": null
@@ -8486,6 +8496,7 @@
             "priv/repo/migrations/20260325220016_migrate_resources1_dev.exs",
             "priv/resource_snapshots/repo/users/20260325220016_dev.json",
             "test/jido_code_web/live/phase_sixty_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_three_integration_test.exs",
             "test/jido_code_web/live/setup_live_test.exs"
           ],
           "verification_minimum_strength": null

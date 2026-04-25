@@ -51,6 +51,7 @@ surface:
   - test/jido_code/source_code_graph_workspace_test.exs
   - test/jido_code_web/live/phase_twenty_five_integration_test.exs
   - test/jido_code_web/live/phase_twenty_seven_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_three_integration_test.exs
   - test/jido_code_web/live/
 ```
 

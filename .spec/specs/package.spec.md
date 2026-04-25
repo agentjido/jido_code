@@ -47,6 +47,7 @@ surface:
   - priv/ontologies/
   - priv/repo/migrations/
   - test/
+  - test/jido_code_web/live/phase_sixty_three_integration_test.exs
   - test/support/conn_case.ex
 ```
 

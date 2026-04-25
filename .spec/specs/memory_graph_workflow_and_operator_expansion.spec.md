@@ -32,6 +32,7 @@ surface:
   - lib/jido_code/workbench/
   - lib/jido_code_web/live/
   - test/jido_code/
+  - test/jido_code_web/live/phase_sixty_three_integration_test.exs
   - test/jido_code_web/live/
 ```
 

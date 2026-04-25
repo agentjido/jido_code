@@ -26,7 +26,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - Repo detail is already the canonical runtime-readiness host for managed repositories, so repo-scoped workspace remediation should remain close to that route unless a settings-owned control surface is clearly better.
 - Local repositories may live in unrelated filesystem locations, so repo-scoped configuration must accept arbitrary valid absolute paths instead of forcing a derived subdirectory under one root.
 
-[ ] 63 Phase 63 - Repo-Scoped Workspace Configuration Surfaces
+[x] 63 Phase 63 - Repo-Scoped Workspace Configuration Surfaces
   Add the product-owned mutation and operator UI needed to inspect, set, and repair each managed repository's workspace binding directly, without relying on one install-wide local-root assumption.
 
 [x] 63.1 Section - Repo-Scoped Workspace Mutation Boundaries
@@ -63,12 +63,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 63.2.2.2 Subtask - Update local-repository and GitHub import follow-up copy so operators understand that each managed repository owns its later workspace binding.
       [x] 63.2.2.3 Subtask - Remove product wording that implies all managed local repositories must sit under one shared parent directory.
 
-  [ ] 63.3 Section - Phase Integration Tests
+  [x] 63.3 Section - Phase Integration Tests
     Verify the new repo-scoped mutation and UI surfaces the way an operator will actually use them.
 
-    [ ] 63.3.1 Task - Add repo-scoped configuration interaction coverage
+    [x] 63.3.1 Task - Add repo-scoped configuration interaction coverage
       Cover both the mutation boundary and the user-facing repair flow that depends on it.
 
-      [ ] 63.3.1.1 Subtask - Add coverage proving one managed repository can be rebound to an arbitrary valid absolute local path without changing another repository.
-      [ ] 63.3.1.2 Subtask - Add repo-detail or settings coverage proving blocked runtime remediation can set a repo-scoped workspace binding directly.
-      [ ] 63.3.1.3 Subtask - Add setup coverage proving install-wide runtime defaults remain seed-only metadata after the copy and control-surface cutover.
+      [x] 63.3.1.1 Subtask - Add coverage proving one managed repository can be rebound to an arbitrary valid absolute local path without changing another repository.
+      [x] 63.3.1.2 Subtask - Add repo-detail or settings coverage proving blocked runtime remediation can set a repo-scoped workspace binding directly.
+      [x] 63.3.1.3 Subtask - Add setup coverage proving install-wide runtime defaults remain seed-only metadata after the copy and control-surface cutover.

@@ -48,6 +48,7 @@ surface:
   - test/jido_code/memory_graph_governed_adoption_test.exs
   - test/jido_code/phase_thirty_two_integration_test.exs
   - test/jido_code_web/live/phase_thirty_two_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_three_integration_test.exs
   - test/jido_code/
   - test/jido_code_web/live/
 ```

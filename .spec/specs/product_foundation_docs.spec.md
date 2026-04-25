@@ -1,6 +1,6 @@
 # Product Foundation Docs
 
-<!-- current_truth.reconciled_with_branch: contributor-facing product orientation remains aligned with the branch-wide setup, graph, and workflow surface changes, including README and CONTRIBUTING guidance that now names repo detail as the canonical conversation host and keeps runtime readiness plus degraded continuity visible in the routed shell. -->
+<!-- current_truth.reconciled_with_branch: contributor-facing product orientation remains aligned with the branch-wide setup, graph, and workflow surface changes, including README and CONTRIBUTING guidance that now names repo detail as the canonical conversation host, keeps runtime readiness plus degraded continuity visible in the routed shell, and explicitly describes `/welcome`, `/setup`, `/dashboard`, and `/settings/auth` as the current routed entry model. -->
 
 This subject defines the repository-facing docs that orient contributors to what
 `Jido.Code` is, how to run it, and where the durable architecture record now lives.
@@ -9,7 +9,7 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that points back to `.spec` as current truth plus the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, the current `/welcome` to `/setup` to `/dashboard` and `/settings/auth` route ownership model, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that points back to `.spec` as current truth plus the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization

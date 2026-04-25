@@ -10,7 +10,7 @@ This subject defines the target user-management model for `jido_code` as it evol
 id: users.admin_system
 kind: feature
 status: active
-summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight start surface before growing into an admin-managed multi-user account system with guarded registration.
+summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight `/setup` start surface before growing into an admin-managed multi-user account system with guarded registration, with later ready-state auth entering dashboard and durable provider or Git integration management living under `/settings/auth`.
 decisions:
   - jido_code.auth_user_system
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff

@@ -8,7 +8,7 @@ This subject defines the current operator auth-settings console used to configur
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access, while signed-in `/welcome` stays a compact handoff into dashboard and `/settings/auth` instead of rendering a second full operator console.
+summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and reach that console through durable settings navigation once bootstrap is complete and ready-state auth has entered dashboard, while signed-in `/welcome` stays only a compact handoff into dashboard and `/settings/auth`.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:

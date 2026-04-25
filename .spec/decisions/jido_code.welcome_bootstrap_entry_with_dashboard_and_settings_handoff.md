@@ -83,17 +83,21 @@ The split is:
 
 ## Implementation Status
 
-This decision is accepted, but the full route cutover is not landed yet.
+This decision is now landed in product code.
 
-Current implementation still behaves as follows:
+Current implementation behaves as follows:
 
-- `/` redirects to `/welcome`.
+- `/` still redirects to `/welcome` so the public/bootstrap entry route remains
+  canonical.
+- bootstrap-required installs still use `/welcome` for first-run admin
+  creation, and incomplete onboarding still routes signed-in users to `/setup`.
 - ready-state local sign-in now defaults to `/dashboard`.
+- ready-state provider sign-in now defaults to `/dashboard` when no explicit
+  signed redirect override is present.
 - `/settings/auth` now acts as the durable authenticated destination for
   Provider Login and Git Provider Integrations management.
-- signed-in `/welcome` now behaves as a dashboard-first handoff surface with a
-  compact settings cue instead of a second full operator configuration console.
+- signed-in `/welcome` now behaves as a compact dashboard-first handoff surface
+  with a settings cue instead of a second full operator configuration console.
 
-Current-truth specs should therefore keep documenting the existing route
-behavior while avoiding language that treats the welcome-page placement of that
-operator console as the durable long-term product destination.
+Current-truth specs should now describe this routed ownership directly rather
+than framing it as planned future state.

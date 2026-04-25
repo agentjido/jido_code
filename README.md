@@ -51,6 +51,15 @@ For new repo work, prefer canonical repository or managed-repository language
 and governed-run terms. Keep `Project` and `WorkflowRun` references confined to
 explicit compatibility, migration, or audit seams.
 
+## Route Orientation
+
+The routed entry model is intentionally split:
+
+- `/welcome` is the public/bootstrap and sign-in entry route
+- `/setup` is the signed-in continuation surface while onboarding is incomplete
+- `/dashboard` is the durable ready-state authenticated landing
+- `/settings/auth` is the durable home for Provider Login and Git Provider Integrations
+
 ## Local Development
 
 The repo toolchain is pinned in `.tool-versions` for `asdf`. Normal day-to-day development should feel like a conventional Phoenix app:

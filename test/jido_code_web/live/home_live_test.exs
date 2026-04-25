@@ -101,6 +101,26 @@ defmodule JidoCodeWeb.HomeLiveTest do
     refute has_element?(view, "a", "Create Account")
   end
 
+  test "signed-in ready-state welcome emphasizes dashboard handoff before lower-page operator controls",
+       %{conn: _conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    {:ok, view, html} = live(recycle(authed_conn), ~p"/welcome")
+
+    assert has_element?(view, "#welcome-open-dashboard", "Open Dashboard")
+    assert has_element?(view, "#welcome-open-settings", "Open Settings")
+    assert has_element?(
+             view,
+             "#welcome-ready-handoff-note",
+             "Provider login and Git integration controls are still available lower on this page"
+           )
+
+    refute html =~
+             "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new spec-led baseline is validated."
+  end
+
   defp enable_provider_login!(provider, provider_host) do
     {:ok, config} =
       ProviderConfig.upsert(

@@ -1,6 +1,6 @@
 # Provider Login Flow
 
-<!-- current_truth.reconciled_with_branch: GitHub-auth setup verification continues to rely on this provider-login flow subject. -->
+<!-- current_truth.reconciled_with_branch: GitHub-auth setup verification continues to rely on this provider-login flow subject, while signed-in ready-state `/welcome` now behaves as a dashboard-first handoff surface and leaves GitHub provider entry focused on anonymous or signed-out visitors. -->
 
 This subject defines the first broker-backed provider login path that is live in `jido_code`. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`. The initial implementation is GitHub-first, but the session-issuance service remains provider-neutral so future GitLab and Bitbucket login can reuse the same local-user and token model.
 
@@ -8,9 +8,10 @@ This subject defines the first broker-backed provider login path that is live in
 id: auth.provider_login_flow
 kind: feature
 status: active
-summary: jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in start paths until the ready-state landing view is appropriate, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in.
+summary: jido_code exposes a GitHub provider sign-in entrypoint on the `/welcome` landing after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in setup-continuation paths, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in while signed-in ready-state `/welcome` now emphasizes dashboard handoff instead of acting like the default operator destination.
 decisions:
   - jido_code.auth_user_system
+  - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
   - lib/jido_code/auth_providers/provider_login.ex
   - lib/jido_code_web/controllers/provider_auth_controller.ex
@@ -25,7 +26,7 @@ surface:
 
 ```spec-requirements
 - id: auth.provider_login_flow.entrypoint_visible
-  statement: The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete, while keeping provider entry out of the bootstrap-required and continue-setup start states.
+  statement: The `/welcome` landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete, while keeping provider entry out of the bootstrap-required and continue-setup start states.
   priority: must
   stability: evolving
 

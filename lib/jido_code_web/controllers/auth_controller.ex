@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.AuthController do
+  # covers: auth.system.ready_state_local_auth_handoff
   use JidoCodeWeb, :controller
   use AshAuthentication.Phoenix.Controller
 
@@ -94,7 +95,7 @@ defmodule JidoCodeWeb.AuthController do
   defp default_return_to do
     case BootstrapStatus.current().state do
       :continue_setup -> ~p"/setup"
-      :ready -> ~p"/"
+      :ready -> ~p"/dashboard"
       _other -> ~p"/welcome"
     end
   end

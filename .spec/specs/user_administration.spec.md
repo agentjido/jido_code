@@ -1,6 +1,6 @@
 # User Administration
 
-<!-- current_truth.reconciled_with_branch: bootstrap-admin creation and entry into the signed-in setup start surface remain current truth here, while later GitHub PAT and multi-repository GitHub import follow-up still depend on setup-owned server gating and do not keep completed imports selected as a new bootstrap gate. -->
+<!-- current_truth.reconciled_with_branch: bootstrap-admin creation and entry into the signed-in setup start surface remain current truth here, while ready-state local auth now defaults to dashboard instead of reopening `/welcome`, and later GitHub PAT plus multi-repository GitHub import follow-up still depend on setup-owned server gating and do not keep completed imports selected as a new bootstrap gate. -->
 
 This subject defines the target user-management model for `jido_code` as it evolves from owner bootstrap toward a durable admin-managed account system. Local users remain the shared directory even when a user later gains linked external identities or is first provisioned from a provider login.
 
@@ -13,6 +13,7 @@ status: active
 summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight start surface before growing into an admin-managed multi-user account system with guarded registration.
 decisions:
   - jido_code.auth_user_system
+  - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
   - lib/jido_code/setup/bootstrap_status.ex
   - lib/jido_code/setup/owner_bootstrap.ex

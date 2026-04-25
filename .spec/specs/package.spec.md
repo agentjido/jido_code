@@ -1,6 +1,6 @@
 # Package
 
-<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers, PAT preflight UI behavior, bounded multi-repository GitHub import follow-up on the signed-in setup surface, the rule that completed GitHub imports persist import history without staying selected as active follow-up work, the planning workspace phase for conversation UI convergence, and the routed repo-detail conversation shell plus browser-harness verification work that now keeps clarification, readiness, and degraded continuity under version-controlled package surfaces. -->
+<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers, PAT preflight UI behavior, bounded multi-repository GitHub import follow-up on the signed-in setup surface, the rule that completed GitHub imports persist import history without staying selected as active follow-up work, the planning workspace phase for conversation UI convergence, the welcome/bootstrap handoff ADR plus phased routing/settings plan, the ready-state local-auth cutover that now defaults authenticated product entry to dashboard while incomplete onboarding still routes to setup, the signed-in `/welcome` handoff card that now prioritizes dashboard and settings before the temporary lower-page operator controls, and the routed repo-detail conversation shell plus browser-harness verification work that now keeps clarification, readiness, and degraded continuity under version-controlled package surfaces. -->
 
 High-level package contract for `jido_code`.
 
@@ -215,6 +215,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code/control/repo_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

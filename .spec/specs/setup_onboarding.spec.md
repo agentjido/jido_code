@@ -1,6 +1,6 @@
 # Setup Onboarding
 
-<!-- current_truth.reconciled_with_branch: `/setup` remains the LiveView-owned signed-in start surface with bounded hybrid follow-up work, and the shared browser harness now covers setup scenarios alongside conversation-route scenarios without changing setup ownership, fallback behavior, or persisted GitHub follow-up state. -->
+<!-- current_truth.reconciled_with_branch: `/setup` remains the LiveView-owned signed-in start surface with bounded hybrid follow-up work, while ready-state local auth now defaults to dashboard and signed-in `/welcome` behaves as a handoff surface instead of a setup surrogate, and the shared browser harness now covers setup scenarios alongside conversation-route scenarios without changing setup ownership, fallback behavior, or persisted GitHub follow-up state. -->
 
 This subject defines the first signed-in product entry contract after bootstrap administrator creation. The goal is to keep first-run onboarding simple: create the first admin, enter the app, and defer optional repo and integration setup into signed-in follow-up flows.
 
@@ -58,6 +58,7 @@ surface:
   - test/support/conn_case.ex
   - test/jido_code/setup/onboarding_reset_test.exs
   - test/jido_code/mix/onboarding_reset_test.exs
+  - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code/setup/project_import_test.exs
@@ -444,6 +445,11 @@ surface:
   target: test/jido_code/setup/deployment_mode_test.exs
   covers:
     - setup.onboarding.deployment_mode_auto_detected
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  covers:
+    - setup.onboarding.post_bootstrap_start_surface
 
 - kind: source_file
   target: test/jido_code_web/live/setup_live_test.exs

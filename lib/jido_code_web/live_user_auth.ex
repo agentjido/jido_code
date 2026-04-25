@@ -2,6 +2,7 @@ defmodule JidoCodeWeb.LiveUserAuth do
   @moduledoc """
   Helpers for authenticating users in LiveViews.
   """
+  # covers: auth.system.ready_state_local_auth_handoff
 
   require Logger
 
@@ -53,7 +54,7 @@ defmodule JidoCodeWeb.LiveUserAuth do
         {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/setup")}
 
       socket.assigns[:current_user] ->
-        {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
+        {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/dashboard")}
 
       status.state == :bootstrap_required ->
         {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/welcome")}

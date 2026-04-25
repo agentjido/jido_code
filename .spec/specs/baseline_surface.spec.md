@@ -1,6 +1,6 @@
 # Baseline Surface
 
-<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including GitHub PAT encryption preflight before secret-backed follow-up actions and multi-repository GitHub import selection that clears active selection once import follow-up completes. -->
+<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, and GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes. -->
 
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
@@ -11,7 +11,9 @@ This subject defines the current browser-facing landing, auth, and routed produc
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, API, and dev surfaces declared in the router.
+summary: jido_code exposes a state-aware `/welcome` landing and auth entry route while keeping `/setup` as the signed-in post-bootstrap continuation surface and authenticated product, API, and dev surfaces declared in the router.
+decisions:
+  - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex
@@ -21,6 +23,7 @@ surface:
   - test/support/conn_case.ex
   - test/jido_code_web/controllers/page_controller_test.exs
   - test/jido_code_web/live/home_live_test.exs
+  - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/welcome_live_test.exs
 ```
@@ -29,7 +32,7 @@ surface:
 
 ```spec-requirements
 - id: baseline.surface.public_entry_routes
-  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and `/setup` acting as the signed-in post-bootstrap start surface.
+  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and public auth entry while `/setup` acts as the signed-in post-bootstrap continuation surface.
   priority: must
   stability: stable
 
@@ -39,7 +42,7 @@ surface:
   stability: evolving
 
 - id: baseline.surface.welcome_landing_copy
-  statement: The `/welcome` landing page shall act as the operator-facing starting point, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.
+  statement: The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs, ready-state sign-in copy for signed-out installs, and dashboard-first handoff copy for signed-in ready-state sessions.
   priority: must
   stability: stable
 
@@ -49,7 +52,7 @@ surface:
   stability: stable
 
 - id: baseline.surface.root_redirects_to_welcome
-  statement: The root path shall redirect to `/welcome` so the operator-facing landing route stays canonical even as authenticated product routes expand.
+  statement: The root path shall redirect to `/welcome` so the canonical public/bootstrap and auth entry route stays canonical even as authenticated product routes expand.
   priority: must
   stability: stable
 
@@ -102,6 +105,13 @@ surface:
   covers:
     - baseline.surface.auth_entrypoints_visible
     - baseline.surface.welcome_landing_copy
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  covers:
+    - baseline.surface.public_entry_routes
+    - baseline.surface.welcome_landing_copy
+    - baseline.surface.root_redirects_to_welcome
 
 - kind: source_file
   target: test/jido_code_web/live/setup_live_test.exs

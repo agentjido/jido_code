@@ -47,22 +47,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 59.1.2.2 Subtask - Reuse the existing GitHub credential-check and readiness flow so the settings surface preserves current remediation detail.
       [x] 59.1.2.3 Subtask - Keep the provider-config versus deployment-local service-credential boundary explicit in the extracted implementation and rendered UI.
 
-  [ ] 59.2 Section - Welcome-To-Settings Handoff And Surface Cleanup
+  [x] 59.2 Section - Welcome-To-Settings Handoff And Surface Cleanup
     Finish the operator-surface split by making `/welcome` point to settings rather than hosting the full operator console itself.
 
-    [ ] 59.2.1 Task - Replace welcome-page operator configuration with bounded handoff cues
+    [x] 59.2.1 Task - Replace welcome-page operator configuration with bounded handoff cues
       Keep `/welcome` useful after sign-in without leaving a second full operator-settings implementation behind.
 
-      [ ] 59.2.1.1 Subtask - Remove the full Provider Login and Git Provider Integrations forms and readiness panels from ready-state `HomeLive`.
-      [ ] 59.2.1.2 Subtask - Replace them with compact status or navigation cues that send operators to the settings-owned destination.
-      [ ] 59.2.1.3 Subtask - Avoid stale duplicated settings summaries on `/welcome` that could drift from the real settings surface.
+      [x] 59.2.1.1 Subtask - Remove the full Provider Login and Git Provider Integrations forms and readiness panels from ready-state `HomeLive`.
+      [x] 59.2.1.2 Subtask - Replace them with compact status or navigation cues that send operators to the settings-owned destination.
+      [x] 59.2.1.3 Subtask - Avoid stale duplicated settings summaries on `/welcome` that could drift from the real settings surface.
 
-    [ ] 59.2.2 Task - Keep operator-facing wording and docs coherent during the move
+    [x] 59.2.2 Task - Keep operator-facing wording and docs coherent during the move
       Align labels and surface copy so operators understand the new home of these controls.
 
-      [ ] 59.2.2.1 Subtask - Use consistent naming for Provider Login and Git Provider Integrations across welcome, settings, and related notices.
-      [ ] 59.2.2.2 Subtask - Keep contributor-facing docs and repo-local specs clear that detailed operator configuration now lives on a settings-owned product surface.
-      [ ] 59.2.2.3 Subtask - Preserve future GitLab and Bitbucket placeholder treatment on the settings-owned operator console.
+      [x] 59.2.2.1 Subtask - Use consistent naming for Provider Login and Git Provider Integrations across welcome, settings, and related notices.
+      [x] 59.2.2.2 Subtask - Keep contributor-facing docs and repo-local specs clear that detailed operator configuration now lives on a settings-owned product surface.
+      [x] 59.2.2.3 Subtask - Preserve future GitLab and Bitbucket placeholder treatment on the settings-owned operator console.
 
   [ ] 59.3 Section - Phase Integration Tests
     Verify the settings migration end to end so the operator console remains functional after leaving `/welcome`.

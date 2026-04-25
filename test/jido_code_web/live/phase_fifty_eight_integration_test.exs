@@ -138,7 +138,9 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
 
     assert has_element?(welcome_view, "#welcome-open-dashboard", "Open Dashboard")
     assert has_element?(welcome_view, "#welcome-open-settings", "Open Settings")
-    assert has_element?(welcome_view, "#provider-login-settings", "Provider Login")
+    assert has_element?(welcome_view, "#welcome-operator-settings-handoff", "Auth & Integrations Live In Settings")
+    assert has_element?(welcome_view, ~s|a[href="/settings/auth"]#welcome-open-auth-settings|, "Open Auth & Integrations")
+    refute has_element?(welcome_view, "#provider-login-settings")
 
     refute welcome_html =~
              "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new spec-led baseline is validated."

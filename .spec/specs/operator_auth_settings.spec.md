@@ -8,7 +8,7 @@ This subject defines the current operator auth-settings console used to configur
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access, with the current implementation still leaving the older lower-page welcome rendering in place temporarily until the welcome cleanup lands.
+summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access, while signed-in `/welcome` stays a compact handoff into dashboard and `/settings/auth` instead of rendering a second full operator console.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
@@ -45,7 +45,7 @@ surface:
   stability: evolving
 
 - id: auth.operator_settings.hidden_during_bootstrap_entry
-  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render, with `/settings/auth` as the durable authenticated destination while the current welcome implementation still keeps an older lower-page rendering below the dashboard-first handoff card until cleanup lands.
+  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render, with `/settings/auth` as the durable authenticated destination while signed-in `/welcome` remains only a compact handoff into dashboard and settings.
   priority: must
   stability: evolving
 ```
@@ -64,7 +64,7 @@ surface:
     - The operator opens the settings-owned auth-and-integrations destination.
   then:
     - The page shows separate Provider Login and Git Provider Integrations sections and keeps future provider integrations explicit.
-    - The operator console does not displace the simpler signed-in start path used immediately after bootstrap.
+    - The operator console does not displace the simpler signed-in start path used immediately after bootstrap, because signed-in `/welcome` only offers a compact handoff into settings.
     - The route remains directly revisitable from the authenticated settings navigation instead of depending on the welcome page.
 
 - id: auth.operator_settings.scenario.operator_saves_broker_trust
@@ -102,10 +102,6 @@ surface:
 - kind: source_file
   target: lib/jido_code_web/live/home_live.ex
   covers:
-    - auth.operator_settings.sections_separated
-    - auth.operator_settings.broker_trust_configuration_ui
-    - auth.operator_settings.github_service_validation_feedback
-    - auth.operator_settings.integration_boundary_visible
     - auth.operator_settings.hidden_during_bootstrap_entry
 
 - kind: source_file
@@ -125,10 +121,6 @@ surface:
 - kind: source_file
   target: test/jido_code_web/live/home_live_operator_settings_test.exs
   covers:
-    - auth.operator_settings.sections_separated
-    - auth.operator_settings.broker_trust_configuration_ui
-    - auth.operator_settings.github_service_validation_feedback
-    - auth.operator_settings.integration_boundary_visible
     - auth.operator_settings.hidden_during_bootstrap_entry
 
 - kind: source_file

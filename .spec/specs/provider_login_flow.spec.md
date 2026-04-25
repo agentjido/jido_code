@@ -1,6 +1,6 @@
 # Provider Login Flow
 
-<!-- current_truth.reconciled_with_branch: GitHub-auth setup verification continues to rely on this provider-login flow subject, while signed-in ready-state `/welcome` now behaves as a dashboard-first handoff surface, leaves GitHub provider entry focused on anonymous or signed-out visitors, and now pairs with a settings-owned `/settings/auth` destination for durable provider-login configuration instead of treating welcome as that long-term home. -->
+<!-- current_truth.reconciled_with_branch: GitHub-auth setup verification continues to rely on this provider-login flow subject, while signed-in ready-state `/welcome` now behaves as a compact dashboard-first handoff surface, leaves GitHub provider entry focused on anonymous or signed-out visitors, and now pairs with a settings-owned `/settings/auth` destination for durable provider-login configuration instead of treating welcome as that long-term home. -->
 
 This subject defines the first broker-backed provider login path that is live in `jido_code`. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`. The initial implementation is GitHub-first, but the session-issuance service remains provider-neutral so future GitLab and Bitbucket login can reuse the same local-user and token model.
 

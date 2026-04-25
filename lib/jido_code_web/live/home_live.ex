@@ -6,10 +6,6 @@ defmodule JidoCodeWeb.HomeLive do
   # covers: setup.onboarding.deployment_mode_auto_detected
   # covers: auth.provider_login_flow.entrypoint_visible
   # covers: auth.provider_login_flow.local_auth_fallback_visible
-  # covers: auth.operator_settings.sections_separated
-  # covers: auth.operator_settings.broker_trust_configuration_ui
-  # covers: auth.operator_settings.github_service_validation_feedback
-  # covers: auth.operator_settings.integration_boundary_visible
   # covers: auth.operator_settings.hidden_during_bootstrap_entry
   # covers: auth.self_hosted_provider_integration.login_and_service_ready
   # covers: auth.self_hosted_provider_integration.service_independent_of_login_toggle
@@ -24,7 +20,6 @@ defmodule JidoCodeWeb.HomeLive do
   alias JidoCode.Accounts.User
   alias JidoCode.AuthProviders
   alias JidoCode.AuthProviders.ProviderConfig
-  alias JidoCodeWeb.OperatorAuthSettings
   alias JidoCode.Setup.BootstrapStatus
   alias JidoCode.Setup.DeploymentMode
   alias JidoCode.Setup.OwnerBootstrap
@@ -53,10 +48,8 @@ defmodule JidoCodeWeb.HomeLive do
         |> assign(:save_error, owner_status.error || bootstrap_status.diagnostic)
         |> assign(
           github_login_path: github_login_path(),
-          github_login_enabled?: github_login_enabled?(),
-          allowlist_options: OperatorAuthSettings.allowlist_options()
+          github_login_enabled?: github_login_enabled?()
         )
-        |> refresh_operator_settings()
 
       if connected?(socket) && bootstrap_status.state == :bootstrap_required do
         send(self(), :run_prereqs)
@@ -67,25 +60,6 @@ defmodule JidoCodeWeb.HomeLive do
   end
 
   @impl true
-  def handle_event("save_provider_login", %{"provider_login" => params}, socket) do
-    with {:ok, provider} <- OperatorAuthSettings.save_provider_login(params) do
-      {:noreply,
-       socket
-       |> put_flash(:info, "Saved #{OperatorAuthSettings.provider_display_name(provider)} provider login settings.")
-       |> refresh_operator_settings()}
-    else
-      {:error, message} when is_binary(message) ->
-        {:noreply, put_flash(socket, :error, message)}
-
-      {:error, error} ->
-        {:noreply, put_flash(socket, :error, format_error(error))}
-    end
-  end
-
-  def handle_event("refresh_github_service_checks", _params, socket) do
-    {:noreply, refresh_operator_settings(socket)}
-  end
-
   def handle_event("recheck_prereqs", _params, socket) do
     send(self(), :run_prereqs)
 
@@ -433,7 +407,7 @@ defmodule JidoCodeWeb.HomeLive do
                       id="welcome-ready-handoff-note"
                       class="rounded-2xl border border-base-300 bg-base-200/60 p-4 text-left text-sm text-base-content/70"
                     >
-                      Local email auth remains the fallback path even when hosted provider sign-in is enabled. Provider login and Git integration controls are still available lower on this page until settings adoption finishes.
+                      Local email auth remains the fallback path even when hosted provider sign-in is enabled. Provider Login and Git Provider Integrations now live under Settings instead of on this landing page.
                     </div>
                   <% else %>
                     <div class="grid gap-3">
@@ -453,9 +427,8 @@ defmodule JidoCodeWeb.HomeLive do
           <% end %>
 
           <div :if={@bootstrap_status.state == :ready and @current_user} class="mt-8 space-y-8">
-            <%!-- covers: auth.operator_settings.sections_separated --%>
             <section
-              id="provider-login-settings"
+              id="welcome-operator-settings-handoff"
               class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
             >
               <div class="mb-6 flex items-start justify-between gap-6">
@@ -463,236 +436,51 @@ defmodule JidoCodeWeb.HomeLive do
                   <p class="text-xs font-bold uppercase tracking-[0.22em] text-base-content/45">
                     Operator Settings
                   </p>
-                  <h2 class="text-2xl font-semibold text-base-content">Provider Login</h2>
+                  <h2 class="text-2xl font-semibold text-base-content">Auth & Integrations Live In Settings</h2>
                   <p class="max-w-3xl text-sm leading-6 text-base-content/70">
-                    Configure broker trust and allowlist policy separately from deployment-local Git automation credentials. This welcome-page location is temporary until the settings-owned destination lands.
+                    Manage Provider Login broker trust and Git Provider Integrations from the durable settings-owned surface instead of reopening a second operator console on the landing page.
                   </p>
                 </div>
                 <div class="rounded-2xl border border-base-300 bg-base-200/70 px-4 py-3 text-sm text-base-content/70">
-                  Local email sign-in stays available even if every provider card below is disabled.
+                  Signed-out visitors still use `/welcome` for local sign-in and any enabled GitHub provider entrypoint.
                 </div>
               </div>
 
-              <div class="grid gap-6 xl:grid-cols-3">
-                <article
-                  :for={card <- @provider_login_cards}
-                  id={"provider-login-card-#{card.provider}"}
-                  class="rounded-2xl border border-base-300 bg-base-200/40 p-5"
-                >
-                  <div class="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 class="text-lg font-semibold text-base-content">{card.display_name}</h3>
-                      <p class="text-sm text-base-content/60">{card.provider_host}</p>
-                    </div>
-                    <span class={OperatorAuthSettings.provider_status_badge_class(card.status.tone)}>
-                      {card.status.label}
-                    </span>
-                  </div>
-
-                  <p class="mt-4 text-sm leading-6 text-base-content/70">{card.status.detail}</p>
-
-                  <p
-                    :if={card.status.missing_fields != []}
-                    class="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-warning"
-                  >
-                    Missing: {Enum.join(card.status.missing_fields, ", ")}
-                  </p>
-
-                  <p class="mt-3 text-xs leading-5 text-base-content/55">{card.entrypoint_note}</p>
-
-                  <.form
-                    for={%{}}
-                    as={:provider_login}
-                    id={"provider-login-form-#{card.provider}"}
-                    phx-submit="save_provider_login"
-                    class="mt-5 space-y-3"
-                  >
-                    <input type="hidden" name="provider_login[provider]" value={card.provider} />
-
-                    <%!-- covers: auth.operator_settings.broker_trust_configuration_ui --%>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                      <.input
-                        type="checkbox"
-                        name="provider_login[enabled]"
-                        checked={card.enabled}
-                        label="Enable provider host"
-                      />
-                      <.input
-                        type="checkbox"
-                        name="provider_login[login_enabled]"
-                        checked={card.login_enabled}
-                        label="Allow browser sign-in"
-                      />
-                    </div>
-
-                    <.input
-                      type="select"
-                      name="provider_login[allowlist_mode]"
-                      label="Allowlist Mode"
-                      value={card.allowlist_mode}
-                      options={@allowlist_options}
-                    />
-
-                    <.input
-                      type="textarea"
-                      name="provider_login[allowlist_values]"
-                      label="Allowlist Values"
-                      value={card.allowlist_values_text}
-                      rows="4"
-                      placeholder="One value per line or comma separated"
-                    />
-
-                    <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
-                      <p class="text-xs font-bold uppercase tracking-[0.18em] text-base-content/45">
-                        Broker Trust
-                      </p>
-                      <div class="mt-3 space-y-3">
-                        <.input
-                          type="url"
-                          name="provider_login[broker_base_url]"
-                          label="Broker Base URL"
-                          value={card.broker_base_url}
-                          placeholder="https://broker.example.com"
-                        />
-                        <.input
-                          type="text"
-                          name="provider_login[broker_issuer]"
-                          label="Broker Issuer"
-                          value={card.broker_issuer}
-                          placeholder="https://broker.example.com"
-                        />
-                        <.input
-                          type="text"
-                          name="provider_login[broker_audience]"
-                          label="Broker Audience"
-                          value={card.broker_audience}
-                          placeholder="jido-code"
-                        />
-                      </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-block">
-                      Save {card.display_name} Login Settings
-                    </button>
-                  </.form>
-                </article>
-              </div>
-            </section>
-
-            <section
-              id="git-provider-integrations"
-              class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
-            >
-              <div class="mb-6 flex items-start justify-between gap-6">
-                <div class="space-y-2">
-                  <h2 class="text-2xl font-semibold text-base-content">Git Provider Integrations</h2>
-                  <%!-- covers: auth.operator_settings.integration_boundary_visible --%>
-                  <p class="max-w-3xl text-sm leading-6 text-base-content/70">
-                    Deployment-local Git automation credentials stay separate from provider-login broker trust. GitHub App is preferred, PAT is fallback, and GitLab or Bitbucket remain placeholders for now.
-                  </p>
-                </div>
-                <button
-                  id="refresh-github-service-checks"
-                  type="button"
-                  phx-click="refresh_github_service_checks"
-                  class="btn btn-outline btn-sm"
-                >
-                  Refresh GitHub Validation
-                </button>
-              </div>
-
-              <div class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <div class="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
                 <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
-                  <div class="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 class="text-lg font-semibold text-base-content">GitHub Service Integration</h3>
-                      <p class="text-sm text-base-content/60">
-                        Deployment-local automation credentials and repository access validation
-                      </p>
-                    </div>
-                    <span class={OperatorAuthSettings.integration_status_badge_class(@github_service_report.status)}>
-                      {OperatorAuthSettings.integration_status_label(@github_service_report.status)}
-                    </span>
-                  </div>
-
-                  <%!-- covers: auth.operator_settings.github_service_validation_feedback --%>
-                  <div id="github-service-status" class="mt-4 space-y-4">
-                    <p class="text-sm leading-6 text-base-content/70">
-                      {OperatorAuthSettings.github_service_summary(@github_service_report)}
+                  <h3 class="text-lg font-semibold text-base-content">What Moved</h3>
+                  <div class="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
+                    <p>
+                      <span class="font-medium text-base-content">Provider Login</span> keeps hosted sign-in enablement, allowlist policy, and broker trust fields under authenticated settings ownership.
                     </p>
-
-                    <p class="text-xs uppercase tracking-[0.18em] text-base-content/45">
-                      Last checked: {OperatorAuthSettings.format_datetime(@github_service_report.checked_at)}
+                    <p>
+                      <span class="font-medium text-base-content">Git Provider Integrations</span> keeps deployment-local GitHub automation readiness, secret-ref references, and future GitLab or Bitbucket placeholders on the same settings-owned surface.
                     </p>
-
-                    <div class="space-y-3">
-                      <div
-                        :for={path_result <- @github_service_report.paths}
-                        id={"github-service-path-#{path_result.path}"}
-                        class="rounded-2xl border border-base-300 bg-base-100/70 p-4"
-                      >
-                        <div class="flex items-start justify-between gap-4">
-                          <div>
-                            <p class="font-medium text-base-content">{path_result.name}</p>
-                            <p class="mt-1 text-sm text-base-content/65">{path_result.detail}</p>
-                          </div>
-                          <span class={OperatorAuthSettings.integration_status_badge_class(path_result.status)}>
-                            {OperatorAuthSettings.integration_status_label(path_result.status)}
-                          </span>
-                        </div>
-
-                        <p class="mt-3 text-xs uppercase tracking-[0.18em] text-base-content/45">
-                          Repository access: {OperatorAuthSettings.repository_access_label(path_result.repository_access)}
-                        </p>
-
-                        <p
-                          :if={path_result.missing_repositories != []}
-                          class="mt-2 text-sm text-warning"
-                        >
-                          Missing repositories: {Enum.join(path_result.missing_repositories, ", ")}
-                        </p>
-
-                        <p class="mt-2 text-sm text-base-content/70">
-                          Remediation: {path_result.remediation}
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </article>
 
-                <div class="space-y-6">
-                  <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
-                    <h3 class="text-lg font-semibold text-base-content">Deployment-Local Secrets</h3>
-                    <p class="mt-2 text-sm leading-6 text-base-content/70">
-                      These secret refs back GitHub automation. They are not stored in the provider-login broker config.
-                    </p>
-
-                    <div class="mt-4 space-y-2 text-sm text-base-content/75">
-                      <p :for={{credential, secret_ref} <- @github_service_secret_refs}>
-                        <span class="font-medium">{OperatorAuthSettings.service_credential_label(credential)}:</span>
-                        <code class="ml-2 rounded bg-base-300/70 px-2 py-1 text-xs">{secret_ref}</code>
-                      </p>
-                    </div>
-                  </article>
-
-                  <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
-                    <h3 class="text-lg font-semibold text-base-content">Future Providers</h3>
-                    <div class="mt-3 space-y-3 text-sm text-base-content/70">
-                      <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
-                        <p class="font-medium text-base-content">GitLab</p>
-                        <p class="mt-1">
-                          Login config is modeled, but GitLab service automation is still a named placeholder adapter.
-                        </p>
-                      </div>
-                      <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
-                        <p class="font-medium text-base-content">Bitbucket</p>
-                        <p class="mt-1">
-                          Login config is modeled, but Bitbucket service automation is still a named placeholder adapter.
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                </div>
+                <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
+                  <h3 class="text-lg font-semibold text-base-content">Open The Durable Surface</h3>
+                  <p class="mt-2 text-sm leading-6 text-base-content/70">
+                    Use settings for repeat visits, direct links, and any operator changes to auth broker trust or deployment-local Git automation.
+                  </p>
+                  <div class="mt-4 grid gap-3">
+                    <.link
+                      id="welcome-open-auth-settings"
+                      navigate={~p"/settings/auth"}
+                      class="btn btn-primary btn-block"
+                    >
+                      Open Auth & Integrations
+                    </.link>
+                    <.link
+                      id="welcome-open-settings-overview"
+                      navigate={~p"/settings"}
+                      class="btn btn-outline btn-block"
+                    >
+                      Open Settings Overview
+                    </.link>
+                  </div>
+                </article>
               </div>
             </section>
           </div>
@@ -863,18 +651,6 @@ defmodule JidoCodeWeb.HomeLive do
     query = URI.encode_query(%{"token" => token})
     "#{path}?#{query}"
   end
-
-  defp refresh_operator_settings(%{assigns: %{current_user: nil}} = socket) do
-    assign(socket, OperatorAuthSettings.state(nil))
-  end
-
-  defp refresh_operator_settings(socket) do
-    assign(socket, OperatorAuthSettings.state(socket.assigns[:current_user]))
-  end
-
-  defp format_error(error) when is_exception(error), do: Exception.message(error)
-  defp format_error(%{errors: errors}) when is_list(errors), do: Enum.map_join(errors, "; ", &inspect/1)
-  defp format_error(error), do: inspect(error)
 
   defp github_login_enabled? do
     if not BootstrapStatus.provider_login_available?() do

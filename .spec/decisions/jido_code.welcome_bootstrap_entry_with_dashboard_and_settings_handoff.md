@@ -91,10 +91,8 @@ Current implementation still behaves as follows:
 - ready-state local sign-in now defaults to `/dashboard`.
 - `/settings/auth` now acts as the durable authenticated destination for
   Provider Login and Git Provider Integrations management.
-- signed-in `/welcome` now behaves as a dashboard-first handoff surface instead
-  of a dead-end admin landing.
-- the Provider Login and Git Provider Integrations console still renders lower
-  on the ready-state home view until the welcome cleanup lands.
+- signed-in `/welcome` now behaves as a dashboard-first handoff surface with a
+  compact settings cue instead of a second full operator configuration console.
 
 Current-truth specs should therefore keep documenting the existing route
 behavior while avoiding language that treats the welcome-page placement of that

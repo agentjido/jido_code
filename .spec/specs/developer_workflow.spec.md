@@ -1,6 +1,6 @@
 # Developer Workflow
 
-<!-- current_truth.reconciled_with_branch: contributor workflow guidance remains Mix-first and now includes repo-facing conversation-hosting expectations plus the shared browser-harness path used for routed setup and conversation Playwright verification. -->
+<!-- current_truth.reconciled_with_branch: contributor workflow guidance remains Mix-first and now includes repo-facing conversation-hosting expectations, explicit route-orientation guidance for `/welcome`, `/setup`, `/dashboard`, and `/settings/auth`, plus the shared browser-harness path used for routed setup and conversation Playwright verification. -->
 
 This subject defines the normal local development contract for contributors working on `jido_code`.
 
@@ -55,7 +55,7 @@ surface:
   stability: evolving
 
 - id: developer.workflow.docs_split
-  statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the manual `mix ash.codegen` path for Ash resource changes, the `mix frontend.verify` browser verification path, the `mix source_graph.verify` semantic graph verification path, the `mix memory.verify` path that checks the companion ontology pair, typed governed links, and repo-local rebuild guidance, the `mix semantic.verify` product-facing semantic verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.
+  statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the manual `mix ash.codegen` path for Ash resource changes, the `mix frontend.verify` browser verification path, the `mix source_graph.verify` semantic graph verification path, the `mix memory.verify` path that checks the companion ontology pair, typed governed links, and repo-local rebuild guidance, the `mix semantic.verify` product-facing semantic verification path, the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging, and the routed entry ownership split among `/welcome`, `/setup`, `/dashboard`, and `/settings/auth` instead of repo shell wrappers.
   priority: must
   stability: evolving
 
@@ -159,13 +159,13 @@ surface:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|/welcome|/setup|/dashboard|/settings/auth|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
   covers:
     - developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix ash.codegen --dev|mix ash.codegen <name>|mix frontend.verify|mix source_graph.verify|mix memory.verify|mix semantic.verify|ontology pair|governed_references|mix server|mix test|mix ecto.reset|mix onboarding.reset --keep-owner|mix onboarding.reset --full|<\\.vue_surface|source_code graph|semantic graph|/welcome|/setup|/dashboard|/settings/auth|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
   covers:
     - developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen
     - developer.workflow.docs_split

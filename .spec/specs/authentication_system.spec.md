@@ -22,6 +22,7 @@ surface:
   - test/jido_code_web/live/auth_boundary_live_test.exs
   - test/jido_code_web/live/auth_sign_out_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -158,6 +159,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  covers:
+    - auth.system.ready_state_local_auth_handoff
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
   covers:
     - auth.system.ready_state_local_auth_handoff
 ```

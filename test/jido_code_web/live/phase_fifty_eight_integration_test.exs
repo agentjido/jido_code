@@ -137,9 +137,8 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
       live(recycle(authed_conn), ~p"/welcome", on_error: :warn)
 
     assert has_element?(welcome_view, "#welcome-open-dashboard", "Open Dashboard")
-    assert has_element?(welcome_view, "#welcome-open-settings", "Open Settings")
-    assert has_element?(welcome_view, "#welcome-operator-settings-handoff", "Auth & Integrations Live In Settings")
-    assert has_element?(welcome_view, ~s|a[href="/settings/auth"]#welcome-open-auth-settings|, "Open Auth & Integrations")
+    assert has_element?(welcome_view, "#welcome-open-settings", "Open Auth & Integrations")
+    refute has_element?(welcome_view, "#welcome-operator-settings-handoff")
     refute has_element?(welcome_view, "#provider-login-settings")
 
     refute welcome_html =~

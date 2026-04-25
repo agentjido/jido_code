@@ -56,6 +56,15 @@ auto-run Ash codegen or migrations. When resource DSL changes require generated
 files, run `mix ash.codegen --dev` while iterating and `mix ash.codegen <name>`
 before you finalize the change set.
 
+## Route Orientation
+
+Keep the routed entry contract explicit in product code and tests:
+
+- `/welcome` is the public/bootstrap and sign-in entry route
+- `/setup` is the signed-in continuation surface while onboarding is incomplete
+- `/dashboard` is the durable ready-state authenticated landing
+- `/settings/auth` is the durable home for Provider Login and Git Provider Integrations
+
 ## Canonical Repo And Run Terms
 
 New product code, tests, and docs should default to `SourceRepo`,

@@ -8,7 +8,7 @@ This subject defines the first broker-backed provider login path that is live in
 id: auth.provider_login_flow
 kind: feature
 status: active
-summary: jido_code exposes a GitHub provider sign-in entrypoint on the `/welcome` landing after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in setup-continuation paths, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in while signed-in ready-state `/welcome` now emphasizes dashboard handoff instead of acting like the default operator destination.
+summary: jido_code exposes a GitHub provider sign-in entrypoint on the `/welcome` landing after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in setup-continuation paths, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in while ready-state provider sign-in now defaults to dashboard and signed-in `/welcome` remains only a compact handoff surface.
 decisions:
   - jido_code.auth_user_system
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
@@ -20,6 +20,7 @@ surface:
   - test/jido_code/auth_providers/provider_login_test.exs
   - test/jido_code_web/controllers/provider_auth_controller_test.exs
   - test/jido_code_web/live/home_live_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -51,7 +52,7 @@ surface:
   stability: stable
 
 - id: auth.provider_login_flow.redirect_path_completion
-  statement: After successful provider sign-in, the browser shall redirect to the signed deployment redirect path rather than stopping at an intermediate contract response.
+  statement: After successful provider sign-in, the browser shall redirect to the signed deployment redirect path rather than stopping at an intermediate contract response, and when no explicit ready-state override is present that default signed redirect path shall resolve to `/dashboard` instead of reopening `/welcome`.
   priority: must
   stability: evolving
 
@@ -89,6 +90,7 @@ surface:
     - The provider sign-in service consumes those claims.
   then:
     - The flow links or provisions the local user, issues a revocable session token, and redirects the browser to the signed redirect path.
+    - In the normal ready state without an explicit override, that redirect lands on dashboard rather than the welcome route.
 ```
 
 ## Verification
@@ -139,4 +141,9 @@ surface:
   covers:
     - auth.provider_login_flow.entrypoint_visible
     - auth.provider_login_flow.local_auth_fallback_visible
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - auth.provider_login_flow.redirect_path_completion
 ```

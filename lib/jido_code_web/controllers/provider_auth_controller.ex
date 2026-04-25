@@ -22,7 +22,7 @@ defmodule JidoCodeWeb.ProviderAuthController do
 
   def start(conn, %{"provider" => provider} = params) do
     provider_host = Map.get(params, "provider_host", default_provider_host(provider))
-    redirect_path = normalize_redirect_path(Map.get(params, "redirect_path", "/"))
+    redirect_path = normalize_redirect_path(Map.get(params, "redirect_path"))
 
     with :ok <- ensure_provider_login_available(),
          {:ok, provider_config} <- fetch_provider_config(provider, provider_host),
@@ -276,13 +276,21 @@ defmodule JidoCodeWeb.ProviderAuthController do
 
   defp normalize_redirect_path(value) when is_binary(value) do
     case String.trim(value) do
-      "/" -> "/"
+      "" -> default_redirect_path()
       <<"/", _::binary>> = path -> path
-      _other -> "/"
+      _other -> default_redirect_path()
     end
   end
 
-  defp normalize_redirect_path(_value), do: "/"
+  defp normalize_redirect_path(_value), do: default_redirect_path()
+
+  defp default_redirect_path do
+    case BootstrapStatus.current().state do
+      :continue_setup -> "/setup"
+      :ready -> "/dashboard"
+      _other -> "/welcome"
+    end
+  end
 
   defp provider_display_name("github"), do: "GitHub"
   defp provider_display_name("gitlab"), do: "GitLab"

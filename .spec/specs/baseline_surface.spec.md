@@ -11,7 +11,7 @@ This subject defines the current browser-facing landing, auth, and routed produc
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes a state-aware `/welcome` landing and auth entry route while keeping `/setup` as the signed-in post-bootstrap continuation surface and authenticated product, API, and dev surfaces declared in the router.
+summary: jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
@@ -25,6 +25,7 @@ surface:
   - test/jido_code_web/live/home_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/welcome_live_test.exs
 ```
@@ -43,7 +44,7 @@ surface:
   stability: evolving
 
 - id: baseline.surface.welcome_landing_copy
-  statement: The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs, ready-state sign-in copy for signed-out installs, and dashboard-first handoff copy for signed-in ready-state sessions.
+  statement: The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs, ready-state sign-in copy for signed-out installs, and compact dashboard-plus-settings handoff copy for signed-in ready-state sessions instead of reopening a full operator console.
   priority: must
   stability: stable
 
@@ -117,6 +118,12 @@ surface:
 - kind: source_file
   target: test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   covers:
+    - baseline.surface.welcome_landing_copy
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - baseline.surface.public_entry_routes
     - baseline.surface.welcome_landing_copy
 
 - kind: source_file

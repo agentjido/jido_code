@@ -8,7 +8,7 @@ This subject defines the current operator auth-settings console used to configur
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access, while signed-in `/welcome` stays a compact handoff into dashboard and `/settings/auth` instead of rendering a second full operator console.
+summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and reach that console through durable settings navigation once bootstrap is complete and ready-state auth has entered dashboard, while signed-in `/welcome` stays only a compact handoff into dashboard and `/settings/auth`.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
@@ -20,6 +20,7 @@ surface:
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -144,5 +145,12 @@ surface:
 - kind: source_file
   target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   covers:
+    - auth.operator_settings.hidden_during_bootstrap_entry
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - auth.operator_settings.sections_separated
+    - auth.operator_settings.github_service_validation_feedback
     - auth.operator_settings.hidden_during_bootstrap_entry
 ```

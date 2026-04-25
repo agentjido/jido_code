@@ -8,12 +8,13 @@ This subject defines the reproducible self-hosted behavior for broker-backed pro
 id: auth.self_hosted_provider_integration
 kind: feature
 status: active
-summary: jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow, whose signed-in ready-state path now behaves as a dashboard-first handoff while a settings-owned `/settings/auth` destination has become the durable home for provider-login and Git integration management.
+summary: jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow, whose ready-state provider-login default now lands on dashboard while `/settings/auth` remains the durable home for provider-login and Git integration management.
 surface:
   - lib/jido_code_web/controllers/provider_auth_controller.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code/github/service_credentials.ex
   - test/jido_code_web/integration/self_hosted_provider_auth_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -57,7 +58,8 @@ surface:
   when:
     - A broker-validated GitHub identity completes sign-in.
   then:
-    - The local session is issued and the authenticated landing page shows GitHub automation as ready.
+    - The local session is issued and the authenticated entry lands on dashboard by default.
+    - The operator can then confirm GitHub automation readiness on `/settings/auth`.
 
 - id: auth.self_hosted_provider_integration.scenario.login_disabled_service_ready
   covers:
@@ -66,7 +68,7 @@ surface:
     - Browser provider login is disabled for GitHub.com.
     - Deployment-local GitHub automation credentials remain configured.
   when:
-    - An operator inspects the authenticated landing page.
+    - An operator inspects the authenticated auth-and-integrations settings surface.
   then:
     - Provider login stays disabled while GitHub automation readiness remains available.
 
@@ -90,7 +92,7 @@ surface:
   when:
     - A provider identity outside the allowlist attempts sign-in.
   then:
-    - Provider login is rejected and GitHub automation readiness still renders for the local operator path.
+    - Provider login is rejected and GitHub automation readiness still renders on the local operator auth-and-integrations path.
 
 - id: auth.self_hosted_provider_integration.scenario.bootstrap_required
   covers:
@@ -139,4 +141,9 @@ surface:
     - auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
     - auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
     - auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - auth.self_hosted_provider_integration.login_and_service_ready
 ```

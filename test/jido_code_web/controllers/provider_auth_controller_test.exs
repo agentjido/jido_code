@@ -27,6 +27,21 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     :ok
   end
 
+  test "start defaults ready-state provider sign-in to dashboard when no redirect override is present", %{
+    conn: conn
+  } do
+    register_owner("owner@example.com", "owner-password-123")
+    enable_provider_login!(:github, "github.com")
+
+    conn = get(conn, ~p"/auth/providers/github/start?provider_host=github.com")
+
+    redirected = redirected_to(conn, 302)
+    state_token = redirected |> broker_state_from_redirect() |> Map.fetch!("state")
+
+    assert {:ok, claims} = BrokerState.verify(state_token)
+    assert claims.redirect_path == "/dashboard"
+  end
+
   test "start redirects to the broker start contract URL", %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
     enable_provider_login!(:github, "github.com")
@@ -55,7 +70,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
         ~p"/auth/providers/github/complete?provider_host=github.com&state=#{issued_state.token}&handoff_token=#{handoff_token}"
       )
 
-    assert redirected_to(conn, 302) == "/welcome"
+    assert redirected_to(conn, 302) == "/dashboard"
     assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Your local account was created and signed in with GitHub."
 
     session_token = get_session(conn, "user_token")
@@ -142,7 +157,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     assert get_session(response_conn, "user_token") == nil
   end
 
-  defp valid_broker_handoff(nonce, claim_overrides \\ %{}) do
+  defp valid_broker_handoff(nonce, claim_overrides \\ %{}, redirect_path \\ "/dashboard") do
     now = current_now()
 
     {:ok, issued_state} =
@@ -151,7 +166,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
           provider: "github",
           provider_host: "github.com",
           broker_base_url: "https://broker.example.com",
-          redirect_path: "/welcome"
+          redirect_path: redirect_path
         },
         now: now,
         nonce: nonce
@@ -176,13 +191,13 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     {issued_state, handoff_token}
   end
 
-  defp current_user_id(conn) do
-    conn
-    |> recycle()
-    |> get(~p"/welcome")
-    |> Map.fetch!(:assigns)
-    |> Map.fetch!(:current_user)
-    |> Map.fetch!(:id)
+  defp current_user_id(conn), do: conn.assigns.current_user.id
+
+  defp broker_state_from_redirect(redirected) do
+    redirected
+    |> URI.parse()
+    |> Map.fetch!(:query)
+    |> URI.decode_query()
   end
 
   defp current_now do

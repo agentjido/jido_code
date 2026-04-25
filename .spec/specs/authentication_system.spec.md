@@ -19,6 +19,7 @@ surface:
   - test/jido_code_web/live/auth_session_live_test.exs
   - test/jido_code_web/live/auth_boundary_live_test.exs
   - test/jido_code_web/live/auth_sign_out_live_test.exs
+  - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -152,4 +153,9 @@ surface:
   target: test/jido_code_web/live/auth_sign_out_live_test.exs
   covers:
     - auth.system.revocable_credentials
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  covers:
+    - auth.system.ready_state_local_auth_handoff
 ```

@@ -15,6 +15,7 @@ surface:
   - lib/jido_code_web/live/home_live.ex
   - test/support/conn_case.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
+  - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -107,5 +108,10 @@ surface:
     - auth.operator_settings.broker_trust_configuration_ui
     - auth.operator_settings.github_service_validation_feedback
     - auth.operator_settings.integration_boundary_visible
+    - auth.operator_settings.hidden_during_bootstrap_entry
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  covers:
     - auth.operator_settings.hidden_during_bootstrap_entry
 ```

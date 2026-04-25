@@ -58,6 +58,7 @@ surface:
   - test/support/conn_case.ex
   - test/jido_code/setup/onboarding_reset_test.exs
   - test/jido_code/mix/onboarding_reset_test.exs
+  - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code/setup/project_import_test.exs
@@ -444,6 +445,11 @@ surface:
   target: test/jido_code/setup/deployment_mode_test.exs
   covers:
     - setup.onboarding.deployment_mode_auto_detected
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  covers:
+    - setup.onboarding.post_bootstrap_start_surface
 
 - kind: source_file
   target: test/jido_code_web/live/setup_live_test.exs

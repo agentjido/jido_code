@@ -1,6 +1,6 @@
 # Source Code Graph Product Adoption
 
-<!-- current_truth.reconciled_with_branch: source-code graph health, resource limits, product services, and bounded live surfaces remain under this subject, including repo-detail cohosting where semantic inspection now sits beside a route-owned conversation shell, setup-host-shell fallback behavior, bounded multi-repository selector refinement whose completed imports remain product history instead of active selection state, and the shared LiveView route harness now treating dashboard as the ready-state local-auth entry surface while signed-in `/welcome` uses a dashboard-first handoff card above the temporary lower-page operator controls. -->
+<!-- current_truth.reconciled_with_branch: source-code graph health, resource limits, product services, and bounded live surfaces remain under this subject, including repo-detail cohosting where semantic inspection now sits beside a route-owned conversation shell, setup-host-shell fallback behavior, bounded multi-repository selector refinement whose completed imports remain product history instead of active selection state, and phase-58 route integration coverage on the shared LiveView route harness now treating dashboard as the ready-state local-auth entry surface while signed-in `/welcome` uses a dashboard-first handoff card above the temporary lower-page operator controls. -->
 
 This subject defines how the repository-scoped semantic source-code graph
 becomes a product-facing capability in operator surfaces and governed workflow

@@ -28,6 +28,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
 
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
+  @detail_sections [:overview, :conversations, :semantic, :memory, :workflows]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -57,6 +58,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
+     |> assign(:selected_detail_section, :overview)
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
   end
 
@@ -65,6 +67,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     project_id = Map.get(params, "id")
     return_to_path = normalize_return_to_path(Map.get(params, "return_to"))
     selected_work_item_id = present_optional_string(Map.get(params, "work_item_id"))
+    selected_detail_section = normalize_detail_section(Map.get(params, "section"))
 
     socket =
       socket
@@ -100,7 +103,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     {:noreply,
      socket
      |> assign(:workflow_launch_states, %{})
-     |> assign(:return_to_path, return_to_path)}
+     |> assign(:return_to_path, return_to_path)
+     |> assign(:selected_detail_section, selected_detail_section)}
   end
 
   @impl true
@@ -219,7 +223,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     {:noreply,
      push_patch(
        socket,
-       to: project_detail_conversation_path(socket.assigns.project_detail, socket.assigns.return_to_path)
+       to:
+         project_detail_conversation_path(
+           socket.assigns.project_detail,
+           socket.assigns.return_to_path,
+           nil
+         )
      )}
   end
 
@@ -394,6 +403,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       <section
         :if={@project_detail}
         id={"project-detail-panel-#{@project_detail.id}"}
+        data-detail-section={Atom.to_string(@selected_detail_section)}
         class="space-y-4 rounded-lg border border-base-300 bg-base-100 p-4"
       >
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2325,16 +2335,42 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       end
   end
 
-  defp project_detail_conversation_path(project_detail, return_to_path, work_item_id \\ nil) do
+  defp project_detail_conversation_path(project_detail, return_to_path, work_item_id) do
+    project_detail_section_path(
+      project_detail,
+      return_to_path,
+      section: :conversations,
+      work_item_id: work_item_id,
+      anchor: "project-detail-conversation-panel"
+    )
+  end
+
+  defp project_detail_section_path(project_detail, return_to_path, opts) do
     project_id =
       project_detail
       |> Map.get(:id)
       |> present_optional_string()
 
+    section =
+      opts
+      |> Keyword.get(:section, :overview)
+      |> normalize_detail_section()
+
+    work_item_id =
+      opts
+      |> Keyword.get(:work_item_id)
+      |> present_optional_string()
+
+    anchor =
+      opts
+      |> Keyword.get(:anchor)
+      |> present_optional_string()
+
     query =
       %{}
       |> maybe_put("return_to", normalized_return_to_param(return_to_path))
-      |> maybe_put("work_item_id", present_optional_string(work_item_id))
+      |> maybe_put("section", detail_section_param(section))
+      |> maybe_put("work_item_id", work_item_id)
 
     query_suffix =
       case query do
@@ -2342,11 +2378,38 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         params -> "?" <> URI.encode_query(params)
       end
 
+    anchor_suffix =
+      case anchor do
+        nil -> ""
+        value -> "##{value}"
+      end
+
     case project_id do
       nil -> "/repos"
-      id -> "/repos/#{id}#{query_suffix}#project-detail-conversation-panel"
+      id -> "/repos/#{id}#{query_suffix}#{anchor_suffix}"
     end
   end
+
+  defp detail_section_param(:overview), do: nil
+  defp detail_section_param(section), do: Atom.to_string(section)
+
+  defp normalize_detail_section(section) when is_atom(section) and section in @detail_sections,
+    do: section
+
+  defp normalize_detail_section(section) when is_binary(section) do
+    section
+    |> normalize_optional_string()
+    |> case do
+      "overview" -> :overview
+      "conversations" -> :conversations
+      "semantic" -> :semantic
+      "memory" -> :memory
+      "workflows" -> :workflows
+      _other -> :overview
+    end
+  end
+
+  defp normalize_detail_section(_section), do: :overview
 
   defp normalized_return_to_param("/workbench"), do: nil
   defp normalized_return_to_param(value), do: present_optional_string(value)

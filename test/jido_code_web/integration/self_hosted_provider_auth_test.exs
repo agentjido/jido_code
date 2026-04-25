@@ -65,14 +65,18 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
         ~p"/auth/providers/github/complete?provider_host=github.com&state=#{issued_state.token}&handoff_token=#{handoff_token}"
       )
 
-    assert redirected_to(response_conn, 302) == "/welcome"
+    assert redirected_to(response_conn, 302) == "/dashboard"
 
-    {:ok, view, _html} = live(recycle(response_conn), ~p"/welcome")
+    {:ok, dashboard_view, _html} = live(recycle(response_conn), ~p"/dashboard")
 
-    assert render(view) =~ "octocat@example.com"
-    assert has_element?(view, "#provider-login-card-github", "Ready")
-    assert has_element?(view, "#github-service-status", "GitHub automation is ready.")
-    assert has_element?(view, "#github-service-path-github_app", "Ready")
+    assert render(dashboard_view) =~ "octocat@example.com"
+    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product overview")
+
+    {:ok, settings_view, _html} = live(recycle(response_conn), ~p"/settings/auth")
+
+    assert has_element?(settings_view, "#settings-auth-provider-login-card-github", "Ready")
+    assert has_element?(settings_view, "#settings-auth-github-service-status", "GitHub automation is ready.")
+    assert has_element?(settings_view, "#settings-auth-github-service-path-github_app", "Ready")
   end
 
   test "GitHub service auth remains available when provider login is disabled", %{conn: conn} do
@@ -93,10 +97,10 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     {authed_conn, _session_token, _owner} =
       authenticate_bootstrap_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/auth")
 
-    assert has_element?(view, "#provider-login-card-github", "Disabled")
-    assert has_element?(view, "#github-service-status", "GitHub automation is ready.")
+    assert has_element?(view, "#settings-auth-provider-login-card-github", "Disabled")
+    assert has_element?(view, "#settings-auth-github-service-status", "GitHub automation is ready.")
   end
 
   test "broker unavailability keeps local email auth as the fallback path", %{conn: conn} do
@@ -124,7 +128,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
 
     assert has_element?(
              anonymous_view,
-             ~s|a[href="/auth/providers/github/start?provider_host=github.com&redirect_path=/welcome"]|,
+             ~s|a[href="/auth/providers/github/start?provider_host=github.com"]|,
              "Sign In with GitHub"
            )
 
@@ -170,10 +174,10 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     {authed_conn, _session_token, _owner} =
       authenticate_bootstrap_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/auth")
 
-    assert has_element?(view, "#provider-login-card-github", "Ready")
-    assert has_element?(view, "#github-service-status", "GitHub automation is ready.")
+    assert has_element?(view, "#settings-auth-provider-login-card-github", "Ready")
+    assert has_element?(view, "#settings-auth-github-service-status", "GitHub automation is ready.")
   end
 
   defp configure_github_service_ready! do
@@ -187,7 +191,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     Application.delete_env(:jido_code, :github_pat_accessible_repos)
   end
 
-  defp issue_state(nonce, redirect_path \\ "/welcome") do
+  defp issue_state(nonce, redirect_path \\ "/dashboard") do
     BrokerState.issue(
       %{
         provider: "github",
@@ -272,7 +276,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
       |> Map.fetch!(:token)
 
     auth_response = build_conn() |> get(bootstrap_owner_sign_in_with_token_path(strategy, token))
-    assert redirected_to(auth_response, 302) == "/"
+    assert redirected_to(auth_response, 302) == "/dashboard"
     session_token = get_session(auth_response, "user_token")
     assert is_binary(session_token)
     {recycle(auth_response), session_token, owner}

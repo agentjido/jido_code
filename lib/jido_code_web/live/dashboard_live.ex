@@ -119,6 +119,13 @@ defmodule JidoCodeWeb.DashboardLive do
       <div class="max-w-4xl mx-auto py-8">
         <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
         <p class="text-base-content/70">Welcome, {@current_user.email}</p>
+        <p id="dashboard-entry-summary" class="mt-1 text-sm text-base-content/75">
+          Dashboard is the authenticated product overview for governed runs, conversations, memory, and runtime posture.
+        </p>
+        <p id="dashboard-settings-handoff" class="mt-2 text-sm text-base-content/70">
+          Provider login and Git automation configuration live in
+          <.link navigate={~p"/settings/auth"} class="link link-primary">Settings</.link>.
+        </p>
 
         <section
           id="dashboard-run-summaries"
@@ -582,7 +589,7 @@ defmodule JidoCodeWeb.DashboardLive do
           id="dashboard-onboarding-next-actions"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4"
         >
-          <h2 class="text-lg font-semibold">Onboarding next actions</h2>
+          <h2 class="text-lg font-semibold">Suggested next actions</h2>
           <ul class="mt-2 space-y-1 text-sm text-base-content/80">
             <li
               :for={{next_action, index} <- Enum.with_index(@onboarding_next_actions, 1)}

@@ -11,6 +11,11 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias JidoCode.Control.Actor
+  alias JidoCode.Control.RepoBridge
+  alias JidoCode.Orchestration.{Run, WorkflowRun}
+  alias JidoCode.Projects.Project
+
   setup do
     original_loader = Application.get_env(:jido_code, :dashboard_run_summary_loader, :__missing__)
 
@@ -60,6 +65,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
 
+    assert has_element?(view, "#dashboard-entry-summary", "authenticated product overview")
+    assert has_element?(view, ~s|a[href="/settings/auth"]|, "Settings")
     assert has_element?(view, "#dashboard-run-summaries")
     assert has_element?(view, "#dashboard-run-summary-fallback")
     assert has_element?(view, "#dashboard-run-status-dashboard-run-completed", "completed")
@@ -432,23 +439,84 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   end
 
   defp create_run(repo_identifier, run_id, started_at, attrs \\ %{}) do
-    create_governed_run(
-      repo_identifier,
-      Map.merge(
+    {:ok, repo_scope} = RepoBridge.repo_scope(repo_identifier)
+
+    {:ok, project} =
+      Project.create(
         %{
-          run_id: run_id,
-          workflow_name: "implement_task",
-          workflow_version: 1,
-          trigger: %{source: "workflows", mode: "manual"},
-          inputs: %{"task_summary" => "Render dashboard run summaries"},
-          input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
-          initiating_actor: %{id: "owner-1", email: "owner@example.com"},
-          current_step: "queued",
-          started_at: started_at
+          name: "dashboard-#{run_id}",
+          source_kind: :local,
+          local_path: "/tmp/dashboard-#{run_id}"
         },
-        attrs
+        actor: Actor.operator_actor()
       )
-    )
+
+    workflow_attrs =
+      %{
+        project_id: project.id,
+        managed_repo_id: repo_scope.managed_repo.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 1,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Render dashboard run summaries"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-1", email: "owner@example.com"},
+        current_step: "queued",
+        started_at: started_at
+      }
+
+    {:ok, workflow_run} = WorkflowRun.create(workflow_attrs, actor: Actor.operator_actor())
+
+    final_workflow_run =
+      workflow_run
+      |> maybe_transition_to_running(attrs, started_at)
+      |> maybe_transition_to_terminal(attrs, started_at)
+
+    Run.get_by_workflow_run_id(final_workflow_run.id, actor: Actor.operator_actor())
+  end
+
+  defp maybe_transition_to_running(workflow_run, attrs, started_at) do
+    desired_status = Map.get(attrs, :status, :pending)
+
+    if desired_status in [:running, :awaiting_approval, :completed, :failed, :cancelled] do
+      {:ok, workflow_run} =
+        WorkflowRun.transition_status(
+          workflow_run,
+          %{
+            to_status: :running,
+            current_step: Map.get(attrs, :current_step, "queued"),
+            transitioned_at: DateTime.add(started_at, 1, :second)
+          },
+          actor: Actor.operator_actor()
+        )
+
+      workflow_run
+    else
+      workflow_run
+    end
+  end
+
+  defp maybe_transition_to_terminal(%WorkflowRun{} = workflow_run, attrs, started_at) do
+    case Map.get(attrs, :status, :pending) do
+      status when status in [:awaiting_approval, :completed, :failed, :cancelled] ->
+        {:ok, workflow_run} =
+          WorkflowRun.transition_status(
+            workflow_run,
+            %{
+              to_status: status,
+              current_step: Map.get(attrs, :current_step, workflow_run.current_step),
+              transitioned_at:
+                Map.get(attrs, :completed_at) || DateTime.add(started_at, 60, :second)
+            },
+            actor: Actor.operator_actor()
+          )
+
+        workflow_run
+
+      _other ->
+        workflow_run
+    end
   end
 
   defp run_dom_token(value) do

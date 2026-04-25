@@ -386,7 +386,7 @@ defmodule JidoCodeWeb.HomeLive do
                       <p class="text-sm uppercase tracking-[0.16em] text-success">Signed In</p>
                       <p class="mt-2 text-lg font-semibold text-base-content">{@current_user.email}</p>
                       <p class="mt-3 text-sm leading-6 text-base-content/75">
-                        Bootstrap is complete. Use dashboard for normal product work, and use the lower-page operator controls only when you need to manage provider login or deployment-local Git automation.
+                        Bootstrap is complete. Use dashboard for normal product work, and use settings when you need to manage provider login or deployment-local Git automation.
                       </p>
                     </div>
 
@@ -394,8 +394,8 @@ defmodule JidoCodeWeb.HomeLive do
                       <.link id="welcome-open-dashboard" navigate={~p"/dashboard"} class="btn btn-primary btn-block">
                         Open Dashboard
                       </.link>
-                      <.link id="welcome-open-settings" navigate={~p"/settings"} class="btn btn-outline btn-block">
-                        Open Settings
+                      <.link id="welcome-open-settings" navigate={~p"/settings/auth"} class="btn btn-outline btn-block">
+                        Open Auth & Integrations
                       </.link>
                     </div>
 
@@ -407,7 +407,7 @@ defmodule JidoCodeWeb.HomeLive do
                       id="welcome-ready-handoff-note"
                       class="rounded-2xl border border-base-300 bg-base-200/60 p-4 text-left text-sm text-base-content/70"
                     >
-                      Local email auth remains the fallback path even when hosted provider sign-in is enabled. Provider Login and Git Provider Integrations now live under Settings instead of on this landing page.
+                      Local email auth remains the fallback path even when hosted provider sign-in is enabled. Dashboard is the default authenticated entry, and Settings owns durable provider and Git integration management.
                     </div>
                   <% else %>
                     <div class="grid gap-3">
@@ -425,65 +425,6 @@ defmodule JidoCodeWeb.HomeLive do
                 </div>
               </div>
           <% end %>
-
-          <div :if={@bootstrap_status.state == :ready and @current_user} class="mt-8 space-y-8">
-            <section
-              id="welcome-operator-settings-handoff"
-              class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
-            >
-              <div class="mb-6 flex items-start justify-between gap-6">
-                <div class="space-y-2">
-                  <p class="text-xs font-bold uppercase tracking-[0.22em] text-base-content/45">
-                    Operator Settings
-                  </p>
-                  <h2 class="text-2xl font-semibold text-base-content">Auth & Integrations Live In Settings</h2>
-                  <p class="max-w-3xl text-sm leading-6 text-base-content/70">
-                    Manage Provider Login broker trust and Git Provider Integrations from the durable settings-owned surface instead of reopening a second operator console on the landing page.
-                  </p>
-                </div>
-                <div class="rounded-2xl border border-base-300 bg-base-200/70 px-4 py-3 text-sm text-base-content/70">
-                  Signed-out visitors still use `/welcome` for local sign-in and any enabled GitHub provider entrypoint.
-                </div>
-              </div>
-
-              <div class="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-                <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
-                  <h3 class="text-lg font-semibold text-base-content">What Moved</h3>
-                  <div class="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
-                    <p>
-                      <span class="font-medium text-base-content">Provider Login</span> keeps hosted sign-in enablement, allowlist policy, and broker trust fields under authenticated settings ownership.
-                    </p>
-                    <p>
-                      <span class="font-medium text-base-content">Git Provider Integrations</span> keeps deployment-local GitHub automation readiness, secret-ref references, and future GitLab or Bitbucket placeholders on the same settings-owned surface.
-                    </p>
-                  </div>
-                </article>
-
-                <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
-                  <h3 class="text-lg font-semibold text-base-content">Open The Durable Surface</h3>
-                  <p class="mt-2 text-sm leading-6 text-base-content/70">
-                    Use settings for repeat visits, direct links, and any operator changes to auth broker trust or deployment-local Git automation.
-                  </p>
-                  <div class="mt-4 grid gap-3">
-                    <.link
-                      id="welcome-open-auth-settings"
-                      navigate={~p"/settings/auth"}
-                      class="btn btn-primary btn-block"
-                    >
-                      Open Auth & Integrations
-                    </.link>
-                    <.link
-                      id="welcome-open-settings-overview"
-                      navigate={~p"/settings"}
-                      class="btn btn-outline btn-block"
-                    >
-                      Open Settings Overview
-                    </.link>
-                  </div>
-                </article>
-              </div>
-            </section>
-          </div>
         </div>
       </div>
     </div>
@@ -609,11 +550,11 @@ defmodule JidoCodeWeb.HomeLive do
 
   defp ready_signed_in_intro_copy(:desktop),
     do:
-      "This desktop install is ready. Continue into dashboard for product work, or use the lower-page operator controls when you need auth or Git integration management."
+      "This desktop install is ready. Continue into dashboard for product work, and use settings when you need auth or Git integration management."
 
   defp ready_signed_in_intro_copy(_deployment_mode),
     do:
-      "This install is ready. Continue into dashboard for product work, or use the lower-page operator controls when you need auth or Git integration management."
+      "This install is ready. Continue into dashboard for product work, and use settings when you need auth or Git integration management."
 
   defp prerequisite_banner_message(:timeout),
     do: "Some checks timed out. Your system may not be fully ready."
@@ -667,6 +608,6 @@ defmodule JidoCodeWeb.HomeLive do
   end
 
   defp github_login_path do
-    "/auth/providers/github/start?provider_host=github.com&redirect_path=/welcome"
+    "/auth/providers/github/start?provider_host=github.com"
   end
 end

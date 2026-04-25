@@ -93,7 +93,7 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
     assert has_element?(
              view,
-             ~s|a[href="/auth/providers/github/start?provider_host=github.com&redirect_path=/welcome"]|,
+             ~s|a[href="/auth/providers/github/start?provider_host=github.com"]|,
              "Sign In with GitHub"
            )
 
@@ -101,7 +101,7 @@ defmodule JidoCodeWeb.HomeLiveTest do
     refute has_element?(view, "a", "Create Account")
   end
 
-  test "signed-in ready-state welcome emphasizes dashboard handoff before settings-owned auth management",
+  test "signed-in ready-state welcome stays a compact dashboard and settings handoff",
        %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
@@ -110,12 +110,13 @@ defmodule JidoCodeWeb.HomeLiveTest do
     {:ok, view, html} = live(recycle(authed_conn), ~p"/welcome")
 
     assert has_element?(view, "#welcome-open-dashboard", "Open Dashboard")
-    assert has_element?(view, "#welcome-open-settings", "Open Settings")
+    assert has_element?(view, "#welcome-open-settings", "Open Auth & Integrations")
     assert has_element?(
              view,
              "#welcome-ready-handoff-note",
-             "Provider Login and Git Provider Integrations now live under Settings"
+             "Dashboard is the default authenticated entry"
            )
+    refute has_element?(view, "#welcome-operator-settings-handoff")
 
     refute html =~
              "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new spec-led baseline is validated."

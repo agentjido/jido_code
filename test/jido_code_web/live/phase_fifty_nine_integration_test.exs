@@ -100,16 +100,12 @@ defmodule JidoCodeWeb.PhaseFiftyNineIntegrationTest do
 
     assert has_element?(
              welcome_view,
-             "#welcome-operator-settings-handoff",
-             "Auth & Integrations Live In Settings"
-           )
-
-    assert has_element?(
-             welcome_view,
-             ~s|a[href="/settings/auth"]#welcome-open-auth-settings|,
+             ~s|a[href="/settings/auth"]#welcome-open-settings|,
              "Open Auth & Integrations"
            )
 
+    assert has_element?(welcome_view, "#welcome-ready-handoff-note", "Dashboard is the default authenticated entry")
+    refute has_element?(welcome_view, "#welcome-operator-settings-handoff")
     refute has_element?(welcome_view, "#provider-login-settings")
     refute has_element?(welcome_view, "#git-provider-integrations")
   end

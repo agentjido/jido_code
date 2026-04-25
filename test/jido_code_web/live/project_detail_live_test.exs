@@ -420,6 +420,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
+    assert has_element?(view, "#project-detail-conversation-workspace-summary")
+    assert has_element?(view, "#project-detail-conversation-governed-count")
+
     view
     |> element("#project-detail-conversation-open")
     |> render_click()
@@ -513,8 +516,13 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     end)
 
-    {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-section-nav-conversations-badge", "Blocked")
+
+    view
+    |> element("#project-detail-overview-open-conversations")
+    |> render_click()
 
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Blocked")
     assert has_element?(view, "#project-detail-conversation-runtime-notice")
@@ -703,6 +711,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
 
     assert has_element?(view, "#project-detail-semantic-inspection")
+    assert has_element?(view, "#project-detail-semantic-open-memory")
     refute has_element?(view, "#project-detail-semantic-notice")
 
     vue =
@@ -879,6 +888,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
 
     assert has_element?(view, "#project-detail-memory-inspection")
+    assert has_element?(view, "#project-detail-memory-open-semantic")
     assert has_element?(view, "#project-detail-memory-summary-memories")
     assert has_element?(view, "#project-detail-memory-summary-provenance")
     assert has_element?(view, "#project-detail-memory-list")

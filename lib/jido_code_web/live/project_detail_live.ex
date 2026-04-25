@@ -508,6 +508,58 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             </p>
           </div>
 
+          <section id="project-detail-conversation-workspace-summary" class="grid gap-3 md:grid-cols-3">
+            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Current focus
+              </p>
+              <p id="project-detail-conversation-workspace-focus" class="font-semibold">
+                {conversation_workspace_focus_label(
+                  @selected_work_item_id,
+                  @conversation_surface,
+                  @repo_intake_surface
+                )}
+              </p>
+              <p class="text-sm text-base-content/70">
+                {conversation_workspace_focus_summary(
+                  @selected_work_item_id,
+                  @conversation_surface,
+                  @repo_intake_surface
+                )}
+              </p>
+            </article>
+
+            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Governed work
+              </p>
+              <p id="project-detail-conversation-governed-count" class="font-semibold">
+                {length(@conversation_roster)} active thread{if length(@conversation_roster) == 1, do: "", else: "s"}
+              </p>
+              <p class="text-sm text-base-content/70">
+                {conversation_governed_summary(@conversation_roster)}
+              </p>
+            </article>
+
+            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Runtime posture
+              </p>
+              <p id="project-detail-conversation-workspace-runtime" class="font-semibold">
+                {conversation_workspace_runtime_label(
+                  @conversation_runtime,
+                  @conversation_stream_mode
+                )}
+              </p>
+              <p class="text-sm text-base-content/70">
+                {conversation_workspace_runtime_summary(
+                  @conversation_runtime,
+                  @conversation_stream_mode
+                )}
+              </p>
+            </article>
+          </section>
+
           <.operator_state_notice
             :if={@conversation_action_feedback}
             id="project-detail-conversation-feedback"
@@ -1226,11 +1278,27 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             </section>
 
             <section :if={@selected_detail_section == :semantic} id="project-detail-semantic-inspection" class="space-y-4">
-          <div class="space-y-1">
-            <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
-            <p class="text-sm text-base-content/70">
-              Semantic source-code graph insights stay repo-scoped, bounded, and product-owned on this managed-repository route.
-            </p>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
+              <p class="text-sm text-base-content/70">
+                Semantic source-code graph insights stay repo-scoped, bounded, and product-owned on this managed-repository route.
+              </p>
+            </div>
+            <.link
+              id="project-detail-semantic-open-memory"
+              class="btn btn-xs btn-outline"
+              patch={
+                project_detail_section_path(
+                  @project_detail,
+                  @return_to_path,
+                  section: :memory,
+                  work_item_id: @selected_work_item_id
+                )
+              }
+            >
+              Open memory and provenance
+            </.link>
           </div>
 
           <.operator_state_notice
@@ -1340,11 +1408,27 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             </section>
 
             <section :if={@selected_detail_section == :memory} id="project-detail-memory-inspection" class="space-y-4">
-          <div class="space-y-1">
-            <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
-            <p class="text-sm text-base-content/70">
-              Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, and product-owned on this managed-repository route.
-            </p>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
+              <p class="text-sm text-base-content/70">
+                Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, and product-owned on this managed-repository route.
+              </p>
+            </div>
+            <.link
+              id="project-detail-memory-open-semantic"
+              class="btn btn-xs btn-outline"
+              patch={
+                project_detail_section_path(
+                  @project_detail,
+                  @return_to_path,
+                  section: :semantic,
+                  work_item_id: @selected_work_item_id
+                )
+              }
+            >
+              Open semantic inspection
+            </.link>
           </div>
 
           <.operator_state_notice
@@ -1825,6 +1909,59 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         summary ->
           summary
       end
+    end
+  end
+
+  defp conversation_workspace_focus_label(selected_work_item_id, conversation_surface, repo_intake_surface) do
+    cond do
+      is_binary(selected_work_item_id) and is_map(Map.get(conversation_surface, :work_item)) ->
+        Map.get(Map.get(conversation_surface, :work_item), :summary) || selected_work_item_id
+
+      is_map(Map.get(repo_intake_surface, :conversation)) ->
+        "Repo intake"
+
+      true ->
+        "No active selection"
+    end
+  end
+
+  defp conversation_workspace_focus_summary(selected_work_item_id, _conversation_surface, repo_intake_surface) do
+    cond do
+      is_binary(selected_work_item_id) ->
+        "Following the productive conversation, transcript, and runtime posture for the selected governed work item."
+
+      is_map(Map.get(repo_intake_surface, :conversation)) ->
+        "Repo-scoped intake remains available for pre-work clarification and demand shaping."
+
+      true ->
+        "Open or resume a repository conversation here to coordinate work without leaving the managed-repository route."
+    end
+  end
+
+  defp conversation_governed_summary(conversation_roster) when is_list(conversation_roster) do
+    case length(conversation_roster) do
+      0 -> "No governed work-item conversations are active on this repository yet."
+      1 -> "One governed work-item thread is currently active and resumable from this route."
+      count -> "#{count} governed work-item threads are currently active and resumable from this route."
+    end
+  end
+
+  defp conversation_workspace_runtime_label(conversation_runtime, :degraded),
+    do: "#{conversation_runtime_status_label(conversation_runtime)} / snapshot only"
+
+  defp conversation_workspace_runtime_label(conversation_runtime, _stream_mode),
+    do: conversation_runtime_status_label(conversation_runtime)
+
+  defp conversation_workspace_runtime_summary(conversation_runtime, stream_mode) do
+    cond do
+      Map.get(conversation_runtime, :status) == :blocked ->
+        "Runtime prerequisites are blocked, but the latest durable conversation state remains visible on this route."
+
+      stream_mode == :degraded ->
+        "Live delivery is degraded, so the conversation family is showing the latest durable snapshot."
+
+      true ->
+        "Runtime posture, selected model, and continuity remain legible while work continues."
     end
   end
 

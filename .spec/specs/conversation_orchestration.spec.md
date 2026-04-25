@@ -15,8 +15,10 @@ decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.llm_provider_and_model_selection
   - jido_code.interruptible_conversation_orchestration
+  - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
+  - .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
   - .spec/decisions/jido_code.llm_provider_and_model_selection.md
   - lib/jido_code/conversations.ex
   - lib/jido_code/conversations/command.ex
@@ -188,6 +190,11 @@ surface:
   statement: Readiness and failure handling for real conversation execution shall validate the selected provider and its concrete provider-specific requirements rather than only checking global readiness for a fixed provider shortlist.
   priority: must
   stability: proposed
+
+- id: architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding
+  statement: Real conversation runtime readiness shall validate the selected managed repository's persisted workspace binding rather than inferring a local execution path from install-wide setup defaults alone.
+  priority: must
+  stability: evolving
 
 - id: architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
   statement: Conversation workflow and specialist routing shall resolve through one product-owned deterministic routing boundary with explicit precedence, bounded inputs, and inspectable routing metadata rather than duplicated ad hoc heuristics, provider-side self-selection, or letting the active AI agent decide which specialist should handle the turn.
@@ -437,14 +444,15 @@ surface:
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
     - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding
     - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
   given:
     - Repo detail is hosting either repo intake or governed work-item conversation state for a managed repository.
-    - The selected provider/model may be ready, blocked by workspace or provider prerequisites, or temporarily degraded to snapshot-only continuity.
+    - The selected provider/model may be ready, blocked by repo-scoped workspace or provider prerequisites, or temporarily degraded to snapshot-only continuity.
   when:
     - An operator opens repo detail, submits a turn that requests clarification, or reloads while the route is recovering continuity.
   then:
-    - The route keeps selected provider/model and workspace readiness visible without leaving the canonical conversation host surface.
+    - The route keeps selected provider/model and the managed repository's workspace readiness visible without leaving the canonical conversation host surface.
     - Clarification, degraded continuity, and preserved transcript or work-item linkage remain explicit instead of being hidden behind runtime internals.
     - Raw sequence and continuity-gap metadata remain secondary to actionable conversation state.
 
@@ -551,6 +559,11 @@ surface:
     - architecture.conversation_orchestration.repo_and_conversation_llm_selection_is_explicit
     - architecture.conversation_orchestration.conversation_llm_selection_overrides_repo_default
     - architecture.conversation_orchestration.selected_llm_provider_readiness_is_validated
+
+- kind: source_file
+  target: .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
+  covers:
+    - architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding
 
 - kind: source_file
   target: lib/jido_code/conversations/child_work.ex

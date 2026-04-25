@@ -79,12 +79,16 @@ defmodule JidoCode.Control.RepoBridgeTest do
   end
 
   test "repo detail resolves canonical managed repo identifiers through the repo scope" do
+    workspace_path = create_workspace_path!()
+
     {:ok, %{managed_repo: managed_repo}} =
       RepoBridge.upsert_managed_repo(%{
         name: "repo-managed-route",
         full_name: "owner/repo-managed-route",
         default_branch: "main",
         workspace_settings: %{
+          "workspace_environment" => "local",
+          "workspace_path" => workspace_path,
           "clone_status" => "ready",
           "workspace_initialized" => true,
           "baseline_synced" => true
@@ -97,6 +101,16 @@ defmodule JidoCode.Control.RepoBridgeTest do
     assert detail.managed_repo_id == managed_repo.id
     assert detail.source_repo_id == managed_repo.source_repo_id
     assert detail.github_full_name == "owner/repo-managed-route"
+    assert detail.settings["workspace"]["workspace_path"] == workspace_path
     assert detail.execution_readiness.status == :ready
+  end
+
+  defp create_workspace_path! do
+    workspace_path =
+      Path.join(System.tmp_dir!(), "repo-bridge-workspace-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(workspace_path)
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+    workspace_path
   end
 end

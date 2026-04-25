@@ -14,6 +14,7 @@ The plan aligns to:
 - `../specs/factory_control_plane.spec.md`
 - `../specs/frontend_architecture.spec.md`
 - `../specs/setup_onboarding.spec.md`
+- `../specs/runtime_environment_defaults.spec.md`
 - `../specs/memory_capture_plane.spec.md`
 - `../specs/memory_graph.spec.md`
 - `../specs/memory_graph_product_adoption.spec.md`
@@ -38,6 +39,8 @@ The plan aligns to:
 - `../decisions/jido_code.source_code_graph_product_adoption.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
 - `../decisions/jido_code.setup_onboarding_live_vue_surface_split.md`
+- `../decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md`
+- `../decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.interruptible_conversation_orchestration.md`
 - `../decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md`
@@ -100,6 +103,9 @@ The plan aligns to:
 53. [Phase 59 - Operator Auth Settings Settings-Surface Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-59-operator-auth-settings-settings-surface-adoption.md): move Provider Login and Git Provider Integrations from the ready-state welcome view onto a durable settings-owned authenticated surface.
 54. [Phase 60 - Welcome Dashboard And Settings Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-60-welcome-dashboard-and-settings-convergence.md): finish the route, settings, copy, and spec cutover so dashboard is the durable authenticated landing, settings owns operator configuration, and welcome stays focused on bootstrap and sign-in handoff.
 55. [Phase 61 - Managed Repo Detail Sidebar Information Architecture](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-61-managed-repo-detail-sidebar-information-architecture.md): reorganize the managed-repository detail route around sidebar-selected families for overview, conversations, semantic inspection, memory/provenance, and workflow controls without breaking the current LiveView-owned host shell.
+56. [Phase 62 - Managed Repo Workspace Binding Canonicalization](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-62-managed-repo-workspace-binding-canonicalization.md): cut the product over to repo-scoped workspace binding as the canonical execution seam while keeping install-wide runtime defaults limited to import-time seed metadata.
+57. [Phase 63 - Repo-Scoped Workspace Configuration Surfaces](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-63-repo-scoped-workspace-configuration-surfaces.md): add the repo-level mutation and operator UI needed to inspect and repair each managed repository's local workspace binding directly.
+58. [Phase 64 - Runtime Surface Workspace Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-64-runtime-surface-workspace-convergence.md): align conversation, semantic, memory, and workflow readiness surfaces on the final repo-scoped workspace model and remove the last shared-root assumptions from product copy and current truth.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once

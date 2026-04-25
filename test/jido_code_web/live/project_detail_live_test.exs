@@ -67,6 +67,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
+    workspace_path = create_workspace_path!()
+
     {:ok, project} =
       Project.create(%{
         name: "repo-ready",
@@ -74,6 +76,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         default_branch: "main",
         settings: %{
           "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
             "clone_status" => "ready",
             "workspace_initialized" => true,
             "baseline_synced" => true
@@ -606,7 +610,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(
              view,
              "#project-detail-conversation-runtime-notice-type",
-             "conversation_runtime_workspace_unavailable"
+             "conversation_runtime_workspace_binding_missing"
            )
 
     assert has_element?(
@@ -631,7 +635,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert_eventually(fn ->
       rendered = render(view)
 
-      rendered =~ "Repository workspace path is missing for real conversation runtime." and
+      rendered =~
+        "Managed repository is marked for local execution but has no repo-scoped workspace path for real conversation runtime." and
         has_element?(view, "#project-detail-conversation-runtime-preserved") and
         not String.contains?(rendered, "deterministic explainer response")
     end)

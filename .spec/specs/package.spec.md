@@ -1,6 +1,6 @@
 # Package
 
-<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers, PAT preflight UI behavior, bounded multi-repository GitHub import follow-up on the signed-in setup surface, the rule that completed GitHub imports persist import history without staying selected as active follow-up work, the planning workspace phases for conversation UI convergence and managed-repository detail sidebar information architecture, the welcome/bootstrap handoff ADR plus phased routing/settings plan, the ready-state local-auth and provider-auth cutover that now defaults authenticated product entry to dashboard while incomplete onboarding still routes to setup, the signed-in `/welcome` handoff card that now prioritizes dashboard and settings before a compact auth-settings cue, the new settings-owned `/settings/auth` operator configuration destination plus README and CONTRIBUTING route-orientation guidance, and the routed repo-detail conversation shell plus browser-harness verification work that now keeps clarification, readiness, and degraded continuity under version-controlled package surfaces. -->
+<!-- current_truth.reconciled_with_branch: branch-wide implementation and verification surfaces continue to roll up into this package-level subject, including setup-owned secret-encryption readiness helpers, PAT preflight UI behavior, bounded multi-repository GitHub import follow-up on the signed-in setup surface, the rule that completed GitHub imports persist import history without staying selected as active follow-up work, the planning workspace phases for conversation UI convergence, managed-repository detail sidebar information architecture, and repo-scoped workspace-binding cutover, the welcome/bootstrap handoff ADR plus phased routing/settings plan, the ready-state local-auth and provider-auth cutover that now defaults authenticated product entry to dashboard while incomplete onboarding still routes to setup, the signed-in `/welcome` handoff card that now prioritizes dashboard and settings before a compact auth-settings cue, the new settings-owned `/settings/auth` operator configuration destination plus README and CONTRIBUTING route-orientation guidance, and the routed repo-detail conversation shell plus browser-harness verification work that now keeps clarification, readiness, and degraded continuity under version-controlled package surfaces. -->
 
 High-level package contract for `jido_code`.
 
@@ -155,6 +155,21 @@ surface:
 
 - kind: source_file
   target: .spec/planning/phase-61-managed-repo-detail-sidebar-information-architecture.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/planning/phase-62-managed-repo-workspace-binding-canonicalization.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/planning/phase-63-repo-scoped-workspace-configuration-surfaces.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/planning/phase-64-runtime-surface-workspace-convergence.md
   covers:
     - package.jido_code.spec_led_workspace
 

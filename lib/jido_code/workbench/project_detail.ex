@@ -37,6 +37,14 @@ defmodule JidoCode.Workbench.ProjectDetail do
           execution_readiness: execution_readiness()
         }
 
+  @type workspace_binding :: %{
+          workspace_environment: :local | :sprite,
+          workspace_root: String.t() | nil,
+          workspace_path: String.t() | nil,
+          local?: boolean(),
+          bound?: boolean()
+        }
+
   @type load_error :: %{
           error_type: String.t(),
           detail: String.t(),
@@ -60,6 +68,30 @@ defmodule JidoCode.Workbench.ProjectDetail do
   end
 
   def ready_for_execution?(_project_detail), do: false
+
+  @spec workspace_binding(project_detail() | map() | nil) :: workspace_binding()
+  def workspace_binding(project_detail) when is_map(project_detail) do
+    project_detail
+    |> workspace_settings()
+    |> workspace_binding_from_settings()
+  end
+
+  def workspace_binding(_project_detail) do
+    %{
+      workspace_environment: :sprite,
+      workspace_root: nil,
+      workspace_path: nil,
+      local?: false,
+      bound?: false
+    }
+  end
+
+  @spec workspace_path(project_detail() | map() | nil) :: String.t() | nil
+  def workspace_path(project_detail) do
+    project_detail
+    |> workspace_binding()
+    |> Map.get(:workspace_path)
+  end
 
   defp normalize_project_id(project_id) do
     case normalize_optional_string(project_id) do
@@ -121,6 +153,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
     workspace_settings =
       workspace_settings
       |> normalize_map()
+      |> canonical_workspace_settings()
 
     github_full_name =
       source_repo
@@ -173,6 +206,8 @@ defmodule JidoCode.Workbench.ProjectDetail do
   end
 
   defp execution_readiness_state(workspace_settings) when is_map(workspace_settings) do
+    workspace_binding = workspace_binding_from_settings(workspace_settings)
+
     clone_status =
       workspace_settings
       |> map_get(:clone_status, "clone_status")
@@ -200,13 +235,25 @@ defmodule JidoCode.Workbench.ProjectDetail do
 
     case {clone_status, workspace_initialized?, baseline_synced?} do
       {:ready, true, true} ->
-        %{
-          status: :ready,
-          enabled: true,
-          error_type: nil,
-          detail: nil,
-          remediation: nil
-        }
+        case workspace_binding_readiness(workspace_binding) do
+          :ready ->
+            %{
+              status: :ready,
+              enabled: true,
+              error_type: nil,
+              detail: nil,
+              remediation: nil
+            }
+
+          {:blocked, error_type, detail, remediation} ->
+            %{
+              status: :blocked,
+              enabled: false,
+              error_type: error_type,
+              detail: detail,
+              remediation: remediation
+            }
+        end
 
       _other ->
         {detail, fallback_error_type} =
@@ -231,6 +278,110 @@ defmodule JidoCode.Workbench.ProjectDetail do
       remediation: @project_not_ready_remediation
     }
   end
+
+  defp workspace_settings(project_detail) when is_map(project_detail) do
+    project_detail
+    |> map_get(:settings, "settings", %{})
+    |> map_get(:workspace, "workspace", %{})
+    |> normalize_map()
+    |> canonical_workspace_settings()
+  end
+
+  defp workspace_settings(_project_detail), do: %{}
+
+  defp canonical_workspace_settings(workspace_settings) when is_map(workspace_settings) do
+    binding = workspace_binding_from_settings(workspace_settings)
+
+    workspace_settings
+    |> Map.put("workspace_environment", Atom.to_string(binding.workspace_environment))
+    |> Map.put("workspace_root", binding.workspace_root)
+    |> Map.put("workspace_path", binding.workspace_path)
+  end
+
+  defp canonical_workspace_settings(_workspace_settings), do: %{}
+
+  defp workspace_binding_from_settings(workspace_settings) when is_map(workspace_settings) do
+    workspace_path =
+      workspace_settings
+      |> map_get(:workspace_path, "workspace_path")
+      |> normalize_optional_path()
+
+    workspace_root =
+      workspace_settings
+      |> map_get(:workspace_root, "workspace_root")
+      |> normalize_optional_path()
+
+    workspace_environment =
+      workspace_settings
+      |> map_get(:workspace_environment, "workspace_environment")
+      |> normalize_workspace_environment(infer_workspace_environment(workspace_root, workspace_path))
+
+    local? = workspace_environment == :local
+
+    %{
+      workspace_environment: workspace_environment,
+      workspace_root: workspace_root,
+      workspace_path: workspace_path,
+      local?: local?,
+      bound?: local? and is_binary(workspace_path)
+    }
+  end
+
+  defp workspace_binding_from_settings(_workspace_settings) do
+    %{
+      workspace_environment: :sprite,
+      workspace_root: nil,
+      workspace_path: nil,
+      local?: false,
+      bound?: false
+    }
+  end
+
+  defp workspace_binding_readiness(%{bound?: true}), do: :ready
+
+  defp workspace_binding_readiness(%{workspace_environment: :local}) do
+    {:blocked,
+     "managed_repo_workspace_binding_missing",
+     "Managed repository is marked for local execution but has no repo-scoped workspace path.",
+     "Bind this repository to its own local workspace path and retry."}
+  end
+
+  defp workspace_binding_readiness(_workspace_binding) do
+    {:blocked,
+     "managed_repo_workspace_binding_unavailable",
+     "Managed repository has no repo-scoped local workspace binding for runtime execution.",
+     "Bind this repository to its own local workspace path and retry."}
+  end
+
+  defp infer_workspace_environment(workspace_root, workspace_path)
+       when is_binary(workspace_root) or is_binary(workspace_path),
+       do: :local
+
+  defp infer_workspace_environment(_workspace_root, _workspace_path), do: :sprite
+
+  defp normalize_workspace_environment(:local, _default), do: :local
+  defp normalize_workspace_environment(:sprite, _default), do: :sprite
+  defp normalize_workspace_environment(:cloud, _default), do: :sprite
+  defp normalize_workspace_environment("local", _default), do: :local
+  defp normalize_workspace_environment("sprite", _default), do: :sprite
+  defp normalize_workspace_environment("cloud", _default), do: :sprite
+  defp normalize_workspace_environment(_workspace_environment, default), do: default
+
+  defp normalize_optional_path(nil), do: nil
+
+  defp normalize_optional_path(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" -> nil
+      normalized_value -> Path.expand(normalized_value)
+    end
+  end
+
+  defp normalize_optional_path(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_path()
+
+  defp normalize_optional_path(_value), do: nil
 
   defp blocked_readiness_reason(:ready, _workspace_initialized?, _baseline_synced?) do
     {

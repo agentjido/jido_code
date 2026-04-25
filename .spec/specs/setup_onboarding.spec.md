@@ -10,17 +10,19 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, uses that setup-owned runtime metadata only as seed context for repository import, persists repo-scoped workspace settings onto each imported managed repository for later execution, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
   - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.internal_cleanup_and_ui_convergence_foundation
+  - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
   - jido_code.runtime_environment_selection_is_persisted_setup_metadata
   - jido_code.setup_onboarding_live_vue_surface_split
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  - .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - .spec/decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md
   - .spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md
@@ -37,6 +39,7 @@ surface:
   - lib/jido_code/setup/system_config.ex
   - lib/jido_code/setup/system_config_record.ex
   - lib/jido_code/setup/system_config_persistence.ex
+  - lib/jido_code/workbench/project_detail.ex
   - lib/jido_code/security/encryption.ex
   - lib/jido_code_web/frontend_assets.ex
   - lib/jido_code_web/live/home_live.ex
@@ -101,6 +104,11 @@ surface:
 
 - id: setup.onboarding.runtime_environment_selection_persisted_metadata
   statement: When onboarding captures runtime environment choice and optional local workspace root, that choice shall persist through database-backed setup metadata rather than existing only in route-local assigns.
+  priority: must
+  stability: evolving
+
+- id: setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding
+  statement: Setup-owned runtime defaults shall seed initial workspace provisioning, but each imported managed repository shall persist its own workspace binding so later execution does not require all local repositories to share one parent location.
   priority: must
   stability: evolving
 
@@ -291,6 +299,19 @@ surface:
   then:
     - The choice is expected to persist through database-backed setup metadata instead of disappearing on route reload or server restart.
 
+- id: setup.onboarding.scenario_import_persists_repo_scoped_workspace_binding
+  covers:
+    - setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding
+    - setup.onboarding.greenfield_import_writes_canonical_repo_records
+  given:
+    - Setup has already persisted runtime-default metadata for later repository execution.
+    - A repository import creates canonical source and managed-repository records.
+  when:
+    - Workspace provisioning metadata is persisted for that imported repository.
+  then:
+    - The managed repository stores repo-scoped workspace settings used by later runtime surfaces.
+    - Later execution reads the managed repository's workspace binding instead of re-deriving it from one install-wide workspace root.
+
 - id: setup.onboarding.scenario_start_surface_completes_into_dashboard
   covers:
     - setup.onboarding.explicit_completion_path_to_dashboard
@@ -409,6 +430,11 @@ surface:
   covers:
     - setup.onboarding.runtime_environment_selection_persisted_metadata
     - setup.onboarding.github_repository_selection_persisted_metadata
+
+- kind: source_file
+  target: .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
+  covers:
+    - setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding
 
 - kind: source_file
   target: lib/jido_code/setup/system_config_record.ex

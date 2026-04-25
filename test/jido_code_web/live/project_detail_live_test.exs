@@ -102,6 +102,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project_id}?section=workflows", on_error: :warn)
 
+    assert has_element?(view, "#project-detail-workflow-readiness-summary")
+    assert has_element?(view, "#project-detail-workflow-readiness-badge", "Ready")
     assert has_element?(view, "#project-detail-workflow-controls")
 
     assert has_element?(
@@ -220,7 +222,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(default_view, "#project-detail-section-nav-overview[aria-current='page']")
     assert has_element?(default_view, "#project-detail-overview-panel")
+    assert has_element?(default_view, "#project-detail-overview-open-workflows")
     refute has_element?(default_view, "#project-detail-conversation-panel")
+    refute has_element?(default_view, "#project-detail-workflow-controls")
 
     {:ok, memory_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
@@ -301,6 +305,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=workflows", on_error: :warn)
 
+    assert has_element?(view, "#project-detail-workflow-readiness-summary")
+    assert has_element?(view, "#project-detail-workflow-readiness-badge", "Blocked")
     assert has_element?(view, "#project-detail-launch-disabled-guidance")
 
     assert has_element?(
@@ -365,7 +371,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-overview-panel")
     assert has_element?(view, "#project-detail-section-nav-overview[aria-current='page']")
+    assert has_element?(view, "#project-detail-overview-family-guides")
+    assert has_element?(view, "#project-detail-overview-open-conversations")
+    assert has_element?(view, "#project-detail-overview-open-workflows")
     refute has_element?(view, "#project-detail-conversation-panel")
+    refute has_element?(view, "#project-detail-workflow-controls")
   end
 
   test "hosts repo conversation interaction inside the managed repo detail route", %{conn: _conn} do

@@ -453,6 +453,51 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 socket={@socket}
                 props={project_detail_overview_props(assigns)}
               />
+
+              <section id="project-detail-overview-family-guides" class="grid gap-3 md:grid-cols-2">
+                <article
+                  :for={section <- overview_family_guides(assigns)}
+                  id={"project-detail-overview-guide-#{section.section}"}
+                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="space-y-1">
+                      <h3 class="font-semibold">{section.label}</h3>
+                      <p
+                        id={"project-detail-overview-guide-#{section.section}-summary"}
+                        class="text-sm text-base-content/70"
+                      >
+                        {section.summary}
+                      </p>
+                    </div>
+                    <span
+                      :if={section.badge}
+                      id={"project-detail-overview-guide-#{section.section}-badge"}
+                      class={[
+                        "badge badge-sm border font-medium",
+                        detail_section_badge_class(section.badge.tone)
+                      ]}
+                    >
+                      {section.badge.label}
+                    </span>
+                  </div>
+
+                  <.link
+                    id={"project-detail-overview-open-#{section.section}"}
+                    class="btn btn-xs btn-outline"
+                    patch={
+                      project_detail_section_path(
+                        @project_detail,
+                        @return_to_path,
+                        section: section.section,
+                        work_item_id: @selected_work_item_id
+                      )
+                    }
+                  >
+                    Open {section.label}
+                  </.link>
+                </article>
+              </section>
             </section>
 
             <section :if={@selected_detail_section == :conversations} id="project-detail-conversation-panel" class="space-y-4">
@@ -1404,6 +1449,41 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             </section>
 
             <div :if={@selected_detail_section == :workflows} id="project-detail-workflows-panel" class="space-y-4">
+              <section class="space-y-2">
+                <div class="space-y-1">
+                  <h2 class="text-lg font-semibold">Workflow launch and defaults</h2>
+                  <p class="text-sm text-base-content/70">
+                    Keep launch defaults, readiness remediation, and governed workflow kickoff together so this route stays an action surface instead of generic repository tooling.
+                  </p>
+                </div>
+
+                <article
+                  id="project-detail-workflow-readiness-summary"
+                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+                >
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                      <h3 class="font-semibold">Governed launch posture</h3>
+                      <p
+                        id="project-detail-workflow-readiness-detail"
+                        class="text-sm text-base-content/70"
+                      >
+                        {workflow_family_summary(@project_detail)}
+                      </p>
+                    </div>
+                    <span
+                      id="project-detail-workflow-readiness-badge"
+                      class={[
+                        "badge border font-medium",
+                        workflow_family_badge_class(@project_detail)
+                      ]}
+                    >
+                      {workflow_family_badge_label(@project_detail)}
+                    </span>
+                  </div>
+                </article>
+              </section>
+
               <section
                 id="project-detail-workflow-defaults"
                 class="rounded-lg border border-base-300 bg-base-200/40 p-3 space-y-1"
@@ -1593,6 +1673,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     end)
   end
 
+  defp overview_family_guides(assigns) do
+    assigns
+    |> detail_section_items()
+    |> Enum.reject(&(&1.section == :overview))
+  end
+
   defp detail_section_summary(:overview, _assigns),
     do: "Repository identity, launch posture, and the next place to drill in."
 
@@ -1710,6 +1796,37 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp detail_section_badge_class(:error), do: "border-error/50 bg-error/10 text-error"
   defp detail_section_badge_class(:info), do: "border-info/50 bg-info/10 text-info"
   defp detail_section_badge_class(:neutral), do: "border-base-300 bg-base-200/70 text-base-content/75"
+
+  defp workflow_family_badge_label(project_detail) do
+    if project_ready_for_launch?(project_detail), do: "Ready", else: "Blocked"
+  end
+
+  defp workflow_family_badge_class(project_detail) do
+    if project_ready_for_launch?(project_detail) do
+      detail_section_badge_class(:success)
+    else
+      detail_section_badge_class(:warning)
+    end
+  end
+
+  defp workflow_family_summary(project_detail) do
+    if project_ready_for_launch?(project_detail) do
+      "Launch defaults are ready and workflow kickoff from this route preserves governed run traceability."
+    else
+      readiness = project_readiness(project_detail)
+
+      [Map.get(readiness, :detail), Map.get(readiness, :remediation)]
+      |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+      |> Enum.join(" ")
+      |> case do
+        "" ->
+          "Workflow launch is currently blocked for this managed repository."
+
+        summary ->
+          summary
+      end
+    end
+  end
 
   defp empty_conversation_surface do
     %{

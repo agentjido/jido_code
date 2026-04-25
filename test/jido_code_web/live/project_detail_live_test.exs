@@ -218,6 +218,10 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              "section[id^='project-detail-panel-'][data-detail-section='overview']"
            )
 
+    assert has_element?(default_view, "#project-detail-section-nav-overview[aria-current='page']")
+    assert has_element?(default_view, "#project-detail-overview-panel")
+    refute has_element?(default_view, "#project-detail-conversation-panel")
+
     {:ok, memory_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
 
@@ -226,6 +230,10 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              "section[id^='project-detail-panel-'][data-detail-section='memory']"
            )
 
+    assert has_element?(memory_view, "#project-detail-section-nav-memory[aria-current='page']")
+    assert has_element?(memory_view, "#project-detail-memory-inspection")
+    refute has_element?(memory_view, "#project-detail-workflow-controls")
+
     {:ok, conversations_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
@@ -233,6 +241,14 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              conversations_view,
              "section[id^='project-detail-panel-'][data-detail-section='conversations']"
            )
+
+    assert has_element?(
+             conversations_view,
+             "#project-detail-section-nav-conversations[aria-current='page']"
+           )
+
+    assert has_element?(conversations_view, "#project-detail-conversation-panel")
+    refute has_element?(conversations_view, "#project-detail-memory-inspection")
 
     {:ok, invalid_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=unknown", on_error: :warn)
@@ -315,7 +331,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert %{fix: 0, triage: 0} = Agent.get(launcher_invocations, & &1)
   end
 
-  test "renders project overview with a repo conversation entrypoint", %{conn: _conn} do
+  test "renders project overview inside the overview family", %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -339,8 +355,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         }
       })
 
-    {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     vue = assert_vue_component(view, "ProjectDetailOverviewWidget", id: "project-detail-overview-widget")
 
@@ -348,9 +363,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert vue.props["launchReady"] == true
     assert length(vue.props["workflowCards"]) == 2
 
-    assert has_element?(view, "#project-detail-conversation-panel")
-    assert has_element?(view, "#project-detail-conversation-open", "Open repo conversation")
-    refute render(view) =~ "Start conversation"
+    assert has_element?(view, "#project-detail-overview-panel")
+    assert has_element?(view, "#project-detail-section-nav-overview[aria-current='page']")
+    refute has_element?(view, "#project-detail-conversation-panel")
   end
 
   test "hosts repo conversation interaction inside the managed repo detail route", %{conn: _conn} do
@@ -620,7 +635,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     end)
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
     view
     |> element("#project-detail-conversation-open")
@@ -793,7 +808,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
 
     assert has_element?(
              view,

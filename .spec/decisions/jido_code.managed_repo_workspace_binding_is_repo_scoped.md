@@ -10,7 +10,7 @@ affects:
   - setup.runtime_environment_defaults
 ---
 
-<!-- current_truth.reconciled_with_branch: setup still persists install-wide runtime defaults through SystemConfig, but canonical runtime readiness and repo-detail execution already resolve workspace binding from each managed repository's persisted workspace settings, and setup import now accepts explicit repo-scoped local workspace paths without requiring one shared install-wide parent root. -->
+<!-- current_truth.reconciled_with_branch: setup still persists install-wide runtime defaults through SystemConfig, but canonical runtime readiness and repo-detail execution already resolve workspace binding from each managed repository's persisted workspace settings, setup import now accepts explicit repo-scoped local workspace paths without requiring one shared install-wide parent root, and product-owned repo-scoped workspace-binding updates now let operators repair one managed repository directly without rewriting setup defaults or sibling repositories. -->
 
 <!-- covers: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding -->
 <!-- covers: architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding -->
@@ -72,6 +72,10 @@ The durable rule has five parts:
 5. Changing install-wide defaults later does not retroactively redefine the
    canonical workspace binding for already-imported managed repositories unless a
    repo-scoped update flow explicitly rewrites that managed-repository state.
+6. Product-owned workspace repair and rebinding flows shall update only the
+   selected managed repository's persisted `workspace_settings`; those flows are
+   not a backdoor for mutating `SystemConfig` defaults or relocating sibling
+   repositories.
 
 ## Consequences
 
@@ -83,6 +87,8 @@ The durable rule has five parts:
   locations without inventing shadow runtime rules
 - setup-owned runtime defaults remain useful as import-time convenience without
   overstating their authority
+- operators have a direct repo-scoped repair seam for blocked runtime readiness
+  instead of needing to re-run setup or infer a shared-root convention
 
 ### Constraints
 
@@ -90,6 +96,8 @@ The durable rule has five parts:
   "this repository's bound workspace path"
 - repo-scoped workspace editing remains a distinct product concern from
   install-wide setup defaults
+- repo-scoped workspace mutation boundaries must validate operator-supplied
+  absolute local paths and reject ambiguous relative or missing-directory input
 - local provisioning must accept and validate explicit absolute repo-scoped
   workspace paths without requiring one shared install-wide parent directory
 - imports performed under cloud-backed defaults may remain runtime-blocked on

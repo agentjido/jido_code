@@ -29,22 +29,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 [ ] 63 Phase 63 - Repo-Scoped Workspace Configuration Surfaces
   Add the product-owned mutation and operator UI needed to inspect, set, and repair each managed repository's workspace binding directly, without relying on one install-wide local-root assumption.
 
-  [ ] 63.1 Section - Repo-Scoped Workspace Mutation Boundaries
+[x] 63.1 Section - Repo-Scoped Workspace Mutation Boundaries
     Introduce an explicit managed-repository write surface for workspace binding so repo-level remediation is no longer an indirect side effect of setup import.
 
-    [ ] 63.1.1 Task - Add canonical repo-scoped workspace-binding updates
+    [x] 63.1.1 Task - Add canonical repo-scoped workspace-binding updates
       Make managed repositories writable at the right seam for workspace environment and local path updates.
 
-      [ ] 63.1.1.1 Subtask - Add a product-owned repo-scoped mutation path for setting or replacing workspace environment, workspace root, and workspace path on one managed repository.
-      [ ] 63.1.1.2 Subtask - Validate repo-scoped local workspace paths as absolute and operator-intentional instead of deriving them from install-wide defaults.
-      [ ] 63.1.1.3 Subtask - Keep repo-scoped updates isolated to the selected managed repository instead of rewriting install-wide setup defaults as a side effect.
+      [x] 63.1.1.1 Subtask - Add a product-owned repo-scoped mutation path for setting or replacing workspace environment, workspace root, and workspace path on one managed repository.
+      [x] 63.1.1.2 Subtask - Validate repo-scoped local workspace paths as absolute and operator-intentional instead of deriving them from install-wide defaults.
+      [x] 63.1.1.3 Subtask - Keep repo-scoped updates isolated to the selected managed repository instead of rewriting install-wide setup defaults as a side effect.
 
-    [ ] 63.1.2 Task - Keep setup defaults and repo-scoped edits clearly distinct
+    [x] 63.1.2 Task - Keep setup defaults and repo-scoped edits clearly distinct
       Avoid reintroducing the old ambiguity in either mutation behavior or copy.
 
-      [ ] 63.1.2.1 Subtask - Preserve install-wide runtime defaults as import-time seed metadata rather than a hidden repo-edit channel.
-      [ ] 63.1.2.2 Subtask - Keep repo-scoped workspace edits from implicitly changing other managed repositories.
-      [ ] 63.1.2.3 Subtask - Remove UI or copy paths that imply changing setup defaults will retroactively relocate already-imported repositories.
+      [x] 63.1.2.1 Subtask - Preserve install-wide runtime defaults as import-time seed metadata rather than a hidden repo-edit channel.
+      [x] 63.1.2.2 Subtask - Keep repo-scoped workspace edits from implicitly changing other managed repositories.
+      [x] 63.1.2.3 Subtask - Remove UI or copy paths that imply changing setup defaults will retroactively relocate already-imported repositories.
 
   [ ] 63.2 Section - Operator And Setup Surface Adoption
     Surface the repo-scoped binding model to operators in the places where they actually discover blocked runtime state.

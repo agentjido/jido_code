@@ -802,6 +802,13 @@ surface:
     - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
 
 - kind: source_file
+  target: test/jido_code_web/live/phase_sixty_one_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
+    - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
+
+- kind: source_file
   target: lib/jido_code_web/live/workbench_live.ex
   covers:
     - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage

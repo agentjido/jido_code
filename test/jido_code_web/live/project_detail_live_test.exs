@@ -263,6 +263,82 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
            )
   end
 
+  test "route-owned section navigation switches repo-detail families in place", %{conn: _conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-section-navigation",
+        github_full_name: "owner/repo-section-navigation",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          },
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    view
+    |> element("#project-detail-section-nav-workflows")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=workflows")
+    assert has_element?(view, "#project-detail-section-nav-workflows[aria-current='page']")
+    assert has_element?(view, "#project-detail-workflows-panel")
+    refute has_element?(view, "#project-detail-overview-panel")
+
+    view
+    |> element("#project-detail-section-nav-conversations")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations")
+    assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
+    assert has_element?(view, "#project-detail-conversation-panel")
+    assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
+    refute has_element?(view, "#project-detail-workflows-panel")
+
+    view
+    |> element("#project-detail-section-nav-semantic")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic")
+    assert has_element?(view, "#project-detail-section-nav-semantic[aria-current='page']")
+    assert has_element?(view, "#project-detail-semantic-inspection")
+    refute has_element?(view, "#project-detail-conversation-panel")
+
+    view
+    |> element("#project-detail-semantic-open-memory")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=memory")
+    assert has_element?(view, "#project-detail-section-nav-memory[aria-current='page']")
+    assert has_element?(view, "#project-detail-memory-inspection")
+    refute has_element?(view, "#project-detail-semantic-inspection")
+
+    view
+    |> element("#project-detail-memory-open-semantic")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic")
+    assert has_element?(view, "#project-detail-semantic-inspection")
+    refute has_element?(view, "#project-detail-memory-inspection")
+  end
+
   test "disables project-detail launch controls with remediation when execution prerequisites are blocked",
        %{
          conn: _conn

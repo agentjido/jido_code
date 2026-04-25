@@ -292,4 +292,9 @@ surface:
   covers:
     - architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
     - architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_one_integration_test.exs
+  covers:
+    - architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
 ```

@@ -154,6 +154,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-61-managed-repo-detail-sidebar-information-architecture.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -205,6 +210,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_one_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

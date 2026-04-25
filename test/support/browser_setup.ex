@@ -4,10 +4,11 @@ defmodule JidoCodeWeb.BrowserSetup do
   # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
   @moduledoc false
 
+  alias AshAuthentication.{Info, Strategy}
+  alias JidoCode.Accounts.User
   alias JidoCode.Repo
   alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
-  alias JidoCodeWeb.ConnCase
 
   @checked_at ~U[2026-02-13 12:34:56Z]
   @owner_email "owner@example.com"
@@ -80,7 +81,28 @@ defmodule JidoCodeWeb.BrowserSetup do
   end
 
   defp seed_owner! do
-    ConnCase.register_owner(@owner_email, @owner_password)
+    strategy = Info.strategy!(User, :password)
+
+    case Strategy.action(
+           strategy,
+           :register,
+           %{
+             "email" => @owner_email,
+             "password" => @owner_password,
+             "password_confirmation" => @owner_password
+           },
+           context: %{token_type: :sign_in}
+         ) do
+      {:ok, _owner} ->
+        :ok
+
+      {:error, reason} ->
+        if owner_already_registered?(reason) do
+          :ok
+        else
+          raise "browser scenario owner seed failed: #{inspect(reason)}"
+        end
+    end
   end
 
   defp seed_setup_system_config! do
@@ -259,8 +281,42 @@ defmodule JidoCodeWeb.BrowserSetup do
       {:ok, project} ->
         {:ok, _project} = Project.update(project, attrs, actor: actor)
 
-      {:error, %Ash.Error.Query.NotFound{}} ->
-        {:ok, _project} = Project.create(attrs, actor: actor)
+      {:error, reason} ->
+        if project_not_found?(reason) do
+          {:ok, _project} = Project.create(attrs, actor: actor)
+        else
+          raise "browser scenario project upsert failed: #{inspect(reason)}"
+        end
     end
   end
+
+  defp project_not_found?(%Ash.Error.Query.NotFound{}), do: true
+
+  defp project_not_found?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &project_not_found?/1)
+  end
+
+  defp project_not_found?(%{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &project_not_found?/1)
+  end
+
+  defp project_not_found?(_reason), do: false
+
+  defp owner_already_registered?(%Ash.Error.Changes.InvalidAttribute{
+         field: :email,
+         message: message
+       })
+       when is_binary(message) do
+    String.contains?(message, "already been taken")
+  end
+
+  defp owner_already_registered?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &owner_already_registered?/1)
+  end
+
+  defp owner_already_registered?(%{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &owner_already_registered?/1)
+  end
+
+  defp owner_already_registered?(_reason), do: false
 end

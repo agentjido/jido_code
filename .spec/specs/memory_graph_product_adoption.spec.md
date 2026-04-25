@@ -279,4 +279,10 @@ surface:
     - architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
     - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
 
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_one_integration_test.exs
+  covers:
+    - architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
+    - architecture.memory_graph_product_adoption.memory_and_provenance_views_can_cross_link_to_source_code
+
 ```

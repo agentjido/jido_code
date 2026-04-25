@@ -518,7 +518,12 @@ surface:
   target: mix browser.verify
   covers:
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
-    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_one_integration_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
 
 - kind: source_file
   target: test/jido_code_web/components/live_vue_components_test.exs

@@ -6,6 +6,10 @@ This directory contains a phased migration plan for aligning `jido_code` with th
 factory-control-plane architecture recorded in the current ADR and subject specs.
 
 The plan aligns to:
+- `../specs/baseline_surface.spec.md`
+- `../specs/operator_auth_settings.spec.md`
+- `../specs/provider_login_flow.spec.md`
+- `../specs/user_administration.spec.md`
 - `../specs/agent_os_integration.spec.md`
 - `../specs/factory_control_plane.spec.md`
 - `../specs/frontend_architecture.spec.md`
@@ -24,6 +28,7 @@ The plan aligns to:
 - `../specs/conversation_orchestration.spec.md`
 - `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane.md`
+- `../decisions/jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
 - `../decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md`
 - `../decisions/jido_code.memory_graph_product_adoption.md`
@@ -91,6 +96,9 @@ The plan aligns to:
 49. [Phase 55 - Memory Rollout And Governed Surfaces](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-55-memory-rollout-and-governed-surfaces.md): finish the remaining memory rollout by adding canonical work-item, evidence, and decision memory surfaces, reusing product-owned memory actions on those routes, promoting the last proposed memory subjects to active current truth, and aligning the existing `55.6.*` integration coverage with the completed governed-surface narrative.
 50. [Phase 56 - Setup Onboarding Hybrid Surface Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-56-setup-onboarding-hybrid-surface-adoption.md): implement the accepted `/setup` LiveView-plus-`live_vue` split by adding bounded hybrid setup widgets, preserving LiveView-owned sensitive controls and fallbacks, and closing the current browser-test gap for onboarding interactions.
 51. [Phase 57 - Conversation UI Spec Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-57-conversation-ui-spec-convergence.md): evolve the current repo-detail conversation panel language into a coherent intake, active work-item conversation, route-owned runtime readiness plus recovery, browser-verified clarification and degraded continuity, and cross-surface operator UI that fully matches the conversation specs without abandoning the current LiveView-owned product shell.
+52. [Phase 58 - Welcome Bootstrap And Ready-State Routing Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-58-welcome-bootstrap-and-ready-state-routing-foundation.md): cut over the authenticated ready-state handoff so `/welcome` remains the public/bootstrap entry route while ready users default into dashboard instead of reopening the welcome-page operator console.
+53. [Phase 59 - Operator Auth Settings Settings-Surface Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-59-operator-auth-settings-settings-surface-adoption.md): move Provider Login and Git Provider Integrations from the ready-state welcome view onto a durable settings-owned authenticated surface.
+54. [Phase 60 - Welcome Dashboard And Settings Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-60-welcome-dashboard-and-settings-convergence.md): finish the route, settings, copy, and spec cutover so dashboard is the durable authenticated landing, settings owns operator configuration, and welcome stays focused on bootstrap and sign-in handoff.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once

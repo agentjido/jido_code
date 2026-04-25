@@ -13,6 +13,7 @@ status: active
 summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight start surface before growing into an admin-managed multi-user account system with guarded registration.
 decisions:
   - jido_code.auth_user_system
+  - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
   - lib/jido_code/setup/bootstrap_status.ex
   - lib/jido_code/setup/owner_bootstrap.ex

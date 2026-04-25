@@ -363,6 +363,21 @@
       },
       {
         "affects": [
+          "package.jido_code",
+          "baseline.surface",
+          "users.admin_system",
+          "auth.provider_login_flow",
+          "auth.operator_settings",
+          "docs.operator_provider_auth_guide"
+        ],
+        "date": "2026-04-25",
+        "file": ".spec/decisions/jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff.md",
+        "id": "jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff",
+        "status": "accepted",
+        "title": "Welcome Bootstrap Entry With Dashboard And Settings Handoff"
+      },
+      {
+        "affects": [
           "architecture.conversation_orchestration",
           "architecture.work_synthesis",
           "architecture.factory_control_plane"
@@ -2352,7 +2367,7 @@
         "id": "auth.operator_settings.broker_trust_configuration_ui",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The Provider Login section shall let an operator persist provider-host enablement, allowlist posture, and broker trust fields without collecting Git automation secrets in the same form.",
+        "statement": "The Provider Login section of the current operator auth-settings surface shall let an operator persist provider-host enablement, allowlist posture, and broker trust fields without collecting Git automation secrets in the same form.",
         "subject_id": "auth.operator_settings"
       },
       {
@@ -2360,7 +2375,7 @@
         "id": "auth.operator_settings.github_service_validation_feedback",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The Git Provider Integrations section shall show GitHub automation readiness feedback, including path-level validation detail and remediation, using deployment-local credential checks.",
+        "statement": "The Git Provider Integrations section of the current operator auth-settings surface shall show GitHub automation readiness feedback, including path-level validation detail and remediation, using deployment-local credential checks.",
         "subject_id": "auth.operator_settings"
       },
       {
@@ -2368,7 +2383,7 @@
         "id": "auth.operator_settings.hidden_during_bootstrap_entry",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the landing page is allowed to render its ready-state operator surfaces.",
+        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render.",
         "subject_id": "auth.operator_settings"
       },
       {
@@ -2384,7 +2399,7 @@
         "id": "auth.operator_settings.sections_separated",
         "priority": "must",
         "stability": "stable",
-        "statement": "The authenticated landing page shall present separate Provider Login and Git Provider Integrations sections.",
+        "statement": "The current ready-state operator auth-settings surface shall present separate Provider Login and Git Provider Integrations sections.",
         "subject_id": "auth.operator_settings"
       },
       {
@@ -2536,7 +2551,7 @@
         "id": "auth.provider_login_flow.entrypoint_visible",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete, while keeping provider entry out of the bootstrap-required and continue-setup start states.",
+        "statement": "The `/welcome` landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete, while keeping provider entry out of the bootstrap-required and continue-setup start states.",
         "subject_id": "auth.provider_login_flow"
       },
       {
@@ -2693,6 +2708,14 @@
       },
       {
         "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.ready_state_local_auth_handoff",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Ready-state local authentication shall enter the authenticated product at `/dashboard` by default, preserve explicit `return_to` overrides, and continue to route incomplete onboarding into `/setup` instead of dashboard.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
         "id": "auth.system.revocable_credentials",
         "priority": "must",
         "stability": "stable",
@@ -2720,7 +2743,7 @@
         "id": "baseline.surface.public_entry_routes",
         "priority": "must",
         "stability": "stable",
-        "statement": "The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and `/setup` acting as the signed-in post-bootstrap start surface.",
+        "statement": "The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and public auth entry while `/setup` acts as the signed-in post-bootstrap continuation surface.",
         "subject_id": "baseline.surface"
       },
       {
@@ -2728,7 +2751,7 @@
         "id": "baseline.surface.root_redirects_to_welcome",
         "priority": "must",
         "stability": "stable",
-        "statement": "The root path shall redirect to `/welcome` so the operator-facing landing route stays canonical even as authenticated product routes expand.",
+        "statement": "The root path shall redirect to `/welcome` so the canonical public/bootstrap and auth entry route stays canonical even as authenticated product routes expand.",
         "subject_id": "baseline.surface"
       },
       {
@@ -2736,7 +2759,7 @@
         "id": "baseline.surface.welcome_landing_copy",
         "priority": "must",
         "stability": "stable",
-        "statement": "The `/welcome` landing page shall act as the operator-facing starting point, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.",
+        "statement": "The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.",
         "subject_id": "baseline.surface"
       },
       {
@@ -5978,7 +6001,7 @@
           "The provider config persists broker trust and allowlist fields without storing Git automation secrets."
         ],
         "when": [
-          "The operator saves provider-host login settings on the landing page."
+          "The operator saves provider-host login settings on the current operator auth-settings surface."
         ]
       },
       {
@@ -5989,7 +6012,7 @@
         ],
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "given": [
-          "A local operator is already signed in on the baseline landing page."
+          "A local operator is already signed in on the current ready-state operator surface."
         ],
         "id": "auth.operator_settings.scenario.operator_views_console",
         "subject_id": "auth.operator_settings",
@@ -5998,7 +6021,7 @@
           "The operator console does not displace the simpler signed-in start path used immediately after bootstrap."
         ],
         "when": [
-          "The operator opens the landing page."
+          "The operator opens that surface."
         ]
       },
       {
@@ -6385,7 +6408,8 @@
       {
         "covers": [
           "auth.system.password_registration_and_sign_in",
-          "auth.system.revocable_credentials"
+          "auth.system.revocable_credentials",
+          "auth.system.ready_state_local_auth_handoff"
         ],
         "file": ".spec/specs/authentication_system.spec.md",
         "given": [
@@ -6394,7 +6418,8 @@
         "id": "auth.system.scenario.password_sign_in",
         "subject_id": "auth.system",
         "then": [
-          "The system issues a revocable authenticated session token."
+          "The system issues a revocable authenticated session token.",
+          "Ready-state sign-in enters dashboard unless an explicit product return path is already in force."
         ],
         "when": [
           "The user signs in through the password flow."
@@ -6923,11 +6948,13 @@
           "id": "auth.system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code authenticates local users with email-backed identities, first-run password bootstrap, password and magic-link sign-in, confirmation tracking, and revocable session credentials backed by persisted security-token surfaces.",
+          "summary": "jido_code authenticates local users with email-backed identities, first-run password bootstrap, password and magic-link sign-in, confirmation tracking, revocable session credentials backed by persisted security-token surfaces, and ready-state auth handoff that defaults authenticated product entry to dashboard while incomplete onboarding still routes to setup.",
           "surface": [
             "lib/jido_code/accounts/user.ex",
             "lib/jido_code/accounts/token.ex",
             "lib/jido_code/accounts/security_tokens.ex",
+            "lib/jido_code_web/controllers/auth_controller.ex",
+            "lib/jido_code_web/live_user_auth.ex",
             "test/support/conn_case.ex",
             "test/jido_code_web/live/auth_session_live_test.exs",
             "test/jido_code_web/live/auth_boundary_live_test.exs",
@@ -6941,11 +6968,13 @@
         "file": ".spec/specs/baseline_surface.spec.md",
         "id": "baseline.surface",
         "meta": {
-          "decisions": null,
+          "decisions": [
+            "jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff"
+          ],
           "id": "baseline.surface",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, API, and dev surfaces declared in the router.",
+          "summary": "jido_code exposes a state-aware `/welcome` landing and auth entry route while keeping `/setup` as the signed-in post-bootstrap continuation surface and authenticated product, API, and dev surfaces declared in the router.",
           "surface": [
             "lib/jido_code_web/router.ex",
             "lib/jido_code_web/live/home_live.ex",
@@ -7604,11 +7633,13 @@
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "id": "auth.operator_settings",
         "meta": {
-          "decisions": null,
+          "decisions": [
+            "jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff"
+          ],
           "id": "auth.operator_settings",
           "kind": "feature",
           "status": "active",
-          "summary": "authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.",
+          "summary": "authenticated operators can manage provider-login broker trust and GitHub automation readiness through the current ready-state operator auth-settings surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.",
           "surface": [
             "lib/jido_code_web/live/home_live.ex",
             "test/support/conn_case.ex",
@@ -7896,12 +7927,13 @@
         "id": "auth.provider_login_flow",
         "meta": {
           "decisions": [
-            "jido_code.auth_user_system"
+            "jido_code.auth_user_system",
+            "jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff"
           ],
           "id": "auth.provider_login_flow",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in start paths until the ready-state landing view is appropriate, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in.",
+          "summary": "jido_code exposes a GitHub provider sign-in entrypoint on the `/welcome` landing after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in setup-continuation paths, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in.",
           "surface": [
             "lib/jido_code/auth_providers/provider_login.ex",
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
@@ -8311,7 +8343,8 @@
         "id": "users.admin_system",
         "meta": {
           "decisions": [
-            "jido_code.auth_user_system"
+            "jido_code.auth_user_system",
+            "jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff"
           ],
           "id": "users.admin_system",
           "kind": "feature",
@@ -13436,6 +13469,24 @@
       },
       {
         "covers": [
+          "auth.system.ready_state_local_auth_handoff"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code_web/controllers/auth_controller.ex"
+      },
+      {
+        "covers": [
+          "auth.system.ready_state_local_auth_handoff"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code_web/live_user_auth.ex"
+      },
+      {
+        "covers": [
           "auth.system.local_email_identity",
           "auth.system.password_registration_and_sign_in"
         ],
@@ -13447,7 +13498,8 @@
       {
         "covers": [
           "auth.system.local_email_identity",
-          "auth.system.password_registration_and_sign_in"
+          "auth.system.password_registration_and_sign_in",
+          "auth.system.ready_state_local_auth_handoff"
         ],
         "file": ".spec/specs/authentication_system.spec.md",
         "kind": "source_file",
@@ -15620,13 +15672,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 27,
+    "decisions": 28,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 368,
+    "requirements": 369,
     "scenarios": 181,
     "subjects": 44,
-    "verifications": 708
+    "verifications": 710
   },
   "verification": {
     "claims": [
@@ -29260,6 +29312,28 @@
         "verification_index": 2
       },
       {
+        "cover_id": "auth.system.ready_state_local_auth_handoff",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code_web/controllers/auth_controller.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.system.ready_state_local_auth_handoff",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code_web/live_user_auth.ex",
+        "verification_index": 4
+      },
+      {
         "cover_id": "auth.system.local_email_identity",
         "file": ".spec/specs/authentication_system.spec.md",
         "kind": "source_file",
@@ -29268,7 +29342,7 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/support/conn_case.ex",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "auth.system.password_registration_and_sign_in",
@@ -29279,7 +29353,7 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/support/conn_case.ex",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "auth.system.local_email_identity",
@@ -29290,7 +29364,7 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/jido_code_web/live/auth_session_live_test.exs",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "auth.system.password_registration_and_sign_in",
@@ -29301,7 +29375,18 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/jido_code_web/live/auth_session_live_test.exs",
-        "verification_index": 4
+        "verification_index": 6
+      },
+      {
+        "cover_id": "auth.system.ready_state_local_auth_handoff",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_session_live_test.exs",
+        "verification_index": 6
       },
       {
         "cover_id": "auth.system.revocable_credentials",
@@ -29312,7 +29397,7 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/jido_code_web/live/auth_boundary_live_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "auth.system.revocable_credentials",
@@ -29323,7 +29408,7 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/jido_code_web/live/auth_sign_out_live_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "baseline.surface.product_routes_declared",
@@ -32664,12 +32749,12 @@
     "strength_summary": {
       "claimed": 71,
       "executed": 0,
-      "linked": 1477
+      "linked": 1480
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 27,
+    "decision_count": 28,
     "spec_count": 44
   }
 }

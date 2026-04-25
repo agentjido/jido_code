@@ -1,6 +1,6 @@
 # Memory Graph Workflow And Operator Expansion
 
-<!-- current_truth.reconciled_with_branch: governed-route memory actions, cross-graph navigation, follow-up provenance, repo-detail cohosting with the route-owned conversation shell, shared setup-route host-shell action gating, adjacent multi-repository setup follow-up that clears completed selections, and repo-owned onboarding-reset coverage continue to live under this subject. -->
+<!-- current_truth.reconciled_with_branch: governed-route memory actions, cross-graph navigation, follow-up provenance, repo-detail cohosting with the route-owned conversation shell, shared setup-route host-shell action gating, adjacent multi-repository setup follow-up that clears completed selections, repo-owned onboarding-reset coverage, and the shared LiveView route harness now treating dashboard as the ready-state local-auth entry surface continue to live under this subject. -->
 
 This subject defines how the repository-scoped memory graph expands from
 repository-detail adoption into governed workflow surfaces, operator memory

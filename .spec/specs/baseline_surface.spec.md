@@ -11,7 +11,9 @@ This subject defines the current browser-facing landing, auth, and routed produc
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, API, and dev surfaces declared in the router.
+summary: jido_code exposes a state-aware `/welcome` landing and auth entry route while keeping `/setup` as the signed-in post-bootstrap continuation surface and authenticated product, API, and dev surfaces declared in the router.
+decisions:
+  - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex
@@ -29,7 +31,7 @@ surface:
 
 ```spec-requirements
 - id: baseline.surface.public_entry_routes
-  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and `/setup` acting as the signed-in post-bootstrap start surface.
+  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and public auth entry while `/setup` acts as the signed-in post-bootstrap continuation surface.
   priority: must
   stability: stable
 
@@ -39,7 +41,7 @@ surface:
   stability: evolving
 
 - id: baseline.surface.welcome_landing_copy
-  statement: The `/welcome` landing page shall act as the operator-facing starting point, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.
+  statement: The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.
   priority: must
   stability: stable
 
@@ -49,7 +51,7 @@ surface:
   stability: stable
 
 - id: baseline.surface.root_redirects_to_welcome
-  statement: The root path shall redirect to `/welcome` so the operator-facing landing route stays canonical even as authenticated product routes expand.
+  statement: The root path shall redirect to `/welcome` so the canonical public/bootstrap and auth entry route stays canonical even as authenticated product routes expand.
   priority: must
   stability: stable
 

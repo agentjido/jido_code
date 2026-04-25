@@ -31,7 +31,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - Provider-backed sign-in must continue to honor validated redirect contracts and explicit return paths, even as the ready-state default destination changes.
 - Current-truth specs should only be tightened to the final destination behavior once the implementation actually lands.
 
-[ ] 60 Phase 60 - Welcome Dashboard And Settings Convergence
+[x] 60 Phase 60 - Welcome Dashboard And Settings Convergence
   Complete the product-entry cutover by making dashboard the durable authenticated landing, keeping settings as the home of operator configuration, and then reconciling tests, docs, and current-truth specs to the shipped behavior.
 
   [x] 60.1 Section - Final Authenticated Entry Convergence
@@ -68,12 +68,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 60.2.2.2 Subtask - Update contributor-facing guidance and planning references that describe the public landing, authenticated product entry, or operator-settings home.
       [x] 60.2.2.3 Subtask - Keep deployment-specific operator guidance repo-local only where it clarifies the in-product route contract rather than becoming a full external setup manual.
 
-  [ ] 60.3 Section - Phase Integration Tests
+  [x] 60.3 Section - Phase Integration Tests
     Close the implementation plan with end-to-end coverage that proves the final entry model is coherent across bootstrap, onboarding, repeated sign-in, and operator configuration.
 
-    [ ] 60.3.1 Task - Add end-to-end route and settings convergence coverage
+    [x] 60.3.1 Task - Add end-to-end route and settings convergence coverage
       Verify the final flow as an operator would actually experience it after the full cutover.
 
-      [ ] 60.3.1.1 Subtask - Cover first-run bootstrap into signed-in setup continuation and explicit completion into dashboard.
-      [ ] 60.3.1.2 Subtask - Cover subsequent ready-state local and provider sign-in landing on dashboard while provider and Git integration management lives under settings.
-      [ ] 60.3.1.3 Subtask - Cover direct navigation among `/welcome`, `/dashboard`, and the settings-owned auth-and-integrations destination so the final route ownership is stable and unsurprising.
+      [x] 60.3.1.1 Subtask - Cover first-run bootstrap into signed-in setup continuation and explicit completion into dashboard.
+      [x] 60.3.1.2 Subtask - Cover subsequent ready-state local and provider sign-in landing on dashboard while provider and Git integration management lives under settings.
+      [x] 60.3.1.3 Subtask - Cover direct navigation among `/welcome`, `/dashboard`, and the settings-owned auth-and-integrations destination so the final route ownership is stable and unsurprising.

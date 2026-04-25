@@ -20,6 +20,7 @@ surface:
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -144,5 +145,12 @@ surface:
 - kind: source_file
   target: test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   covers:
+    - auth.operator_settings.hidden_during_bootstrap_entry
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - auth.operator_settings.sections_separated
+    - auth.operator_settings.github_service_validation_feedback
     - auth.operator_settings.hidden_during_bootstrap_entry
 ```

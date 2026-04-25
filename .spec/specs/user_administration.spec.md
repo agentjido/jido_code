@@ -24,6 +24,7 @@ surface:
   - test/support/conn_case.ex
   - priv/repo/migrations/20260325220016_migrate_resources1_dev.exs
   - priv/resource_snapshots/repo/users/20260325220016_dev.json
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
 ```
 
@@ -151,4 +152,9 @@ surface:
     - users.admin_system.bootstrap_admin
     - users.admin_system.admin_role_assignment
     - users.admin_system.registration_guardrails
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - users.admin_system.bootstrap_admin
 ```

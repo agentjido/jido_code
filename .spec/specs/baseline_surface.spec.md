@@ -25,6 +25,7 @@ surface:
   - test/jido_code_web/live/home_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/welcome_live_test.exs
 ```
@@ -117,6 +118,12 @@ surface:
 - kind: source_file
   target: test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   covers:
+    - baseline.surface.welcome_landing_copy
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - baseline.surface.public_entry_routes
     - baseline.surface.welcome_landing_copy
 
 - kind: source_file

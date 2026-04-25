@@ -14,6 +14,7 @@ surface:
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code/github/service_credentials.ex
   - test/jido_code_web/integration/self_hosted_provider_auth_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -140,4 +141,9 @@ surface:
     - auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
     - auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
     - auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - auth.self_hosted_provider_integration.login_and_service_ready
 ```

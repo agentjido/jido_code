@@ -6962,7 +6962,8 @@
             "test/jido_code_web/live/auth_session_live_test.exs",
             "test/jido_code_web/live/auth_boundary_live_test.exs",
             "test/jido_code_web/live/auth_sign_out_live_test.exs",
-            "test/jido_code_web/live/phase_fifty_eight_integration_test.exs"
+            "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -6990,6 +6991,7 @@
             "test/jido_code_web/live/home_live_test.exs",
             "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
             "test/jido_code_web/live/phase_fifty_nine_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs",
             "test/jido_code_web/live/setup_live_test.exs",
             "test/jido_code_web/live/welcome_live_test.exs"
           ],
@@ -7654,7 +7656,8 @@
             "test/jido_code_web/live/home_live_operator_settings_test.exs",
             "test/jido_code_web/live/phase_fifty_nine_integration_test.exs",
             "test/jido_code_web/live/settings_operator_auth_live_test.exs",
-            "test/jido_code_web/live/phase_fifty_eight_integration_test.exs"
+            "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -7952,7 +7955,8 @@
             "test/support/conn_case.ex",
             "test/jido_code/auth_providers/provider_login_test.exs",
             "test/jido_code_web/controllers/provider_auth_controller_test.exs",
-            "test/jido_code_web/live/home_live_test.exs"
+            "test/jido_code_web/live/home_live_test.exs",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -8151,7 +8155,8 @@
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
             "lib/jido_code_web/live/home_live.ex",
             "lib/jido_code/github/service_credentials.ex",
-            "test/jido_code_web/integration/self_hosted_provider_auth_test.exs"
+            "test/jido_code_web/integration/self_hosted_provider_auth_test.exs",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -8214,6 +8219,7 @@
             "test/jido_code/setup/onboarding_reset_test.exs",
             "test/jido_code/mix/onboarding_reset_test.exs",
             "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs",
             "test/jido_code_web/live/setup_live_test.exs",
             "test/jido_code_web/live/dashboard_live_test.exs",
             "test/jido_code/setup/project_import_test.exs",
@@ -8372,6 +8378,7 @@
             "test/support/conn_case.ex",
             "priv/repo/migrations/20260325220016_migrate_resources1_dev.exs",
             "priv/resource_snapshots/repo/users/20260325220016_dev.json",
+            "test/jido_code_web/live/phase_sixty_integration_test.exs",
             "test/jido_code_web/live/setup_live_test.exs"
           ],
           "verification_minimum_strength": null
@@ -13171,6 +13178,17 @@
       },
       {
         "covers": [
+          "auth.operator_settings.sections_separated",
+          "auth.operator_settings.github_service_validation_feedback",
+          "auth.operator_settings.hidden_during_bootstrap_entry"
+        ],
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
+      },
+      {
+        "covers": [
           "auth.provider_broker_handoff.state_token_signature",
           "auth.provider_broker_handoff.state_token_ttl",
           "auth.provider_broker_handoff.nonce_binding"
@@ -13412,6 +13430,15 @@
       },
       {
         "covers": [
+          "auth.provider_login_flow.redirect_path_completion"
+        ],
+        "file": ".spec/specs/provider_login_flow.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_login_flow",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
+      },
+      {
+        "covers": [
           "auth.provider_login_policy.provider_enablement",
           "auth.provider_login_policy.allowlist_evaluation",
           "auth.provider_login_policy.provider_neutral_logic"
@@ -13498,6 +13525,15 @@
         "kind": "source_file",
         "subject_id": "auth.self_hosted_provider_integration",
         "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs"
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.login_and_service_ready"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
       },
       {
         "covers": [
@@ -13598,6 +13634,15 @@
       },
       {
         "covers": [
+          "auth.system.ready_state_local_auth_handoff"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
+      },
+      {
+        "covers": [
           "baseline.surface.public_entry_routes",
           "baseline.surface.product_routes_declared",
           "baseline.surface.root_redirects_to_welcome"
@@ -13684,6 +13729,16 @@
         "kind": "source_file",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/phase_fifty_nine_integration_test.exs"
+      },
+      {
+        "covers": [
+          "baseline.surface.public_entry_routes",
+          "baseline.surface.welcome_landing_copy"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
       },
       {
         "covers": [
@@ -14305,6 +14360,15 @@
         "kind": "source_file",
         "subject_id": "package.jido_code",
         "target": "test/jido_code_web/live/phase_fifty_nine_integration_test.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
       },
       {
         "covers": [
@@ -15339,6 +15403,17 @@
       },
       {
         "covers": [
+          "setup.onboarding.admin_bootstrap_completion_gate",
+          "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.explicit_completion_path_to_dashboard"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
+      },
+      {
+        "covers": [
           "setup.onboarding.post_bootstrap_start_surface",
           "setup.onboarding.explicit_completion_path_to_dashboard",
           "setup.onboarding.deployment_mode_auto_detected",
@@ -15729,6 +15804,15 @@
       },
       {
         "covers": [
+          "users.admin_system.bootstrap_admin"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs"
+      },
+      {
+        "covers": [
           "workflow.runtime.compatibility.local_override_present"
         ],
         "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
@@ -15797,7 +15881,7 @@
     "requirements": 369,
     "scenarios": 181,
     "subjects": 44,
-    "verifications": 721
+    "verifications": 729
   },
   "verification": {
     "claims": [
@@ -28573,6 +28657,39 @@
         "verification_index": 7
       },
       {
+        "cover_id": "auth.operator_settings.github_service_validation_feedback",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "auth.operator_settings.hidden_during_bootstrap_entry",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "auth.operator_settings.sections_separated",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 8
+      },
+      {
         "cover_id": "auth.provider_broker_handoff.nonce_binding",
         "file": ".spec/specs/provider_broker_handoff.spec.md",
         "kind": "source_file",
@@ -29200,6 +29317,17 @@
         "verification_index": 6
       },
       {
+        "cover_id": "auth.provider_login_flow.redirect_path_completion",
+        "file": ".spec/specs/provider_login_flow.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_flow",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 7
+      },
+      {
         "cover_id": "auth.provider_login_policy.allowlist_evaluation",
         "file": ".spec/specs/provider_login_policy.spec.md",
         "kind": "source_file",
@@ -29475,6 +29603,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "auth.self_hosted_provider_integration.login_and_service_ready",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 4
+      },
+      {
         "cover_id": "auth.system.email_confirmation",
         "file": ".spec/specs/authentication_system.spec.md",
         "kind": "source_file",
@@ -29660,6 +29799,17 @@
         "subject_id": "auth.system",
         "target": "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
         "verification_index": 9
+      },
+      {
+        "cover_id": "auth.system.ready_state_local_auth_handoff",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 10
       },
       {
         "cover_id": "baseline.surface.product_routes_declared",
@@ -29856,7 +30006,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "baseline.surface",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
         "verification_index": 9
       },
       {
@@ -29867,8 +30017,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "baseline.surface",
-        "target": "test/jido_code_web/live/welcome_live_test.exs",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "baseline.surface.public_entry_routes",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
         "verification_index": 10
+      },
+      {
+        "cover_id": "baseline.surface.welcome_landing_copy",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/welcome_live_test.exs",
+        "verification_index": 11
       },
       {
         "cover_id": "baseline.surface.welcome_surface_consolidated",
@@ -29879,7 +30051,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "test ! -e lib/jido_code_web/live/welcome_live.ex",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "baseline.surface.product_routes_declared",
@@ -29890,7 +30062,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "baseline.surface.public_entry_routes",
@@ -29901,7 +30073,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "collaboration.workflow.beadwork_enabled",
@@ -30696,14 +30868,14 @@
         "verification_index": 21
       },
       {
-        "cover_id": "package.jido_code.spec_led_workspace",
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
         "verification_index": 22
       },
       {
@@ -30714,7 +30886,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/decisions/jido_code.jido_os_deprecation.md",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 23
       },
       {
@@ -30725,18 +30897,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md",
+        "target": ".spec/decisions/jido_code.jido_os_deprecation.md",
         "verification_index": 24
       },
       {
-        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "cover_id": "package.jido_code.spec_led_workspace",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/control/repo_bridge_test.exs",
+        "target": ".spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md",
         "verification_index": 25
       },
       {
@@ -30747,7 +30919,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
+        "target": "test/jido_code/control/repo_bridge_test.exs",
         "verification_index": 26
       },
       {
@@ -30758,7 +30930,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
         "verification_index": 27
       },
       {
@@ -30769,7 +30941,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/phase_thirty_four_integration_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 28
       },
       {
@@ -30780,7 +30952,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/phase_thirty_six_integration_test.exs",
+        "target": "test/jido_code/phase_thirty_four_integration_test.exs",
         "verification_index": 29
       },
       {
@@ -30791,7 +30963,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/phase_thirty_four_integration_test.exs",
+        "target": "test/jido_code/phase_thirty_six_integration_test.exs",
         "verification_index": 30
       },
       {
@@ -30802,7 +30974,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "test/jido_code_web/live/phase_thirty_four_integration_test.exs",
         "verification_index": 31
       },
       {
@@ -30813,7 +30985,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 32
       },
       {
@@ -30824,7 +30996,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/agents_live_test.exs",
+        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 33
       },
       {
@@ -30835,7 +31007,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/workflows_live_test.exs",
+        "target": "test/jido_code_web/live/agents_live_test.exs",
         "verification_index": 34
       },
       {
@@ -30846,7 +31018,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_os/phase_twenty_eight_integration_test.exs",
+        "target": "test/jido_code_web/live/workflows_live_test.exs",
         "verification_index": 35
       },
       {
@@ -30857,7 +31029,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/memory_graph_actions_test.exs",
+        "target": "test/jido_code/agent_os/phase_twenty_eight_integration_test.exs",
         "verification_index": 36
       },
       {
@@ -30868,7 +31040,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/memory_graph_workspace_test.exs",
+        "target": "test/jido_code/memory_graph_actions_test.exs",
         "verification_index": 37
       },
       {
@@ -30879,7 +31051,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/memory_graph_test.exs",
+        "target": "test/jido_code/memory_graph_workspace_test.exs",
         "verification_index": 38
       },
       {
@@ -30890,7 +31062,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/memory_graph_actions_test.exs",
+        "target": "test/jido_code/memory_graph_test.exs",
         "verification_index": 39
       },
       {
@@ -30901,7 +31073,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/memory_graph_workspace_test.exs",
+        "target": "test/jido_code/memory_graph_actions_test.exs",
         "verification_index": 40
       },
       {
@@ -30912,7 +31084,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_os/pods_test.exs",
+        "target": "test/jido_code/memory_graph_workspace_test.exs",
         "verification_index": 41
       },
       {
@@ -30923,7 +31095,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
+        "target": "test/jido_code/agent_os/pods_test.exs",
         "verification_index": 42
       },
       {
@@ -30934,7 +31106,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/source_code_graph_product_service_test.exs",
+        "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
         "verification_index": 43
       },
       {
@@ -30945,7 +31117,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/source_code_graph_workflow_service_test.exs",
+        "target": "test/jido_code/source_code_graph_product_service_test.exs",
         "verification_index": 44
       },
       {
@@ -30956,7 +31128,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/source_code_graph_governed_adoption_test.exs",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs",
         "verification_index": 45
       },
       {
@@ -30967,7 +31139,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/source_code_graph_materialization_test.exs",
+        "target": "test/jido_code/source_code_graph_governed_adoption_test.exs",
         "verification_index": 46
       },
       {
@@ -30978,7 +31150,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/phase_twenty_four_integration_test.exs",
+        "target": "test/jido_code/source_code_graph_materialization_test.exs",
         "verification_index": 47
       },
       {
@@ -30989,7 +31161,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/phase_twenty_six_integration_test.exs",
+        "target": "test/jido_code/phase_twenty_four_integration_test.exs",
         "verification_index": 48
       },
       {
@@ -31000,7 +31172,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/phase_twenty_seven_integration_test.exs",
+        "target": "test/jido_code/phase_twenty_six_integration_test.exs",
         "verification_index": 49
       },
       {
@@ -31011,7 +31183,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/phase_thirty_integration_test.exs",
+        "target": "test/jido_code/phase_twenty_seven_integration_test.exs",
         "verification_index": 50
       },
       {
@@ -31022,7 +31194,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "test/jido_code/phase_thirty_integration_test.exs",
         "verification_index": 51
       },
       {
@@ -31033,18 +31205,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
         "verification_index": 52
       },
       {
-        "cover_id": "package.jido_code.primary_implementation_repo",
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
+        "target": "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
         "verification_index": 53
       },
       {
@@ -31055,7 +31227,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
+        "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
         "verification_index": 54
       },
       {
@@ -31066,7 +31238,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 55
       },
       {
@@ -31077,8 +31249,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "lib/jido_code_web.ex",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
         "verification_index": 56
+      },
+      {
+        "cover_id": "package.jido_code.primary_implementation_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "lib/jido_code_web.ex",
+        "verification_index": 57
       },
       {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
@@ -31089,7 +31272,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": "lib/jido_code_web/components/live_vue_components.ex",
-        "verification_index": 57
+        "verification_index": 58
       },
       {
         "cover_id": "package.jido_code.mix_first_cli_surface",
@@ -31100,28 +31283,6 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": "mix.exs",
-        "verification_index": 58
-      },
-      {
-        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "package.jido_code",
-        "target": "mix.exs",
-        "verification_index": 58
-      },
-      {
-        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "package.jido_code",
-        "target": "README.md",
         "verification_index": 59
       },
       {
@@ -31132,7 +31293,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "CONTRIBUTING.md",
+        "target": "mix.exs",
+        "verification_index": 59
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "README.md",
         "verification_index": 60
       },
       {
@@ -31143,7 +31315,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "AGENTS.md",
+        "target": "CONTRIBUTING.md",
         "verification_index": 61
       },
       {
@@ -31154,7 +31326,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "lib/jido_code_web/frontend_assets.ex",
+        "target": "AGENTS.md",
         "verification_index": 62
       },
       {
@@ -31165,7 +31337,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/support/conn_case.ex",
+        "target": "lib/jido_code_web/frontend_assets.ex",
         "verification_index": 63
       },
       {
@@ -31176,7 +31348,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/support/live_vue_case.ex",
+        "target": "test/support/conn_case.ex",
         "verification_index": 64
       },
       {
@@ -31187,7 +31359,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/support/live_vue_boundary_live.ex",
+        "target": "test/support/live_vue_case.ex",
         "verification_index": 65
       },
       {
@@ -31198,7 +31370,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_workspace_test.exs",
+        "target": "test/support/live_vue_boundary_live.ex",
         "verification_index": 66
       },
       {
@@ -31209,7 +31381,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_os_integration_test.exs",
+        "target": "test/jido_code/agent_workspace_test.exs",
         "verification_index": 67
       },
       {
@@ -31220,7 +31392,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_os/manager_test.exs",
+        "target": "test/jido_code/agent_os_integration_test.exs",
         "verification_index": 68
       },
       {
@@ -31231,7 +31403,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/components/live_vue_components_test.exs",
+        "target": "test/jido_code/agent_os/manager_test.exs",
         "verification_index": 69
       },
       {
@@ -31242,7 +31414,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/frontend_assets_test.exs",
+        "target": "test/jido_code_web/components/live_vue_components_test.exs",
         "verification_index": 70
       },
       {
@@ -31253,7 +31425,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
+        "target": "test/jido_code_web/frontend_assets_test.exs",
         "verification_index": 71
       },
       {
@@ -31264,7 +31436,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
+        "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
         "verification_index": 72
       },
       {
@@ -31275,7 +31447,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/governance/runtime_evidence_feed_test.exs",
+        "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
         "verification_index": 73
       },
       {
@@ -31286,7 +31458,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/governance/run_governance_bridge_test.exs",
+        "target": "test/jido_code/governance/runtime_evidence_feed_test.exs",
         "verification_index": 74
       },
       {
@@ -31297,7 +31469,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/governance/posture_bridge_test.exs",
+        "target": "test/jido_code/governance/run_governance_bridge_test.exs",
         "verification_index": 75
       },
       {
@@ -31308,7 +31480,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "test/jido_code/governance/posture_bridge_test.exs",
         "verification_index": 76
       },
       {
@@ -31319,7 +31491,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 77
       },
       {
@@ -31330,7 +31502,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 78
       },
       {
@@ -31341,7 +31513,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/source_code_graph_actions_test.exs",
+        "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
         "verification_index": 79
       },
       {
@@ -31352,7 +31524,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "target": "test/jido_code/source_code_graph_actions_test.exs",
         "verification_index": 80
       },
       {
@@ -31363,7 +31535,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "mix.exs",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 81
       },
       {
@@ -31374,8 +31546,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs",
+        "target": "mix.exs",
         "verification_index": 82
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs",
+        "verification_index": 83
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -31386,17 +31569,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 83
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 84
       },
       {
@@ -31407,7 +31579,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 85
       },
       {
@@ -31418,18 +31590,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 86
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 87
       },
       {
@@ -31440,7 +31612,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 88
       },
       {
@@ -31451,7 +31623,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 89
       },
       {
@@ -31462,7 +31634,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 90
       },
       {
@@ -31473,7 +31645,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 91
       },
       {
@@ -31484,7 +31656,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 92
       },
       {
@@ -31495,7 +31667,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 93
       },
       {
@@ -31506,7 +31678,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 94
       },
       {
@@ -31517,7 +31689,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 95
       },
       {
@@ -31528,8 +31700,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 96
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 97
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -31540,7 +31723,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 97
+        "verification_index": 98
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -32181,25 +32364,14 @@
         "verification_index": 22
       },
       {
-        "cover_id": "setup.onboarding.deferred_integrations",
+        "cover_id": "setup.onboarding.admin_bootstrap_completion_gate",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
-      },
-      {
-        "cover_id": "setup.onboarding.deployment_mode_auto_detected",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
         "verification_index": 23
       },
       {
@@ -32210,8 +32382,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
         "verification_index": 23
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_start_surface",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 23
+      },
+      {
+        "cover_id": "setup.onboarding.deferred_integrations",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 24
+      },
+      {
+        "cover_id": "setup.onboarding.deployment_mode_auto_detected",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 24
+      },
+      {
+        "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -32222,7 +32438,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -32233,7 +32449,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -32244,7 +32460,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32255,7 +32471,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -32266,7 +32482,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -32277,7 +32493,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -32288,7 +32504,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32299,7 +32515,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -32310,7 +32526,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -32321,7 +32537,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.reset_mix_task",
@@ -32332,7 +32548,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code/setup/onboarding_reset_test.exs test/jido_code/mix/onboarding_reset_test.exs",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -32343,7 +32559,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -32354,7 +32570,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32365,17 +32581,6 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 27
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 28
       },
       {
@@ -32386,7 +32591,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 29
       },
       {
@@ -32397,7 +32602,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 30
       },
       {
@@ -32408,7 +32613,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 31
       },
       {
@@ -32419,7 +32624,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 32
       },
       {
@@ -32430,8 +32635,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
         "verification_index": 33
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 34
       },
       {
         "cover_id": "setup.runtime_environment_defaults.selection_is_distinct_from_install_flavor",
@@ -32951,6 +33167,17 @@
         "verification_index": 7
       },
       {
+        "cover_id": "users.admin_system.bootstrap_admin",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
+        "verification_index": 8
+      },
+      {
         "cover_id": "workflow.runtime.compatibility.local_override_present",
         "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
         "kind": "source_file",
@@ -33077,7 +33304,7 @@
     "strength_summary": {
       "claimed": 71,
       "executed": 0,
-      "linked": 1499
+      "linked": 1512
     },
     "threshold_failures": 0
   },

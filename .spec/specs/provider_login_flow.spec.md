@@ -20,6 +20,7 @@ surface:
   - test/jido_code/auth_providers/provider_login_test.exs
   - test/jido_code_web/controllers/provider_auth_controller_test.exs
   - test/jido_code_web/live/home_live_test.exs
+  - test/jido_code_web/live/phase_sixty_integration_test.exs
 ```
 
 ## Requirements
@@ -140,4 +141,9 @@ surface:
   covers:
     - auth.provider_login_flow.entrypoint_visible
     - auth.provider_login_flow.local_auth_fallback_visible
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_integration_test.exs
+  covers:
+    - auth.provider_login_flow.redirect_path_completion
 ```

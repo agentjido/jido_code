@@ -46,22 +46,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 63.1.2.2 Subtask - Keep repo-scoped workspace edits from implicitly changing other managed repositories.
       [x] 63.1.2.3 Subtask - Remove UI or copy paths that imply changing setup defaults will retroactively relocate already-imported repositories.
 
-  [ ] 63.2 Section - Operator And Setup Surface Adoption
+  [x] 63.2 Section - Operator And Setup Surface Adoption
     Surface the repo-scoped binding model to operators in the places where they actually discover blocked runtime state.
 
-    [ ] 63.2.1 Task - Add repo-level workspace inspection and repair UI
+    [x] 63.2.1 Task - Add repo-level workspace inspection and repair UI
       Give operators a direct place to see the bound workspace path and repair blocked local runtime readiness for one repository.
 
-      [ ] 63.2.1.1 Subtask - Expose the current repo-scoped workspace binding and readiness state on a canonical managed-repository operator surface.
-      [ ] 63.2.1.2 Subtask - Add explicit repo-level repair controls that let an operator bind or rebind a local workspace path for one managed repository.
-      [ ] 63.2.1.3 Subtask - Keep blocked runtime remediation language focused on the selected repository rather than on one install-wide root.
+      [x] 63.2.1.1 Subtask - Expose the current repo-scoped workspace binding and readiness state on a canonical managed-repository operator surface.
+      [x] 63.2.1.2 Subtask - Add explicit repo-level repair controls that let an operator bind or rebind a local workspace path for one managed repository.
+      [x] 63.2.1.3 Subtask - Keep blocked runtime remediation language focused on the selected repository rather than on one install-wide root.
 
-    [ ] 63.2.2 Task - Update setup and import copy to describe defaults honestly
+    [x] 63.2.2 Task - Update setup and import copy to describe defaults honestly
       Keep setup useful without overstating what the install-wide root means after import.
 
-      [ ] 63.2.2.1 Subtask - Rewrite setup runtime-environment copy so `workspace_root` is clearly described as a default seed, not a permanent topology rule.
-      [ ] 63.2.2.2 Subtask - Update local-repository and GitHub import follow-up copy so operators understand that each managed repository owns its later workspace binding.
-      [ ] 63.2.2.3 Subtask - Remove product wording that implies all managed local repositories must sit under one shared parent directory.
+      [x] 63.2.2.1 Subtask - Rewrite setup runtime-environment copy so `workspace_root` is clearly described as a default seed, not a permanent topology rule.
+      [x] 63.2.2.2 Subtask - Update local-repository and GitHub import follow-up copy so operators understand that each managed repository owns its later workspace binding.
+      [x] 63.2.2.3 Subtask - Remove product wording that implies all managed local repositories must sit under one shared parent directory.
 
   [ ] 63.3 Section - Phase Integration Tests
     Verify the new repo-scoped mutation and UI surfaces the way an operator will actually use them.

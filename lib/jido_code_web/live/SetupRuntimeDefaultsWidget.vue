@@ -105,13 +105,13 @@ const saveRuntimeDefaults = () => {
       </label>
 
       <label v-if="showWorkspaceRoot" class="fieldset">
-        <span class="label mb-1">Workspace root</span>
+        <span class="label mb-1">Default workspace root</span>
         <input
           id="setup-runtime-workspace-root"
           v-model="localWorkspaceRoot"
           type="text"
           class="input w-full"
-          placeholder="/absolute/path/to/workspaces"
+          placeholder="/absolute/path/used/for/new/local-imports"
           autocomplete="off"
           :disabled="props.buttonsDisabled"
           @change="changeWorkspaceRoot"
@@ -124,7 +124,7 @@ const saveRuntimeDefaults = () => {
         :disabled="props.buttonsDisabled"
         :class="['btn btn-primary w-full sm:w-auto', props.buttonsDisabled && 'btn-disabled']"
       >
-        Save runtime default
+        Save runtime defaults
       </button>
     </form>
 

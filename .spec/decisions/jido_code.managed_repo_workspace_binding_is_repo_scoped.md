@@ -10,7 +10,7 @@ affects:
   - setup.runtime_environment_defaults
 ---
 
-<!-- current_truth.reconciled_with_branch: setup still persists install-wide runtime defaults through SystemConfig, but canonical runtime readiness and repo-detail execution already resolve workspace binding from each managed repository's persisted workspace settings, setup import now accepts explicit repo-scoped local workspace paths without requiring one shared install-wide parent root, and product-owned repo-scoped workspace-binding updates now let operators repair one managed repository directly without rewriting setup defaults or sibling repositories. -->
+<!-- current_truth.reconciled_with_branch: setup still persists install-wide runtime defaults through SystemConfig, but canonical runtime readiness and repo-detail execution already resolve workspace binding from each managed repository's persisted workspace settings, setup import now accepts explicit repo-scoped local workspace paths without requiring one shared install-wide parent root, the signed-in setup surface now describes `workspace_root` as seed metadata for new imports rather than a permanent topology rule, and product-owned repo-scoped workspace-binding updates now let operators repair one managed repository directly from repo detail without rewriting setup defaults or sibling repositories. -->
 
 <!-- covers: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding -->
 <!-- covers: architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding -->
@@ -89,6 +89,8 @@ The durable rule has five parts:
   overstating their authority
 - operators have a direct repo-scoped repair seam for blocked runtime readiness
   instead of needing to re-run setup or infer a shared-root convention
+- setup copy can stay honest about install-wide defaults without implying later
+  repo relocation rules after import
 
 ### Constraints
 

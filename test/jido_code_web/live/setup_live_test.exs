@@ -389,9 +389,18 @@ defmodule JidoCodeWeb.SetupLiveTest do
     })
 
     runtime_widget = runtime_defaults_widget(view)
+    assert runtime_widget.props["runtimeDescription"] =~
+             "Each managed repository can later keep its own workspace binding."
+
     assert runtime_widget.props["savedRuntimeLabel"] == "Local"
     assert runtime_widget.props["savedRuntimeNote"] ==
-             "Local execution will use #{workspace_root} as the default workspace root."
+             "New local imports will seed repo workspace paths from #{workspace_root} until each managed repository is rebound."
+
+    assert has_element?(
+             view,
+             "#setup-complete-panel",
+             "runtime defaults, and repo-level workspace bindings remain editable after onboarding."
+           )
 
     assert %{
              onboarding_completed: false,
@@ -576,7 +585,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
              "Pick one or more linked GitHub repositories and import them into the control plane."
 
     assert selector.props["panelDetail"] ==
-             "Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later."
+             "Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later. Each imported managed repository can later keep its own workspace binding."
 
     assert selector.props["boundaryNote"] ==
              "LiveView still owns PAT capture, persistence, and completion; this widget only makes repository follow-up easier to scan and resume."
@@ -786,6 +795,18 @@ defmodule JidoCodeWeb.SetupLiveTest do
              view,
              "#setup-github-repository-summary",
              "Save a deployment-local GitHub PAT first, then repository selection will unlock automatically."
+           )
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-selector-deferred",
+             "Repository selection unlocks after this install has a saved GitHub PAT and setup refreshes access."
+           )
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-panel",
+             "Each managed repository can keep its own workspace binding after import."
            )
 
     assert has_element?(view, "#setup-github-pat-form")

@@ -645,6 +645,77 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert :ok = AgentWorkspace.stop_conversation(conversation_id)
   end
 
+  test "repo detail can repair a blocked repo-scoped workspace binding directly from the route", %{
+    conn: _conn
+  } do
+    register_owner("conversation-runtime-repair-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn(
+        "conversation-runtime-repair-owner@example.com",
+        "owner-password-123"
+      )
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-conversation-runtime-repair",
+        github_full_name: "owner/repo-conversation-runtime-repair",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          },
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
+        }
+      })
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-conversation-runtime-status", "Blocked")
+    assert has_element?(view, "#project-detail-conversation-runtime-repair")
+
+    view
+    |> element("#project-detail-conversation-runtime-repair")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-overview-panel")
+    assert has_element?(view, "#project-detail-workspace-binding-badge", "Needs path")
+    assert has_element?(
+             view,
+             "#project-detail-workspace-binding-form-note",
+             "It does not rewrite setup defaults or sibling repositories."
+           )
+
+    view
+    |> form("#project-detail-workspace-binding-form", %{
+      "workspace_binding" => %{
+        "workspace_environment" => "local",
+        "workspace_path" => workspace_path
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#project-detail-workspace-binding-path", workspace_path)
+    assert has_element?(view, "#project-detail-workspace-binding-root", Path.dirname(workspace_path))
+    assert has_element?(view, "#project-detail-workspace-binding-feedback-type")
+
+    view
+    |> element("#project-detail-overview-open-conversations")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
+    assert has_element?(view, "#project-detail-conversation-runtime-workspace", workspace_path)
+    refute has_element?(view, "#project-detail-conversation-runtime-notice")
+  end
+
   test "shows bounded conversation runtime readiness with the selected LLM on repo detail", %{
     conn: _conn
   } do

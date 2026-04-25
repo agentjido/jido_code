@@ -2045,12 +2045,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp runtime_workspace_path(%{} = project_detail) do
-    project_detail
-    |> Map.get(:settings)
-    |> Kernel.||(%{})
-    |> Map.get("workspace")
-    |> Kernel.||(%{})
-    |> Map.get("workspace_path")
+    ProjectDetail.workspace_path(project_detail)
   end
 
   defp runtime_workspace_path(_project_detail), do: nil

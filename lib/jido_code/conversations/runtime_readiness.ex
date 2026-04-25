@@ -39,34 +39,14 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
         |> Map.get(:execution_readiness, %{})
         |> normalize_map()
 
-      {:error,
-       %{
-         "error_type" =>
-           Map.get(execution_readiness, "error_type", "conversation_runtime_not_ready"),
-         "detail" =>
-           Map.get(
-             execution_readiness,
-             "detail",
-             "Repository execution prerequisites are not ready for real conversation runtime."
-           ),
-         "remediation" =>
-           Map.get(
-             execution_readiness,
-             "remediation",
-             "Repair repository workspace readiness and retry the conversation turn."
-           )
-       }}
+      {:error, execution_readiness_notice(execution_readiness)}
     end
   end
 
   defp workspace_path(project_detail) do
     workspace_path =
       project_detail
-      |> Map.get(:settings, %{})
-      |> normalize_map()
-      |> Map.get("workspace", %{})
-      |> normalize_map()
-      |> Map.get("workspace_path")
+      |> ProjectDetail.workspace_path()
       |> normalize_optional_string()
 
     case workspace_path do
@@ -80,6 +60,48 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
 
       path ->
         {:ok, Path.expand(path)}
+    end
+  end
+
+  defp execution_readiness_notice(execution_readiness) do
+    error_type =
+      Map.get(execution_readiness, "error_type", "conversation_runtime_not_ready")
+
+    case error_type do
+      "managed_repo_workspace_binding_missing" ->
+        %{
+          "error_type" => "conversation_runtime_workspace_binding_missing",
+          "detail" =>
+            "Managed repository is marked for local execution but has no repo-scoped workspace path for real conversation runtime.",
+          "remediation" =>
+            "Bind this repository to its own local workspace path and retry the conversation turn."
+        }
+
+      "managed_repo_workspace_binding_unavailable" ->
+        %{
+          "error_type" => "conversation_runtime_workspace_binding_unavailable",
+          "detail" =>
+            "Managed repository has no repo-scoped local workspace binding for real conversation runtime.",
+          "remediation" =>
+            "Bind this repository to its own local workspace path and retry the conversation turn."
+        }
+
+      _other ->
+        %{
+          "error_type" => error_type,
+          "detail" =>
+            Map.get(
+              execution_readiness,
+              "detail",
+              "Repository execution prerequisites are not ready for real conversation runtime."
+            ),
+          "remediation" =>
+            Map.get(
+              execution_readiness,
+              "remediation",
+              "Repair repository workspace readiness and retry the conversation turn."
+            )
+        }
     end
   end
 

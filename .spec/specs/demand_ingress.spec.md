@@ -1,6 +1,6 @@
 # Demand Ingress
 
-<!-- current_truth.reconciled_with_branch: setup project import remains part of the durable ingress path into canonical repo records. -->
+<!-- current_truth.reconciled_with_branch: setup project import remains part of the durable ingress path into canonical repo records and now preserves explicit repo-scoped workspace-binding metadata when import is launched with a repository-specific local path. -->
 
 This subject defines how `Jido.Code` captures inbound repository and operator
 demand into durable control-plane ingress records before downstream planning or
@@ -12,7 +12,7 @@ execution begins.
 id: architecture.demand_ingress
 kind: feature
 status: active
-summary: Jido.Code normalizes verified GitHub demand and operator-triggered requests into durable `ExternalObject`, `Observation`, and `Intake` records that preserve canonical managed-repository correlation, actor attribution, and source metadata before downstream work synthesis begins, while letting downstream posture refresh remain tied to that same durable ingress path.
+summary: Jido.Code normalizes verified GitHub demand and operator-triggered requests into durable `ExternalObject`, `Observation`, and `Intake` records that preserve canonical managed-repository correlation, actor attribution, source metadata, and setup-import binding context before downstream work synthesis begins, while letting downstream posture refresh remain tied to that same durable ingress path.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
@@ -100,6 +100,7 @@ surface:
     - The request is recorded as a durable `Intake` linked to the managed repository before execution-specific launcher behavior continues.
     - Any downstream posture refresh remains coupled to the managed-repository ingress path rather than running as a separate out-of-band feature hook.
     - The persisted ingress path keeps explicit operator or machine actor attribution instead of relying on anonymous trusted writes.
+    - Setup import retains any explicit repo-scoped workspace-binding metadata needed to provision that managed repository without assuming one shared install-wide local root.
 
 - id: architecture.demand_ingress.scenario_repo_governance_policy_flows_through_launch_entrypoints
   covers:

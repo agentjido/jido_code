@@ -13,6 +13,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   """
 
   alias JidoCode.MemoryGraph.{ProductFeedback, ProductService, SurfaceFeedback}
+  alias JidoCode.Workbench.ProjectDetail
 
   @default_graph %{
     graph_name: "memory",
@@ -167,11 +168,9 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
 
     workspace_path =
       project_like
-      |> map_get(:workspace_path, "workspace_path")
+      |> ProjectDetail.workspace_path()
       |> normalize_optional_string() ||
         project_like
-        |> map_get(:settings, "settings", %{})
-        |> map_get(:workspace, "workspace", %{})
         |> map_get(:workspace_path, "workspace_path")
         |> normalize_optional_string()
 
@@ -187,9 +186,11 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
       is_nil(workspace_path) ->
         {:error,
          %{
-           error_type: "memory_workspace_unavailable",
-           detail: "Memory inspection needs a repository workspace path before it can load memory graph state.",
-           remediation: "Complete workspace import for this managed repository and then retry memory inspection."
+           error_type: "memory_workspace_binding_unavailable",
+           detail:
+             "Memory inspection needs the managed repository's repo-scoped local workspace binding before it can load memory graph state.",
+           remediation:
+             "Bind this repository to its own local workspace path and then retry memory inspection."
          }}
 
       true ->

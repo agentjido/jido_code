@@ -14,6 +14,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.SourceCodeGraph.{ProductFeedback, ProductService}
+  alias JidoCode.Workbench.ProjectDetail
 
   @default_graph %{
     graph_name: "source_code",
@@ -195,11 +196,9 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
 
     workspace_path =
       project_like
-      |> map_get(:workspace_path, "workspace_path")
+      |> ProjectDetail.workspace_path()
       |> normalize_optional_string() ||
         project_like
-        |> map_get(:settings, "settings", %{})
-        |> map_get(:workspace, "workspace", %{})
         |> map_get(:workspace_path, "workspace_path")
         |> normalize_optional_string()
 
@@ -215,9 +214,11 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
       is_nil(workspace_path) ->
         {:error,
          %{
-           error_type: "semantic_workspace_unavailable",
-           detail: "Semantic inspection needs a repository workspace path before it can load semantic graph state.",
-           remediation: "Complete workspace import for this managed repository and then retry semantic inspection."
+           error_type: "semantic_workspace_binding_unavailable",
+           detail:
+             "Semantic inspection needs the managed repository's repo-scoped local workspace binding before it can load semantic graph state.",
+           remediation:
+             "Bind this repository to its own local workspace path and then retry semantic inspection."
          }}
 
       true ->

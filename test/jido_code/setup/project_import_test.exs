@@ -244,6 +244,93 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert File.dir?(report.baseline_metadata.workspace_path)
   end
 
+  test "run/3 accepts an explicit repo-scoped local workspace path without relying on a shared root" do
+    explicit_workspace_path =
+      Path.join(tmp_workspace_path!(), "independent-repo-location")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{},
+      default_environment: :sprite,
+      workspace_root: nil
+    })
+
+    onboarding_state = %{
+      "4" => %{
+        "github_credentials" => %{
+          "paths" => [
+            %{
+              "status" => "ready",
+              "repositories" => [
+                %{"full_name" => "owner/repo-one", "default_branch" => "main"}
+              ]
+            }
+          ]
+        }
+      },
+      "7" => %{
+        "repository_listing" => %{
+          "repositories" => [
+            %{
+              "full_name" => "owner/repo-one",
+              "default_branch" => "main",
+              "workspace_path" => explicit_workspace_path
+            }
+          ]
+        }
+      }
+    }
+
+    report = ProjectImport.run(nil, "owner/repo-one", onboarding_state)
+
+    refute ProjectImport.blocked?(report)
+    assert report.status == :ready
+    assert report.baseline_metadata.workspace_environment == :local
+    assert report.baseline_metadata.workspace_path == explicit_workspace_path
+    assert File.dir?(explicit_workspace_path)
+
+    {:ok, source_repo} =
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+
+    assert managed_repo.workspace_settings["workspace_path"] == explicit_workspace_path
+    assert managed_repo.workspace_settings["workspace_root"] == Path.dirname(explicit_workspace_path)
+  end
+
+  test "run/3 rejects a relative explicit repo-scoped workspace path" do
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{},
+      default_environment: :sprite,
+      workspace_root: nil
+    })
+
+    onboarding_state = %{
+      "7" => %{
+        "repository_listing" => %{
+          "repositories" => [
+            %{
+              "full_name" => "owner/repo-one",
+              "default_branch" => "main",
+              "workspace_path" => "relative/repo-one"
+            }
+          ]
+        }
+      }
+    }
+
+    report = ProjectImport.run(nil, "owner/repo-one", onboarding_state)
+
+    assert ProjectImport.blocked?(report)
+    assert report.status == :blocked
+    assert report.error_type == "workspace_path_invalid"
+    assert report.detail == "Local workspace path must be an absolute path."
+  end
+
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 

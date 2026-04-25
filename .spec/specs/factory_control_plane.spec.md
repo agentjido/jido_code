@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, and workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces. -->
+<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces, and setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
@@ -16,6 +16,7 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
+  - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
@@ -30,6 +31,7 @@ surface:
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane.md
+  - .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
@@ -37,6 +39,7 @@ surface:
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/control/repo_bridge.ex
+  - lib/jido_code/setup/project_import.ex
   - lib/jido_code/workbench/inventory.ex
   - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code/workbench/project_detail.ex
@@ -131,6 +134,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
+  statement: Managed repositories shall own repo-scoped workspace environment and workspace path as canonical execution binding, while install-wide setup defaults may seed initial provisioning only when import metadata does not already provide a repo-scoped binding and without requiring every local repository to share one filesystem parent root.
+  priority: must
+  stability: evolving
+
 - id: architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
   statement: When productive repository conversations create or attach governed work, repo detail, Workbench, dashboard summaries, and governed run detail should project repo intake, active work-item conversations, and preserved historical conversation lineage through canonical `ManagedRepo`, `WorkItem`, and governed `Run` records instead of surfacing a separate compatibility-era conversation truth lane or collapsing active governed work onto one repo-global conversation.
   priority: should
@@ -197,6 +205,7 @@ surface:
 - id: architecture.factory_control_plane.scenario_operator_surfaces_use_canonical_repo_and_run_routes
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
     - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
   given:
@@ -209,6 +218,8 @@ surface:
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
     - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
     - Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.
+    - Repo-scoped execution surfaces resolve workspace binding from the managed repository's persisted workspace settings rather than re-deriving a path from one install-wide local root.
+    - Repositories imported with explicit repo-scoped local paths remain first-class managed repositories even when those paths do not live under one shared install-wide parent directory.
 
 ```
 
@@ -388,6 +399,16 @@ surface:
   target: lib/jido_code/control/source_repo.ex
   covers:
     - architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
+
+- kind: source_file
+  target: .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
+  covers:
+    - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
+
+- kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
 
 - kind: source_file
   target: lib/jido_code/workbench/project_detail.ex

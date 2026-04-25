@@ -2,7 +2,7 @@
 
 # Runtime Environment Defaults
 
-<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject. -->
+<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject, while setup import now treats explicit repo-scoped local workspace paths as higher-priority binding input than the shared install default root. -->
 
 This subject defines how `Jido.Code` captures default runtime execution intent
 during setup and persists that choice as durable product metadata.
@@ -11,11 +11,13 @@ during setup and persists that choice as durable product metadata.
 id: setup.runtime_environment_defaults
 kind: feature
 status: active
-summary: Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, keeps that singleton writable through the shared `SystemConfig` boundary so setup reset flows can safely restore canonical defaults, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, and lets later setup helpers resolve workspace context from that durable metadata until repo-level overrides take over.
+summary: Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, keeps that singleton writable through the shared `SystemConfig` boundary so setup reset flows can safely restore canonical defaults, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, uses that install-wide metadata only as fallback seed context for repository import and provisioning when repo-scoped binding metadata is absent, allows explicit repo-scoped local workspace paths at import time, and treats each managed repository's persisted workspace settings as the canonical execution binding once repo-scoped state exists.
 decisions:
+  - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.runtime_environment_selection_is_persisted_setup_metadata
   - jido_code.runic_execution_model
 surface:
+  - .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
   - .spec/decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - lib/jido_code/setup/environment_defaults.ex
@@ -23,6 +25,7 @@ surface:
   - lib/jido_code/setup/system_config_record.ex
   - lib/jido_code/setup/system_config_persistence.ex
   - lib/jido_code/setup/project_import.ex
+  - lib/jido_code/workbench/project_detail.ex
   - config/config.exs
 ```
 
@@ -49,8 +52,13 @@ surface:
   priority: must
   stability: evolving
 
+- id: setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
+  statement: Managed repositories shall carry repo-scoped workspace environment and workspace path as the canonical execution binding, so local repositories are not required to share one install-wide parent location.
+  priority: must
+  stability: evolving
+
 - id: setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
-  statement: Setup repository import shall resolve workspace environment and workspace root from persisted setup runtime-default metadata until more specific per-repository settings are available.
+  statement: Setup repository import shall resolve initial workspace environment from explicit repo-scoped binding metadata when present and otherwise fall back to persisted setup runtime-default metadata, then persist repo-scoped workspace settings on the managed repository so later execution does not depend on one install-wide parent location.
   priority: must
   stability: evolving
 ```
@@ -88,9 +96,23 @@ surface:
   given:
     - Setup has already persisted runtime default metadata.
   when:
-    - First repository import or workspace provisioning resolves its initial workspace context.
+    - First repository import or workspace provisioning resolves its initial workspace context without explicit repo-scoped local binding metadata.
   then:
     - The import path derives workspace environment and workspace root from the persisted setup metadata instead of inferring those defaults from install flavor alone.
+    - The resulting managed repository persists repo-scoped workspace settings used by later execution surfaces.
+
+- id: setup.runtime_environment_defaults.scenario_repo_scoped_workspace_binding_can_diverge_from_install_default_root
+  covers:
+    - setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
+    - setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
+  given:
+    - Install-wide runtime defaults have already been persisted.
+    - One or more managed repositories later carry explicit repo-scoped workspace settings, including an explicit local `workspace_path` that may live outside the shared default root.
+  when:
+    - Runtime readiness or another repo-scoped execution surface resolves workspace binding for a managed repository.
+  then:
+    - The product uses that managed repository's persisted workspace settings as the canonical execution binding.
+    - The product does not assume every local managed repository lives under one shared install-wide parent root.
 ```
 
 ## Verification
@@ -132,4 +154,15 @@ surface:
   target: lib/jido_code/setup/project_import.ex
   covers:
     - setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
+
+- kind: source_file
+  target: .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
+  covers:
+    - setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
+
+- kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
+    - setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
 ```

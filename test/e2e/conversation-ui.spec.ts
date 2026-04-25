@@ -114,7 +114,7 @@ test("repo detail exposes blocked runtime readiness without pretending execution
   await expect(page.locator("#project-detail-conversation-runtime-status")).toHaveText("Blocked")
   await expect(page.locator("#project-detail-conversation-runtime-notice")).toBeVisible()
   await expect(page.locator("#project-detail-conversation-runtime-notice-type")).toContainText(
-    "conversation_runtime_workspace_unavailable"
+    "conversation_runtime_workspace_binding_missing"
   )
   await expect(page.locator("#project-detail-conversation-runtime-workspace")).toHaveText(
     "Workspace path unavailable"

@@ -532,6 +532,11 @@ defmodule JidoCode.Setup.ProjectImport do
       |> map_get(:workspace_root, "workspace_root")
       |> normalize_workspace_root()
 
+    explicit_workspace_path =
+      workspace_context
+      |> map_get(:workspace_path, "workspace_path")
+      |> normalize_workspace_root()
+
     case workspace_environment do
       :sprite ->
         {:ok,
@@ -545,8 +550,30 @@ defmodule JidoCode.Setup.ProjectImport do
 
       :local ->
         cond do
+          is_binary(explicit_workspace_path) and Path.type(explicit_workspace_path) != :absolute ->
+            {:error,
+             {"workspace_path_invalid", "Local workspace path must be an absolute path."}}
+
+          is_binary(explicit_workspace_path) ->
+            case File.mkdir_p(explicit_workspace_path) do
+              :ok ->
+                {:ok,
+                 %{
+                   workspace_initialized: true,
+                   workspace_environment: :local,
+                   workspace_root: workspace_root || workspace_root_from_path(explicit_workspace_path),
+                   workspace_path: explicit_workspace_path,
+                   cloned_at: checked_at
+                 }}
+
+              {:error, reason} ->
+                {:error,
+                 {"workspace_clone_provision_failed", "Failed to provision workspace path: #{inspect(reason)}."}}
+            end
+
           is_nil(workspace_root) ->
-            {:error, {"workspace_root_missing", "Local workspace root is missing for clone provisioning."}}
+            {:error,
+             {"workspace_root_missing", "Local workspace binding is missing both workspace path and workspace root for clone provisioning."}}
 
           Path.type(workspace_root) != :absolute ->
             {:error, {"workspace_root_invalid", "Local workspace root must be an absolute path."}}
@@ -1021,6 +1048,10 @@ defmodule JidoCode.Setup.ProjectImport do
       |> map_get(:workspace_path, "workspace_path")
       |> normalize_workspace_root()
 
+    workspace_root =
+      workspace_root ||
+        workspace_root_from_path(workspace_path)
+
     workspace_initialized =
       map_get(clone_result, :workspace_initialized, "workspace_initialized", false) == true
 
@@ -1128,24 +1159,48 @@ defmodule JidoCode.Setup.ProjectImport do
 
   defp workspace_context(onboarding_state, selected_repository) do
     environment_defaults = persisted_environment_defaults(onboarding_state)
+    repository_binding = repository_workspace_binding(selected_repository, onboarding_state)
+
+    explicit_workspace_path =
+      repository_binding
+      |> map_get(:workspace_path, "workspace_path")
+      |> normalize_workspace_root()
+
+    explicit_workspace_root =
+      repository_binding
+      |> map_get(:workspace_root, "workspace_root")
+      |> normalize_workspace_root()
 
     workspace_environment =
-      environment_defaults
+      repository_binding
       |> map_get(
-        :default_environment,
-        "default_environment",
-        environment_defaults |> map_get(:mode, "mode", :sprite)
+        :workspace_environment,
+        "workspace_environment",
+        environment_defaults
+        |> map_get(
+          :default_environment,
+          "default_environment",
+          environment_defaults |> map_get(:mode, "mode", :sprite)
+        )
       )
-      |> normalize_workspace_environment(:sprite)
+      |> normalize_workspace_environment(
+        infer_workspace_environment(explicit_workspace_path, explicit_workspace_root, :sprite)
+      )
 
     workspace_root =
-      environment_defaults
-      |> map_get(:workspace_root, "workspace_root")
+      explicit_workspace_root ||
+        workspace_root_from_path(explicit_workspace_path) ||
+        environment_defaults
+      |> map_get(
+          :workspace_root,
+          "workspace_root"
+        )
       |> normalize_workspace_root()
 
     %{
       workspace_environment: workspace_environment,
       workspace_root: workspace_root,
+      workspace_path: explicit_workspace_path,
       repository_workspace_dir: repository_workspace_dir(selected_repository)
     }
   end
@@ -1197,6 +1252,46 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp repository_workspace_dir(_selected_repository), do: "project-import"
+
+  defp repository_workspace_binding(selected_repository, onboarding_state)
+       when is_binary(selected_repository) and is_map(onboarding_state) do
+    repository_metadata(selected_repository, onboarding_state)
+    |> case do
+      %{} = repository ->
+        workspace_path =
+          repository
+          |> map_get(:workspace_path, "workspace_path")
+          |> normalize_workspace_root()
+
+        workspace_root =
+          repository
+          |> map_get(:workspace_root, "workspace_root")
+          |> normalize_workspace_root()
+
+        explicit_workspace_environment =
+          repository
+          |> map_get(:workspace_environment, "workspace_environment")
+          |> normalize_workspace_environment(nil)
+
+        if is_binary(workspace_path) or is_binary(workspace_root) or
+             explicit_workspace_environment in [:local, :sprite] do
+          %{
+            workspace_environment:
+              explicit_workspace_environment ||
+                infer_workspace_environment(workspace_path, workspace_root, :sprite),
+            workspace_root: workspace_root,
+            workspace_path: workspace_path
+          }
+        else
+          %{}
+        end
+
+      _other ->
+        %{}
+    end
+  end
+
+  defp repository_workspace_binding(_selected_repository, _onboarding_state), do: %{}
 
   defp split_repository(selected_repository) when is_binary(selected_repository) do
     case String.split(selected_repository, "/", parts: 2) do
@@ -1732,6 +1827,12 @@ defmodule JidoCode.Setup.ProjectImport do
   defp normalize_workspace_environment("cloud", _default), do: :sprite
   defp normalize_workspace_environment(_workspace_environment, default), do: default
 
+  defp infer_workspace_environment(workspace_path, workspace_root, _default)
+       when is_binary(workspace_path) or is_binary(workspace_root),
+       do: :local
+
+  defp infer_workspace_environment(_workspace_path, _workspace_root, default), do: default
+
   defp normalize_workspace_root(workspace_root) when is_binary(workspace_root) do
     workspace_root
     |> String.trim()
@@ -1742,6 +1843,11 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp normalize_workspace_root(_workspace_root), do: nil
+
+  defp workspace_root_from_path(workspace_path) when is_binary(workspace_path),
+    do: workspace_path |> Path.dirname() |> normalize_workspace_root()
+
+  defp workspace_root_from_path(_workspace_path), do: nil
 
   defp context_environment(context) do
     context

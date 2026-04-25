@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, and workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces. -->
+<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces, and setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
@@ -135,7 +135,7 @@ surface:
   stability: evolving
 
 - id: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
-  statement: Managed repositories shall own repo-scoped workspace environment and workspace path as canonical execution binding, while install-wide setup defaults may seed initial provisioning without requiring every local repository to share one filesystem parent root.
+  statement: Managed repositories shall own repo-scoped workspace environment and workspace path as canonical execution binding, while install-wide setup defaults may seed initial provisioning only when import metadata does not already provide a repo-scoped binding and without requiring every local repository to share one filesystem parent root.
   priority: must
   stability: evolving
 
@@ -219,6 +219,7 @@ surface:
     - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
     - Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.
     - Repo-scoped execution surfaces resolve workspace binding from the managed repository's persisted workspace settings rather than re-deriving a path from one install-wide local root.
+    - Repositories imported with explicit repo-scoped local paths remain first-class managed repositories even when those paths do not live under one shared install-wide parent directory.
 
 ```
 

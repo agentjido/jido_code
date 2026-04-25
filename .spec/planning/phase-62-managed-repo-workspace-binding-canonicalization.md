@@ -46,22 +46,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 62.1.2.2 Subtask - Keep blocked readiness typed and actionable when the managed repository has no concrete local workspace binding.
       [x] 62.1.2.3 Subtask - Remove any helper behavior that silently re-derives a local path from install-wide defaults after a managed repository already exists.
 
-  [ ] 62.2 Section - Import And Provisioning Cutover
+  [x] 62.2 Section - Import And Provisioning Cutover
     Keep setup-owned defaults useful at import time while making the resulting managed-repository state authoritative immediately after provisioning.
 
-    [ ] 62.2.1 Task - Persist repo-scoped workspace binding directly during import
+    [x] 62.2.1 Task - Persist repo-scoped workspace binding directly during import
       Ensure initial repository import writes the execution binding that later runtime surfaces will actually consume.
 
-      [ ] 62.2.1.1 Subtask - Keep install-wide runtime defaults limited to seeding initial workspace context for import and provisioning.
-      [ ] 62.2.1.2 Subtask - Persist the resulting repo-scoped workspace binding onto the managed repository during import instead of requiring later runtime reconstruction.
-      [ ] 62.2.1.3 Subtask - Keep local provisioning able to materialize a concrete workspace path even when repositories do not share one parent directory.
+      [x] 62.2.1.1 Subtask - Keep install-wide runtime defaults limited to seeding initial workspace context for import and provisioning.
+      [x] 62.2.1.2 Subtask - Persist the resulting repo-scoped workspace binding onto the managed repository during import instead of requiring later runtime reconstruction.
+      [x] 62.2.1.3 Subtask - Keep local provisioning able to materialize a concrete workspace path even when repositories do not share one parent directory.
 
-    [ ] 62.2.2 Task - Remove the shared-parent assumption from validation and shaping
+    [x] 62.2.2 Task - Remove the shared-parent assumption from validation and shaping
       Make the import pipeline accept repo-scoped local execution binding as a first-class concept instead of a special case under one root.
 
-      [ ] 62.2.2.1 Subtask - Validate explicit repo-scoped local paths as repository bindings rather than only validating a shared install-wide root.
-      [ ] 62.2.2.2 Subtask - Keep cloud-backed imports explicit about producing no local workspace binding.
-      [ ] 62.2.2.3 Subtask - Avoid adding migration or dual-read compatibility helpers for the old shared-root assumption.
+      [x] 62.2.2.1 Subtask - Validate explicit repo-scoped local paths as repository bindings rather than only validating a shared install-wide root.
+      [x] 62.2.2.2 Subtask - Keep cloud-backed imports explicit about producing no local workspace binding.
+      [x] 62.2.2.3 Subtask - Avoid adding migration or dual-read compatibility helpers for the old shared-root assumption.
 
   [ ] 62.3 Section - Phase Integration Tests
     Prove the control-plane and import cutover works without relying on the retired shared-parent assumption.

@@ -10,7 +10,7 @@ affects:
   - setup.runtime_environment_defaults
 ---
 
-<!-- current_truth.reconciled_with_branch: setup still persists install-wide runtime defaults through SystemConfig, but canonical runtime readiness and repo-detail execution already resolve workspace binding from each managed repository's persisted workspace settings rather than re-deriving a path from one global workspace root. -->
+<!-- current_truth.reconciled_with_branch: setup still persists install-wide runtime defaults through SystemConfig, but canonical runtime readiness and repo-detail execution already resolve workspace binding from each managed repository's persisted workspace settings, and setup import now accepts explicit repo-scoped local workspace paths without requiring one shared install-wide parent root. -->
 
 <!-- covers: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding -->
 <!-- covers: architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding -->
@@ -25,7 +25,7 @@ affects:
 `Jido.Code` currently persists install-wide runtime defaults through
 `SystemConfig.default_environment` and optional `SystemConfig.workspace_root`.
 Setup import uses that metadata to seed workspace provisioning for newly
-imported repositories.
+imported repositories when no repo-specific binding was supplied.
 
 At the same time, the product's real execution paths already depend on
 repo-scoped workspace metadata:
@@ -37,9 +37,11 @@ repo-scoped workspace metadata:
 - conversation runtime readiness validates the managed repository's persisted
   `workspace_path`
 
-That means the canonical execution binding is already repository-scoped even
-though some setup copy can still read as though one install-wide workspace root
-defines local execution topology for every repository.
+Setup import may also receive explicit repo-scoped workspace metadata such as a
+repository-specific local `workspace_path`. That means the canonical execution
+binding is already repository-scoped even though some setup copy can still read
+as though one install-wide workspace root defines local execution topology for
+every repository.
 
 That assumption is too narrow. Managed local repositories may live in unrelated
 filesystem locations, may arrive through different import paths, and may need
@@ -59,10 +61,11 @@ The durable rule has five parts:
    `workspace_environment` and `workspace_path`, are the canonical workspace
    binding used by runtime readiness, conversation execution, semantic
    inspection, memory inspection, and other repo-scoped execution surfaces.
-3. Setup import may seed initial workspace context from install-wide defaults,
-   but it shall persist the resulting repo-scoped workspace binding onto the
-   managed repository so later execution does not depend on re-reading the
-   install-wide default root.
+3. Setup import may seed initial workspace context from install-wide defaults
+   when repository metadata does not already provide a repo-scoped binding, but
+   it shall persist the resulting repo-scoped workspace binding onto the managed
+   repository so later execution does not depend on re-reading the install-wide
+   default root.
 4. Local managed repositories are not required to live under a shared parent
    directory, and product contracts must not imply that one install-wide root is
    a permanent topology constraint.
@@ -87,5 +90,7 @@ The durable rule has five parts:
   "this repository's bound workspace path"
 - repo-scoped workspace editing remains a distinct product concern from
   install-wide setup defaults
+- local provisioning must accept and validate explicit absolute repo-scoped
+  workspace paths without requiring one shared install-wide parent directory
 - imports performed under cloud-backed defaults may remain runtime-blocked on
   repo detail until a concrete repo-scoped workspace binding exists

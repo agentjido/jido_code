@@ -101,7 +101,7 @@ defmodule JidoCodeWeb.HomeLiveTest do
     refute has_element?(view, "a", "Create Account")
   end
 
-  test "signed-in ready-state welcome emphasizes dashboard handoff before lower-page operator controls",
+  test "signed-in ready-state welcome emphasizes dashboard handoff before settings-owned auth management",
        %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
@@ -114,7 +114,7 @@ defmodule JidoCodeWeb.HomeLiveTest do
     assert has_element?(
              view,
              "#welcome-ready-handoff-note",
-             "Provider login and Git integration controls are still available lower on this page"
+             "Provider Login and Git Provider Integrations now live under Settings"
            )
 
     refute html =~

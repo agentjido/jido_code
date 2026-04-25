@@ -1,3 +1,5 @@
+<!-- current_truth.reconciled_with_branch: ready-state local auth still defaults authenticated product entry to dashboard, preserves return-to overrides, continues to route incomplete onboarding to `/setup`, and now reaches signed-in `/welcome` only as a compact dashboard/settings handoff instead of a second operator console. -->
+
 # Authentication System
 
 This subject defines the baseline local authentication capabilities for `jido_code`. These local flows remain the durable fallback even as linked external provider identities can later provision or attach to the same local users.

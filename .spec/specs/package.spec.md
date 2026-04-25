@@ -614,4 +614,9 @@ surface:
   covers:
     - package.jido_code.bootstrap_and_start_surfaces_in_repo
 
+- kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
 ```

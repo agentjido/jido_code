@@ -469,6 +469,11 @@ surface:
     - setup.onboarding.repo_source_per_project
 
 - kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding
+
+- kind: source_file
   target: test/jido_code/setup/deployment_mode_test.exs
   covers:
     - setup.onboarding.deployment_mode_auto_detected

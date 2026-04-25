@@ -406,6 +406,11 @@ surface:
     - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
 
 - kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
+
+- kind: source_file
   target: lib/jido_code/workbench/project_detail.ex
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records

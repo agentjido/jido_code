@@ -159,4 +159,10 @@ surface:
   target: .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
   covers:
     - setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
+
+- kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
+    - setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
 ```

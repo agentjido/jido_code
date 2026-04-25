@@ -26,7 +26,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - Managed repositories already persist `workspace_settings`; this phase should promote that seam into the single canonical execution-binding contract instead of introducing another layer.
 - Cloud-backed imports may remain intentionally unbound to a local workspace path and should read as blocked for local-runtime execution rather than pretending to be partially ready.
 
-[ ] 62 Phase 62 - Managed Repo Workspace Binding Canonicalization
+[x] 62 Phase 62 - Managed Repo Workspace Binding Canonicalization
   Cut the product over to one canonical rule: each managed repository owns its execution workspace binding, while install-wide runtime defaults only seed initial provisioning.
 
   [x] 62.1 Section - Canonical Workspace Binding Model
@@ -63,12 +63,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 62.2.2.2 Subtask - Keep cloud-backed imports explicit about producing no local workspace binding.
       [x] 62.2.2.3 Subtask - Avoid adding migration or dual-read compatibility helpers for the old shared-root assumption.
 
-  [ ] 62.3 Section - Phase Integration Tests
+  [x] 62.3 Section - Phase Integration Tests
     Prove the control-plane and import cutover works without relying on the retired shared-parent assumption.
 
-    [ ] 62.3.1 Task - Add repo-scoped workspace-binding coverage
+    [x] 62.3.1 Task - Add repo-scoped workspace-binding coverage
       Verify the canonical contract at the product seams that matter most for execution readiness.
 
-      [ ] 62.3.1.1 Subtask - Add import and provisioning coverage proving managed repositories persist repo-scoped workspace bindings directly from the cutover path.
-      [ ] 62.3.1.2 Subtask - Add repo-detail or runtime-readiness coverage proving execution reads the managed repository's workspace binding instead of install-wide defaults.
-      [ ] 62.3.1.3 Subtask - Add coverage proving repositories without a local workspace binding stay explicitly blocked rather than falling back to a shared-root assumption.
+      [x] 62.3.1.1 Subtask - Add import and provisioning coverage proving managed repositories persist repo-scoped workspace bindings directly from the cutover path.
+      [x] 62.3.1.2 Subtask - Add repo-detail or runtime-readiness coverage proving execution reads the managed repository's workspace binding instead of install-wide defaults.
+      [x] 62.3.1.3 Subtask - Add coverage proving repositories without a local workspace binding stay explicitly blocked rather than falling back to a shared-root assumption.

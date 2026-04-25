@@ -9001,6 +9001,15 @@
       },
       {
         "covers": [
+          "architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding"
+        ],
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs"
+      },
+      {
+        "covers": [
           "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
           "architecture.conversation_orchestration.cancellation_lifecycle_is_evented"
         ],
@@ -10027,6 +10036,15 @@
         "kind": "source_file",
         "subject_id": "architecture.factory_control_plane",
         "target": ".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs"
       },
       {
         "covers": [
@@ -15277,6 +15295,15 @@
       },
       {
         "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs"
+      },
+      {
+        "covers": [
           "package.jido_code.package_quality_alignment_doc_present",
           "package.jido_code.package_quality_exceptions_documented"
         ],
@@ -15614,6 +15641,15 @@
       },
       {
         "covers": [
+          "setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs"
+      },
+      {
+        "covers": [
           "setup.onboarding.deployment_mode_auto_detected"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15825,6 +15861,16 @@
         "kind": "source_file",
         "subject_id": "setup.runtime_environment_defaults",
         "target": ".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md"
+      },
+      {
+        "covers": [
+          "setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults",
+          "setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical"
+        ],
+        "file": ".spec/specs/runtime_environment_defaults.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.runtime_environment_defaults",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs"
       },
       {
         "covers": [
@@ -16119,7 +16165,7 @@
     "requirements": 373,
     "scenarios": 183,
     "subjects": 44,
-    "verifications": 743
+    "verifications": 748
   },
   "verification": {
     "claims": [
@@ -17411,6 +17457,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs",
+        "verification_index": 4
+      },
+      {
         "cover_id": "architecture.conversation_orchestration.cancellation_lifecycle_is_evented",
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
@@ -17419,7 +17476,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/child_work.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
@@ -17430,7 +17487,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/child_work.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_turns_can_be_superseded",
@@ -17441,7 +17498,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.cancellation_lifecycle_is_evented",
@@ -17452,7 +17509,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_lane_preempts_work_lane",
@@ -17463,7 +17520,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -17474,7 +17531,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
@@ -17485,7 +17542,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
@@ -17496,7 +17553,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/coordinator.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_and_work_commands_are_distinct",
@@ -17507,7 +17564,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/driver.ex",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -17518,7 +17575,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/driver.ex",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary",
@@ -17529,7 +17586,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-46-real-llm-conversation-runtime-cutover.md",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit",
@@ -17540,7 +17597,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-46-real-llm-conversation-runtime-cutover.md",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -17551,7 +17608,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-46-real-llm-conversation-runtime-cutover.md",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode",
@@ -17562,7 +17619,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-46-real-llm-conversation-runtime-cutover.md",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -17573,7 +17630,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
@@ -17584,7 +17641,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-47-conversation-to-governed-work-convergence.md",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
@@ -17595,7 +17652,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-49-work-item-conversation-identity-and-canonical-admission.md",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
@@ -17606,7 +17663,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-49-work-item-conversation-identity-and-canonical-admission.md",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake",
@@ -17617,7 +17674,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-49-work-item-conversation-identity-and-canonical-admission.md",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -17628,7 +17685,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-50-managed-repo-workbench-and-dashboard-multi-conversation-adoption.md",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -17639,7 +17696,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-50-managed-repo-workbench-and-dashboard-multi-conversation-adoption.md",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
@@ -17650,7 +17707,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
@@ -17661,39 +17718,6 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": ".spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md",
-        "verification_index": 11
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": ".spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md",
-        "verification_index": 12
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": ".spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md",
-        "verification_index": 12
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": ".spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md",
         "verification_index": 12
       },
       {
@@ -17704,7 +17728,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/workflow_router.ex",
+        "target": ".spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md",
         "verification_index": 13
       },
       {
@@ -17715,7 +17739,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/workflow_router.ex",
+        "target": ".spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md",
         "verification_index": 13
       },
       {
@@ -17726,7 +17750,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/workflow_router.ex",
+        "target": ".spec/planning/phase-52-deterministic-conversation-workflow-routing-and-clarification.md",
         "verification_index": 13
       },
       {
@@ -17737,7 +17761,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code/phase_fifty_two_integration_test.exs",
+        "target": "lib/jido_code/conversations/workflow_router.ex",
         "verification_index": 14
       },
       {
@@ -17748,7 +17772,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code/phase_fifty_two_integration_test.exs",
+        "target": "lib/jido_code/conversations/workflow_router.ex",
         "verification_index": 14
       },
       {
@@ -17759,8 +17783,41 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code/phase_fifty_two_integration_test.exs",
+        "target": "lib/jido_code/conversations/workflow_router.ex",
         "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.ambiguous_workflow_routing_requests_clarification",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_two_integration_test.exs",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_two_integration_test.exs",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code/phase_fifty_two_integration_test.exs",
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
@@ -17771,7 +17828,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_nine_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
@@ -17782,7 +17839,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_nine_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.conversation_orchestration.repo_scoped_conversations_are_pre_work_intake",
@@ -17793,7 +17850,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_nine_integration_test.exs",
-        "verification_index": 15
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -17804,7 +17861,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event.ex",
-        "verification_index": 16
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.conversation_orchestration.expensive_work_announces_intent",
@@ -17815,7 +17872,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event.ex",
-        "verification_index": 16
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -17826,7 +17883,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/event_record.ex",
-        "verification_index": 17
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -17837,39 +17894,6 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/pub_sub.ex",
-        "verification_index": 18
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/persistence.ex",
-        "verification_index": 19
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/persistence.ex",
-        "verification_index": 19
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/persistence.ex",
         "verification_index": 19
       },
       {
@@ -17880,7 +17904,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/snapshot.ex",
+        "target": "lib/jido_code/conversations/persistence.ex",
         "verification_index": 20
       },
       {
@@ -17891,7 +17915,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/snapshot.ex",
+        "target": "lib/jido_code/conversations/persistence.ex",
+        "verification_index": 20
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations/persistence.ex",
         "verification_index": 20
       },
       {
@@ -17902,8 +17937,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/conversations/snapshot_record.ex",
+        "target": "lib/jido_code/conversations/snapshot.ex",
         "verification_index": 21
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations/snapshot.ex",
+        "verification_index": 21
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/conversations/snapshot_record.ex",
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -17914,7 +17971,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/snapshot_record.ex",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary",
@@ -17925,7 +17982,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit",
@@ -17936,7 +17993,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -17947,7 +18004,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode",
@@ -17958,7 +18015,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/runtime.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
@@ -17969,7 +18026,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations/work_resolution.ex",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -17980,7 +18037,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations.ex",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -17991,7 +18048,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations.ex",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
@@ -18002,7 +18059,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/conversations.ex",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -18013,7 +18070,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -18024,7 +18081,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -18035,7 +18092,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -18046,7 +18103,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -18057,7 +18114,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -18068,7 +18125,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
@@ -18079,7 +18136,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code/workbench/project_conversation.ex",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_turns_can_be_superseded",
@@ -18090,7 +18147,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.conversation_orchestration.cancellation_lifecycle_is_evented",
@@ -18101,7 +18158,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_lane_preempts_work_lane",
@@ -18112,7 +18169,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.conversation_orchestration.tool_execution_is_cancellable_child_work",
@@ -18123,7 +18180,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_and_work_commands_are_distinct",
@@ -18134,7 +18191,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_thirty_nine_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -18145,7 +18202,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_thirty_nine_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -18156,7 +18213,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_thirty_nine_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -18167,7 +18224,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -18178,7 +18235,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -18189,7 +18246,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_one_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 30
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -18200,7 +18257,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -18211,7 +18268,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -18222,7 +18279,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -18233,7 +18290,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_two_integration_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.conversation_orchestration.control_and_work_commands_are_distinct",
@@ -18244,7 +18301,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -18255,7 +18312,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.event_log_is_append_only_and_sequenced",
@@ -18266,7 +18323,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -18277,7 +18334,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_three_integration_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_is_repo_and_work_scoped",
@@ -18288,7 +18345,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state",
@@ -18299,7 +18356,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -18310,7 +18367,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_four_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary",
@@ -18321,7 +18378,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_six_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -18332,7 +18389,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_six_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.conversation_orchestration.steering_preserves_short_term_context",
@@ -18343,7 +18400,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_six_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -18354,7 +18411,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_seven_integration_test.exs",
-        "verification_index": 34
+        "verification_index": 35
       },
       {
         "cover_id": "architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items",
@@ -18365,7 +18422,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_seven_integration_test.exs",
-        "verification_index": 34
+        "verification_index": 35
       },
       {
         "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
@@ -18376,7 +18433,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_forty_eight_integration_test.exs",
-        "verification_index": 35
+        "verification_index": 36
       },
       {
         "cover_id": "architecture.conversation_orchestration.active_conversation_uniqueness_is_per_work_item",
@@ -18387,7 +18444,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_fifty_one_integration_test.exs",
-        "verification_index": 36
+        "verification_index": 37
       },
       {
         "cover_id": "architecture.conversation_orchestration.work_item_conversation_lifecycle_tracks_governed_work_status",
@@ -18398,7 +18455,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_fifty_one_integration_test.exs",
-        "verification_index": 36
+        "verification_index": 37
       },
       {
         "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
@@ -18409,7 +18466,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code/phase_fifty_one_integration_test.exs",
-        "verification_index": 36
+        "verification_index": 37
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -18420,7 +18477,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
@@ -18431,7 +18488,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -18442,7 +18499,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
@@ -18453,7 +18510,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
@@ -18464,7 +18521,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
@@ -18475,7 +18532,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "lib/jido_code_web/live/project_detail_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state",
@@ -18486,7 +18543,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
+        "verification_index": 39
       },
       {
         "cover_id": "architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit",
@@ -18497,72 +18554,6 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
-        "verification_index": 38
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "test/e2e/conversation-ui.spec.ts",
         "verification_index": 39
       },
       {
@@ -18573,8 +18564,74 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/phase_sixty_one_integration_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "verification_index": 39
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "verification_index": 39
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "verification_index": 39
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "verification_index": 39
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "verification_index": 39
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/e2e/conversation-ui.spec.ts",
         "verification_index": 40
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "test/jido_code_web/live/phase_sixty_one_integration_test.exs",
+        "verification_index": 41
       },
       {
         "cover_id": "architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage",
@@ -18585,7 +18642,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/phase_sixty_one_integration_test.exs",
-        "verification_index": 40
+        "verification_index": 41
       },
       {
         "cover_id": "architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable",
@@ -18596,17 +18653,6 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
         "target": "test/jido_code_web/live/phase_sixty_one_integration_test.exs",
-        "verification_index": 40
-      },
-      {
-        "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
-        "file": ".spec/specs/conversation_orchestration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 41
       },
       {
@@ -18617,7 +18663,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 42
       },
       {
@@ -18628,7 +18674,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
         "verification_index": 43
       },
       {
@@ -18639,18 +18685,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
         "verification_index": 44
       },
       {
-        "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
+        "cover_id": "architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage",
         "file": ".spec/specs/conversation_orchestration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/forge/pubsub.ex",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 45
       },
       {
@@ -18661,8 +18707,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_orchestration",
-        "target": "lib/jido_code/orchestration/run_pubsub.ex",
+        "target": "lib/jido_code/forge/pubsub.ex",
         "verification_index": 46
+      },
+      {
+        "cover_id": "architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable",
+        "file": ".spec/specs/conversation_orchestration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_orchestration",
+        "target": "lib/jido_code/orchestration/run_pubsub.ex",
+        "verification_index": 47
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -19930,14 +19987,14 @@
         "verification_index": 32
       },
       {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "cover_id": "architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/workbench/project_detail.ex",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs",
         "verification_index": 33
       },
       {
@@ -19948,7 +20005,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
+        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 34
       },
       {
@@ -19959,7 +20016,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
         "verification_index": 35
       },
       {
@@ -19970,8 +20027,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 36
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "verification_index": 37
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records",
@@ -19982,7 +20050,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code_web/live/run_detail_live.ex",
-        "verification_index": 36
+        "verification_index": 37
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -32151,6 +32219,17 @@
         "verification_index": 103
       },
       {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs",
+        "verification_index": 104
+      },
+      {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "source_file",
@@ -32778,6 +32857,17 @@
         "verification_index": 21
       },
       {
+        "cover_id": "setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs",
+        "verification_index": 22
+      },
+      {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -32786,7 +32876,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code/setup/deployment_mode_test.exs",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32797,7 +32887,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/phase_fifty_eight_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "setup.onboarding.admin_bootstrap_completion_gate",
@@ -32808,7 +32898,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
@@ -32819,7 +32909,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32830,7 +32920,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/phase_sixty_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "setup.onboarding.deferred_integrations",
@@ -32841,7 +32931,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.deployment_mode_auto_detected",
@@ -32852,7 +32942,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.explicit_completion_path_to_dashboard",
@@ -32863,7 +32953,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -32874,7 +32964,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -32885,7 +32975,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_persisted_metadata",
@@ -32896,7 +32986,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32907,7 +32997,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.start_path_preference_persisted",
@@ -32918,7 +33008,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -32929,7 +33019,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -32940,7 +33030,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -32951,7 +33041,7 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": "test/e2e/setup-onboarding.spec.ts",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_persisted_secret_ref",
@@ -32962,7 +33052,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
@@ -32973,7 +33063,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code_web/live/setup_live_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "setup.onboarding.reset_mix_task",
@@ -32984,7 +33074,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix test test/jido_code/setup/onboarding_reset_test.exs test/jido_code/mix/onboarding_reset_test.exs",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
@@ -32995,7 +33085,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 29
+        "verification_index": 30
       },
       {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
@@ -33006,7 +33096,7 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 29
+        "verification_index": 30
       },
       {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
@@ -33017,17 +33107,6 @@
         "strength": "claimed",
         "subject_id": "setup.onboarding",
         "target": "mix browser.verify",
-        "verification_index": 29
-      },
-      {
-        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
-        "file": ".spec/specs/setup_onboarding.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "setup.onboarding",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 30
       },
       {
@@ -33038,7 +33117,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 31
       },
       {
@@ -33049,7 +33128,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
         "verification_index": 32
       },
       {
@@ -33060,7 +33139,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/workbench_live.ex",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 33
       },
       {
@@ -33071,7 +33150,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "target": "lib/jido_code_web/live/workbench_live.ex",
         "verification_index": 34
       },
       {
@@ -33082,8 +33161,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
         "verification_index": 35
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 36
       },
       {
         "cover_id": "setup.runtime_environment_defaults.selection_is_distinct_from_install_flavor",
@@ -33194,6 +33284,28 @@
         "subject_id": "setup.runtime_environment_defaults",
         "target": ".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md",
         "verification_index": 7
+      },
+      {
+        "cover_id": "setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults",
+        "file": ".spec/specs/runtime_environment_defaults.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.runtime_environment_defaults",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical",
+        "file": ".spec/specs/runtime_environment_defaults.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.runtime_environment_defaults",
+        "target": "test/jido_code/phase_sixty_two_integration_test.exs",
+        "verification_index": 8
       },
       {
         "cover_id": "source.provider_adapter.placeholder_adapters",
@@ -33751,7 +33863,7 @@
     "strength_summary": {
       "claimed": 70,
       "executed": 0,
-      "linked": 1532
+      "linked": 1538
     },
     "threshold_failures": 0
   },

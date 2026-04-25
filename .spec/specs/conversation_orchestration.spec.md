@@ -566,6 +566,11 @@ surface:
     - architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding
 
 - kind: source_file
+  target: test/jido_code/phase_sixty_two_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding
+
+- kind: source_file
   target: lib/jido_code/conversations/child_work.ex
   covers:
     - architecture.conversation_orchestration.tool_execution_is_cancellable_child_work

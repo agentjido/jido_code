@@ -433,27 +433,44 @@ defmodule JidoCodeWeb.HomeLive do
                 <div class="space-y-3 text-center">
                   <%!-- covers: baseline.surface.welcome_landing_copy --%>
                   <p class="text-xs font-bold uppercase tracking-[0.24em] text-base-content/50">
-                    Spec Led Baseline
+                    {if @current_user, do: "Ready", else: "Spec Led Baseline"}
                   </p>
                   <h1 class="text-4xl font-bold text-base-content">Welcome to Jido Code</h1>
                   <p class="text-base leading-7 text-base-content/70">
-                    {ready_intro_copy(@deployment_mode)}
+                    {if(@current_user,
+                      do: ready_signed_in_intro_copy(@deployment_mode),
+                      else: ready_intro_copy(@deployment_mode))}
                   </p>
                 </div>
 
                 <div class="space-y-4">
                   <%= if @current_user do %>
-                    <div class="rounded-2xl border border-success/30 bg-success/10 p-4 text-center">
+                    <div class="rounded-2xl border border-success/30 bg-success/10 p-5 text-left">
                       <p class="text-sm uppercase tracking-[0.16em] text-success">Signed In</p>
                       <p class="mt-2 text-lg font-semibold text-base-content">{@current_user.email}</p>
+                      <p class="mt-3 text-sm leading-6 text-base-content/75">
+                        Bootstrap is complete. Use dashboard for normal product work, and use the lower-page operator controls only when you need to manage provider login or deployment-local Git automation.
+                      </p>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                      <.link id="welcome-open-dashboard" navigate={~p"/dashboard"} class="btn btn-primary btn-block">
+                        Open Dashboard
+                      </.link>
+                      <.link id="welcome-open-settings" navigate={~p"/settings"} class="btn btn-outline btn-block">
+                        Open Settings
+                      </.link>
                     </div>
 
                     <div class="grid gap-3">
-                      <a href="/sign-out" class="btn btn-primary btn-block">Sign Out</a>
+                      <a href="/sign-out" class="btn btn-ghost btn-block">Sign Out</a>
                     </div>
 
-                    <div class="rounded-2xl border border-base-300 bg-base-200/60 p-4 text-left text-sm text-base-content/70">
-                      Local email auth remains the fallback path even when hosted provider sign-in is enabled.
+                    <div
+                      id="welcome-ready-handoff-note"
+                      class="rounded-2xl border border-base-300 bg-base-200/60 p-4 text-left text-sm text-base-content/70"
+                    >
+                      Local email auth remains the fallback path even when hosted provider sign-in is enabled. Provider login and Git integration controls are still available lower on this page until settings adoption finishes.
                     </div>
                   <% else %>
                     <div class="grid gap-3">
@@ -468,10 +485,6 @@ defmodule JidoCodeWeb.HomeLive do
                       </div>
                     <% end %>
                   <% end %>
-                </div>
-
-                <div class="rounded-2xl border border-dashed border-base-300 bg-base-200/60 p-4 text-sm text-base-content/60">
-                  Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new spec-led baseline is validated.
                 </div>
               </div>
           <% end %>
@@ -489,7 +502,7 @@ defmodule JidoCodeWeb.HomeLive do
                   </p>
                   <h2 class="text-2xl font-semibold text-base-content">Provider Login</h2>
                   <p class="max-w-3xl text-sm leading-6 text-base-content/70">
-                    Configure broker trust and allowlist policy separately from deployment-local Git automation credentials.
+                    Configure broker trust and allowlist policy separately from deployment-local Git automation credentials. This welcome-page location is temporary until the settings-owned destination lands.
                   </p>
                 </div>
                 <div class="rounded-2xl border border-base-300 bg-base-200/70 px-4 py-3 text-sm text-base-content/70">
@@ -842,6 +855,14 @@ defmodule JidoCodeWeb.HomeLive do
 
   defp ready_intro_copy(_deployment_mode),
     do: "Sign in to this install. The first-run bootstrap is complete, and public account creation is now disabled."
+
+  defp ready_signed_in_intro_copy(:desktop),
+    do:
+      "This desktop install is ready. Continue into dashboard for product work, or use the lower-page operator controls when you need auth or Git integration management."
+
+  defp ready_signed_in_intro_copy(_deployment_mode),
+    do:
+      "This install is ready. Continue into dashboard for product work, or use the lower-page operator controls when you need auth or Git integration management."
 
   defp prerequisite_banner_message(:timeout),
     do: "Some checks timed out. Your system may not be fully ready."

@@ -8,7 +8,7 @@ This subject defines the reproducible self-hosted behavior for broker-backed pro
 id: auth.self_hosted_provider_integration
 kind: feature
 status: active
-summary: jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow.
+summary: jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow, whose signed-in ready-state path now behaves as a dashboard-first handoff while lower-page operator controls remain temporarily available there.
 surface:
   - lib/jido_code_web/controllers/provider_auth_controller.ex
   - lib/jido_code_web/live/home_live.ex

@@ -8,7 +8,7 @@ This subject defines the current ready-state operator auth-settings console used
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through the current ready-state operator auth-settings surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.
+summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through the current ready-state operator auth-settings surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access, with the current implementation keeping that console as a lower-page temporary location on signed-in `/welcome`.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
@@ -41,7 +41,7 @@ surface:
   stability: evolving
 
 - id: auth.operator_settings.hidden_during_bootstrap_entry
-  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render.
+  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render, with the current welcome implementation keeping it below the dashboard-first handoff card rather than as the first ready-state content.
   priority: must
   stability: evolving
 ```

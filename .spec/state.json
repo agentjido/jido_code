@@ -2383,7 +2383,7 @@
         "id": "auth.operator_settings.hidden_during_bootstrap_entry",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render.",
+        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the deployment is past bootstrap and the ready-state operator surface is allowed to render, with the current welcome implementation keeping it below the dashboard-first handoff card rather than as the first ready-state content.",
         "subject_id": "auth.operator_settings"
       },
       {
@@ -2759,7 +2759,7 @@
         "id": "baseline.surface.welcome_landing_copy",
         "priority": "must",
         "stability": "stable",
-        "statement": "The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.",
+        "statement": "The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs, ready-state sign-in copy for signed-out installs, and dashboard-first handoff copy for signed-in ready-state sessions.",
         "subject_id": "baseline.surface"
       },
       {
@@ -7639,7 +7639,7 @@
           "id": "auth.operator_settings",
           "kind": "feature",
           "status": "active",
-          "summary": "authenticated operators can manage provider-login broker trust and GitHub automation readiness through the current ready-state operator auth-settings surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.",
+          "summary": "authenticated operators can manage provider-login broker trust and GitHub automation readiness through the current ready-state operator auth-settings surface, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access, with the current implementation keeping that console as a lower-page temporary location on signed-in `/welcome`.",
           "surface": [
             "lib/jido_code_web/live/home_live.ex",
             "test/support/conn_case.ex",
@@ -7933,7 +7933,7 @@
           "id": "auth.provider_login_flow",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a GitHub provider sign-in entrypoint on the `/welcome` landing after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in setup-continuation paths, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in.",
+          "summary": "jido_code exposes a GitHub provider sign-in entrypoint on the `/welcome` landing after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in setup-continuation paths, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in while signed-in ready-state `/welcome` now emphasizes dashboard handoff instead of acting like the default operator destination.",
           "surface": [
             "lib/jido_code/auth_providers/provider_login.ex",
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
@@ -8135,7 +8135,7 @@
           "id": "auth.self_hosted_provider_integration",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow.",
+          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow, whose signed-in ready-state path now behaves as a dashboard-first handoff while lower-page operator controls remain temporarily available there.",
           "surface": [
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
             "lib/jido_code_web/live/home_live.ex",

@@ -1,6 +1,6 @@
 # Baseline Surface
 
-<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including GitHub PAT encryption preflight before secret-backed follow-up actions and multi-repository GitHub import selection that clears active selection once import follow-up completes. -->
+<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, and GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes. -->
 
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
@@ -41,7 +41,7 @@ surface:
   stability: evolving
 
 - id: baseline.surface.welcome_landing_copy
-  statement: The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.
+  statement: The `/welcome` landing page shall act as the canonical public/bootstrap and auth entry route, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs, ready-state sign-in copy for signed-out installs, and dashboard-first handoff copy for signed-in ready-state sessions.
   priority: must
   stability: stable
 

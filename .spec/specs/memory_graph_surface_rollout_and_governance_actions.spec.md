@@ -1,6 +1,6 @@
 # Memory Graph Surface Rollout And Governance Actions
 
-<!-- current_truth.reconciled_with_branch: governed memory helpers plus work-item, evidence, decision, repo-detail cohosting with the route-owned conversation shell, neighboring setup-route host-shell messaging, adjacent multi-repository setup follow-up that clears completed selections, repo-owned onboarding-reset coverage, and the shared LiveView route harness now treating dashboard as the ready-state local-auth entry surface remain part of this rollout subject. -->
+<!-- current_truth.reconciled_with_branch: governed memory helpers plus work-item, evidence, decision, repo-detail cohosting with the route-owned conversation shell, neighboring setup-route host-shell messaging, adjacent multi-repository setup follow-up that clears completed selections, repo-owned onboarding-reset coverage, and the shared LiveView route harness now treating dashboard as the ready-state local-auth entry surface while signed-in `/welcome` uses a dashboard-first handoff card above the temporary lower-page operator controls remain part of this rollout subject. -->
 
 This subject defines how bounded memory and workflow-provenance adoption should
 roll out across the remaining canonical operator and governed product surfaces.

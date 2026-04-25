@@ -2,12 +2,18 @@ defmodule JidoCodeWeb.SettingsLive do
   # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: auth.operator_settings.sections_separated
+  # covers: auth.operator_settings.broker_trust_configuration_ui
+  # covers: auth.operator_settings.github_service_validation_feedback
+  # covers: auth.operator_settings.integration_boundary_visible
+  # covers: auth.operator_settings.hidden_during_bootstrap_entry
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Accounts.SecurityTokens
   alias JidoCode.Control.Actor
   alias JidoCode.GitHub.Repo
   alias JidoCode.Security.SecretRefs
+  alias JidoCodeWeb.OperatorAuthSettings
   alias JidoCodeWeb.Security.UiRedaction
 
   @secret_scope_options [
@@ -24,6 +30,10 @@ defmodule JidoCodeWeb.SettingsLive do
       |> assign(:form, nil)
       |> assign(:repo_count, 0)
       |> assign(:enabled_repo_count, 0)
+      |> assign(:operator_auth_allowlist_options, OperatorAuthSettings.allowlist_options())
+      |> assign(:provider_login_cards, [])
+      |> assign(:github_service_report, %{checked_at: nil, status: :not_configured, paths: []})
+      |> assign(:github_service_secret_refs, [])
       |> assign(:security_tokens, [])
       |> assign(:security_api_keys, [])
       |> assign(:security_audit_events, [])
@@ -52,7 +62,7 @@ defmodule JidoCodeWeb.SettingsLive do
     socket =
       socket
       |> assign(:active_tab, tab)
-      |> maybe_load_security_tab(tab)
+      |> maybe_load_settings_tab(tab)
 
     {:noreply, socket}
   end
@@ -105,6 +115,19 @@ defmodule JidoCodeWeb.SettingsLive do
               </li>
               <li>
                 <.link
+                  id="settings-nav-auth"
+                  patch={~p"/settings/auth"}
+                  class={[
+                    "block px-4 py-2 rounded-lg transition-colors text-base-content",
+                    @active_tab == "auth" && "bg-primary text-primary-content font-medium",
+                    @active_tab != "auth" && "hover:bg-base-200"
+                  ]}
+                >
+                  <.icon name="hero-key" class="w-5 h-5 inline-block mr-2" /> Auth & Integrations
+                </.link>
+              </li>
+              <li>
+                <.link
                   patch={~p"/settings/security"}
                   class={[
                     "block px-4 py-2 rounded-lg transition-colors text-base-content",
@@ -146,6 +169,15 @@ defmodule JidoCodeWeb.SettingsLive do
               <% "account" -> %>
                 <div class="mt-6">
                   <.account_tab />
+                </div>
+              <% "auth" -> %>
+                <div class="mt-6">
+                  <.auth_integrations_tab
+                    provider_login_cards={@provider_login_cards}
+                    github_service_report={@github_service_report}
+                    github_service_secret_refs={@github_service_secret_refs}
+                    operator_auth_allowlist_options={@operator_auth_allowlist_options}
+                  />
                 </div>
               <% "security" -> %>
                 <div class="mt-6">
@@ -343,6 +375,261 @@ defmodule JidoCodeWeb.SettingsLive do
           This section will allow you to manage your profile and account preferences.
         </p>
       </div>
+    </div>
+    """
+  end
+
+  defp auth_integrations_tab(assigns) do
+    ~H"""
+    <div class="space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Auth & Integrations</h2>
+        <p class="text-sm text-base-content/70 mt-1">
+          Manage hosted provider login broker trust separately from deployment-local Git automation credentials.
+        </p>
+      </div>
+
+      <section
+        id="settings-auth-provider-login-settings"
+        class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
+      >
+        <div class="mb-6 flex items-start justify-between gap-6">
+          <div class="space-y-2">
+            <p class="text-xs font-bold uppercase tracking-[0.22em] text-base-content/45">
+              Operator Settings
+            </p>
+            <h3 class="text-2xl font-semibold text-base-content">Provider Login</h3>
+            <p class="max-w-3xl text-sm leading-6 text-base-content/70">
+              Configure broker trust and allowlist policy separately from deployment-local Git automation credentials.
+            </p>
+          </div>
+          <div class="rounded-2xl border border-base-300 bg-base-200/70 px-4 py-3 text-sm text-base-content/70">
+            Local email sign-in stays available even if every provider card below is disabled.
+          </div>
+        </div>
+
+        <div class="grid gap-6 xl:grid-cols-3">
+          <article
+            :for={card <- @provider_login_cards}
+            id={"settings-auth-provider-login-card-#{card.provider}"}
+            class="rounded-2xl border border-base-300 bg-base-200/40 p-5"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-lg font-semibold text-base-content">{card.display_name}</h4>
+                <p class="text-sm text-base-content/60">{card.provider_host}</p>
+              </div>
+              <span class={OperatorAuthSettings.provider_status_badge_class(card.status.tone)}>
+                {card.status.label}
+              </span>
+            </div>
+
+            <p class="mt-4 text-sm leading-6 text-base-content/70">{card.status.detail}</p>
+
+            <p
+              :if={card.status.missing_fields != []}
+              class="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-warning"
+            >
+              Missing: {Enum.join(card.status.missing_fields, ", ")}
+            </p>
+
+            <p class="mt-3 text-xs leading-5 text-base-content/55">{card.entrypoint_note}</p>
+
+            <.form
+              for={%{}}
+              as={:provider_login}
+              id={"settings-auth-provider-login-form-#{card.provider}"}
+              phx-submit="save_provider_login"
+              class="mt-5 space-y-3"
+            >
+              <input type="hidden" name="provider_login[provider]" value={card.provider} />
+
+              <div class="grid gap-3 sm:grid-cols-2">
+                <.input
+                  type="checkbox"
+                  name="provider_login[enabled]"
+                  checked={card.enabled}
+                  label="Enable provider host"
+                />
+                <.input
+                  type="checkbox"
+                  name="provider_login[login_enabled]"
+                  checked={card.login_enabled}
+                  label="Allow browser sign-in"
+                />
+              </div>
+
+              <.input
+                type="select"
+                name="provider_login[allowlist_mode]"
+                label="Allowlist Mode"
+                value={card.allowlist_mode}
+                options={@operator_auth_allowlist_options}
+              />
+
+              <.input
+                type="textarea"
+                name="provider_login[allowlist_values]"
+                label="Allowlist Values"
+                value={card.allowlist_values_text}
+                rows="4"
+                placeholder="One value per line or comma separated"
+              />
+
+              <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-base-content/45">
+                  Broker Trust
+                </p>
+                <div class="mt-3 space-y-3">
+                  <.input
+                    type="url"
+                    name="provider_login[broker_base_url]"
+                    label="Broker Base URL"
+                    value={card.broker_base_url}
+                    placeholder="https://broker.example.com"
+                  />
+                  <.input
+                    type="text"
+                    name="provider_login[broker_issuer]"
+                    label="Broker Issuer"
+                    value={card.broker_issuer}
+                    placeholder="https://broker.example.com"
+                  />
+                  <.input
+                    type="text"
+                    name="provider_login[broker_audience]"
+                    label="Broker Audience"
+                    value={card.broker_audience}
+                    placeholder="jido-code"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">
+                Save {card.display_name} Login Settings
+              </button>
+            </.form>
+          </article>
+        </div>
+      </section>
+
+      <section
+        id="settings-auth-git-provider-integrations"
+        class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
+      >
+        <div class="mb-6 flex items-start justify-between gap-6">
+          <div class="space-y-2">
+            <h3 class="text-2xl font-semibold text-base-content">Git Provider Integrations</h3>
+            <p class="max-w-3xl text-sm leading-6 text-base-content/70">
+              Deployment-local Git automation credentials stay separate from provider-login broker trust. GitHub App is preferred, PAT is fallback, and GitLab or Bitbucket remain placeholders for now.
+            </p>
+          </div>
+          <button
+            id="settings-auth-refresh-github-service-checks"
+            type="button"
+            phx-click="refresh_github_service_checks"
+            class="btn btn-outline btn-sm"
+          >
+            Refresh GitHub Validation
+          </button>
+        </div>
+
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-lg font-semibold text-base-content">GitHub Service Integration</h4>
+                <p class="text-sm text-base-content/60">
+                  Deployment-local automation credentials and repository access validation
+                </p>
+              </div>
+              <span class={OperatorAuthSettings.integration_status_badge_class(@github_service_report.status)}>
+                {OperatorAuthSettings.integration_status_label(@github_service_report.status)}
+              </span>
+            </div>
+
+            <div id="settings-auth-github-service-status" class="mt-4 space-y-4">
+              <p class="text-sm leading-6 text-base-content/70">
+                {OperatorAuthSettings.github_service_summary(@github_service_report)}
+              </p>
+
+              <p class="text-xs uppercase tracking-[0.18em] text-base-content/45">
+                Last checked: {OperatorAuthSettings.format_datetime(@github_service_report.checked_at)}
+              </p>
+
+              <div class="space-y-3">
+                <div
+                  :for={path_result <- @github_service_report.paths}
+                  id={"settings-auth-github-service-path-#{path_result.path}"}
+                  class="rounded-2xl border border-base-300 bg-base-100/70 p-4"
+                >
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <p class="font-medium text-base-content">{path_result.name}</p>
+                      <p class="mt-1 text-sm text-base-content/65">{path_result.detail}</p>
+                    </div>
+                    <span class={OperatorAuthSettings.integration_status_badge_class(path_result.status)}>
+                      {OperatorAuthSettings.integration_status_label(path_result.status)}
+                    </span>
+                  </div>
+
+                  <p class="mt-3 text-xs uppercase tracking-[0.18em] text-base-content/45">
+                    Repository access: {OperatorAuthSettings.repository_access_label(path_result.repository_access)}
+                  </p>
+
+                  <p
+                    :if={path_result.missing_repositories != []}
+                    class="mt-2 text-sm text-warning"
+                  >
+                    Missing repositories: {Enum.join(path_result.missing_repositories, ", ")}
+                  </p>
+
+                  <p class="mt-2 text-sm text-base-content/70">
+                    Remediation: {path_result.remediation}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <div class="space-y-6">
+            <article
+              id="settings-auth-github-service-secret-refs"
+              class="rounded-2xl border border-base-300 bg-base-200/40 p-5"
+            >
+              <h4 class="text-lg font-semibold text-base-content">Deployment-Local Secrets</h4>
+              <p class="mt-2 text-sm leading-6 text-base-content/70">
+                These secret refs back GitHub automation. They are not stored in the provider-login broker config.
+              </p>
+
+              <div class="mt-4 space-y-2 text-sm text-base-content/75">
+                <p :for={{credential, secret_ref} <- @github_service_secret_refs}>
+                  <span class="font-medium">{OperatorAuthSettings.service_credential_label(credential)}:</span>
+                  <code class="ml-2 rounded bg-base-300/70 px-2 py-1 text-xs">{secret_ref}</code>
+                </p>
+              </div>
+            </article>
+
+            <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
+              <h4 class="text-lg font-semibold text-base-content">Future Providers</h4>
+              <div class="mt-3 space-y-3 text-sm text-base-content/70">
+                <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
+                  <p class="font-medium text-base-content">GitLab</p>
+                  <p class="mt-1">
+                    Login config is modeled, but GitLab service automation is still a named placeholder adapter.
+                  </p>
+                </div>
+                <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
+                  <p class="font-medium text-base-content">Bitbucket</p>
+                  <p class="mt-1">
+                    Login config is modeled, but Bitbucket service automation is still a named placeholder adapter.
+                  </p>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
     </div>
     """
   end
@@ -882,6 +1169,25 @@ defmodule JidoCodeWeb.SettingsLive do
     end
   end
 
+  def handle_event("save_provider_login", %{"provider_login" => params}, socket) do
+    with {:ok, provider} <- OperatorAuthSettings.save_provider_login(params) do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Saved #{OperatorAuthSettings.provider_display_name(provider)} provider login settings.")
+       |> load_operator_auth_settings()}
+    else
+      {:error, message} when is_binary(message) ->
+        {:noreply, put_flash(socket, :error, message)}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, inspect(error))}
+    end
+  end
+
+  def handle_event("refresh_github_service_checks", _params, socket) do
+    {:noreply, load_operator_auth_settings(socket)}
+  end
+
   def handle_event("save_security_secret_ref", %{"security_secret" => params}, socket) do
     case SecretRefs.persist_operational_secret(Map.put(params, "actor", current_actor(socket))) do
       {:ok, _secret_metadata} ->
@@ -1008,14 +1314,22 @@ defmodule JidoCodeWeb.SettingsLive do
     end
   end
 
-  defp maybe_load_security_tab(socket, "security") do
+  defp maybe_load_settings_tab(socket, "auth") do
+    load_operator_auth_settings(socket)
+  end
+
+  defp maybe_load_settings_tab(socket, "security") do
     socket
     |> load_security_status()
     |> load_security_secret_metadata()
     |> load_security_secret_lifecycle_audits()
   end
 
-  defp maybe_load_security_tab(socket, _tab), do: socket
+  defp maybe_load_settings_tab(socket, _tab), do: socket
+
+  defp load_operator_auth_settings(socket) do
+    assign(socket, OperatorAuthSettings.state(socket.assigns[:current_user]))
+  end
 
   defp load_repos(socket) do
     repos = Repo.read!(actor: settings_actor(socket))
@@ -1205,6 +1519,13 @@ defmodule JidoCodeWeb.SettingsLive do
         active: Map.get(assigns, :active_tab) == "account"
       },
       %{
+        id: "auth",
+        label: "Auth & integrations",
+        value: auth_overview_value(assigns),
+        detail: auth_overview_detail(assigns),
+        active: Map.get(assigns, :active_tab) == "auth"
+      },
+      %{
         id: "security",
         label: "Security",
         value: security_overview_value(assigns),
@@ -1225,6 +1546,9 @@ defmodule JidoCodeWeb.SettingsLive do
       "account" ->
         "Account preferences stay routed through LiveView while this overview surfaces the active operator context."
 
+      "auth" ->
+        "Provider login broker trust and GitHub automation readiness stay grouped on this settings-owned authenticated surface."
+
       "security" ->
         "Security controls currently expose #{security_credential_count(assigns)} governed credential or secret record(s) in the active operator context."
 
@@ -1238,6 +1562,25 @@ defmodule JidoCodeWeb.SettingsLive do
       Integer.to_string(security_credential_count(assigns))
     else
       "Load tab"
+    end
+  end
+
+  defp auth_overview_value(assigns) do
+    if Map.get(assigns, :active_tab) == "auth" do
+      assigns
+      |> Map.get(:github_service_report, %{})
+      |> Map.get(:status, :not_configured)
+      |> OperatorAuthSettings.integration_status_label()
+    else
+      "Open tab"
+    end
+  end
+
+  defp auth_overview_detail(assigns) do
+    if Map.get(assigns, :active_tab) == "auth" do
+      "#{length(Map.get(assigns, :provider_login_cards, []))} provider host(s) modeled, #{length(Map.get(assigns, :github_service_secret_refs, []))} deployment-local Git secret ref(s) listed."
+    else
+      "Open Auth & Integrations to manage provider login broker trust and GitHub automation readiness."
     end
   end
 

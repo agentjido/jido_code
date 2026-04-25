@@ -1,13 +1,20 @@
 defmodule JidoCodeWeb.BrowserSetup do
+  # covers: architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+  # covers: architecture.conversation_orchestration.ui_delivery_is_event_driven_and_reconnectable
+  # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
   @moduledoc false
 
   alias JidoCode.Repo
+  alias JidoCode.Control.Actor
+  alias JidoCode.Projects.Project
   alias JidoCodeWeb.ConnCase
 
   @checked_at ~U[2026-02-13 12:34:56Z]
   @owner_email "owner@example.com"
   @owner_password "owner-password-123"
-  @scenario_modes ~w(normal fallback)
+  @setup_modes ~w(normal fallback)
+  @conversation_modes ~w(conversation_ready conversation_runtime_blocked conversation_degraded)
+  @scenario_modes @setup_modes ++ @conversation_modes
 
   def valid_scenario?(mode) when mode in @scenario_modes, do: true
   def valid_scenario?(_mode), do: false
@@ -17,10 +24,20 @@ defmodule JidoCodeWeb.BrowserSetup do
 
   def apply_scenario!(mode) when mode in @scenario_modes do
     reset_browser_state!()
-    configure_frontend_delivery!(mode)
-    configure_project_importer!()
     seed_owner!()
-    seed_system_config!()
+
+    case mode do
+      setup_mode when setup_mode in @setup_modes ->
+        configure_frontend_delivery!(setup_mode)
+        configure_project_importer!()
+        seed_setup_system_config!()
+
+      conversation_mode when conversation_mode in @conversation_modes ->
+        configure_conversation_delivery!(conversation_mode)
+        seed_conversation_system_config!()
+        seed_conversation_project!(conversation_mode)
+    end
+
     :ok
   end
 
@@ -32,6 +49,8 @@ defmodule JidoCodeWeb.BrowserSetup do
     Application.delete_env(:jido_code, :setup_github_http_client_options)
     Application.delete_env(:jido_code, :setup_project_importer)
     Application.delete_env(:jido_code, :frontend_assets_override)
+    Application.delete_env(:jido_code, :conversation_pubsub_subscriber)
+    Application.delete_env(:jido_code, :system_config)
 
     System.delete_env("BURRITO_TARGET")
   end
@@ -45,6 +64,17 @@ defmodule JidoCodeWeb.BrowserSetup do
     })
   end
 
+  defp configure_conversation_delivery!("conversation_ready"), do: :ok
+  defp configure_conversation_delivery!("conversation_runtime_blocked"), do: :ok
+
+  defp configure_conversation_delivery!("conversation_degraded") do
+    Application.put_env(
+      :jido_code,
+      :conversation_pubsub_subscriber,
+      JidoCodeWeb.FailingConversationSubscriber
+    )
+  end
+
   defp configure_project_importer! do
     Application.put_env(:jido_code, :setup_project_importer, &browser_project_importer/1)
   end
@@ -53,7 +83,7 @@ defmodule JidoCodeWeb.BrowserSetup do
     ConnCase.register_owner(@owner_email, @owner_password)
   end
 
-  defp seed_system_config! do
+  defp seed_setup_system_config! do
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
       onboarding_step: 3,
@@ -84,6 +114,66 @@ defmodule JidoCodeWeb.BrowserSetup do
       },
       default_environment: :sprite,
       workspace_root: nil
+    })
+  end
+
+  defp seed_conversation_system_config! do
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: true,
+      onboarding_step: 7,
+      onboarding_state: %{},
+      default_environment: :sprite,
+      workspace_root: nil
+    })
+  end
+
+  defp seed_conversation_project!("conversation_ready") do
+    workspace_path = create_browser_workspace!("conversation-ready")
+
+    upsert_conversation_project!(%{
+      name: "browser-conversation-ready",
+      github_full_name: "owner/browser-conversation-ready",
+      default_branch: "main",
+      settings: %{
+        "workspace" => ready_workspace_settings(workspace_path),
+        "execution" => %{
+          "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+        }
+      }
+    })
+  end
+
+  defp seed_conversation_project!("conversation_runtime_blocked") do
+    upsert_conversation_project!(%{
+      name: "browser-conversation-blocked",
+      github_full_name: "owner/browser-conversation-blocked",
+      default_branch: "main",
+      settings: %{
+        "workspace" => %{
+          "clone_status" => "ready",
+          "workspace_initialized" => true,
+          "baseline_synced" => true
+        },
+        "execution" => %{
+          "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+        }
+      }
+    })
+  end
+
+  defp seed_conversation_project!("conversation_degraded") do
+    workspace_path = create_browser_workspace!("conversation-degraded")
+
+    upsert_conversation_project!(%{
+      name: "browser-conversation-degraded",
+      github_full_name: "owner/browser-conversation-degraded",
+      default_branch: "main",
+      settings: %{
+        "workspace" => ready_workspace_settings(workspace_path),
+        "execution" => %{
+          "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+        }
+      }
     })
   end
 
@@ -130,5 +220,47 @@ defmodule JidoCodeWeb.BrowserSetup do
       remediation: "Import complete.",
       error_type: nil
     }
+  end
+
+  defp ready_workspace_settings(workspace_path) when is_binary(workspace_path) do
+    %{
+      "workspace_path" => workspace_path,
+      "clone_status" => "ready",
+      "workspace_initialized" => true,
+      "baseline_synced" => true
+    }
+  end
+
+  defp create_browser_workspace!(slug) when is_binary(slug) do
+    workspace_path =
+      Path.join(System.tmp_dir!(), "jido-code-browser-#{slug}")
+      |> Path.expand()
+
+    File.rm_rf!(workspace_path)
+    File.mkdir_p!(workspace_path)
+
+    File.write!(
+      Path.join(workspace_path, "README.md"),
+      """
+      # Browser scenario workspace
+
+      Scenario: #{slug}
+      """
+    )
+
+    workspace_path
+  end
+
+  defp upsert_conversation_project!(attrs) when is_map(attrs) do
+    actor = Actor.operator_actor()
+    github_full_name = Map.fetch!(attrs, :github_full_name)
+
+    case Project.get_by_github_full_name(github_full_name, actor: actor) do
+      {:ok, project} ->
+        {:ok, _project} = Project.update(project, attrs, actor: actor)
+
+      {:error, %Ash.Error.Query.NotFound{}} ->
+        {:ok, _project} = Project.create(attrs, actor: actor)
+    end
   end
 end

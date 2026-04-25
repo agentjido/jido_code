@@ -1171,6 +1171,9 @@ defmodule JidoCodeWeb.SetupLive do
       {project_import_report, batch_import_report} =
         run_github_project_import_batch(previous_import, selected_repositories, current_state)
 
+      remaining_selected_repositories =
+        github_selected_repositories_after_import(selected_repositories, batch_import_report)
+
       updated_step_state =
         existing_step_state
         |> Map.put(
@@ -1179,10 +1182,10 @@ defmodule JidoCodeWeb.SetupLive do
         )
         |> Map.put("project_import", ProjectImport.serialize_for_state(project_import_report))
         |> Map.put("project_import_batch", serialize_github_project_import_batch(batch_import_report))
-        |> maybe_put_selected_repositories(selected_repositories)
+        |> maybe_put_selected_repositories(remaining_selected_repositories)
         |> Map.put(
           "repository_selection_note",
-          github_repository_selection_note(selected_repositories)
+          github_repository_selection_note(remaining_selected_repositories)
         )
 
       {:ok, Map.put(current_state, Integer.to_string(@github_setup_step), updated_step_state)}
@@ -1245,7 +1248,7 @@ defmodule JidoCodeWeb.SetupLive do
     end
   end
 
-  defp github_selected_repositories(onboarding_state, listing_report, project_import_report) do
+  defp github_selected_repositories(onboarding_state, listing_report, _project_import_report) do
     step_state = fetch_step_state(onboarding_state, @github_setup_step)
 
     persisted_selections =
@@ -1259,11 +1262,9 @@ defmodule JidoCodeWeb.SetupLive do
       |> normalize_optional_string()
 
     available_repositories = GitHubRepositoryListing.repository_full_names(listing_report)
-    imported_selections = github_project_import_selected_repositories(project_import_report)
 
     persisted_selections
     |> Kernel.++(List.wrap(persisted_selection))
-    |> Kernel.++(imported_selections)
     |> Enum.uniq()
     |> Enum.filter(&repository_selection_available?(&1, available_repositories))
   end
@@ -1796,6 +1797,19 @@ defmodule JidoCodeWeb.SetupLive do
       end)
 
     {last_project_import(import_reports), github_project_import_batch(import_reports)}
+  end
+
+  defp github_selected_repositories_after_import(_selected_repositories, %{status: :ready}), do: []
+
+  defp github_selected_repositories_after_import(selected_repositories, batch_import_report) do
+    imported_repositories =
+      batch_import_report
+      |> Map.get(:imported_repositories, [])
+      |> normalize_repository_list()
+
+    selected_repositories
+    |> normalize_repository_list()
+    |> Enum.reject(&(&1 in imported_repositories))
   end
 
   defp github_project_import_batch(import_reports) do

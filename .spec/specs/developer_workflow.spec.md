@@ -1,5 +1,7 @@
 # Developer Workflow
 
+<!-- current_truth.reconciled_with_branch: contributor workflow guidance remains Mix-first and now includes repo-facing conversation-hosting expectations plus the shared browser-harness path used for routed setup and conversation Playwright verification. -->
+
 This subject defines the normal local development contract for contributors working on `jido_code`.
 
 ```spec-meta

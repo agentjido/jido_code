@@ -1,6 +1,6 @@
 # Memory Graph Surface Rollout And Governance Actions
 
-<!-- current_truth.reconciled_with_branch: governed memory helpers plus work-item, evidence, decision, neighboring setup-route host-shell messaging, adjacent multi-repository setup follow-up, and repo-owned onboarding-reset coverage remain part of this rollout subject. -->
+<!-- current_truth.reconciled_with_branch: governed memory helpers plus work-item, evidence, decision, repo-detail cohosting with the route-owned conversation shell, neighboring setup-route host-shell messaging, adjacent multi-repository setup follow-up that clears completed selections, and repo-owned onboarding-reset coverage remain part of this rollout subject. -->
 
 This subject defines how bounded memory and workflow-provenance adoption should
 roll out across the remaining canonical operator and governed product surfaces.

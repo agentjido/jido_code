@@ -38,7 +38,8 @@ defmodule JidoCode.Workbench.Inventory do
           issue_triage_policy: map(),
           semantic_graph_hint: map() | nil,
           memory_graph_hint: map() | nil,
-          repo_conversation: map() | nil
+          repo_conversation: map() | nil,
+          conversation_supervision: map() | nil
         }
 
   @type stale_warning :: %{
@@ -358,14 +359,22 @@ defmodule JidoCode.Workbench.Inventory do
         })
     }
 
+    conversation_supervision =
+      managed_repo_id &&
+        ProjectConversation.load_supervision_summary(managed_repo_id, actor: Actor.operator_actor())
+
     row
     |> Map.put(:semantic_graph_hint, ProjectSemanticInspection.status_hint(row))
     |> Map.put(:memory_graph_hint, ProjectMemoryInspection.status_hint(row))
     |> Map.put(
       :repo_conversation,
       managed_repo_id &&
-        ProjectConversation.load_managed_repo(managed_repo_id, actor: Actor.operator_actor())
+        ProjectConversation.load_repo_detail(
+          %{managed_repo_id: managed_repo_id},
+          actor: Actor.operator_actor()
+        )
     )
+    |> Map.put(:conversation_supervision, conversation_supervision)
   end
 
   defp resolve_recent_activity_summary(
@@ -499,7 +508,11 @@ defmodule JidoCode.Workbench.Inventory do
       repo_conversation:
         row
         |> map_get(:repo_conversation, "repo_conversation")
-        |> normalize_repo_conversation_projection()
+        |> normalize_repo_conversation_projection(),
+      conversation_supervision:
+        row
+        |> map_get(:conversation_supervision, "conversation_supervision")
+        |> normalize_conversation_supervision_projection()
     }
   end
 
@@ -522,12 +535,16 @@ defmodule JidoCode.Workbench.Inventory do
       issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(%{}),
       semantic_graph_hint: nil,
       memory_graph_hint: nil,
-      repo_conversation: nil
+      repo_conversation: nil,
+      conversation_supervision: nil
     }
   end
 
   defp normalize_repo_conversation_projection(value) when is_map(value), do: value
   defp normalize_repo_conversation_projection(_value), do: nil
+
+  defp normalize_conversation_supervision_projection(value) when is_map(value), do: value
+  defp normalize_conversation_supervision_projection(_value), do: nil
 
   defp normalize_warning(nil), do: nil
 

@@ -1,6 +1,6 @@
 # Conversation Orchestration
 
-<!-- current_truth.reconciled_with_branch: coordinator, event, snapshot, pubsub, and phase-40-through-44 conversation coverage stay governed by this subject. -->
+<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, Workbench plus run detail plus dashboard reuse shared conversation supervision language, and browser coverage now exercises ready, blocked, clarification-reload, and degraded repo-detail conversation states. -->
 
 This subject defines how productive coding conversations are coordinated across
 durable work scope, interruptible execution, and event-driven UI delivery.
@@ -9,7 +9,7 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including bounded managed-repository route adoption, repo-scoped pre-work intake, multiple active work-item conversations per repository, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
@@ -32,6 +32,7 @@ surface:
   - lib/jido_code/conversations/snapshot_record.ex
   - lib/jido_code/conversations/turn.ex
   - lib/jido_code/conversations/runtime.ex
+  - lib/jido_code/conversations/runtime_readiness.ex
   - lib/jido_code/conversations/work_resolution.ex
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/operations/work_item.ex
@@ -45,9 +46,12 @@ surface:
   - lib/jido_code/agents/explainer.ex
   - lib/jido_code/workbench/project_conversation.ex
   - lib/jido_code/workbench/inventory.ex
+  - lib/jido_code/workbench/dashboard_conversation_feed.ex
+  - lib/jido_code_web/components/conversation_surface_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/run_detail_live.ex
+  - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code/setup/provider_credential_checks.ex
   - .spec/decisions/jido_code.work_item_scoped_conversations_as_canonical_productive_threads.md
   - lib/jido_code/forge/pubsub.ex
@@ -63,6 +67,8 @@ surface:
   - test/jido_code_web/live/project_detail_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/dashboard_live_test.exs
+  - test/e2e/conversation-ui.spec.ts
 ```
 
 ## Requirements
@@ -201,6 +207,11 @@ surface:
 - id: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
   statement: When a repository conversation cannot start or continue real LLM-backed execution because provider credentials, runtime services, or policy prerequisites are unavailable, operator surfaces shall render explicit readiness or recovery states instead of simulating successful work.
   priority: must
+  stability: proposed
+
+- id: architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
+  statement: The canonical repo-detail conversation host surface should keep selected provider/model, workspace readiness, clarification state, and degraded snapshot continuity visible in bounded operator-readable panels while leaving raw sequence and discontinuity metadata visually secondary to actionable conversation state.
+  priority: should
   stability: proposed
 
 - id: architecture.conversation_orchestration.real_runtime_cutover_has_no_compatibility_mode
@@ -420,6 +431,22 @@ surface:
     - The runtime resolves a concrete provider and model from conversation override, repository default, or system default before specialist execution begins.
     - Progress, stdout, delta, clarification, and completion updates reflect the real conversation runtime outcome.
     - The route continues to consume those updates through the existing event-driven conversation delivery model.
+
+- id: architecture.conversation_orchestration.scenario_repo_detail_surfaces_runtime_readiness_and_recovery
+  covers:
+    - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
+    - architecture.conversation_orchestration.degraded_mode_falls_back_to_persisted_state
+    - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
+  given:
+    - Repo detail is hosting either repo intake or governed work-item conversation state for a managed repository.
+    - The selected provider/model may be ready, blocked by workspace or provider prerequisites, or temporarily degraded to snapshot-only continuity.
+  when:
+    - An operator opens repo detail, submits a turn that requests clarification, or reloads while the route is recovering continuity.
+  then:
+    - The route keeps selected provider/model and workspace readiness visible without leaving the canonical conversation host surface.
+    - Clarification, degraded continuity, and preserved transcript or work-item linkage remain explicit instead of being hidden behind runtime internals.
+    - Raw sequence and continuity-gap metadata remain secondary to actionable conversation state.
 
 - id: architecture.conversation_orchestration.scenario_conversation_override_supersedes_repo_default
   covers:
@@ -756,6 +783,7 @@ surface:
     - architecture.conversation_orchestration.managed_repo_routes_host_repo_conversations
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
+    - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
 
 - kind: source_file
   target: test/jido_code_web/live/project_detail_live_test.exs
@@ -766,6 +794,12 @@ surface:
     - architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
     - architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
     - architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+    - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
+
+- kind: source_file
+  target: test/e2e/conversation-ui.spec.ts
+  covers:
+    - architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
 
 - kind: source_file
   target: lib/jido_code_web/live/workbench_live.ex

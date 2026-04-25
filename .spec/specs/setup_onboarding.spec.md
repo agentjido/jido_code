@@ -1,5 +1,7 @@
 # Setup Onboarding
 
+<!-- current_truth.reconciled_with_branch: `/setup` remains the LiveView-owned signed-in start surface with bounded hybrid follow-up work, and the shared browser harness now covers setup scenarios alongside conversation-route scenarios without changing setup ownership, fallback behavior, or persisted GitHub follow-up state. -->
+
 This subject defines the first signed-in product entry contract after bootstrap administrator creation. The goal is to keep first-run onboarding simple: create the first admin, enter the app, and defer optional repo and integration setup into signed-in follow-up flows.
 
 <!-- covers: package.jido_code.bootstrap_and_start_surfaces_in_repo -->
@@ -8,7 +10,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
@@ -106,7 +108,7 @@ surface:
   stability: evolving
 
 - id: setup.onboarding.github_repository_selection_persisted_metadata
-  statement: When `/setup` surfaces linked GitHub repositories for optional import, the selected repository list plus the latest repository-listing and import reports shall persist through database-backed onboarding metadata so the operator can resume that follow-up work after reload or restart.
+  statement: When `/setup` surfaces linked GitHub repositories for optional import, the selected repository list plus the latest repository-listing and import reports shall persist through database-backed onboarding metadata so the operator can resume that follow-up work after reload or restart, while fully successful imports clear the active selection and leave the import report as the durable history.
   priority: must
   stability: evolving
 
@@ -213,6 +215,7 @@ surface:
     - The operator selects one or more linked repositories, toggles those selections, or imports them from the optional follow-up surface on `/setup`.
   then:
     - The selected repository list, repository-listing report, and latest import result persist in database-backed onboarding metadata.
+    - When the import succeeds completely, the operator returns to an unselected repository picker while the latest import result remains visible as history.
     - The optional follow-up surface can resume that GitHub repository context after route reload without reintroducing a blocking wizard.
     - When richer client delivery is available, the repository selector may arrive through a bounded `live_vue` region without moving setup ownership out of LiveView.
 

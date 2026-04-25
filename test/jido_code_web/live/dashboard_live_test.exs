@@ -20,10 +20,14 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     original_memory_loader =
       Application.get_env(:jido_code, :dashboard_memory_summary_loader, :__missing__)
 
+    original_conversation_loader =
+      Application.get_env(:jido_code, :dashboard_conversation_summary_loader, :__missing__)
+
     on_exit(fn ->
       restore_env(:dashboard_run_summary_loader, original_loader)
       restore_env(:dashboard_runtime_evidence_loader, original_runtime_loader)
       restore_env(:dashboard_memory_summary_loader, original_memory_loader)
+      restore_env(:dashboard_conversation_summary_loader, original_conversation_loader)
     end)
 
     :ok
@@ -244,6 +248,80 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Review: open")
   end
 
+  test "renders bounded conversation supervision summaries that route back to repo detail", %{
+    conn: _conn
+  } do
+    register_owner("conversation-dashboard-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("conversation-dashboard-owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :dashboard_conversation_summary_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "conversation-summary-1",
+           route_id: "repo-conversation-dashboard",
+           managed_repo_id: Ecto.UUID.generate(),
+           repo_label: "owner/repo-conversation-dashboard",
+           role_scope: "work_item_scoped",
+           role_attachment_mode: "governed_work",
+           role_work_item_id: "work-item-1",
+           latest_status: "active",
+           active_count: 2,
+           clarification_count: 1,
+           detail:
+             "2 governed conversations active. 1 clarification turn needs an answer. Latest governed work: Review queued operator request.",
+           latest_work_item_summary: "Review queued operator request.",
+           latest_activity_at: ~U[2026-04-24 14:05:00Z],
+           route: "/repos/repo-conversation-dashboard#project-detail-conversation-panel",
+           action_label: "Open governed supervision"
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-conversation-supervision")
+    assert has_element?(view, "#dashboard-conversation-summary-note", "route back to canonical repo detail")
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-repo-conversation-summary-1",
+             "owner/repo-conversation-dashboard"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-role-conversation-summary-1",
+             "Governed conversation"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-status-conversation-summary-1",
+             "active"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-clarification-conversation-summary-1",
+             "1 clarification needed"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-counts-conversation-summary-1",
+             "Active governed conversations: 2"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-conversation-summary-link-conversation-summary-1[href='/repos/repo-conversation-dashboard#project-detail-conversation-panel']",
+             "Open governed supervision"
+           )
+  end
+
   test "renders runtime posture summaries in product-oriented rollout language", %{conn: _conn} do
     register_owner("runtime-dashboard-owner@example.com", "owner-password-123")
 
@@ -354,17 +432,23 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   end
 
   defp create_run(repo_identifier, run_id, started_at, attrs \\ %{}) do
-    create_governed_run(repo_identifier, Map.merge(%{
-      run_id: run_id,
-      workflow_name: "implement_task",
-      workflow_version: 1,
-      trigger: %{source: "workflows", mode: "manual"},
-      inputs: %{"task_summary" => "Render dashboard run summaries"},
-      input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
-      initiating_actor: %{id: "owner-1", email: "owner@example.com"},
-      current_step: "queued",
-      started_at: started_at
-    }, attrs))
+    create_governed_run(
+      repo_identifier,
+      Map.merge(
+        %{
+          run_id: run_id,
+          workflow_name: "implement_task",
+          workflow_version: 1,
+          trigger: %{source: "workflows", mode: "manual"},
+          inputs: %{"task_summary" => "Render dashboard run summaries"},
+          input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+          initiating_actor: %{id: "owner-1", email: "owner@example.com"},
+          current_step: "queued",
+          started_at: started_at
+        },
+        attrs
+      )
+    )
   end
 
   defp run_dom_token(value) do

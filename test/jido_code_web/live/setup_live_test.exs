@@ -691,6 +691,71 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert vue(view, id: "setup-github-repository-selector").props["selectedRepositories"] == []
   end
 
+  test "GitHub repository selector does not preselect previously imported repositories on reload",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        },
+        "4" => %{
+          "github_credentials" => %{
+            "paths" => [
+              %{
+                "path" => "github_app",
+                "status" => "ready",
+                "repository_access" => "confirmed",
+                "repositories" => [
+                  %{"id" => "repo_100", "full_name" => "owner/repo-one"},
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"}
+                ]
+              }
+            ]
+          }
+        },
+        "7" => %{
+          "project_import_batch" => %{
+            "checked_at" => DateTime.to_iso8601(@checked_at),
+            "status" => "ready",
+            "selected_repositories" => ["owner/repo-one"],
+            "imported_repositories" => ["owner/repo-one"],
+            "project_paths" => [
+              %{
+                "repository_full_name" => "owner/repo-one",
+                "managed_repo_id" => "managed-repo-repo-one",
+                "path" => "/repos/managed-repo-repo-one"
+              }
+            ],
+            "detail" => "Imported owner/repo-one into the managed-repository control plane.",
+            "remediation" => "Import complete.",
+            "error_type" => nil
+          }
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    choose_start_path(view, "github")
+
+    selector = vue(view, id: "setup-github-repository-selector")
+
+    assert selector.props["selectedRepositories"] == []
+    assert selector.props["repositoryCountLabel"] == "2 linked repositories available for import."
+    assert selector.props["importProjectDisplayName"] == "repo-one"
+  end
+
   test "choosing GitHub requires PAT capture when deployment-local repository access is not configured",
        %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
@@ -1151,22 +1216,19 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert %{
              onboarding_state: %{
-               "7" => %{
-                 "selected_repository" => "owner/repo-one",
-                 "selected_repositories" => ["owner/repo-one", "owner/repo-two"],
-                 "project_import" => %{
-                   "selected_repository" => "owner/repo-two",
-                   "project_record" => %{"id" => "managed-repo-repo-two"},
-                   "status" => "ready"
-                 },
-                 "project_import_batch" => %{
-                   "selected_repositories" => ["owner/repo-one", "owner/repo-two"],
-                   "imported_repositories" => ["owner/repo-one", "owner/repo-two"],
-                   "status" => "ready"
-                 }
-               }
+               "7" => step_state
              }
            } = Application.get_env(:jido_code, :system_config)
+
+    assert step_state["project_import"]["selected_repository"] == "owner/repo-two"
+    assert step_state["project_import"]["project_record"]["id"] == "managed-repo-repo-two"
+    assert step_state["project_import"]["status"] == "ready"
+    assert step_state["project_import_batch"]["selected_repositories"] == ["owner/repo-one", "owner/repo-two"]
+    assert step_state["project_import_batch"]["imported_repositories"] == ["owner/repo-one", "owner/repo-two"]
+    assert step_state["project_import_batch"]["status"] == "ready"
+    assert step_state["repository_selection_note"] == "GitHub repository selection cleared."
+    refute Map.has_key?(step_state, "selected_repository")
+    refute Map.has_key?(step_state, "selected_repositories")
 
     assert has_element?(view, "#setup-github-import-fallback-success")
     assert has_element?(
@@ -1176,6 +1238,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
            )
 
     refute has_element?(view, "#setup-github-import-fallback-open-repo")
+    assert has_element?(view, "#setup-github-repository-fallback-selection", "Not selected")
   end
 
   test "completing setup after choosing GitHub marks onboarding complete and enters the dashboard", %{

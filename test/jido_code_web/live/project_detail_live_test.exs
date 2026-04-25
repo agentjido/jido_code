@@ -1,6 +1,7 @@
 defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.conversation_routes_keep_runtime_and_recovery_liveview_owned
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
@@ -12,6 +13,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.conversation_orchestration.operator_surfaces_show_conversation_work_item_linkage
   # covers: architecture.conversation_orchestration.real_llm_turn_execution_replaces_surface_simulation
   # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
+  # covers: architecture.conversation_orchestration.route_level_runtime_readiness_and_continuity_are_operator_readable
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -38,6 +40,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     original_memory_graph_enabled =
       Application.get_env(:jido_code, :memory_graph_enabled, false)
 
+    original_conversation_pubsub_subscriber =
+      Application.get_env(:jido_code, :conversation_pubsub_subscriber, :__missing__)
+
     on_exit(fn ->
       restore_env(:workbench_fix_workflow_launcher, original_fix_workflow_launcher)
 
@@ -47,6 +52,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       )
 
       restore_env(:frontend_assets_override, original_frontend_override)
+      restore_env(:conversation_pubsub_subscriber, original_conversation_pubsub_subscriber)
       Application.put_env(:jido_code, :source_code_graph_enabled, original_source_code_graph_enabled)
       Application.put_env(:jido_code, :memory_graph_enabled, original_memory_graph_enabled)
     end)
@@ -324,7 +330,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
             {:error, _reason} -> :ok
           end
 
-        _other -> :ok
+        _other ->
+          :ok
       end
     end)
 
@@ -418,11 +425,27 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
             {:error, _reason} -> :ok
           end
 
-        _other -> :ok
+        _other ->
+          :ok
       end
     end)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-conversation-runtime-status", "Blocked")
+    assert has_element?(view, "#project-detail-conversation-runtime-notice")
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-runtime-notice-type",
+             "conversation_runtime_workspace_unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-runtime-workspace",
+             "Workspace path unavailable"
+           )
 
     view
     |> element("#project-detail-conversation-open")
@@ -441,11 +464,118 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       rendered = render(view)
 
       rendered =~ "Repository workspace path is missing for real conversation runtime." and
+        has_element?(view, "#project-detail-conversation-runtime-preserved") and
         not String.contains?(rendered, "deterministic explainer response")
     end)
 
     assert_conversation_settled!(conversation_id)
     assert :ok = AgentWorkspace.stop_conversation(conversation_id)
+  end
+
+  test "shows bounded conversation runtime readiness with the selected LLM on repo detail", %{
+    conn: _conn
+  } do
+    register_owner("conversation-readiness-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("conversation-readiness-owner@example.com", "owner-password-123")
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-conversation-runtime-ready",
+        github_full_name: "owner/repo-conversation-runtime-ready",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          },
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
+        }
+      })
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-conversation-runtime")
+    assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
+    assert has_element?(view, "#project-detail-conversation-runtime-llm", "openai:gpt-5-mini")
+    assert has_element?(view, "#project-detail-conversation-runtime-source", "Managed repo default")
+    assert has_element?(view, "#project-detail-conversation-runtime-workspace", workspace_path)
+    refute has_element?(view, "#project-detail-conversation-runtime-notice")
+  end
+
+  test "keeps degraded conversation continuity legible when live subscription falls back to snapshots", %{
+    conn: _conn
+  } do
+    Application.put_env(
+      :jido_code,
+      :conversation_pubsub_subscriber,
+      JidoCodeWeb.FailingConversationSubscriber
+    )
+
+    register_owner("conversation-degraded-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("conversation-degraded-owner@example.com", "owner-password-123")
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-conversation-degraded",
+        github_full_name: "owner/repo-conversation-degraded",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          },
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+
+    on_exit(fn ->
+      case AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: Actor.operator_actor()) do
+        {:ok, %{id: conversation_id}} ->
+          case AgentWorkspace.stop_conversation(conversation_id) do
+            :ok -> :ok
+            {:error, _reason} -> :ok
+          end
+
+        _other ->
+          :ok
+      end
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    view
+    |> element("#project-detail-conversation-open")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-conversation-degraded")
+    assert has_element?(view, "#project-detail-conversation-stream-mode", "Snapshot only")
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-continuity-detail",
+             "live delivery is unavailable"
+           )
+
+    assert has_element?(view, "#project-detail-conversation-turn-state", "No active turn")
+    assert has_element?(view, "#project-detail-conversation-sequence-summary", "Sequence 0")
   end
 
   test "hosts bounded semantic inspection inside the managed repo detail route", %{conn: _conn} do

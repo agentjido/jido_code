@@ -1,5 +1,7 @@
 # Package Quality Standards
 
+<!-- current_truth.reconciled_with_branch: contributor-facing quality docs remain version controlled and now include route-owned conversation host and readiness guidance while repo-owned browser verification continues to cover both setup and conversation Playwright surfaces. -->
+
 This subject defines how `jido_code` aligns with the canonical Jido package quality standards while documenting explicit product-repo exceptions.
 
 ```spec-meta

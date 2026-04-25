@@ -170,6 +170,9 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
 
   await expect(page.locator("#setup-github-repository-widget-import-status")).toHaveText("Imported")
   await expect(page.locator("#setup-github-repository-widget-import-detail")).toContainText("owner/repo-two")
+  await expect(page.locator("text=Created managed repo")).toBeVisible()
+  await expect(page.locator("#setup-github-repository-widget-selection")).toHaveText("Not selected")
+  await expect(page.locator("#setup-github-repository-widget-import")).toBeDisabled()
   await expect(page.locator("#setup-github-repository-widget-open-repo")).toBeVisible()
 })
 
@@ -207,5 +210,7 @@ test("fallback setup controls stay navigable when richer delivery degrades", asy
   await expect(page.locator("#setup-github-import-fallback-success")).toContainText(
     "Imported 2 GitHub repositories into the managed-repository control plane."
   )
+  await expect(page.locator("#setup-github-repository-fallback-selection")).toHaveText("Not selected")
+  await expect(page.locator("#setup-github-repository-fallback-import")).toBeDisabled()
   await expect(page.locator("#setup-github-import-fallback-open-repo")).toHaveCount(0)
 })

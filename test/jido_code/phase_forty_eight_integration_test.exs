@@ -108,7 +108,7 @@ defmodule JidoCode.PhaseFortyEightIntegrationTest do
     assert run_detail_linkage.conversation.work_resolution["action"] == "created"
     assert run_detail_linkage.origin["conversation_id"] == conversation.id
     assert run_detail_linkage.origin["turn_id"] == attached_snapshot.work_resolution["turn_id"]
-    assert run_detail_linkage.action_label == "Continue repo conversation"
+    assert run_detail_linkage.action_label == "Resume governed conversation"
   end
 
   defp tracked_conversations!(managed_repo_id) do

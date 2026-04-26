@@ -66,6 +66,7 @@ surface:
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/phase_sixty_integration_test.exs
   - test/jido_code_web/live/phase_sixty_three_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code/setup/project_import_test.exs

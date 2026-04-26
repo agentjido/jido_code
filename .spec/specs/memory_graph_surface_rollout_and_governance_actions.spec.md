@@ -30,6 +30,7 @@ surface:
   - lib/jido_code_web/components/
   - test/jido_code/
   - test/jido_code_web/live/phase_sixty_three_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
   - test/jido_code_web/live/
 ```
 

@@ -94,6 +94,7 @@ surface:
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
   - test/jido_code_web/live/phase_sixty_three_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs

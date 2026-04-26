@@ -27,6 +27,7 @@ surface:
   - .spec/planning/phase-33-memory-graph-workflow-and-operator-expansion.md
   - .spec/planning/phase-45-memory-aware-execute-workflow-adoption.md
   - .spec/planning/phase-55-memory-rollout-and-governed-surfaces.md
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
   - lib/jido_code/memory_graph/
   - lib/jido_code_web/governed_memory_helpers.ex
   - lib/jido_code/workbench/

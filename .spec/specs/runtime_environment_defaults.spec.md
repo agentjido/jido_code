@@ -34,6 +34,7 @@ surface:
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
   - config/config.exs
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
 ```
 
 ## Requirements

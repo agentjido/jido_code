@@ -127,7 +127,8 @@ defmodule JidoCodeWeb.BrowserSetup do
                 "repository_access" => "confirmed",
                 "repositories" => [
                   %{"id" => "repo_100", "full_name" => "owner/repo-one"},
-                  %{"id" => "repo_200", "full_name" => "owner/repo-two"}
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"},
+                  %{"id" => "repo_300", "full_name" => "agentjido/repo-three"}
                 ]
               }
             ]

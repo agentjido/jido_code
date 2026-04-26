@@ -12,6 +12,7 @@ defmodule JidoCodeWeb.SetupLive do
   # covers: setup.onboarding.deferred_integrations
   # covers: setup.onboarding.github_repository_selection_persisted_metadata
   # covers: setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+  # covers: setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
   # covers: setup.onboarding.github_pat_capture_persisted_secret_ref
   # covers: setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
   # covers: setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
@@ -186,6 +187,11 @@ defmodule JidoCodeWeb.SetupLive do
             {:noreply, assign(socket, :save_error, diagnostic)}
         end
     end
+  end
+
+  @impl true
+  def handle_event("filter_github_repositories", %{"repository_filters" => filter_params}, socket) do
+    {:noreply, assign_github_repository_filters(socket, filter_params)}
   end
 
   @impl true
@@ -754,18 +760,31 @@ defmodule JidoCodeWeb.SetupLive do
                     {@github_repository_listing_report.remediation}
                   </div>
 
-                  <.form
-                    id="setup-github-repository-selector-fallback-form"
-                    for={%{}}
-                    phx-submit="import_selected_github_repository"
-                    class="space-y-4"
-                  >
-                    <input
-                      :for={repository_full_name <- @github_selected_repositories}
-                      type="hidden"
-                      name="repository_selection[repository_full_names][]"
-                      value={repository_full_name}
-                    />
+                  <div class="space-y-4">
+                    <.form
+                      id="setup-github-repository-fallback-filter-form"
+                      for={@github_repository_filters_form}
+                      phx-change="filter_github_repositories"
+                      class="grid gap-3 xl:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]"
+                    >
+                      <.input
+                        id="setup-github-repository-fallback-account-filter"
+                        field={@github_repository_filters_form[:owner]}
+                        type="select"
+                        label="GitHub account"
+                        options={github_repository_account_filter_options(@github_repository_account_options)}
+                        disabled={@buttons_disabled? or @github_repository_options == []}
+                      />
+                      <.input
+                        id="setup-github-repository-fallback-search"
+                        field={@github_repository_filters_form[:query]}
+                        type="text"
+                        label="Search linked repositories"
+                        placeholder="owner/repository"
+                        phx-debounce="200"
+                        disabled={@buttons_disabled? or @github_repository_options == []}
+                      />
+                    </.form>
 
                     <div class="space-y-2">
                       <div class="flex flex-wrap items-center justify-between gap-2">
@@ -781,11 +800,26 @@ defmodule JidoCodeWeb.SetupLive do
                       </div>
 
                       <div
+                        id="setup-github-repository-fallback-results-summary"
+                        class="flex flex-wrap items-center justify-between gap-2 text-sm text-base-content/70"
+                      >
+                        <p>
+                          {github_filtered_repository_count_label(
+                            @github_filtered_repository_options,
+                            @github_repository_options
+                          )}
+                        </p>
+                        <p class="font-medium text-base-content/80">
+                          {github_selected_results_summary(@github_selected_repositories)}
+                        </p>
+                      </div>
+
+                      <div
                         id="setup-github-repository-fallback-list"
                         class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-base-300/70 bg-base-200/10 p-2"
                       >
                         <button
-                          :for={repository <- @github_repository_options}
+                          :for={repository <- @github_filtered_repository_options}
                           id={"setup-github-repository-fallback-option-#{repository.id}"}
                           type="button"
                           phx-click="select_github_repository"
@@ -822,16 +856,31 @@ defmodule JidoCodeWeb.SetupLive do
                         </button>
 
                         <div
-                          :if={@github_repository_options == []}
+                          :if={@github_filtered_repository_options == []}
                           id="setup-github-repository-fallback-empty"
                           class="rounded-xl border border-dashed border-base-300/70 bg-base-100/70 px-4 py-5 text-sm text-base-content/70"
                         >
-                          No linked repositories are currently available.
+                          {github_repository_filter_empty_state(
+                            @github_filtered_repository_options,
+                            @github_repository_options
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div class="grid gap-3 lg:grid-cols-[auto_auto] lg:justify-end">
+                    <.form
+                      id="setup-github-repository-selector-fallback-form"
+                      for={%{}}
+                      phx-submit="import_selected_github_repository"
+                      class="grid gap-3 lg:grid-cols-[auto_auto] lg:justify-end"
+                    >
+                      <input
+                        :for={repository_full_name <- @github_selected_repositories}
+                        type="hidden"
+                        name="repository_selection[repository_full_names][]"
+                        value={repository_full_name}
+                      />
+
                       <button
                         id="setup-github-repository-fallback-refresh"
                         type="button"
@@ -860,8 +909,8 @@ defmodule JidoCodeWeb.SetupLive do
                       >
                         {github_import_button_label(@github_selected_repositories)}
                       </button>
-                    </div>
-                  </.form>
+                    </.form>
+                  </div>
 
                   <div
                     :if={github_project_import_ready?(@github_project_import_report)}
@@ -984,6 +1033,7 @@ defmodule JidoCodeWeb.SetupLive do
       :github_repository_full_names,
       GitHubRepositoryListing.repository_full_names(github_repository_listing_report)
     )
+    |> assign_github_repository_filters()
     |> assign(:github_pat_capture_state, github_pat_capture_state)
     |> assign(:github_selected_repositories, github_selected_repositories)
     |> assign(:github_project_import_report, github_project_import_report)
@@ -996,6 +1046,28 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp assign_github_pat_form(socket) do
     assign(socket, :github_pat_form, to_form(%{"value" => ""}, as: :github_pat))
+  end
+
+  defp assign_github_repository_filters(socket, filter_params \\ nil) do
+    repository_options = Map.get(socket.assigns, :github_repository_options, [])
+
+    current_filter_values =
+      filter_params || Map.get(socket.assigns, :github_repository_filter_values, %{})
+
+    normalized_filter_values =
+      normalize_github_repository_filter_values(current_filter_values, repository_options)
+
+    socket
+    |> assign(
+      :github_repository_filters_form,
+      to_form(normalized_filter_values, as: :repository_filters)
+    )
+    |> assign(:github_repository_filter_values, normalized_filter_values)
+    |> assign(:github_repository_account_options, github_repository_account_options(repository_options))
+    |> assign(
+      :github_filtered_repository_options,
+      filter_github_repository_options(repository_options, normalized_filter_values)
+    )
   end
 
   defp start_options(:desktop) do
@@ -1236,7 +1308,9 @@ defmodule JidoCodeWeb.SetupLive do
   defp github_project_import_report(onboarding_state) do
     step_state = fetch_step_state(onboarding_state, @github_setup_step)
 
-    case step_state |> map_get(:project_import_batch, "project_import_batch") |> github_project_import_batch_from_state() do
+    case step_state
+         |> map_get(:project_import_batch, "project_import_batch")
+         |> github_project_import_batch_from_state() do
       nil ->
         step_state
         |> map_get(:project_import, "project_import")
@@ -1324,6 +1398,7 @@ defmodule JidoCodeWeb.SetupLive do
       listingRemediation: assigns.github_repository_listing_report.remediation,
       listingErrorType: assigns.github_repository_listing_report.error_type,
       listingCheckedAt: checked_at_label(assigns.github_repository_listing_report.checked_at),
+      accountOptions: assigns.github_repository_account_options,
       repositoryCountLabel: github_repository_count_label(assigns.github_repository_options),
       repositoryOptions: Enum.map(assigns.github_repository_options, &github_repository_option_props/1),
       selectedRepositories: assigns.github_selected_repositories,
@@ -1331,8 +1406,7 @@ defmodule JidoCodeWeb.SetupLive do
       importDetail: github_import_detail(assigns.github_project_import_report),
       importRemediation: github_import_remediation(assigns.github_project_import_report),
       importErrorType: github_import_error_type(assigns.github_project_import_report),
-      importSelectedRepositories:
-        github_project_import_selected_repositories(assigns.github_project_import_report),
+      importSelectedRepositories: github_project_import_selected_repositories(assigns.github_project_import_report),
       importProjectId: github_project_id(assigns.github_project_import_report),
       importProjectDisplayName: github_project_display_name(assigns.github_project_import_report),
       importProjectPath: github_project_path(assigns.github_project_import_report),
@@ -1479,10 +1553,118 @@ defmodule JidoCodeWeb.SetupLive do
   defp github_listing_status_label(%{status: :ready}), do: "Ready"
   defp github_listing_status_label(_report), do: "Needs attention"
 
+  defp github_repository_account_options(repository_options) do
+    repository_options
+    |> Enum.map(&Map.get(&1, :owner))
+    |> Enum.map(&normalize_optional_string/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.sort_by(&String.downcase/1)
+  end
+
+  defp github_repository_account_filter_options(account_options) do
+    [{"All accounts", ""} | Enum.map(account_options, &{&1, &1})]
+  end
+
+  defp normalize_github_repository_filter_values(filter_params, repository_options)
+       when is_map(filter_params) do
+    account_options = github_repository_account_options(repository_options)
+
+    owner =
+      filter_params
+      |> map_get(:owner, "owner", "")
+      |> normalize_optional_string()
+      |> case do
+        selected_owner ->
+          if selected_owner in account_options, do: selected_owner, else: ""
+      end
+
+    query =
+      filter_params
+      |> map_get(:query, "query", "")
+      |> normalize_optional_string()
+      |> case do
+        nil -> ""
+        normalized_query -> normalized_query
+      end
+
+    %{"owner" => owner, "query" => query}
+  end
+
+  defp normalize_github_repository_filter_values(_filter_params, _repository_options) do
+    %{"owner" => "", "query" => ""}
+  end
+
+  defp filter_github_repository_options(repository_options, filter_values) when is_list(repository_options) do
+    owner_filter =
+      filter_values
+      |> map_get(:owner, "owner", "")
+      |> normalize_optional_string()
+
+    query_filter =
+      filter_values
+      |> map_get(:query, "query", "")
+      |> normalize_optional_string()
+
+    Enum.filter(repository_options, fn repository ->
+      github_repository_matches_filter?(repository, owner_filter, query_filter)
+    end)
+  end
+
+  defp filter_github_repository_options(_repository_options, _filter_values), do: []
+
+  defp github_repository_matches_filter?(repository, owner_filter, query_filter) do
+    owner_matches? =
+      is_nil(owner_filter) or Map.get(repository, :owner) == owner_filter
+
+    query_matches? =
+      case query_filter do
+        nil ->
+          true
+
+        normalized_query ->
+          repository
+          |> github_repository_search_text()
+          |> String.contains?(String.downcase(normalized_query))
+      end
+
+    owner_matches? and query_matches?
+  end
+
+  defp github_repository_search_text(repository) do
+    repository
+    |> then(fn repository_option ->
+      [
+        Map.get(repository_option, :full_name),
+        Map.get(repository_option, :owner),
+        Map.get(repository_option, :name)
+      ]
+    end)
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join(" ")
+    |> String.downcase()
+  end
+
   defp github_repository_count_label([]), do: "No linked repositories are currently available."
 
   defp github_repository_count_label(repository_options) do
     "#{length(repository_options)} linked repositories available for import."
+  end
+
+  defp github_filtered_repository_count_label(filtered_repository_options, repository_options) do
+    filtered_count = length(filtered_repository_options)
+    total_count = length(repository_options)
+
+    cond do
+      total_count == 0 ->
+        "No linked repositories are available yet."
+
+      filtered_count == total_count ->
+        "Showing all #{total_count} linked repositories."
+
+      true ->
+        "Showing #{filtered_count} of #{total_count} linked repositories."
+    end
   end
 
   defp github_selected_repository_summary([]), do: "Not selected"
@@ -1493,6 +1675,24 @@ defmodule JidoCodeWeb.SetupLive do
   defp github_selected_repository_summary(selected_repositories) when is_list(selected_repositories) do
     "#{length(selected_repositories)} repositories selected"
   end
+
+  defp github_selected_results_summary([]), do: "Selected: none"
+
+  defp github_selected_results_summary([selected_repository]),
+    do: "Selected: #{selected_repository}"
+
+  defp github_selected_results_summary(selected_repositories) when is_list(selected_repositories) do
+    "Selected: #{length(selected_repositories)} repositories"
+  end
+
+  defp github_repository_filter_empty_state([], []),
+    do: "No linked repositories are currently available."
+
+  defp github_repository_filter_empty_state([], _repository_options),
+    do: "No linked repositories match the current filter."
+
+  defp github_repository_filter_empty_state(_filtered_repository_options, _repository_options),
+    do: nil
 
   defp github_import_button_label([]), do: "Select repositories to import"
   defp github_import_button_label([_selected_repository]), do: "Import selected repository"
@@ -1598,7 +1798,8 @@ defmodule JidoCodeWeb.SetupLive do
     "GitHub repository #{selected_repository} selected for optional import."
   end
 
-  defp github_repository_selection_note(selected_repositories) when is_list(selected_repositories) and selected_repositories != [] do
+  defp github_repository_selection_note(selected_repositories)
+       when is_list(selected_repositories) and selected_repositories != [] do
     "#{length(selected_repositories)} GitHub repositories selected for optional import."
   end
 
@@ -1731,7 +1932,7 @@ defmodule JidoCodeWeb.SetupLive do
         state
         |> map_get(:checked_at, "checked_at")
         |> normalize_optional_datetime() ||
-          (DateTime.utc_now() |> DateTime.truncate(:second)),
+          DateTime.utc_now() |> DateTime.truncate(:second),
       status:
         state
         |> map_get(:status, "status")
@@ -1844,10 +2045,8 @@ defmodule JidoCodeWeb.SetupLive do
           failed_imports,
           last_import_report
         ),
-      remediation:
-        github_project_import_batch_remediation(failed_imports, last_import_report),
-      error_type:
-        github_project_import_batch_error_type(failed_imports, last_import_report),
+      remediation: github_project_import_batch_remediation(failed_imports, last_import_report),
+      error_type: github_project_import_batch_error_type(failed_imports, last_import_report),
       last_project_import: last_import_report
     }
   end
@@ -1894,7 +2093,12 @@ defmodule JidoCodeWeb.SetupLive do
     Map.get(last_import_report || %{}, :detail, "GitHub repository import could not complete.")
   end
 
-  defp github_project_import_batch_detail(selected_repositories, imported_repositories, _failed_imports, _last_import_report)
+  defp github_project_import_batch_detail(
+         selected_repositories,
+         imported_repositories,
+         _failed_imports,
+         _last_import_report
+       )
        when imported_repositories != [] do
     "Imported #{length(imported_repositories)} of #{length(selected_repositories)} GitHub repositories into the managed-repository control plane."
   end
@@ -2011,10 +2215,12 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Your admin account is ready. Pick the first path you want this install to guide next."
 
   defp runtime_environment_description(:cloud),
-    do: "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
+    do:
+      "Cloud defaults keep new imports on Sprite-backed execution until a managed repository is rebound to its own workspace settings."
 
   defp runtime_environment_description(:local),
-    do: "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
+    do:
+      "Local defaults seed new imports from a workspace root on this machine until each managed repository carries its own workspace binding."
 
   defp deployment_mode_label(:desktop), do: "Desktop"
   defp deployment_mode_label(:cloud), do: "Cloud"
@@ -2049,10 +2255,12 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Pick a default path now. You can still change it later once more setup moves into the app."
 
   defp selected_start_path_note(:local_repo, _deployment_mode),
-    do: "Local repositories are the default path for this install until you choose something else, and each managed repo can later keep its own workspace binding."
+    do:
+      "Local repositories are the default path for this install until you choose something else, and each managed repo can later keep its own workspace binding."
 
   defp selected_start_path_note(:github, _deployment_mode),
-    do: "GitHub is saved as the default source-control path for this install, and imported repos can later keep their own workspace bindings."
+    do:
+      "GitHub is saved as the default source-control path for this install, and imported repos can later keep their own workspace bindings."
 
   defp selected_start_path_note(:later, _deployment_mode),
     do: "Repo setup is deferred for now. You can come back and choose a source-control path later."
@@ -2064,7 +2272,8 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Local repo is saved as your preferred next step. You can finish onboarding and attach it from inside the app."
 
   defp completion_summary(:github),
-    do: "GitHub is saved as your preferred next step. You can finish onboarding, connect it from inside the app, and later bind each managed repository to its own workspace."
+    do:
+      "GitHub is saved as your preferred next step. You can finish onboarding, connect it from inside the app, and later bind each managed repository to its own workspace."
 
   defp completion_summary(:later),
     do: "Repository setup is deferred for now. You can finish onboarding and come back later."

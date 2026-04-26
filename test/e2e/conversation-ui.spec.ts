@@ -117,7 +117,7 @@ test("repo detail exposes blocked runtime readiness without pretending execution
     "conversation_runtime_workspace_binding_missing"
   )
   await expect(page.locator("#project-detail-conversation-runtime-workspace")).toHaveText(
-    "Workspace path unavailable"
+    "No repo-scoped local workspace path saved"
   )
 })
 

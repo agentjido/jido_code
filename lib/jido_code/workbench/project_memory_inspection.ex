@@ -13,7 +13,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   """
 
   alias JidoCode.MemoryGraph.{ProductFeedback, ProductService, SurfaceFeedback}
-  alias JidoCode.Workbench.ProjectDetail
+  alias JidoCode.Workbench.{ProjectDetail, ProjectWorkspaceBindingNotice}
 
   @default_graph %{
     graph_name: "memory",
@@ -124,8 +124,8 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
           recovery: ProductFeedback.recovery(graph)
         }
 
-      {:error, _notice} ->
-        nil
+      {:error, notice} ->
+        memory_binding_hint(project_like, notice)
     end
   end
 
@@ -166,6 +166,8 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
       |> map_get(:managed_repo_id, "managed_repo_id")
       |> normalize_optional_string()
 
+    workspace_binding = ProjectDetail.workspace_binding(project_like)
+
     workspace_path =
       project_like
       |> ProjectDetail.workspace_path()
@@ -185,13 +187,12 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
 
       is_nil(workspace_path) ->
         {:error,
-         %{
+         ProjectWorkspaceBindingNotice.blocked_notice(
+           workspace_binding,
            error_type: "memory_workspace_binding_unavailable",
-           detail:
-             "Memory inspection needs the managed repository's repo-scoped local workspace binding before it can load memory graph state.",
-           remediation:
-             "Bind this repository to its own local workspace path and then retry memory inspection."
-         }}
+           surface: "memory inspection",
+           retry_action: "retry memory inspection"
+         )}
 
       true ->
         {:ok, managed_repo_id, workspace_path}
@@ -338,6 +339,18 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
     )
   end
 
+  defp memory_binding_hint(project_like, notice) do
+    if ProjectWorkspaceBindingNotice.workspace_binding_error?(notice) do
+      ProjectWorkspaceBindingNotice.status_hint(
+        project_like |> map_get(:managed_repo_id, "managed_repo_id") |> normalize_optional_string(),
+        ProjectDetail.workspace_binding(project_like),
+        error_type: map_get(notice, :error_type, "error_type"),
+        surface: "memory inspection",
+        retry_action: "retry memory inspection"
+      )
+    end
+  end
+
   defp map_get(map, atom_key, string_key, default \\ nil)
 
   defp map_get(map, atom_key, string_key, default) when is_map(map) do
@@ -356,6 +369,8 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
       normalized -> normalized
     end
   end
+
+  defp normalize_optional_string(nil), do: nil
 
   defp normalize_optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> normalize_optional_string()

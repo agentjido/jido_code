@@ -8,7 +8,7 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
   """
 
   alias JidoCode.LLMSelection
-  alias JidoCode.Workbench.ProjectDetail
+  alias JidoCode.Workbench.{ProjectDetail, ProjectWorkspaceBindingNotice}
 
   @type readiness :: %{
           project_detail: map(),
@@ -39,7 +39,7 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
         |> Map.get(:execution_readiness, %{})
         |> normalize_map()
 
-      {:error, execution_readiness_notice(execution_readiness)}
+      {:error, execution_readiness_notice(execution_readiness, project_detail)}
     end
   end
 
@@ -51,40 +51,43 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
 
     case workspace_path do
       nil ->
-        {:error,
-         %{
-           "error_type" => "conversation_runtime_workspace_unavailable",
-           "detail" => "Repository workspace path is missing for real conversation runtime.",
-           "remediation" => "Repair repository workspace configuration and retry the conversation turn."
-         }}
+        notice =
+          ProjectWorkspaceBindingNotice.blocked_notice(
+            ProjectDetail.workspace_binding(project_detail),
+            error_type: "conversation_runtime_workspace_binding_unavailable",
+            surface: "conversation runtime",
+            retry_action: "retry the conversation turn"
+          )
+
+        {:error, stringify_notice(notice)}
 
       path ->
         {:ok, Path.expand(path)}
     end
   end
 
-  defp execution_readiness_notice(execution_readiness) do
+  defp execution_readiness_notice(execution_readiness, project_detail) do
     error_type =
       Map.get(execution_readiness, "error_type", "conversation_runtime_not_ready")
 
     case error_type do
       "managed_repo_workspace_binding_missing" ->
-        %{
-          "error_type" => "conversation_runtime_workspace_binding_missing",
-          "detail" =>
-            "Managed repository is marked for local execution but has no repo-scoped workspace path for real conversation runtime.",
-          "remediation" =>
-            "Bind this repository to its own local workspace path and retry the conversation turn."
-        }
+        ProjectWorkspaceBindingNotice.blocked_notice(
+          ProjectDetail.workspace_binding(project_detail),
+          error_type: "conversation_runtime_workspace_binding_missing",
+          surface: "conversation runtime",
+          retry_action: "retry the conversation turn"
+        )
+        |> stringify_notice()
 
       "managed_repo_workspace_binding_unavailable" ->
-        %{
-          "error_type" => "conversation_runtime_workspace_binding_unavailable",
-          "detail" =>
-            "Managed repository has no repo-scoped local workspace binding for real conversation runtime.",
-          "remediation" =>
-            "Bind this repository to its own local workspace path and retry the conversation turn."
-        }
+        ProjectWorkspaceBindingNotice.blocked_notice(
+          ProjectDetail.workspace_binding(project_detail),
+          error_type: "conversation_runtime_workspace_binding_unavailable",
+          surface: "conversation runtime",
+          retry_action: "retry the conversation turn"
+        )
+        |> stringify_notice()
 
       _other ->
         %{
@@ -153,4 +156,12 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
   defp normalize_optional_string(nil), do: nil
   defp normalize_optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> normalize_optional_string()
   defp normalize_optional_string(_value), do: nil
+
+  defp stringify_notice(notice) when is_map(notice) do
+    %{
+      "error_type" => Map.get(notice, :error_type) || Map.get(notice, "error_type"),
+      "detail" => Map.get(notice, :detail) || Map.get(notice, "detail"),
+      "remediation" => Map.get(notice, :remediation) || Map.get(notice, "remediation")
+    }
+  end
 end

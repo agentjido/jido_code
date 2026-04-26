@@ -1,6 +1,6 @@
 # Setup Onboarding
 
-<!-- current_truth.reconciled_with_branch: `/setup` remains the LiveView-owned signed-in start surface with bounded hybrid follow-up work, runtime-default copy now frames `workspace_root` as seed metadata for new local imports rather than a permanent shared-root rule, ready-state local auth now defaults to dashboard, signed-in `/welcome` behaves as a compact handoff surface instead of a setup surrogate, a settings-owned `/settings/auth` destination now carries durable provider-login and Git integration management without changing setup ownership, setup import can now accept explicit repo-scoped local workspace paths instead of assuming one shared parent root, post-import runtime surfaces now keep blocked repo-scoped workspace remediation on the managed-repository route instead of redirecting operators back through setup defaults, and setup completion now hands operators into a dashboard landing that uses route-owned concern tabs instead of one stacked summary page. -->
+<!-- current_truth.reconciled_with_branch: `/setup` remains the LiveView-owned signed-in start surface with bounded hybrid follow-up work, runtime-default copy now frames `workspace_root` as seed metadata for new local imports rather than a permanent shared-root rule, ready-state local auth now defaults to dashboard, signed-in `/welcome` behaves as a compact handoff surface instead of a setup surrogate, a settings-owned `/settings/auth` destination now carries durable provider-login and Git integration management without changing setup ownership, setup import can now accept explicit repo-scoped local workspace paths instead of assuming one shared parent root, GitHub repository follow-up now supports route-local account-owner filtering plus matching repository search in both the richer widget and the server-rendered fallback without rewriting persisted onboarding selection state, post-import runtime surfaces now keep blocked repo-scoped workspace remediation on the managed-repository route instead of redirecting operators back through setup defaults, and setup completion now hands operators into a dashboard landing that uses route-owned concern tabs instead of one stacked summary page. -->
 
 This subject defines the first signed-in product entry contract after bootstrap administrator creation. The goal is to keep first-run onboarding simple: create the first admin, enter the app, and defer optional repo and integration setup into signed-in follow-up flows.
 
@@ -10,7 +10,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist on a dashboard landing that now uses route-owned concern tabs rather than one stacked summary page.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection plus route-local account-owner filtering and matching repository search to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist on a dashboard landing that now uses route-owned concern tabs rather than one stacked summary page.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
@@ -146,6 +146,11 @@ surface:
   priority: should
   stability: evolving
 
+- id: setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
+  statement: When `/setup` surfaces linked GitHub repositories for optional follow-up import, both the richer widget and the server-rendered fallback shall support route-local filtering by GitHub account owner and text search over matching repositories without mutating persisted selection or import metadata.
+  priority: should
+  stability: evolving
+
 - id: setup.onboarding.start_path_preference_persisted
   statement: The signed-in start surface shall let the administrator save a preferred first path such as local repo, GitHub, or later without reintroducing blocking step-gated verification.
   priority: must
@@ -223,12 +228,14 @@ surface:
     - setup.onboarding.github_repository_selection_persisted_metadata
     - setup.onboarding.deferred_integrations
     - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+    - setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
   given:
     - A signed-in administrator has chosen the GitHub start path and linked repository metadata is available.
   when:
-    - The operator selects one or more linked repositories, toggles those selections, or imports them from the optional follow-up surface on `/setup`.
+    - The operator filters by GitHub account owner, searches for matching repositories, selects one or more linked repositories, toggles those selections, or imports them from the optional follow-up surface on `/setup`.
   then:
     - The selected repository list, repository-listing report, and latest import result persist in database-backed onboarding metadata.
+    - Account-owner filtering and matching repository search remain route-local scanning controls rather than becoming persisted onboarding state.
     - When the import succeeds completely, the operator returns to an unselected repository picker while the latest import result remains visible as history.
     - The optional follow-up surface can resume that GitHub repository context after route reload without reintroducing a blocking wizard.
     - When richer client delivery is available, the repository selector may arrive through a bounded `live_vue` region without moving setup ownership out of LiveView.
@@ -408,6 +415,7 @@ surface:
     - setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
     - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
     - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+    - setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
     - setup.onboarding.start_path_preference_persisted
 
 - kind: source_file
@@ -415,6 +423,7 @@ surface:
   covers:
     - setup.onboarding.github_repository_selection_persisted_metadata
     - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+    - setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
     - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 
 - kind: source_file
@@ -504,6 +513,7 @@ surface:
     - setup.onboarding.github_repository_selection_persisted_metadata
     - setup.onboarding.github_pat_capture_persisted_secret_ref
     - setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
+    - setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
     - setup.onboarding.start_path_preference_persisted
 
 - kind: source_file
@@ -512,6 +522,7 @@ surface:
     - setup.onboarding.post_bootstrap_start_surface
     - setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
     - setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback
+    - setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
 
 - kind: command
   target: mix test test/jido_code_web/live/setup_live_test.exs

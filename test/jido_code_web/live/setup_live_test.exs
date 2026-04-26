@@ -13,6 +13,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   # covers: setup.onboarding.explicit_completion_path_to_dashboard
   # covers: setup.onboarding.deferred_integrations
   # covers: setup.onboarding.github_repository_selection_persisted_metadata
+  # covers: setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
   # covers: setup.onboarding.github_pat_capture_persisted_secret_ref
   # covers: setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage
   # covers: setup.onboarding.start_path_preference_persisted
@@ -296,13 +297,14 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert runtime_widget.props["installFlavor"] == "Desktop"
     assert runtime_widget.props["savedRuntimeLabel"] == "Cloud"
 
+    assert runtime_widget.props["runtimeDescription"] ==
+             "Cloud defaults keep new imports on Sprite-backed execution until a managed repository is rebound to its own workspace settings."
+
     assert_vue_handler(view, "changeRuntimeEnvironment", "change_runtime_environment",
       id: "setup-runtime-defaults-widget"
     )
 
-    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment",
-      id: "setup-runtime-defaults-widget"
-    )
+    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment", id: "setup-runtime-defaults-widget")
 
     assert Enum.map(start_widget.props["options"], & &1["id"]) == ["local_repo", "github", "later"]
     assert start_option(start_widget, "local_repo")["badgeLabel"] == "Recommended"
@@ -340,6 +342,9 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert runtime_widget.props["installFlavor"] == "Cloud"
     assert runtime_widget.props["savedRuntimeLabel"] == "Cloud"
+
+    assert runtime_widget.props["runtimeDescription"] ==
+             "Cloud defaults keep new imports on Sprite-backed execution until a managed repository is rebound to its own workspace settings."
 
     assert Enum.map(start_widget.props["options"], & &1["id"]) == ["github", "later"]
     assert start_option(start_widget, "github")["badgeLabel"] == "Recommended"
@@ -389,10 +394,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
     })
 
     runtime_widget = runtime_defaults_widget(view)
+
     assert runtime_widget.props["runtimeDescription"] =~
-             "Each managed repository can later keep its own workspace binding."
+             "Local defaults seed new imports from a workspace root on this machine"
 
     assert runtime_widget.props["savedRuntimeLabel"] == "Local"
+
     assert runtime_widget.props["savedRuntimeNote"] ==
              "New local imports will seed repo workspace paths from #{workspace_root} until each managed repository is rebound."
 
@@ -421,6 +428,68 @@ defmodule JidoCodeWeb.SetupLiveTest do
            } = Application.get_env(:jido_code, :system_config)
 
     assert runtime_note =~ workspace_root
+  end
+
+  test "saving cloud runtime defaults after local defaults refreshes the saved runtime summary", %{
+    conn: conn
+  } do
+    workspace_root = tmp_workspace_path!()
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      },
+      default_environment: :local,
+      workspace_root: workspace_root
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    assert runtime_defaults_widget(view).props["savedRuntimeLabel"] == "Local"
+
+    render_change(view, "change_runtime_environment", %{
+      "runtime_environment" => %{
+        "mode" => "cloud"
+      }
+    })
+
+    assert runtime_defaults_widget(view).props["runtimeDescription"] ==
+             "Cloud defaults keep new imports on Sprite-backed execution until a managed repository is rebound to its own workspace settings."
+
+    render_submit(view, "save_runtime_environment", %{
+      "runtime_environment" => %{
+        "mode" => "cloud"
+      }
+    })
+
+    runtime_widget = runtime_defaults_widget(view)
+
+    assert runtime_widget.props["savedRuntimeLabel"] == "Cloud"
+
+    assert runtime_widget.props["savedRuntimeNote"] ==
+             "Cloud defaults map to Sprite-backed execution and do not bind repository-local workspace paths."
+
+    assert runtime_widget.props["form"]["mode"] == "cloud"
+    assert runtime_widget.props["form"]["workspaceRoot"] == ""
+
+    assert %{
+             onboarding_completed: false,
+             onboarding_step: 3,
+             default_environment: :sprite,
+             workspace_root: nil
+           } = Application.get_env(:jido_code, :system_config)
   end
 
   test "saving a local runtime environment rejects an invalid workspace root", %{conn: conn} do
@@ -544,7 +613,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
                 "repository_access" => "confirmed",
                 "repositories" => [
                   %{"id" => "repo_100", "full_name" => "owner/repo-one"},
-                  %{"id" => "repo_200", "full_name" => "owner/repo-two"}
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"},
+                  %{"id" => "repo_300", "full_name" => "agentjido/repo-three"}
                 ]
               }
             ]
@@ -581,6 +651,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert selector.props["panelTitle"] == "Choose GitHub repositories"
     assert selector.props["panelBadgeLabel"] == "Optional follow-up"
+
     assert selector.props["panelSummary"] ==
              "Pick one or more linked GitHub repositories and import them into the control plane."
 
@@ -593,9 +664,11 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert selector.props["selectedRepositories"] == []
     assert selector.props["importSelectedRepositories"] == []
     assert selector.props["listingStatus"] == "ready"
-    assert selector.props["repositoryCountLabel"] == "2 linked repositories available for import."
+    assert selector.props["repositoryCountLabel"] == "3 linked repositories available for import."
+    assert selector.props["accountOptions"] == ["agentjido", "owner"]
 
     assert Enum.map(selector.props["repositoryOptions"], & &1["fullName"]) == [
+             "agentjido/repo-three",
              "owner/repo-one",
              "owner/repo-two"
            ]
@@ -791,6 +864,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-pat-panel")
+
     assert has_element?(
              view,
              "#setup-github-repository-summary",
@@ -1203,6 +1277,9 @@ defmodule JidoCodeWeb.SetupLiveTest do
              "2 linked repositories available for import."
            )
 
+    assert has_element?(view, "#setup-github-repository-fallback-account-filter")
+    assert has_element?(view, "#setup-github-repository-fallback-search")
+
     view
     |> element("#setup-github-repository-fallback-option-repo_100")
     |> render_click()
@@ -1252,6 +1329,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     refute Map.has_key?(step_state, "selected_repositories")
 
     assert has_element?(view, "#setup-github-import-fallback-success")
+
     assert has_element?(
              view,
              "#setup-github-import-fallback-success",
@@ -1260,6 +1338,122 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     refute has_element?(view, "#setup-github-import-fallback-open-repo")
     assert has_element?(view, "#setup-github-repository-fallback-selection", "Not selected")
+  end
+
+  test "fallback GitHub repository selector supports account filtering and matching search without rewriting saved selection",
+       %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :frontend_assets_override, %{
+      mode: :fallback,
+      reason: :asset_manifest_unavailable
+    })
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        },
+        "4" => %{
+          "github_credentials" => %{
+            "paths" => [
+              %{
+                "path" => "github_app",
+                "status" => "ready",
+                "repository_access" => "confirmed",
+                "repositories" => [
+                  %{"id" => "repo_100", "full_name" => "owner/repo-one"},
+                  %{"id" => "repo_200", "full_name" => "owner/repo-two"},
+                  %{"id" => "repo_300", "full_name" => "agentjido/repo-three"}
+                ]
+              }
+            ]
+          }
+        }
+      }
+    })
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    choose_start_path(view, "github")
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-results-summary",
+             "Showing all 3 linked repositories."
+           )
+
+    view
+    |> element("#setup-github-repository-fallback-option-repo_100")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-selection",
+             "owner/repo-one"
+           )
+
+    view
+    |> form("#setup-github-repository-fallback-filter-form", %{
+      "repository_filters" => %{"owner" => "agentjido", "query" => ""}
+    })
+    |> render_change()
+
+    refute has_element?(view, "#setup-github-repository-fallback-option-repo_100")
+    refute has_element?(view, "#setup-github-repository-fallback-option-repo_200")
+    assert has_element?(view, "#setup-github-repository-fallback-option-repo_300")
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-results-summary",
+             "Showing 1 of 3 linked repositories."
+           )
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-selection",
+             "owner/repo-one"
+           )
+
+    assert %{
+             onboarding_state: %{
+               "7" => %{
+                 "selected_repository" => "owner/repo-one",
+                 "selected_repositories" => ["owner/repo-one"]
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    view
+    |> form("#setup-github-repository-fallback-filter-form", %{
+      "repository_filters" => %{"owner" => "", "query" => "repo-two"}
+    })
+    |> render_change()
+
+    refute has_element?(view, "#setup-github-repository-fallback-option-repo_100")
+    assert has_element?(view, "#setup-github-repository-fallback-option-repo_200")
+    refute has_element?(view, "#setup-github-repository-fallback-option-repo_300")
+
+    view
+    |> form("#setup-github-repository-fallback-filter-form", %{
+      "repository_filters" => %{"owner" => "", "query" => "missing"}
+    })
+    |> render_change()
+
+    assert has_element?(
+             view,
+             "#setup-github-repository-fallback-empty",
+             "No linked repositories match the current filter."
+           )
   end
 
   test "completing setup after choosing GitHub marks onboarding complete and enters the dashboard", %{
@@ -1315,7 +1509,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     {:ok, dashboard_view, _html} =
       live(recycle(authed_conn), ~p"/dashboard?onboarding=completed", on_error: :warn)
 
-    assert has_element?(dashboard_view, "#dashboard-run-summaries")
+    assert has_element?(dashboard_view, "#dashboard-overview-panel")
   end
 
   test "later onboarding states still render the simplified setup start surface instead of the old wizard",
@@ -1402,13 +1596,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-description")
     assert_vue_component(view, "SetupRuntimeDefaultsWidget", id: "setup-runtime-defaults-widget")
     assert_vue_component(view, "SetupStartPathSelectorWidget", id: "setup-start-path-selector")
+
     assert_vue_handler(view, "changeRuntimeEnvironment", "change_runtime_environment",
       id: "setup-runtime-defaults-widget"
     )
 
-    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment",
-      id: "setup-runtime-defaults-widget"
-    )
+    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment", id: "setup-runtime-defaults-widget")
 
     assert_vue_handler(view, "chooseStartPath", "choose_start_path", id: "setup-start-path-selector")
     assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")

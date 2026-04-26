@@ -3123,6 +3123,14 @@
       },
       {
         "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "When `/setup` surfaces linked GitHub repositories for optional follow-up import, both the richer widget and the server-rendered fallback shall support route-local filtering by GitHub account owner and text search over matching repositories without mutating persisted selection or import metadata.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
         "id": "setup.onboarding.greenfield_import_writes_canonical_repo_records",
         "priority": "must",
         "stability": "evolving",
@@ -6734,7 +6742,8 @@
         "covers": [
           "setup.onboarding.github_repository_selection_persisted_metadata",
           "setup.onboarding.deferred_integrations",
-          "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback"
+          "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+          "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
         "given": [
@@ -6744,12 +6753,13 @@
         "subject_id": "setup.onboarding",
         "then": [
           "The selected repository list, repository-listing report, and latest import result persist in database-backed onboarding metadata.",
+          "Account-owner filtering and matching repository search remain route-local scanning controls rather than becoming persisted onboarding state.",
           "When the import succeeds completely, the operator returns to an unselected repository picker while the latest import result remains visible as history.",
           "The optional follow-up surface can resume that GitHub repository context after route reload without reintroducing a blocking wizard.",
           "When richer client delivery is available, the repository selector may arrive through a bounded `live_vue` region without moving setup ownership out of LiveView."
         ],
         "when": [
-          "The operator selects one or more linked repositories, toggles those selections, or imports them from the optional follow-up surface on `/setup`."
+          "The operator filters by GitHub account owner, searches for matching repositories, selects one or more linked repositories, toggles those selections, or imports them from the optional follow-up surface on `/setup`."
         ]
       },
       {
@@ -8344,7 +8354,7 @@
           "id": "setup.onboarding",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist on a dashboard landing that now uses route-owned concern tabs rather than one stacked summary page.",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection plus route-local account-owner filtering and matching repository search to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist on a dashboard landing that now uses route-owned concern tabs rather than one stacked summary page.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md",
@@ -8541,7 +8551,7 @@
           "id": "users.admin_system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight `/setup` start surface whose runtime-default copy and follow-up work stay non-blocking before growing into an admin-managed multi-user account system with guarded registration, with later ready-state auth entering dashboard and durable provider or Git integration management living under `/settings/auth`.",
+          "summary": "jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight `/setup` start surface whose runtime-default copy and GitHub follow-up work, including route-local repository filtering and matching search, stay non-blocking before growing into an admin-managed multi-user account system with guarded registration, with later ready-state auth entering dashboard and durable provider or Git integration management living under `/settings/auth`.",
           "surface": [
             "lib/jido_code/setup/bootstrap_status.ex",
             "lib/jido_code/setup/owner_bootstrap.ex",
@@ -15687,6 +15697,7 @@
           "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
           "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
           "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+          "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
           "setup.onboarding.start_path_preference_persisted"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15698,6 +15709,7 @@
         "covers": [
           "setup.onboarding.github_repository_selection_persisted_metadata",
           "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+          "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
           "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15847,6 +15859,7 @@
           "setup.onboarding.github_repository_selection_persisted_metadata",
           "setup.onboarding.github_pat_capture_persisted_secret_ref",
           "setup.onboarding.github_pat_capture_requires_encryption_ready_secret_storage",
+          "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
           "setup.onboarding.start_path_preference_persisted"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -15858,7 +15871,8 @@
         "covers": [
           "setup.onboarding.post_bootstrap_start_surface",
           "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
-          "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback"
+          "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+          "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -16323,7 +16337,7 @@
     "decisions": 30,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 373,
+    "requirements": 374,
     "scenarios": 183,
     "subjects": 44,
     "verifications": 758
@@ -32930,6 +32944,17 @@
         "verification_index": 10
       },
       {
+        "cover_id": "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 10
+      },
+      {
         "cover_id": "setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -32975,6 +33000,17 @@
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -33293,6 +33329,17 @@
         "verification_index": 26
       },
       {
+        "cover_id": "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 26
+      },
+      {
         "cover_id": "setup.onboarding.post_bootstrap_start_surface",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
@@ -33316,6 +33363,17 @@
       },
       {
         "cover_id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/e2e/setup-onboarding.spec.ts",
+        "verification_index": 27
+      },
+      {
+        "cover_id": "setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search",
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -34167,7 +34225,7 @@
     "strength_summary": {
       "claimed": 70,
       "executed": 0,
-      "linked": 1551
+      "linked": 1555
     },
     "threshold_failures": 0
   },

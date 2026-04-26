@@ -139,11 +139,17 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       live(recycle(authed_conn), ~p"/dashboard?section=conversations", on_error: :warn)
 
     assert has_element?(view, "#dashboard-root[data-dashboard-section='conversations']")
+    assert has_element?(view, "#dashboard-conversation-supervision")
+    refute has_element?(view, "#dashboard-run-summaries")
+    refute has_element?(view, "#dashboard-memory-summaries")
 
     {:ok, runtime_view, _html} =
       live(recycle(authed_conn), ~p"/dashboard?section=runtime", on_error: :warn)
 
     assert has_element?(runtime_view, "#dashboard-root[data-dashboard-section='runtime']")
+    assert has_element?(runtime_view, "#dashboard-runtime-evidence")
+    refute has_element?(runtime_view, "#dashboard-conversation-supervision")
+    refute has_element?(runtime_view, "#dashboard-memory-summaries")
   end
 
   test "next_steps section is only selectable when onboarding follow-up is present", %{conn: _conn} do
@@ -165,6 +171,10 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       )
 
     assert has_element?(next_steps_view, "#dashboard-root[data-dashboard-section='next_steps']")
+    assert has_element?(next_steps_view, "#dashboard-onboarding-next-actions")
+    assert has_element?(next_steps_view, "#dashboard-next-steps-note", "bounded onboarding completion cues")
+    refute has_element?(next_steps_view, "#dashboard-run-summaries")
+    refute has_element?(next_steps_view, "#dashboard-runtime-evidence")
   end
 
   test "updates run summaries when runs start and complete", %{conn: _conn} do

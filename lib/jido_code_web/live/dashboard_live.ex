@@ -255,7 +255,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          :if={@selected_dashboard_section != :overview}
+          :if={@selected_dashboard_section == :runs}
           id="dashboard-run-summaries"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
         >
@@ -356,7 +356,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          :if={@selected_dashboard_section != :overview}
+          :if={@selected_dashboard_section == :conversations}
           id="dashboard-conversation-supervision"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
@@ -475,7 +475,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          :if={@selected_dashboard_section != :overview}
+          :if={@selected_dashboard_section == :memory}
           id="dashboard-memory-summaries"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
@@ -590,7 +590,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          :if={@selected_dashboard_section != :overview}
+          :if={@selected_dashboard_section == :runtime}
           id="dashboard-runtime-evidence"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
@@ -716,11 +716,16 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          :if={!Enum.empty?(@onboarding_next_actions) and @selected_dashboard_section != :overview}
+          :if={!Enum.empty?(@onboarding_next_actions) and @selected_dashboard_section == :next_steps}
           id="dashboard-onboarding-next-actions"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4"
+          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
         >
-          <h2 class="text-lg font-semibold">Suggested next actions</h2>
+          <div class="space-y-1">
+            <h2 class="text-lg font-semibold">Suggested next actions</h2>
+            <p id="dashboard-next-steps-note" class="text-sm text-base-content/75">
+              These follow-up actions remain bounded onboarding completion cues, not a permanent dashboard concern when no setup follow-up exists.
+            </p>
+          </div>
           <ul class="mt-2 space-y-1 text-sm text-base-content/80">
             <li
               :for={{next_action, index} <- Enum.with_index(@onboarding_next_actions, 1)}

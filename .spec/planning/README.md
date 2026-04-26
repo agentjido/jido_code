@@ -27,8 +27,11 @@ The plan aligns to:
 - `../specs/vsm_recursion.spec.md`
 - `../specs/execution_pipeline.spec.md`
 - `../specs/conversation_orchestration.spec.md`
+- `../specs/repo_posture.spec.md`
 - `../specs/run_governance.spec.md`
+- `../specs/runtime_service_overlay.spec.md`
 - `../decisions/jido_code.factory_control_plane.md`
+- `../decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md`
 - `../decisions/jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
 - `../decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md`
@@ -106,6 +109,7 @@ The plan aligns to:
 56. [Phase 62 - Managed Repo Workspace Binding Canonicalization](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-62-managed-repo-workspace-binding-canonicalization.md): cut the product over to repo-scoped workspace binding as the canonical execution seam while keeping install-wide runtime defaults limited to import-time seed metadata.
 57. [Phase 63 - Repo-Scoped Workspace Configuration Surfaces](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-63-repo-scoped-workspace-configuration-surfaces.md): add the repo-level mutation and operator UI needed to inspect and repair each managed repository's local workspace binding directly.
 58. [Phase 64 - Runtime Surface Workspace Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-64-runtime-surface-workspace-convergence.md): align conversation, semantic, memory, and workflow readiness surfaces on the final repo-scoped workspace model and remove the last shared-root assumptions from product copy and current truth.
+59. [Phase 65 - Dashboard Concern Tab Information Architecture](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-65-dashboard-concern-tab-information-architecture.md): reorganize the authenticated dashboard around route-owned concern tabs for overview, runs, conversations, memory, runtime posture, and conditional next actions while keeping the dashboard a single LiveView-owned landing route.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once

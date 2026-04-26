@@ -1,6 +1,6 @@
 # Repo Posture
 
-<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces. -->
+<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces, and dashboard now keeps runtime and posture summaries inside a dedicated route-owned concern tab on the authenticated landing route. -->
 
 This subject defines how repo-native state becomes explainable posture and trust
 records for managed repositories.
@@ -11,13 +11,15 @@ records for managed repositories.
 id: architecture.repo_posture
 kind: feature
 status: active
-summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
+summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, canonical managed-repository scope, and the authenticated dashboard's dedicated runtime and posture concern tab instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
+  - jido_code.dashboard_concern_tabs_and_overview_handoff
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
+  - .spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/operations/repo_native_state.ex
@@ -266,6 +268,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 

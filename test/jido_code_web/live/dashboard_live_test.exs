@@ -15,6 +15,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   alias JidoCode.Control.RepoBridge
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
+  alias JidoCode.Repo
 
   setup do
     original_loader = Application.get_env(:jido_code, :dashboard_run_summary_loader, :__missing__)
@@ -34,6 +35,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       restore_env(:dashboard_memory_summary_loader, original_memory_loader)
       restore_env(:dashboard_conversation_summary_loader, original_conversation_loader)
     end)
+
+    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
 
     :ok
   end
@@ -63,10 +66,11 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     {:ok, _pending_run} =
       create_run(route_id, "dashboard-run-pending", DateTime.add(now, -120, :second))
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard?section=runs", on_error: :warn)
 
     assert has_element?(view, "#dashboard-entry-summary", "authenticated product overview")
     assert has_element?(view, ~s|a[href="/settings/auth"]|, "Settings")
+    assert has_element?(view, "#dashboard-section-nav")
     assert has_element?(view, "#dashboard-run-summaries")
     assert has_element?(view, "#dashboard-run-summary-fallback")
     assert has_element?(view, "#dashboard-run-status-dashboard-run-completed", "completed")
@@ -81,7 +85,96 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert Enum.any?(vue.props["runSummaries"], fn run_summary ->
              run_summary["runId"] == "dashboard-run-completed" and
                run_summary["terminal"] == true
-           end)
+            end)
+  end
+
+  test "renders a summary-first overview with tab handoff cards by default", %{conn: _conn} do
+    register_owner("dashboard-overview-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-overview-owner@example.com", "owner-password-123")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-root[data-dashboard-section='overview']")
+    assert has_element?(view, "#dashboard-section-nav")
+    assert has_element?(view, "#dashboard-overview-panel")
+    assert has_element?(view, "#dashboard-overview-note", "jump into the bounded concern tab")
+    assert has_element?(view, "#dashboard-overview-card-runs")
+    assert has_element?(view, "#dashboard-overview-card-conversations")
+    assert has_element?(view, "#dashboard-overview-card-memory")
+    assert has_element?(view, "#dashboard-overview-card-runtime")
+
+    refute has_element?(view, "#dashboard-run-summaries")
+    refute has_element?(view, "#dashboard-conversation-supervision")
+    refute has_element?(view, "#dashboard-memory-summaries")
+    refute has_element?(view, "#dashboard-runtime-evidence")
+  end
+
+  test "defaults dashboard section selection to overview and ignores unknown section params", %{
+    conn: _conn
+  } do
+    register_owner("dashboard-section-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-section-owner@example.com", "owner-password-123")
+
+    {:ok, overview_view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(overview_view, "#dashboard-root[data-dashboard-section='overview']")
+
+    {:ok, invalid_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=unknown", on_error: :warn)
+
+    assert has_element?(invalid_view, "#dashboard-root[data-dashboard-section='overview']")
+  end
+
+  test "route-owned dashboard section selection accepts canonical concern families", %{conn: _conn} do
+    register_owner("dashboard-route-section-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-route-section-owner@example.com", "owner-password-123")
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=conversations", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-root[data-dashboard-section='conversations']")
+    assert has_element?(view, "#dashboard-conversation-supervision")
+    refute has_element?(view, "#dashboard-run-summaries")
+    refute has_element?(view, "#dashboard-memory-summaries")
+
+    {:ok, runtime_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=runtime", on_error: :warn)
+
+    assert has_element?(runtime_view, "#dashboard-root[data-dashboard-section='runtime']")
+    assert has_element?(runtime_view, "#dashboard-runtime-evidence")
+    refute has_element?(runtime_view, "#dashboard-conversation-supervision")
+    refute has_element?(runtime_view, "#dashboard-memory-summaries")
+  end
+
+  test "next_steps section is only selectable when onboarding follow-up is present", %{conn: _conn} do
+    register_owner("dashboard-next-steps-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-next-steps-owner@example.com", "owner-password-123")
+
+    {:ok, blocked_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=next_steps", on_error: :warn)
+
+    assert has_element?(blocked_view, "#dashboard-root[data-dashboard-section='overview']")
+
+    {:ok, next_steps_view, _html} =
+      live(
+        recycle(authed_conn),
+        ~p"/dashboard?onboarding=completed&section=next_steps",
+        on_error: :warn
+      )
+
+    assert has_element?(next_steps_view, "#dashboard-root[data-dashboard-section='next_steps']")
+    assert has_element?(next_steps_view, "#dashboard-onboarding-next-actions")
+    assert has_element?(next_steps_view, "#dashboard-next-steps-note", "bounded onboarding completion cues")
+    refute has_element?(next_steps_view, "#dashboard-run-summaries")
+    refute has_element?(next_steps_view, "#dashboard-runtime-evidence")
   end
 
   test "updates run summaries when runs start and complete", %{conn: _conn} do
@@ -136,7 +229,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       end
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard?section=runs", on_error: :warn)
     assert has_element?(view, "#dashboard-run-summaries-empty-state")
 
     send(view.pid, {:run_event, %{"event" => "run_started"}})
@@ -201,7 +294,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       end
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard?section=runs", on_error: :warn)
 
     assert has_element?(view, "#dashboard-run-summary-warning")
     assert has_element?(view, "#dashboard-run-summary-warning-type", "dashboard_run_summary_feed_stale")
@@ -247,7 +340,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
        ], nil}
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard?section=runs", on_error: :warn)
 
     assert has_element?(view, "#dashboard-run-status-#{run_dom_token}", "awaiting_approval")
     assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Stage: approval")
@@ -287,7 +380,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
        ], nil}
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=conversations", on_error: :warn)
 
     assert has_element?(view, "#dashboard-conversation-supervision")
     assert has_element?(view, "#dashboard-conversation-summary-note", "route back to canonical repo detail")
@@ -355,7 +449,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
        ], nil}
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=runtime", on_error: :warn)
 
     assert has_element?(view, "#dashboard-runtime-evidence")
     assert has_element?(view, "#dashboard-runtime-evidence-fallback")
@@ -421,7 +516,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
        ], nil}
     end)
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=memory", on_error: :warn)
 
     assert has_element?(view, "#dashboard-memory-summaries")
     assert has_element?(view, "#dashboard-memory-summary-note", "canonical managed-repository surfaces")

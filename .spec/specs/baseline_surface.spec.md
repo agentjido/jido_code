@@ -1,6 +1,6 @@
 # Baseline Surface
 
-<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including runtime-default copy that now frames workspace root as seed metadata for new imports, the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, a settings-owned `/settings/auth` destination as the durable home for provider-login and Git integration management, and GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes while leaving repo-level workspace binding as later operator work. -->
+<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including runtime-default copy that now frames workspace root as seed metadata for new imports, the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, a settings-owned `/settings/auth` destination as the durable home for provider-login and Git integration management, GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes while grouping linked repositories by account origin with the account name visible on each card and leaving repo-level workspace binding as later operator work, and `/dashboard` now acting as the durable authenticated landing through route-owned concern tabs instead of one long stacked summary page. -->
 
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
@@ -11,10 +11,12 @@ This subject defines the current browser-facing landing, auth, and routed produc
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.
+summary: jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing through route-owned concern tabs for overview and bounded operator follow-up, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.
 decisions:
+  - jido_code.dashboard_concern_tabs_and_overview_handoff
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
 surface:
+  - .spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/setup_live.ex

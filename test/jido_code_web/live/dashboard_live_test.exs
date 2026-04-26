@@ -15,6 +15,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   alias JidoCode.Control.RepoBridge
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
+  alias JidoCode.Repo
 
   setup do
     original_loader = Application.get_env(:jido_code, :dashboard_run_summary_loader, :__missing__)
@@ -34,6 +35,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       restore_env(:dashboard_memory_summary_loader, original_memory_loader)
       restore_env(:dashboard_conversation_summary_loader, original_conversation_loader)
     end)
+
+    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
 
     :ok
   end
@@ -82,6 +85,62 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              run_summary["runId"] == "dashboard-run-completed" and
                run_summary["terminal"] == true
            end)
+  end
+
+  test "defaults dashboard section selection to overview and ignores unknown section params", %{
+    conn: _conn
+  } do
+    register_owner("dashboard-section-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-section-owner@example.com", "owner-password-123")
+
+    {:ok, overview_view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(overview_view, "#dashboard-root[data-dashboard-section='overview']")
+
+    {:ok, invalid_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=unknown", on_error: :warn)
+
+    assert has_element?(invalid_view, "#dashboard-root[data-dashboard-section='overview']")
+  end
+
+  test "route-owned dashboard section selection accepts canonical concern families", %{conn: _conn} do
+    register_owner("dashboard-route-section-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-route-section-owner@example.com", "owner-password-123")
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=conversations", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-root[data-dashboard-section='conversations']")
+
+    {:ok, runtime_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=runtime", on_error: :warn)
+
+    assert has_element?(runtime_view, "#dashboard-root[data-dashboard-section='runtime']")
+  end
+
+  test "next_steps section is only selectable when onboarding follow-up is present", %{conn: _conn} do
+    register_owner("dashboard-next-steps-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-next-steps-owner@example.com", "owner-password-123")
+
+    {:ok, blocked_view, _html} =
+      live(recycle(authed_conn), ~p"/dashboard?section=next_steps", on_error: :warn)
+
+    assert has_element?(blocked_view, "#dashboard-root[data-dashboard-section='overview']")
+
+    {:ok, next_steps_view, _html} =
+      live(
+        recycle(authed_conn),
+        ~p"/dashboard?onboarding=completed&section=next_steps",
+        on_error: :warn
+      )
+
+    assert has_element?(next_steps_view, "#dashboard-root[data-dashboard-section='next_steps']")
   end
 
   test "updates run summaries when runs start and complete", %{conn: _conn} do

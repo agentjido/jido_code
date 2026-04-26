@@ -14,6 +14,7 @@ defmodule JidoCodeWeb.DashboardLive do
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
   alias JidoCode.Workbench.DashboardConversationFeed
 
+  @dashboard_sections [:overview, :runs, :conversations, :memory, :runtime]
   @onboarding_next_actions [
     "Run your first workflow",
     "Review the security playbook",
@@ -26,6 +27,8 @@ defmodule JidoCodeWeb.DashboardLive do
   def mount(_params, _session, socket) do
     socket =
       socket
+      |> assign(:selected_dashboard_section, :overview)
+      |> assign(:dashboard_sections, @dashboard_sections)
       |> assign(:onboarding_next_actions, [])
       |> assign(:run_summary_count, 0)
       |> assign(:run_summary_widget_rows, [])
@@ -70,7 +73,16 @@ defmodule JidoCodeWeb.DashboardLive do
         []
       end
 
-    {:noreply, assign(socket, :onboarding_next_actions, onboarding_next_actions)}
+    dashboard_sections = dashboard_sections(onboarding_next_actions)
+
+    {:noreply,
+     socket
+     |> assign(:onboarding_next_actions, onboarding_next_actions)
+     |> assign(:dashboard_sections, dashboard_sections)
+     |> assign(
+       :selected_dashboard_section,
+       normalize_dashboard_section(Map.get(params, "section"), dashboard_sections)
+     )}
   end
 
   @impl true
@@ -116,7 +128,11 @@ defmodule JidoCodeWeb.DashboardLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
-      <div class="max-w-4xl mx-auto py-8">
+      <div
+        id="dashboard-root"
+        data-dashboard-section={Atom.to_string(@selected_dashboard_section)}
+        class="max-w-4xl mx-auto py-8"
+      >
         <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
         <p class="text-base-content/70">Welcome, {@current_user.email}</p>
         <p id="dashboard-entry-summary" class="mt-1 text-sm text-base-content/75">
@@ -655,6 +671,41 @@ defmodule JidoCodeWeb.DashboardLive do
     else
       socket
     end
+  end
+
+  defp dashboard_sections(onboarding_next_actions) when is_list(onboarding_next_actions) do
+    if Enum.empty?(onboarding_next_actions) do
+      @dashboard_sections
+    else
+      @dashboard_sections ++ [:next_steps]
+    end
+  end
+
+  defp normalize_dashboard_section(section_param, available_sections) do
+    section_param
+    |> normalize_optional_string()
+    |> case do
+      nil ->
+        :overview
+
+      normalized ->
+        normalized
+        |> String.trim()
+        |> String.downcase()
+        |> String.replace("-", "_")
+        |> case do
+          "next_steps" -> :next_steps
+          "overview" -> :overview
+          "runs" -> :runs
+          "conversations" -> :conversations
+          "memory" -> :memory
+          "runtime" -> :runtime
+          _other -> :overview
+        end
+    end
+    |> then(fn section ->
+      if section in available_sections, do: section, else: :overview
+    end)
   end
 
   defp summary_refreshed_label(%DateTime{} = datetime) do

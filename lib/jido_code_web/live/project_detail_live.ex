@@ -26,6 +26,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Workbench.ProjectMemoryInspection
   alias JidoCode.Workbench.ProjectSemanticInspection
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
+  alias JidoCode.Workbench.ProjectWorkspaceBinding
 
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
   @detail_sections [:overview, :conversations, :semantic, :memory, :workflows]
@@ -59,6 +60,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
      |> assign(:selected_detail_section, :overview)
+     |> assign(:workspace_binding_form, to_form(%{"workspace_environment" => "sprite", "workspace_path" => ""}, as: :workspace_binding))
+     |> assign(:workspace_binding_form_values, %{"workspace_environment" => "sprite", "workspace_path" => ""})
+     |> assign(:workspace_binding_feedback, nil)
+     |> assign(:workspace_binding_feedback_kind, :info)
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
   end
 
@@ -86,6 +91,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               |> assign(:conversation_action_feedback, nil)
               |> assign(:conversation_action_feedback_kind, :info)
               |> assign(:selected_work_item_id, selected_work_item_id)
+              |> assign_workspace_binding_form(project_detail)
               |> assign_project_conversation(project_detail, selected_work_item_id)
 
             {:error, project_load_error} ->
@@ -96,6 +102,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               |> assign(:semantic_action_feedback, nil)
               |> assign(:memory_inspection, nil)
               |> assign(:memory_action_feedback, nil)
+              |> assign(:workspace_binding_form, to_form(%{"workspace_environment" => "sprite", "workspace_path" => ""}, as: :workspace_binding))
+              |> assign(:workspace_binding_form_values, %{"workspace_environment" => "sprite", "workspace_path" => ""})
               |> clear_project_conversation()
           end
       end
@@ -215,6 +223,44 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
       _other ->
         {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("change_workspace_binding", %{"workspace_binding" => params}, socket) do
+    {:noreply,
+     socket
+     |> assign_workspace_binding_form(params)
+     |> assign(:workspace_binding_feedback, nil)
+     |> assign(:workspace_binding_feedback_kind, :info)}
+  end
+
+  @impl true
+  def handle_event("save_workspace_binding", %{"workspace_binding" => params}, socket) do
+    workspace_binding_attrs = normalize_workspace_binding_form_params(params)
+    managed_repo_id = socket.assigns.project_detail && socket.assigns.project_detail.managed_repo_id
+
+    case ProjectWorkspaceBinding.update(managed_repo_id, workspace_binding_attrs, initiating_actor(socket)) do
+      {:ok, %{workspace_settings: workspace_settings}} ->
+        {:noreply,
+         socket
+         |> refresh_project_detail_surface()
+         |> assign_workspace_binding_form(workspace_binding_form_values(workspace_settings))
+         |> assign(:workspace_binding_feedback, %{
+           error_type: "managed_repo_workspace_binding_updated",
+           detail:
+             "Repo-scoped workspace binding saved for #{socket.assigns.project_detail.github_full_name}.",
+           remediation:
+             "Conversation, semantic, memory, and workflow readiness on this route now read from the updated repo-scoped binding."
+         })
+         |> assign(:workspace_binding_feedback_kind, :info)}
+
+      {:error, error} ->
+        {:noreply,
+         socket
+         |> assign_workspace_binding_form(params)
+         |> assign(:workspace_binding_feedback, error)
+         |> assign(:workspace_binding_feedback_kind, :error)}
     end
   end
 
@@ -453,6 +499,129 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 socket={@socket}
                 props={project_detail_overview_props(assigns)}
               />
+
+              <section
+                id="project-detail-workspace-binding-panel"
+                class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-4"
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <h3 class="font-semibold">Repo-scoped workspace binding</h3>
+                    <p class="text-sm text-base-content/70">
+                      Setup runtime defaults only seed new imports. This repository keeps its own execution binding here.
+                    </p>
+                  </div>
+                  <span
+                    id="project-detail-workspace-binding-badge"
+                    class={[
+                      "badge border font-medium",
+                      detail_section_badge_class(workspace_binding_badge_tone(@project_detail))
+                    ]}
+                  >
+                    {workspace_binding_badge_label(@project_detail)}
+                  </span>
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-4">
+                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                    <p class="text-xs uppercase text-base-content/60">Execution mode</p>
+                    <p id="project-detail-workspace-binding-environment" class="mt-1 text-sm font-semibold">
+                      {workspace_binding_environment_label(@project_detail)}
+                    </p>
+                  </article>
+                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                    <p class="text-xs uppercase text-base-content/60">Repository workspace path</p>
+                    <p
+                      id="project-detail-workspace-binding-path"
+                      class="mt-1 text-sm font-semibold break-all"
+                    >
+                      {workspace_binding_path_label(@project_detail)}
+                    </p>
+                  </article>
+                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                    <p class="text-xs uppercase text-base-content/60">Derived workspace root</p>
+                    <p
+                      id="project-detail-workspace-binding-root"
+                      class="mt-1 text-sm font-semibold break-all"
+                    >
+                      {workspace_binding_root_label(@project_detail)}
+                    </p>
+                  </article>
+                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                    <p class="text-xs uppercase text-base-content/60">Route runtime readiness</p>
+                    <p id="project-detail-workspace-binding-readiness" class="mt-1 text-sm font-semibold">
+                      {workspace_binding_route_readiness_label(@project_detail)}
+                    </p>
+                  </article>
+                </div>
+
+                <.operator_state_notice
+                  :if={@workspace_binding_feedback}
+                  id="project-detail-workspace-binding-feedback"
+                  title="Repo workspace binding update"
+                  state={@workspace_binding_feedback}
+                  kind={@workspace_binding_feedback_kind}
+                  compact={true}
+                />
+
+                <.form
+                  id="project-detail-workspace-binding-form"
+                  for={@workspace_binding_form}
+                  phx-change="change_workspace_binding"
+                  phx-submit="save_workspace_binding"
+                  class="space-y-3"
+                >
+                  <div class="grid gap-3 lg:grid-cols-[14rem_minmax(0,1fr)]">
+                    <.input
+                      id="project-detail-workspace-binding-environment-input"
+                      field={@workspace_binding_form[:workspace_environment]}
+                      type="select"
+                      label="Workspace binding mode"
+                      options={[{"Local", "local"}, {"Cloud default only", "sprite"}]}
+                    />
+
+                    <.input
+                      :if={workspace_binding_form_local?(@workspace_binding_form_values)}
+                      id="project-detail-workspace-binding-path-input"
+                      field={@workspace_binding_form[:workspace_path]}
+                      type="text"
+                      label="Repository workspace path"
+                      placeholder="/absolute/path/to/this/repository"
+                      autocomplete="off"
+                    />
+                  </div>
+
+                  <p
+                    :if={workspace_binding_form_local?(@workspace_binding_form_values)}
+                    id="project-detail-workspace-binding-derived-root-note"
+                    class="text-xs text-base-content/65"
+                  >
+                    {workspace_binding_derived_root_note(@workspace_binding_form_values)}
+                  </p>
+
+                  <p
+                    :if={!workspace_binding_form_local?(@workspace_binding_form_values)}
+                    id="project-detail-workspace-binding-sprite-note"
+                    class="text-xs text-base-content/65"
+                  >
+                    Cloud-default mode leaves this repository unbound until you later save a local workspace path here.
+                  </p>
+
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p id="project-detail-workspace-binding-form-note" class="text-sm text-base-content/70">
+                      This updates only {@project_detail.github_full_name}. It does not rewrite setup defaults or sibling repositories.
+                    </p>
+
+                    <button
+                      id="project-detail-workspace-binding-save"
+                      type="submit"
+                      class="btn btn-primary"
+                    >
+                      {workspace_binding_save_button_label(@workspace_binding_form_values)}
+                    </button>
+                  </div>
+                </.form>
+              </section>
 
               <section id="project-detail-overview-family-guides" class="grid gap-3 md:grid-cols-2">
                 <article
@@ -885,6 +1054,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     kind={:error}
                     compact={true}
                   >
+                    <:actions>
+                      <.link
+                        :if={workspace_binding_repair_visible?(@conversation_runtime.notice)}
+                        id="project-detail-conversation-runtime-repair"
+                        patch={
+                          project_detail_section_path(
+                            @project_detail,
+                            @return_to_path,
+                            section: :overview,
+                            work_item_id: @selected_work_item_id,
+                            anchor: "project-detail-workspace-binding-panel"
+                          )
+                        }
+                        class="btn btn-xs btn-outline"
+                      >
+                        Repair workspace binding
+                      </.link>
+                    </:actions>
                     <p
                       :if={conversation_runtime_preserves_state?(@conversation_runtime, @conversation_surface)}
                       id="project-detail-conversation-runtime-preserved"
@@ -1317,6 +1504,22 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             kind={semantic_notice_kind(@semantic_inspection)}
           >
             <:actions>
+              <.link
+                :if={workspace_binding_repair_visible?(@semantic_inspection.notice)}
+                id="project-detail-semantic-repair-workspace"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :overview,
+                    work_item_id: @selected_work_item_id,
+                    anchor: "project-detail-workspace-binding-panel"
+                  )
+                }
+                class="btn btn-sm btn-outline"
+              >
+                Repair workspace binding
+              </.link>
               <button
                 :if={semantic_recovery_available?(@semantic_inspection)}
                 id="project-detail-semantic-recover"
@@ -1449,6 +1652,27 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             recover_event="recover_memory_graph"
             recover_id="project-detail-memory-recover"
           />
+
+          <div
+            :if={workspace_binding_repair_visible?(@memory_inspection.notice)}
+            id="project-detail-memory-repair-workspace"
+            class="flex"
+          >
+            <.link
+              patch={
+                project_detail_section_path(
+                  @project_detail,
+                  @return_to_path,
+                  section: :overview,
+                  work_item_id: @selected_work_item_id,
+                  anchor: "project-detail-workspace-binding-panel"
+                )
+              }
+              class="btn btn-sm btn-outline"
+            >
+              Repair workspace binding
+            </.link>
+          </div>
 
           <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
             <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
@@ -1605,6 +1829,26 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 <p id="project-detail-launch-disabled-remediation" class="text-sm">
                   {project_readiness(@project_detail).remediation}
                 </p>
+                <div
+                  :if={workspace_binding_repair_visible?(project_readiness(@project_detail))}
+                  class="pt-2"
+                >
+                  <.link
+                    id="project-detail-launch-disabled-repair"
+                    patch={
+                      project_detail_section_path(
+                        @project_detail,
+                        @return_to_path,
+                        section: :overview,
+                        work_item_id: @selected_work_item_id,
+                        anchor: "project-detail-workspace-binding-panel"
+                      )
+                    }
+                    class="btn btn-sm btn-outline"
+                  >
+                    Repair workspace binding
+                  </.link>
+                </div>
               </section>
 
               <section id="project-detail-workflow-controls" class="grid gap-3 md:grid-cols-2">
@@ -2049,6 +2293,197 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp runtime_workspace_path(_project_detail), do: nil
+
+  defp refresh_project_detail_surface(socket) do
+    case socket.assigns.project_detail do
+      %{id: project_id} when is_binary(project_id) ->
+        case ProjectDetail.load(project_id) do
+          {:ok, project_detail} ->
+            socket
+            |> assign(:project_detail, project_detail)
+            |> assign(:project_load_error, nil)
+            |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
+            |> assign(:memory_inspection, ProjectMemoryInspection.load_repo_detail(project_detail))
+            |> assign_workspace_binding_form(project_detail)
+            |> assign_project_conversation(project_detail, socket.assigns.selected_work_item_id)
+
+          {:error, project_load_error} ->
+            socket
+            |> assign(:project_load_error, project_load_error)
+            |> assign(:semantic_inspection, nil)
+            |> assign(:memory_inspection, nil)
+            |> clear_project_conversation()
+        end
+
+      _other ->
+        socket
+    end
+  end
+
+  defp assign_workspace_binding_form(socket, %{} = source) do
+    form_values = workspace_binding_form_values(source)
+
+    socket
+    |> assign(:workspace_binding_form_values, form_values)
+    |> assign(:workspace_binding_form, to_form(form_values, as: :workspace_binding))
+  end
+
+  defp assign_workspace_binding_form(socket, source) do
+    assign_workspace_binding_form(socket, workspace_binding_form_values(source))
+  end
+
+  defp workspace_binding_form_values(%{} = source) do
+    binding = workspace_binding_form_source(source)
+
+    %{
+      "workspace_environment" =>
+        binding
+        |> Map.get("workspace_environment", Map.get(binding, :workspace_environment))
+        |> workspace_binding_form_environment(),
+      "workspace_path" =>
+        binding
+        |> Map.get("workspace_path", Map.get(binding, :workspace_path))
+        |> normalize_optional_string() || ""
+    }
+  end
+
+  defp workspace_binding_form_values(_source),
+    do: %{"workspace_environment" => "sprite", "workspace_path" => ""}
+
+  defp workspace_binding_form_source(%{workspace_environment: _workspace_environment} = binding),
+    do: normalize_workspace_binding_form_params(binding)
+
+  defp workspace_binding_form_source(%{"workspace_environment" => _workspace_environment} = binding),
+    do: normalize_workspace_binding_form_params(binding)
+
+  defp workspace_binding_form_source(%{workspace_path: _workspace_path} = binding),
+    do: normalize_workspace_binding_form_params(binding)
+
+  defp workspace_binding_form_source(%{"workspace_path" => _workspace_path} = binding),
+    do: normalize_workspace_binding_form_params(binding)
+
+  defp workspace_binding_form_source(source), do: ProjectDetail.workspace_binding(source)
+
+  defp normalize_workspace_binding_form_params(params) when is_map(params) do
+    %{
+      "workspace_environment" =>
+        params
+        |> map_get(:workspace_environment, "workspace_environment")
+        |> workspace_binding_form_environment(),
+      "workspace_path" =>
+        params
+        |> map_get(:workspace_path, "workspace_path")
+        |> normalize_optional_string()
+    }
+  end
+
+  defp normalize_workspace_binding_form_params(_params),
+    do: %{"workspace_environment" => "sprite", "workspace_path" => nil}
+
+  defp workspace_binding_form_environment(:local), do: "local"
+  defp workspace_binding_form_environment("local"), do: "local"
+  defp workspace_binding_form_environment(_workspace_environment), do: "sprite"
+
+  defp workspace_binding_form_local?(%{} = form_values) do
+    form_values
+    |> Map.get("workspace_environment")
+    |> workspace_binding_form_environment() == "local"
+  end
+
+  defp workspace_binding_form_local?(_form_values), do: false
+
+  defp workspace_binding_derived_root_note(%{} = form_values) do
+    case form_values |> Map.get("workspace_path") |> normalize_optional_string() do
+      nil ->
+        "Choose the absolute path for this repository. The workspace root is derived from that saved path."
+
+      workspace_path ->
+        if Path.type(workspace_path) == :absolute do
+          "Derived workspace root: #{Path.dirname(Path.expand(workspace_path))}"
+        else
+          "Choose an absolute path for this repository. The workspace root is derived from that saved path."
+        end
+    end
+  end
+
+  defp workspace_binding_derived_root_note(_form_values) do
+    "Choose the absolute path for this repository. The workspace root is derived from that saved path."
+  end
+
+  defp workspace_binding_save_button_label(%{} = form_values) do
+    if workspace_binding_form_local?(form_values) do
+      "Save repo workspace path"
+    else
+      "Save cloud-default binding"
+    end
+  end
+
+  defp workspace_binding_save_button_label(_form_values), do: "Save repo workspace binding"
+
+  defp workspace_binding_badge_label(project_detail) do
+    binding = ProjectDetail.workspace_binding(project_detail)
+
+    cond do
+      binding.bound? -> "Bound"
+      binding.local? -> "Needs path"
+      true -> "Cloud default only"
+    end
+  end
+
+  defp workspace_binding_badge_tone(project_detail) do
+    binding = ProjectDetail.workspace_binding(project_detail)
+
+    cond do
+      binding.bound? -> :success
+      binding.local? -> :warning
+      true -> :neutral
+    end
+  end
+
+  defp workspace_binding_environment_label(project_detail) do
+    case ProjectDetail.workspace_binding(project_detail).workspace_environment do
+      :local -> "Local"
+      _other -> "Cloud default only"
+    end
+  end
+
+  defp workspace_binding_path_label(project_detail) do
+    case ProjectDetail.workspace_binding(project_detail).workspace_path do
+      workspace_path when is_binary(workspace_path) -> workspace_path
+      _other -> "No repo-scoped local workspace path saved"
+    end
+  end
+
+  defp workspace_binding_root_label(project_detail) do
+    case ProjectDetail.workspace_binding(project_detail).workspace_root do
+      workspace_root when is_binary(workspace_root) -> workspace_root
+      _other -> "Derived after a local path is saved"
+    end
+  end
+
+  defp workspace_binding_route_readiness_label(project_detail) do
+    case project_readiness(project_detail) do
+      %{status: :ready} -> "Ready"
+      _other -> "Blocked"
+    end
+  end
+
+  defp workspace_binding_repair_visible?(%{} = state) do
+    state
+    |> Map.get(:error_type, Map.get(state, "error_type"))
+    |> normalize_optional_string()
+    |> case do
+      "conversation_runtime_workspace_binding_missing" -> true
+      "conversation_runtime_workspace_unavailable" -> true
+      "managed_repo_workspace_binding_missing" -> true
+      "managed_repo_workspace_binding_unavailable" -> true
+      "semantic_workspace_binding_unavailable" -> true
+      "memory_workspace_binding_unavailable" -> true
+      _other -> false
+    end
+  end
+
+  defp workspace_binding_repair_visible?(_state), do: false
 
   defp assign_project_conversation(socket, project_detail, selected_work_item_id) do
     previous_conversation_id = conversation_id(socket)

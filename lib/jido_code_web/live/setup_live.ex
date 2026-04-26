@@ -398,8 +398,8 @@ defmodule JidoCodeWeb.SetupLive do
                     id="setup-runtime-workspace-root"
                     field={@runtime_environment_form[:workspace_root]}
                     type="text"
-                    label="Workspace root"
-                    placeholder="/absolute/path/to/workspaces"
+                    label="Default workspace root"
+                    placeholder="/absolute/path/used/for/new/local-imports"
                     autocomplete="off"
                   />
 
@@ -412,7 +412,7 @@ defmodule JidoCodeWeb.SetupLive do
                       @buttons_disabled? && "btn-disabled"
                     ]}
                   >
-                    Save runtime default
+                    Save runtime defaults
                   </button>
                 </.form>
 
@@ -553,7 +553,7 @@ defmodule JidoCodeWeb.SetupLive do
                   )}
                 </p>
                 <p class="max-w-2xl text-sm text-base-content/60">
-                  Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later.
+                  Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later. Each managed repository can keep its own workspace binding after import.
                 </p>
               </div>
 
@@ -817,7 +817,7 @@ defmodule JidoCodeWeb.SetupLive do
                             </span>
                           </div>
                           <p class="mt-3 text-sm text-base-content/70">
-                            Import {repository.name} as a managed repository and keep GitHub as its source identity.
+                            Import {repository.name} as a managed repository, keep GitHub as its source identity, and rebind its workspace later if needed.
                           </p>
                         </button>
 
@@ -901,7 +901,7 @@ defmodule JidoCodeWeb.SetupLive do
                     {completion_summary(@selected_start_path)}
                   </p>
                   <p class="max-w-2xl text-sm text-base-content/60">
-                    GitHub setup, repo import, and runtime defaults remain editable after onboarding.
+                    GitHub setup, repo import, runtime defaults, and repo-level workspace bindings remain editable after onboarding.
                   </p>
                 </div>
 
@@ -1292,7 +1292,7 @@ defmodule JidoCodeWeb.SetupLive do
   end
 
   defp github_repository_panel_detail do
-    "Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later."
+    "Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later. Each imported managed repository can later keep its own workspace binding."
   end
 
   defp github_repository_widget_boundary_note do
@@ -2011,10 +2011,10 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Your admin account is ready. Pick the first path you want this install to guide next."
 
   defp runtime_environment_description(:cloud),
-    do: "Choose whether repository work should default to cloud-backed execution or local workspaces."
+    do: "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
 
   defp runtime_environment_description(:local),
-    do: "Choose whether repository work should default to cloud-backed execution or local workspaces."
+    do: "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
 
   defp deployment_mode_label(:desktop), do: "Desktop"
   defp deployment_mode_label(:cloud), do: "Cloud"
@@ -2024,19 +2024,19 @@ defmodule JidoCodeWeb.SetupLive do
   defp saved_runtime_environment_label(_default_environment), do: "Cloud"
 
   defp saved_runtime_environment_note(:local, workspace_root) when is_binary(workspace_root) do
-    "Local execution will use #{workspace_root} as the default workspace root."
+    "New local imports will seed repo workspace paths from #{workspace_root} until each managed repository is rebound."
   end
 
   defp saved_runtime_environment_note(:local, _workspace_root) do
-    "Local execution is selected, but the workspace root still needs to be supplied."
+    "Local defaults are selected, but the default workspace root still needs to be supplied for new local imports."
   end
 
   defp saved_runtime_environment_note(:sprite, _workspace_root) do
-    "Cloud defaults currently map to Sprite-backed execution with no local workspace root."
+    "Cloud defaults map to Sprite-backed execution and do not bind repository-local workspace paths."
   end
 
   defp saved_runtime_environment_note(_default_environment, _workspace_root) do
-    "Cloud defaults currently map to Sprite-backed execution with no local workspace root."
+    "Cloud defaults map to Sprite-backed execution and do not bind repository-local workspace paths."
   end
 
   defp selected_start_path_label(nil), do: "Not chosen yet"
@@ -2049,10 +2049,10 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Pick a default path now. You can still change it later once more setup moves into the app."
 
   defp selected_start_path_note(:local_repo, _deployment_mode),
-    do: "Local repositories are the default path for this install until you choose something else."
+    do: "Local repositories are the default path for this install until you choose something else, and each managed repo can later keep its own workspace binding."
 
   defp selected_start_path_note(:github, _deployment_mode),
-    do: "GitHub is saved as the default source-control path for this install."
+    do: "GitHub is saved as the default source-control path for this install, and imported repos can later keep their own workspace bindings."
 
   defp selected_start_path_note(:later, _deployment_mode),
     do: "Repo setup is deferred for now. You can come back and choose a source-control path later."
@@ -2064,7 +2064,7 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Local repo is saved as your preferred next step. You can finish onboarding and attach it from inside the app."
 
   defp completion_summary(:github),
-    do: "GitHub is saved as your preferred next step. You can finish onboarding and connect it from inside the app."
+    do: "GitHub is saved as your preferred next step. You can finish onboarding, connect it from inside the app, and later bind each managed repository to its own workspace."
 
   defp completion_summary(:later),
     do: "Repository setup is deferred for now. You can finish onboarding and come back later."
@@ -2090,7 +2090,7 @@ defmodule JidoCodeWeb.SetupLive do
 
   defp runtime_environment_note(%{mode: :local, workspace_root: workspace_root})
        when is_binary(workspace_root) do
-    "Local runtime defaults saved for #{Path.expand(workspace_root)}."
+    "Local runtime defaults saved for #{Path.expand(workspace_root)} as the seed root for new local imports."
   end
 
   defp runtime_environment_note(%{mode: :local}),

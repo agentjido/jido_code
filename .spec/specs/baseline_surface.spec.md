@@ -1,6 +1,6 @@
 # Baseline Surface
 
-<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, a settings-owned `/settings/auth` destination as the durable home for provider-login and Git integration management, and GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes. -->
+<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including runtime-default copy that now frames workspace root as seed metadata for new imports, the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, a settings-owned `/settings/auth` destination as the durable home for provider-login and Git integration management, and GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes while leaving repo-level workspace binding as later operator work. -->
 
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
@@ -26,6 +26,7 @@ surface:
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   - test/jido_code_web/live/phase_sixty_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_three_integration_test.exs
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/welcome_live_test.exs
 ```

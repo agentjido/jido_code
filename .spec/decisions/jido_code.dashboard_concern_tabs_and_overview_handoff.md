@@ -128,6 +128,8 @@ Current implementation behaves as follows:
   stacked route.
 - provider-login and Git automation configuration remain a header-level
   handoff to `/settings/auth`, not a dashboard concern tab.
+- browser coverage now exercises the route-owned dashboard concern navigation
+  at both wide and narrow viewport sizes on the authenticated landing route.
 
 Current-truth specs should now describe this route-owned concern model directly
 rather than framing it as accepted future state.

@@ -217,6 +217,11 @@ surface:
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
 
 - kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented

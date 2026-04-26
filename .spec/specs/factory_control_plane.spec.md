@@ -306,6 +306,12 @@ surface:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 
 - kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+
+- kind: source_file
   target: test/jido_code_web/live/workbench_live_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records

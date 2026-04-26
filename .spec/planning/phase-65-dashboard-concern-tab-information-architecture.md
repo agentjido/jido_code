@@ -104,12 +104,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 65.4.1.2 Subtask - Update baseline, factory-control-plane, frontend, repo-posture, conversation, memory, and runtime current-truth subjects to describe the route-owned dashboard concern model once implemented.
       [x] 65.4.1.3 Subtask - Retire stale stacked-dashboard copy that implies the dashboard is only a vertically growing summary page rather than a durable authenticated landing with explicit concern navigation.
 
-  [ ] 65.5 Section - Phase Integration Tests
+  [x] 65.5 Section - Phase Integration Tests
     Prove the dashboard concern split improves navigation and clarity without breaking route ownership, bounded summary behavior, or ready-state landing expectations.
 
-    [ ] 65.5.1 Task - Add dashboard route and browser coverage for concern navigation
+    [x] 65.5.1 Task - Add dashboard route and browser coverage for concern navigation
       Verify the dashboard tabs and their most important concern states as an operator would actually use them.
 
-      [ ] 65.5.1.1 Subtask - Add LiveView coverage proving `Overview`, `Runs`, `Conversations`, `Memory`, and `Runtime` expose the intended concern family and do not leak the full neighboring concern panels by default.
-      [ ] 65.5.1.2 Subtask - Add coverage proving conditional `Next Steps` behavior only renders its tab or overview summary when follow-up actions exist.
-      [ ] 65.5.1.3 Subtask - Add browser coverage for wide-screen tab behavior and narrow-screen fallback navigation so the authenticated landing remains usable across supported viewports.
+      [x] 65.5.1.1 Subtask - Add LiveView coverage proving `Overview`, `Runs`, `Conversations`, `Memory`, and `Runtime` expose the intended concern family and do not leak the full neighboring concern panels by default.
+      [x] 65.5.1.2 Subtask - Add coverage proving conditional `Next Steps` behavior only renders its tab or overview summary when follow-up actions exist.
+      [x] 65.5.1.3 Subtask - Add browser coverage for wide-screen tab behavior and narrow-screen fallback navigation so the authenticated landing remains usable across supported viewports.

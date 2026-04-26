@@ -200,4 +200,9 @@ surface:
     - architecture.memory_graph_surface_rollout_and_governance_actions.cross_graph_navigation_stays_consistent_across_surfaces
     - architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
 
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.memory_graph_surface_rollout_and_governance_actions.dashboard_memory_summaries_remain_bounded_and_action_oriented
+
 ```

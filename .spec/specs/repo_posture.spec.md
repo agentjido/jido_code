@@ -272,6 +272,11 @@ surface:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
 - kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state

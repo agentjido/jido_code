@@ -272,6 +272,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code/phase_thirty_four_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
@@ -514,6 +519,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/e2e/dashboard-tabs.spec.ts
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

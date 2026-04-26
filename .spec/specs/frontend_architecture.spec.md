@@ -55,6 +55,7 @@ surface:
   - test/support/test_browser_session_controller.ex
   - test/e2e/
   - test/e2e/conversation-ui.spec.ts
+  - test/e2e/dashboard-tabs.spec.ts
   - test/jido_code_web/components/
   - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
@@ -374,6 +375,12 @@ surface:
     - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 
 - kind: source_file
+  target: test/e2e/dashboard-tabs.spec.ts
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
   target: lib/jido_code_web/live/project_inventory_live.ex
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
@@ -481,6 +488,12 @@ surface:
   covers:
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.server_authored_props_streams_and_events
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
 
 - kind: source_file
   target: test/jido_code_web/live/security_settings_live_test.exs

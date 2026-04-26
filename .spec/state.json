@@ -3101,7 +3101,7 @@
         "id": "setup.onboarding.github_repository_selection_prefers_live_vue_widget_with_liveview_fallback",
         "priority": "should",
         "stability": "evolving",
-        "statement": "When `/setup` surfaces linked GitHub repositories for optional follow-up import, the richer selector should mount as a bounded `live_vue` widget with LiveView-authored props and events plus a server-rendered fallback instead of becoming a client-owned setup sub-application.",
+        "statement": "When `/setup` surfaces linked GitHub repositories for optional follow-up import, the richer selector should mount as a bounded `live_vue` widget with LiveView-authored props and events plus a server-rendered fallback instead of becoming a client-owned setup sub-application, and both paths shall keep repositories grouped by account origin with the account name visible on each repository card.",
         "subject_id": "setup.onboarding"
       },
       {
@@ -3262,6 +3262,14 @@
         "priority": "must",
         "stability": "stable",
         "statement": "The GitHub adapter shall preserve GitHub App preference ahead of PAT fallback in the setup-path model.",
+        "subject_id": "source.provider_adapter"
+      },
+      {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter.github_repository_listing_fetches_full_accessible_set",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "GitHub-backed repository listing shall request the full accessible repository set for setup validation rather than relying on GitHub's default first-page result size.",
         "subject_id": "source.provider_adapter"
       },
       {
@@ -6729,6 +6737,7 @@
           "The selected repository list, repository-listing report, and latest import result persist in database-backed onboarding metadata.",
           "When the import succeeds completely, the operator returns to an unselected repository picker while the latest import result remains visible as history.",
           "The optional follow-up surface can resume that GitHub repository context after route reload without reintroducing a blocking wizard.",
+          "Linked repositories stay grouped by account origin, and each repository card keeps the account name visible in both richer and fallback delivery.",
           "When richer client delivery is available, the repository selector may arrive through a bounded `live_vue` region without moving setup ownership out of LiveView."
         ],
         "when": [
@@ -6907,7 +6916,8 @@
         "covers": [
           "source.provider_adapter.behavior_contract",
           "source.provider_adapter.github_adapter",
-          "source.provider_adapter.github_app_preferred"
+          "source.provider_adapter.github_app_preferred",
+          "source.provider_adapter.github_repository_listing_fetches_full_accessible_set"
         ],
         "file": ".spec/specs/source_provider_adapter.spec.md",
         "given": [
@@ -6916,7 +6926,7 @@
         "id": "source.provider_adapter.scenario.github_setup_checks",
         "subject_id": "source.provider_adapter",
         "then": [
-          "The checks call the GitHub adapter boundary and keep GitHub App ahead of PAT fallback."
+          "The checks call the GitHub adapter boundary, keep GitHub App ahead of PAT fallback, and do not truncate the accessible repository set to GitHub's default first page."
         ],
         "when": [
           "GitHub credential checks enumerate credential paths and request accessible repositories."
@@ -7478,7 +7488,7 @@
           "id": "auth.github_integration",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration, synchronizing installation readiness, and preparing for optional GitHub-backed sign-in.",
+          "summary": "jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration, synchronizing installation readiness against full accessible repository listings rather than first-page snapshots, and preparing for optional GitHub-backed sign-in.",
           "surface": [
             "lib/jido_code/setup/github_credential_checks.ex",
             "lib/jido_code/setup/github_installation_sync.ex",
@@ -8311,7 +8321,7 @@
           "id": "setup.onboarding",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, requests GitHub-backed repository follow-up with up to 100 repositories per API page and continues pagination beyond the first page so linked repository selection reflects the full accessible set for PAT-backed or installation-backed validation, groups linked repositories by account origin while keeping the account name visible on each repository card in both the richer widget and the fallback, allows optional GitHub repository multi-selection and import progress to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md",
@@ -8460,14 +8470,16 @@
           "id": "source.provider_adapter",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code routes GitHub service credential and repository-access checks through a provider-neutral adapter boundary and keeps explicit placeholder adapters for GitLab and Bitbucket.",
+          "summary": "jido_code routes GitHub service credential and repository-access checks through a provider-neutral adapter boundary, including full accessible-repository pagination for GitHub-backed validation, and keeps explicit placeholder adapters for GitLab and Bitbucket.",
           "surface": [
             "lib/jido_code/source_providers.ex",
             "lib/jido_code/source_providers/adapter.ex",
             "lib/jido_code/source_providers/github_adapter.ex",
+            "lib/jido_code/github/http_client.ex",
             "lib/jido_code/source_providers/gitlab_adapter.ex",
             "lib/jido_code/source_providers/bitbucket_adapter.ex",
             "lib/jido_code/setup/github_credential_checks.ex",
+            "test/jido_code/github/http_client_test.exs",
             "test/jido_code/source_providers/source_providers_test.exs",
             "test/jido_code/source_providers/github_adapter_test.exs"
           ],
@@ -15930,12 +15942,22 @@
         "covers": [
           "source.provider_adapter.behavior_contract",
           "source.provider_adapter.github_adapter",
-          "source.provider_adapter.github_app_preferred"
+          "source.provider_adapter.github_app_preferred",
+          "source.provider_adapter.github_repository_listing_fetches_full_accessible_set"
         ],
         "file": ".spec/specs/source_provider_adapter.spec.md",
         "kind": "source_file",
         "subject_id": "source.provider_adapter",
         "target": "lib/jido_code/source_providers/github_adapter.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.github_repository_listing_fetches_full_accessible_set"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/github/http_client.ex"
       },
       {
         "covers": [
@@ -15984,6 +16006,15 @@
         "kind": "source_file",
         "subject_id": "source.provider_adapter",
         "target": "test/jido_code/source_providers/github_adapter_test.exs"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.github_repository_listing_fetches_full_accessible_set"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/github/http_client_test.exs"
       },
       {
         "covers": [
@@ -16197,10 +16228,10 @@
     "decisions": 29,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 373,
+    "requirements": 374,
     "scenarios": 183,
     "subjects": 44,
-    "verifications": 748
+    "verifications": 750
   },
   "verification": {
     "claims": [
@@ -33409,14 +33440,25 @@
         "verification_index": 2
       },
       {
-        "cover_id": "source.provider_adapter.placeholder_adapters",
+        "cover_id": "source.provider_adapter.github_repository_listing_fetches_full_accessible_set",
         "file": ".spec/specs/source_provider_adapter.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "source.provider_adapter",
-        "target": "lib/jido_code/source_providers/gitlab_adapter.ex",
+        "target": "lib/jido_code/source_providers/github_adapter.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "source.provider_adapter.github_repository_listing_fetches_full_accessible_set",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/github/http_client.ex",
         "verification_index": 3
       },
       {
@@ -33427,8 +33469,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "source.provider_adapter",
-        "target": "lib/jido_code/source_providers/bitbucket_adapter.ex",
+        "target": "lib/jido_code/source_providers/gitlab_adapter.ex",
         "verification_index": 4
+      },
+      {
+        "cover_id": "source.provider_adapter.placeholder_adapters",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/bitbucket_adapter.ex",
+        "verification_index": 5
       },
       {
         "cover_id": "source.provider_adapter.github_adapter",
@@ -33439,7 +33492,7 @@
         "strength": "linked",
         "subject_id": "source.provider_adapter",
         "target": "lib/jido_code/setup/github_credential_checks.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "source.provider_adapter.placeholder_adapters",
@@ -33450,7 +33503,7 @@
         "strength": "linked",
         "subject_id": "source.provider_adapter",
         "target": "test/jido_code/source_providers/source_providers_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "source.provider_adapter.provider_catalog",
@@ -33461,7 +33514,7 @@
         "strength": "linked",
         "subject_id": "source.provider_adapter",
         "target": "test/jido_code/source_providers/source_providers_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "source.provider_adapter.behavior_contract",
@@ -33472,7 +33525,7 @@
         "strength": "linked",
         "subject_id": "source.provider_adapter",
         "target": "test/jido_code/source_providers/github_adapter_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "source.provider_adapter.github_adapter",
@@ -33483,7 +33536,7 @@
         "strength": "linked",
         "subject_id": "source.provider_adapter",
         "target": "test/jido_code/source_providers/github_adapter_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "source.provider_adapter.github_app_preferred",
@@ -33494,7 +33547,18 @@
         "strength": "linked",
         "subject_id": "source.provider_adapter",
         "target": "test/jido_code/source_providers/github_adapter_test.exs",
-        "verification_index": 7
+        "verification_index": 8
+      },
+      {
+        "cover_id": "source.provider_adapter.github_repository_listing_fetches_full_accessible_set",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/github/http_client_test.exs",
+        "verification_index": 9
       },
       {
         "cover_id": "spec.workspace.readme_present",
@@ -33898,7 +33962,7 @@
     "strength_summary": {
       "claimed": 70,
       "executed": 0,
-      "linked": 1538
+      "linked": 1541
     },
     "threshold_failures": 0
   },

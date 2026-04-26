@@ -784,42 +784,57 @@ defmodule JidoCodeWeb.SetupLive do
                         id="setup-github-repository-fallback-list"
                         class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-base-300/70 bg-base-200/10 p-2"
                       >
-                        <button
-                          :for={repository <- @github_repository_options}
-                          id={"setup-github-repository-fallback-option-#{repository.id}"}
-                          type="button"
-                          phx-click="select_github_repository"
-                          phx-value-repository_full_name={repository.full_name}
-                          disabled={@buttons_disabled?}
-                          class={[
-                            "w-full rounded-xl border p-3 text-left transition",
-                            repository.full_name in @github_selected_repositories &&
-                              "border-primary/60 bg-primary/10",
-                            repository.full_name not in @github_selected_repositories &&
-                              "border-base-300/70 bg-base-100 hover:border-primary/40",
-                            @buttons_disabled? && "opacity-60"
-                          ]}
+                        <section
+                          :for={group <- github_repository_owner_groups(@github_repository_options)}
+                          class="space-y-3"
                         >
-                          <div class="flex items-start justify-between gap-3">
-                            <div class="space-y-1">
-                              <p class="font-medium">{repository.full_name}</p>
-                              <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
-                                {repository.owner}
-                              </p>
-                            </div>
-                            <span class={[
-                              "badge badge-outline text-xs",
-                              repository.full_name in @github_selected_repositories && "badge-primary"
-                            ]}>
-                              {if repository.full_name in @github_selected_repositories,
-                                do: "Selected",
-                                else: "Linked"}
-                            </span>
+                          <div class="rounded-xl border border-base-300/60 bg-base-100/70 px-4 py-3">
+                            <p class="text-xs uppercase tracking-[0.25em] text-base-content/50">
+                              Account origin
+                            </p>
+                            <p class="text-sm font-semibold text-base-content/80">
+                              {group.owner}
+                            </p>
                           </div>
-                          <p class="mt-3 text-sm text-base-content/70">
-                            Import {repository.name} as a managed repository, keep GitHub as its source identity, and rebind its workspace later if needed.
-                          </p>
-                        </button>
+
+                          <button
+                            :for={repository <- group.repositories}
+                            id={"setup-github-repository-fallback-option-#{repository.id}"}
+                            type="button"
+                            phx-click="select_github_repository"
+                            phx-value-repository_full_name={repository.full_name}
+                            disabled={@buttons_disabled?}
+                            class={[
+                              "w-full rounded-xl border p-3 text-left transition",
+                              repository.full_name in @github_selected_repositories &&
+                                "border-primary/60 bg-primary/10",
+                              repository.full_name not in @github_selected_repositories &&
+                                "border-base-300/70 bg-base-100 hover:border-primary/40",
+                              @buttons_disabled? && "opacity-60"
+                            ]}
+                          >
+                            <div class="flex items-start justify-between gap-3">
+                              <div class="space-y-1">
+                                <p class="font-medium">{repository.name}</p>
+                                <p class="text-sm text-base-content/70">{repository.full_name}</p>
+                                <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
+                                  Account: {group.owner}
+                                </p>
+                              </div>
+                              <span class={[
+                                "badge badge-outline text-xs",
+                                repository.full_name in @github_selected_repositories && "badge-primary"
+                              ]}>
+                                {if repository.full_name in @github_selected_repositories,
+                                  do: "Selected",
+                                  else: "Linked"}
+                              </span>
+                            </div>
+                            <p class="mt-3 text-sm text-base-content/70">
+                              Import {repository.name} as a managed repository, keep GitHub as its source identity, and rebind its workspace later if needed.
+                            </p>
+                          </button>
+                        </section>
 
                         <div
                           :if={@github_repository_options == []}
@@ -1236,7 +1251,9 @@ defmodule JidoCodeWeb.SetupLive do
   defp github_project_import_report(onboarding_state) do
     step_state = fetch_step_state(onboarding_state, @github_setup_step)
 
-    case step_state |> map_get(:project_import_batch, "project_import_batch") |> github_project_import_batch_from_state() do
+    case step_state
+         |> map_get(:project_import_batch, "project_import_batch")
+         |> github_project_import_batch_from_state() do
       nil ->
         step_state
         |> map_get(:project_import, "project_import")
@@ -1331,8 +1348,7 @@ defmodule JidoCodeWeb.SetupLive do
       importDetail: github_import_detail(assigns.github_project_import_report),
       importRemediation: github_import_remediation(assigns.github_project_import_report),
       importErrorType: github_import_error_type(assigns.github_project_import_report),
-      importSelectedRepositories:
-        github_project_import_selected_repositories(assigns.github_project_import_report),
+      importSelectedRepositories: github_project_import_selected_repositories(assigns.github_project_import_report),
       importProjectId: github_project_id(assigns.github_project_import_report),
       importProjectDisplayName: github_project_display_name(assigns.github_project_import_report),
       importProjectPath: github_project_path(assigns.github_project_import_report),
@@ -1472,6 +1488,46 @@ defmodule JidoCodeWeb.SetupLive do
     }
   end
 
+  defp github_repository_owner_groups(repository_options) when is_list(repository_options) do
+    repository_options
+    |> Enum.group_by(&github_repository_owner_label/1)
+    |> Enum.map(fn {owner, repositories} ->
+      %{
+        owner: owner,
+        repositories:
+          Enum.sort_by(repositories, fn repository ->
+            {
+              github_repository_sort_value(Map.get(repository, :name)),
+              github_repository_sort_value(Map.get(repository, :full_name))
+            }
+          end)
+      }
+    end)
+    |> Enum.sort_by(fn group -> String.downcase(group.owner) end)
+  end
+
+  defp github_repository_owner_groups(_repository_options), do: []
+
+  defp github_repository_owner_label(repository_option) when is_map(repository_option) do
+    repository_option
+    |> Map.get(:owner)
+    |> case do
+      owner when is_binary(owner) ->
+        case String.trim(owner) do
+          "" -> "Unknown account"
+          normalized_owner -> normalized_owner
+        end
+
+      _other ->
+        "Unknown account"
+    end
+  end
+
+  defp github_repository_owner_label(_repository_option), do: "Unknown account"
+
+  defp github_repository_sort_value(value) when is_binary(value), do: String.downcase(value)
+  defp github_repository_sort_value(_value), do: ""
+
   defp github_listing_status(%{status: :ready}), do: "ready"
   defp github_listing_status(%{status: :blocked}), do: "blocked"
   defp github_listing_status(_report), do: "blocked"
@@ -1598,7 +1654,8 @@ defmodule JidoCodeWeb.SetupLive do
     "GitHub repository #{selected_repository} selected for optional import."
   end
 
-  defp github_repository_selection_note(selected_repositories) when is_list(selected_repositories) and selected_repositories != [] do
+  defp github_repository_selection_note(selected_repositories)
+       when is_list(selected_repositories) and selected_repositories != [] do
     "#{length(selected_repositories)} GitHub repositories selected for optional import."
   end
 
@@ -1731,7 +1788,7 @@ defmodule JidoCodeWeb.SetupLive do
         state
         |> map_get(:checked_at, "checked_at")
         |> normalize_optional_datetime() ||
-          (DateTime.utc_now() |> DateTime.truncate(:second)),
+          DateTime.utc_now() |> DateTime.truncate(:second),
       status:
         state
         |> map_get(:status, "status")
@@ -1844,10 +1901,8 @@ defmodule JidoCodeWeb.SetupLive do
           failed_imports,
           last_import_report
         ),
-      remediation:
-        github_project_import_batch_remediation(failed_imports, last_import_report),
-      error_type:
-        github_project_import_batch_error_type(failed_imports, last_import_report),
+      remediation: github_project_import_batch_remediation(failed_imports, last_import_report),
+      error_type: github_project_import_batch_error_type(failed_imports, last_import_report),
       last_project_import: last_import_report
     }
   end
@@ -1894,7 +1949,12 @@ defmodule JidoCodeWeb.SetupLive do
     Map.get(last_import_report || %{}, :detail, "GitHub repository import could not complete.")
   end
 
-  defp github_project_import_batch_detail(selected_repositories, imported_repositories, _failed_imports, _last_import_report)
+  defp github_project_import_batch_detail(
+         selected_repositories,
+         imported_repositories,
+         _failed_imports,
+         _last_import_report
+       )
        when imported_repositories != [] do
     "Imported #{length(imported_repositories)} of #{length(selected_repositories)} GitHub repositories into the managed-repository control plane."
   end
@@ -2011,10 +2071,12 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Your admin account is ready. Pick the first path you want this install to guide next."
 
   defp runtime_environment_description(:cloud),
-    do: "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
+    do:
+      "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
 
   defp runtime_environment_description(:local),
-    do: "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
+    do:
+      "Choose the default execution mode for newly imported repositories. Each managed repository can later keep its own workspace binding."
 
   defp deployment_mode_label(:desktop), do: "Desktop"
   defp deployment_mode_label(:cloud), do: "Cloud"
@@ -2049,10 +2111,12 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Pick a default path now. You can still change it later once more setup moves into the app."
 
   defp selected_start_path_note(:local_repo, _deployment_mode),
-    do: "Local repositories are the default path for this install until you choose something else, and each managed repo can later keep its own workspace binding."
+    do:
+      "Local repositories are the default path for this install until you choose something else, and each managed repo can later keep its own workspace binding."
 
   defp selected_start_path_note(:github, _deployment_mode),
-    do: "GitHub is saved as the default source-control path for this install, and imported repos can later keep their own workspace bindings."
+    do:
+      "GitHub is saved as the default source-control path for this install, and imported repos can later keep their own workspace bindings."
 
   defp selected_start_path_note(:later, _deployment_mode),
     do: "Repo setup is deferred for now. You can come back and choose a source-control path later."
@@ -2064,7 +2128,8 @@ defmodule JidoCodeWeb.SetupLive do
     do: "Local repo is saved as your preferred next step. You can finish onboarding and attach it from inside the app."
 
   defp completion_summary(:github),
-    do: "GitHub is saved as your preferred next step. You can finish onboarding, connect it from inside the app, and later bind each managed repository to its own workspace."
+    do:
+      "GitHub is saved as your preferred next step. You can finish onboarding, connect it from inside the app, and later bind each managed repository to its own workspace."
 
   defp completion_summary(:later),
     do: "Repository setup is deferred for now. You can finish onboarding and come back later."

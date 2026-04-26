@@ -15,6 +15,11 @@ type RepositoryOption = {
   name: string
 }
 
+type RepositoryGroup = {
+  owner: string
+  repositories: RepositoryOption[]
+}
+
 const props = defineProps<{
   panelTitle: string
   panelBadgeLabel: string
@@ -82,6 +87,43 @@ const filteredRepositories = computed(() => {
       .toLowerCase()
       .includes(normalizedQuery)
   )
+})
+
+const repositoryOwnerLabel = (owner: string) => {
+  const normalizedOwner = owner.trim()
+  return normalizedOwner === "" ? "Unknown account" : normalizedOwner
+}
+
+const repositorySort = (left: RepositoryOption, right: RepositoryOption) => {
+  const ownerComparison = repositoryOwnerLabel(left.owner).localeCompare(repositoryOwnerLabel(right.owner))
+
+  if (ownerComparison !== 0) {
+    return ownerComparison
+  }
+
+  const nameComparison = left.name.localeCompare(right.name)
+
+  if (nameComparison !== 0) {
+    return nameComparison
+  }
+
+  return left.fullName.localeCompare(right.fullName)
+}
+
+const filteredRepositoryGroups = computed<RepositoryGroup[]>(() => {
+  const groups = new Map<string, RepositoryOption[]>()
+
+  ;[...filteredRepositories.value].sort(repositorySort).forEach(repository => {
+    const owner = repositoryOwnerLabel(repository.owner)
+    const repositories = groups.get(owner) ?? []
+    repositories.push(repository)
+    groups.set(owner, repositories)
+  })
+
+  return Array.from(groups.entries()).map(([owner, repositories]) => ({
+    owner,
+    repositories,
+  }))
 })
 
 const filteredRepositoryCountLabel = computed(() => {
@@ -331,34 +373,54 @@ const importRepository = () => {
             id="setup-github-repository-widget-results"
             class="max-h-[28rem] overflow-y-auto pr-1"
           >
-            <div class="grid gap-3 xl:grid-cols-2">
-              <button
-                v-for="repository in filteredRepositories"
-                :id="`setup-github-repository-widget-card-${repository.id}`"
-                :key="repository.id"
-                :class="repositoryCardClass(repository)"
-                type="button"
-                :aria-pressed="localSelection.includes(repository.fullName)"
-                @click="toggleRepository(repository.fullName)"
+            <div class="space-y-4">
+              <section
+                v-for="group in filteredRepositoryGroups"
+                :key="group.owner"
+                class="space-y-3"
               >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="space-y-1">
-                    <p class="font-medium">{{ repository.fullName }}</p>
-                    <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
-                      {{ repository.owner }}
-                    </p>
-                  </div>
-                  <span
-                    class="badge badge-outline text-xs"
-                    :class="localSelection.includes(repository.fullName) ? 'badge-primary' : 'badge-ghost'"
-                  >
-                    {{ localSelection.includes(repository.fullName) ? "Selected" : "Linked" }}
-                  </span>
+                <div class="rounded-xl border border-base-300/60 bg-base-200/15 px-4 py-3">
+                  <p class="text-xs uppercase tracking-[0.25em] text-base-content/50">
+                    Account origin
+                  </p>
+                  <p class="text-sm font-semibold text-base-content/80">
+                    {{ group.owner }}
+                  </p>
                 </div>
-                <p class="mt-3 text-sm text-base-content/70">
-                  Import {{ repository.name }} as a managed repository and keep GitHub as its source identity.
-                </p>
-              </button>
+
+                <div class="grid gap-3 xl:grid-cols-2">
+                  <button
+                    v-for="repository in group.repositories"
+                    :id="`setup-github-repository-widget-card-${repository.id}`"
+                    :key="repository.id"
+                    :class="repositoryCardClass(repository)"
+                    type="button"
+                    :aria-pressed="localSelection.includes(repository.fullName)"
+                    @click="toggleRepository(repository.fullName)"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="space-y-1">
+                        <p class="font-medium">{{ repository.name }}</p>
+                        <p class="text-sm text-base-content/70">
+                          {{ repository.fullName }}
+                        </p>
+                        <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
+                          Account: {{ group.owner }}
+                        </p>
+                      </div>
+                      <span
+                        class="badge badge-outline text-xs"
+                        :class="localSelection.includes(repository.fullName) ? 'badge-primary' : 'badge-ghost'"
+                      >
+                        {{ localSelection.includes(repository.fullName) ? "Selected" : "Linked" }}
+                      </span>
+                    </div>
+                    <p class="mt-3 text-sm text-base-content/70">
+                      Import {{ repository.name }} as a managed repository and keep GitHub as its source identity.
+                    </p>
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
         </div>

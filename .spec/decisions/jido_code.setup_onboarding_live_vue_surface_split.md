@@ -35,7 +35,8 @@ server-driven, and need a product-owned fallback when richer delivery degrades.
 What is missing is a durable rule for how `/setup` should grow if more of the
 surface adopts richer interaction, including later layout refinements and
 toggle-based multi-repository selection inside the bounded GitHub selector
-region.
+region, while keeping the repository list authoritative when GitHub-backed
+setup validation returns more than the API's default first page of results.
 
 ## Decision
 
@@ -93,3 +94,10 @@ Current setup truth already follows this split:
 - Selector-level refinements such as full-width scrolling results and
   non-overlapping control rows remain inside that bounded Vue region rather
   than pulling the surrounding setup shell out of LiveView ownership.
+- GitHub-backed repository validation now requests up to 100 repositories per
+  page and continues past the first page when needed so the bounded selector
+  reflects the full accessible installation or PAT-backed repository set
+  instead of truncating at GitHub's default 30-result page.
+- That bounded selector now groups repositories by account origin and keeps the
+  account name visible on each repository card, with the server-rendered
+  fallback mirroring the same grouping model.

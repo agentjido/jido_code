@@ -3,11 +3,14 @@ defmodule JidoCode.GitHub.HTTPClient do
   GitHub HTTP integration layer built on Req with explicit timeout and retry behavior.
   """
 
+  # covers: source.provider_adapter.github_repository_listing_fetches_full_accessible_set
+
   @default_base_url "https://api.github.com"
   @default_connect_timeout_ms 5_000
   @default_receive_timeout_ms 10_000
   @default_max_retries 2
   @default_retry_base_delay_ms 200
+  @default_per_page 100
 
   @retriable_statuses [408, 409, 425, 429, 500, 502, 503, 504]
 
@@ -55,10 +58,9 @@ defmodule JidoCode.GitHub.HTTPClient do
       {:error, missing_token_failure(auth_mode)}
     else
       request_metadata = request_metadata(auth_mode, opts)
-      request_opts = request_options(trimmed_token, request_metadata)
       request_fun = Keyword.get(opts, :request_fun, &Req.request/1)
 
-      execute_request(request_fun, request_opts, request_metadata)
+      execute_paginated_request(request_fun, trimmed_token, request_metadata)
     end
   end
 
@@ -78,17 +80,9 @@ defmodule JidoCode.GitHub.HTTPClient do
      }}
   end
 
-  defp execute_request(request_fun, request_opts, request_metadata) when is_function(request_fun, 1) do
-    case request_fun.(request_opts) do
-      {:ok, %Req.Response{} = response} ->
-        handle_response(response, request_metadata)
-
-      {:error, exception} ->
-        {:error, map_transport_failure(exception, request_metadata)}
-
-      other ->
-        {:error, invalid_response_failure(other, request_metadata)}
-    end
+  defp execute_paginated_request(request_fun, token, request_metadata)
+       when is_function(request_fun, 1) do
+    do_execute_paginated_request(request_fun, token, request_metadata, 1, [])
   rescue
     exception ->
       {:error, map_transport_failure(exception, request_metadata)}
@@ -109,11 +103,45 @@ defmodule JidoCode.GitHub.HTTPClient do
        }}
   end
 
-  defp request_options(token, request_metadata) do
+  defp do_execute_paginated_request(request_fun, token, request_metadata, page, repositories) do
+    request_opts = request_options(token, request_metadata, page)
+
+    case request_fun.(request_opts) do
+      {:ok, %Req.Response{} = response} ->
+        case handle_page_response(response, request_metadata) do
+          {:ok, page_repositories, page_count} ->
+            repositories = repositories ++ page_repositories
+
+            if page_count < request_metadata.per_page do
+              {:ok, finalize_repository_options(repositories)}
+            else
+              do_execute_paginated_request(
+                request_fun,
+                token,
+                request_metadata,
+                page + 1,
+                repositories
+              )
+            end
+
+          {:error, failure} ->
+            {:error, failure}
+        end
+
+      {:error, exception} ->
+        {:error, map_transport_failure(exception, request_metadata)}
+
+      other ->
+        {:error, invalid_response_failure(other, request_metadata)}
+    end
+  end
+
+  defp request_options(token, request_metadata, page) do
     [
       method: :get,
       base_url: request_metadata.base_url,
       url: request_metadata.path,
+      params: [page: page, per_page: request_metadata.per_page],
       headers: [
         {"accept", "application/vnd.github+json"},
         {"x-github-api-version", "2022-11-28"},
@@ -154,6 +182,7 @@ defmodule JidoCode.GitHub.HTTPClient do
           Keyword.get(opts, :retry_base_delay_ms),
           @default_retry_base_delay_ms
         ),
+      per_page: normalize_page_size(Keyword.get(opts, :per_page), @default_per_page),
       max_retries: max_retries,
       attempt_count: max_retries + 1
     }
@@ -165,12 +194,14 @@ defmodule JidoCode.GitHub.HTTPClient do
   defp request_intent(:pat), do: "github_pat_repository_listing"
   defp request_intent(:github_app), do: "github_app_repository_listing"
 
-  defp handle_response(%Req.Response{status: status, body: body}, request_metadata)
+  defp handle_page_response(%Req.Response{status: status, body: body}, request_metadata)
        when status in 200..299 do
-    case normalize_repository_options(request_metadata.auth_mode, body) do
-      {:ok, repositories} ->
-        {:ok, repositories}
-
+    with {:ok, repository_collection} <-
+           repository_collection(request_metadata.auth_mode, body),
+         {:ok, repositories} <-
+           normalize_repository_options_from_collection(repository_collection) do
+      {:ok, repositories, length(repository_collection)}
+    else
       {:error, detail} ->
         {:error,
          %{
@@ -188,12 +219,12 @@ defmodule JidoCode.GitHub.HTTPClient do
     end
   end
 
-  defp handle_response(%Req.Response{status: status} = response, request_metadata)
+  defp handle_page_response(%Req.Response{status: status} = response, request_metadata)
        when status in @retriable_statuses and request_metadata.max_retries > 0 do
     {:error, retry_exhausted_failure(response, request_metadata)}
   end
 
-  defp handle_response(%Req.Response{status: 401} = response, request_metadata) do
+  defp handle_page_response(%Req.Response{status: 401} = response, request_metadata) do
     {:error,
      %{
        error_type: "github_api_authentication_failed",
@@ -209,7 +240,7 @@ defmodule JidoCode.GitHub.HTTPClient do
      }}
   end
 
-  defp handle_response(%Req.Response{status: 403} = response, request_metadata) do
+  defp handle_page_response(%Req.Response{status: 403} = response, request_metadata) do
     reason_type =
       case Req.Response.get_header(response, "x-ratelimit-remaining") do
         ["0"] -> :retry_exhausted
@@ -241,7 +272,7 @@ defmodule JidoCode.GitHub.HTTPClient do
     {:error, failure}
   end
 
-  defp handle_response(%Req.Response{status: 404} = response, request_metadata) do
+  defp handle_page_response(%Req.Response{status: 404} = response, request_metadata) do
     {:error,
      %{
        error_type: "github_api_not_found",
@@ -257,7 +288,7 @@ defmodule JidoCode.GitHub.HTTPClient do
      }}
   end
 
-  defp handle_response(%Req.Response{status: status} = response, request_metadata)
+  defp handle_page_response(%Req.Response{status: status} = response, request_metadata)
        when status in [400, 422] do
     {:error,
      %{
@@ -278,7 +309,7 @@ defmodule JidoCode.GitHub.HTTPClient do
      }}
   end
 
-  defp handle_response(%Req.Response{status: status} = response, request_metadata) do
+  defp handle_page_response(%Req.Response{status: status} = response, request_metadata) do
     {:error,
      %{
        error_type: "github_api_unexpected_status",
@@ -381,21 +412,17 @@ defmodule JidoCode.GitHub.HTTPClient do
     }
   end
 
-  defp normalize_repository_options(:pat, repositories) when is_list(repositories) do
-    normalize_repository_options_from_collection(repositories)
-  end
+  defp repository_collection(:pat, repositories) when is_list(repositories), do: {:ok, repositories}
 
-  defp normalize_repository_options(:github_app, %{"repositories" => repositories})
-       when is_list(repositories) do
-    normalize_repository_options_from_collection(repositories)
-  end
+  defp repository_collection(:github_app, %{"repositories" => repositories})
+       when is_list(repositories),
+       do: {:ok, repositories}
 
-  defp normalize_repository_options(:github_app, %{repositories: repositories})
-       when is_list(repositories) do
-    normalize_repository_options_from_collection(repositories)
-  end
+  defp repository_collection(:github_app, %{repositories: repositories})
+       when is_list(repositories),
+       do: {:ok, repositories}
 
-  defp normalize_repository_options(_auth_mode, other) do
+  defp repository_collection(_auth_mode, other) do
     {:error, "GitHub API response body is invalid for repository listing: #{inspect(other)}."}
   end
 
@@ -408,6 +435,13 @@ defmodule JidoCode.GitHub.HTTPClient do
       |> Enum.sort_by(fn repository -> {repository.full_name, repository.id} end)
 
     {:ok, normalized_repositories}
+  end
+
+  defp finalize_repository_options(repositories) do
+    repositories
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq_by(fn repository -> repository.full_name end)
+    |> Enum.sort_by(fn repository -> {repository.full_name, repository.id} end)
   end
 
   defp normalize_repository_option(repository) when is_map(repository) do
@@ -521,6 +555,11 @@ defmodule JidoCode.GitHub.HTTPClient do
   defp format_reason(reason) when is_binary(reason), do: reason
   defp format_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp format_reason(reason), do: inspect(reason)
+
+  defp normalize_page_size(value, default) when is_integer(value) and value > 0,
+    do: min(value, default)
+
+  defp normalize_page_size(_value, default), do: default
 
   defp normalize_positive_integer(value, _default) when is_integer(value) and value > 0, do: value
   defp normalize_positive_integer(_value, default), do: default

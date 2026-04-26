@@ -300,9 +300,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       id: "setup-runtime-defaults-widget"
     )
 
-    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment",
-      id: "setup-runtime-defaults-widget"
-    )
+    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment", id: "setup-runtime-defaults-widget")
 
     assert Enum.map(start_widget.props["options"], & &1["id"]) == ["local_repo", "github", "later"]
     assert start_option(start_widget, "local_repo")["badgeLabel"] == "Recommended"
@@ -389,10 +387,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
     })
 
     runtime_widget = runtime_defaults_widget(view)
+
     assert runtime_widget.props["runtimeDescription"] =~
              "Each managed repository can later keep its own workspace binding."
 
     assert runtime_widget.props["savedRuntimeLabel"] == "Local"
+
     assert runtime_widget.props["savedRuntimeNote"] ==
              "New local imports will seed repo workspace paths from #{workspace_root} until each managed repository is rebound."
 
@@ -581,6 +581,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert selector.props["panelTitle"] == "Choose GitHub repositories"
     assert selector.props["panelBadgeLabel"] == "Optional follow-up"
+
     assert selector.props["panelSummary"] ==
              "Pick one or more linked GitHub repositories and import them into the control plane."
 
@@ -791,6 +792,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     choose_start_path(view, "github")
 
     assert has_element?(view, "#setup-github-pat-panel")
+
     assert has_element?(
              view,
              "#setup-github-repository-summary",
@@ -1196,6 +1198,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
            )
 
     assert has_element?(view, "#setup-github-repository-fallback-list")
+    assert has_element?(view, "#setup-github-repository-fallback-list", "Account origin")
+    assert has_element?(view, "#setup-github-repository-fallback-option-repo_100", "Account: owner")
 
     assert has_element?(
              view,
@@ -1252,6 +1256,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     refute Map.has_key?(step_state, "selected_repositories")
 
     assert has_element?(view, "#setup-github-import-fallback-success")
+
     assert has_element?(
              view,
              "#setup-github-import-fallback-success",
@@ -1402,13 +1407,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert has_element?(view, "#setup-description")
     assert_vue_component(view, "SetupRuntimeDefaultsWidget", id: "setup-runtime-defaults-widget")
     assert_vue_component(view, "SetupStartPathSelectorWidget", id: "setup-start-path-selector")
+
     assert_vue_handler(view, "changeRuntimeEnvironment", "change_runtime_environment",
       id: "setup-runtime-defaults-widget"
     )
 
-    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment",
-      id: "setup-runtime-defaults-widget"
-    )
+    assert_vue_handler(view, "saveRuntimeEnvironment", "save_runtime_environment", id: "setup-runtime-defaults-widget")
 
     assert_vue_handler(view, "chooseStartPath", "choose_start_path", id: "setup-start-path-selector")
     assert has_element?(view, "#setup-complete-continue", "Continue to dashboard")

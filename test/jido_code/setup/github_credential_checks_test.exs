@@ -284,6 +284,38 @@ defmodule JidoCode.Setup.GitHubCredentialChecksTest do
     assert pat_path.remediation =~ "Retry request intent `github_pat_repository_listing`"
   end
 
+  test "run/2 requests up to 100 PAT-accessible repositories for setup validation" do
+    Application.delete_env(:jido_code, :setup_github_credential_checker)
+    Application.put_env(:jido_code, :setup_github_http_client, JidoCode.GitHub.HTTPClient)
+    Application.put_env(:jido_code, :github_pat, "ghp_test_token")
+
+    repositories =
+      Enum.map(1..97, fn index ->
+        %{"id" => index, "full_name" => "owner/repo-#{index}"}
+      end)
+
+    Application.put_env(:jido_code, :setup_github_http_client_options,
+      request_fun: fn request_opts ->
+        send(self(), {:request_params, request_opts[:params]})
+        {:ok, %Req.Response{status: 200, body: repositories}}
+      end
+    )
+
+    report = GitHubCredentialChecks.run(nil, "owner@example.com")
+
+    refute GitHubCredentialChecks.blocked?(report)
+
+    pat_path =
+      Enum.find(report.paths, fn path_result -> path_result.path == :pat end)
+
+    assert pat_path.status == :ready
+    assert pat_path.repository_access == :confirmed
+    assert_receive {:request_params, [page: 1, per_page: 100]}
+    assert length(pat_path.repositories) == 97
+    assert "owner/repo-1" in pat_path.repositories
+    assert "owner/repo-97" in pat_path.repositories
+  end
+
   test "serialize_for_state/1 preserves owner context and ready-path validation metadata" do
     Application.put_env(:jido_code, :setup_github_credential_checker, fn _context ->
       %{

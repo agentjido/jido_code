@@ -1,6 +1,6 @@
 # GitHub Identity And Integration
 
-<!-- current_truth.reconciled_with_branch: setup GitHub repository follow-up and auth-mode verification remain governed by this subject. -->
+<!-- current_truth.reconciled_with_branch: setup GitHub repository follow-up and auth-mode verification remain governed by this subject, with GitHub App and PAT-backed readiness now validating against full accessible repository listings by requesting up to 100 repositories per API page and continuing pagination when more remain. -->
 
 This subject defines how GitHub-backed access should relate to the local user system and setup-time repository integration checks, including future local-user resolution through provider identity linking.
 
@@ -10,7 +10,7 @@ This subject defines how GitHub-backed access should relate to the local user sy
 id: auth.github_integration
 kind: feature
 status: active
-summary: jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration, synchronizing installation readiness, and preparing for optional GitHub-backed sign-in.
+summary: jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration, synchronizing installation readiness against full accessible repository listings rather than first-page snapshots, and preparing for optional GitHub-backed sign-in.
 decisions:
   - jido_code.auth_user_system
 surface:

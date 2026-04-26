@@ -138,6 +138,15 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
   await expect(page.locator("#setup-github-repository-widget-import")).toHaveText(
     "Select repositories to import"
   )
+  await expect(page.locator("#setup-github-repository-widget-results")).toContainText("Account origin")
+  await expect(page.locator("#setup-github-repository-widget-results")).toContainText("pcharbon70")
+  await expect(page.locator("#setup-github-repository-widget-results")).toContainText("agentjido")
+  await expect(page.locator("#setup-github-repository-widget-card-repo_100")).toContainText(
+    "Account: pcharbon70"
+  )
+  await expect(page.locator("#setup-github-repository-widget-card-repo_200")).toContainText(
+    "Account: agentjido"
+  )
 
   await page.click("#setup-github-repository-widget-card-repo_100")
   await expect(page.locator("#setup-github-repository-widget-import")).toBeEnabled()
@@ -169,7 +178,7 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
   await page.click("#setup-github-repository-widget-import")
 
   await expect(page.locator("#setup-github-repository-widget-import-status")).toHaveText("Imported")
-  await expect(page.locator("#setup-github-repository-widget-import-detail")).toContainText("owner/repo-two")
+  await expect(page.locator("#setup-github-repository-widget-import-detail")).toContainText("agentjido/repo-two")
   await expect(page.locator("text=Created managed repo")).toBeVisible()
   await expect(page.locator("#setup-github-repository-widget-selection")).toHaveText("Not selected")
   await expect(page.locator("#setup-github-repository-widget-import")).toBeDisabled()
@@ -189,6 +198,15 @@ test("fallback setup controls stay navigable when richer delivery degrades", asy
   await expect(page.locator("#setup-github-repository-selector-fallback")).toBeVisible()
   await expect(page.locator("#setup-github-repository-fallback-title")).toHaveText("Choose GitHub repositories")
   await expect(page.locator("#setup-github-repository-fallback-list")).toBeVisible()
+  await expect(page.locator("#setup-github-repository-fallback-list")).toContainText("Account origin")
+  await expect(page.locator("#setup-github-repository-fallback-list")).toContainText("pcharbon70")
+  await expect(page.locator("#setup-github-repository-fallback-list")).toContainText("agentjido")
+  await expect(page.locator("#setup-github-repository-fallback-option-repo_100")).toContainText(
+    "Account: pcharbon70"
+  )
+  await expect(page.locator("#setup-github-repository-fallback-option-repo_200")).toContainText(
+    "Account: agentjido"
+  )
 
   await expect(page.locator("#setup-github-repository-fallback-import")).toBeDisabled()
   await expect(page.locator("#setup-github-repository-fallback-import")).toHaveText(

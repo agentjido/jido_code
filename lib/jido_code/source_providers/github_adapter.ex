@@ -6,6 +6,7 @@ defmodule JidoCode.SourceProviders.GitHubAdapter do
   # covers: source.provider_adapter.behavior_contract
   # covers: source.provider_adapter.github_adapter
   # covers: source.provider_adapter.github_app_preferred
+  # covers: source.provider_adapter.github_repository_listing_fetches_full_accessible_set
 
   @behaviour JidoCode.SourceProviders.Adapter
 

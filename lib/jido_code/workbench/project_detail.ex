@@ -5,6 +5,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
   """
 
   alias JidoCode.Control.RepoBridge
+  alias JidoCode.Workbench.ProjectWorkspaceBindingNotice
 
   @project_not_found_error_type "project_detail_not_found"
   @project_load_failed_error_type "project_detail_load_failed"
@@ -339,18 +340,22 @@ defmodule JidoCode.Workbench.ProjectDetail do
 
   defp workspace_binding_readiness(%{bound?: true}), do: :ready
 
-  defp workspace_binding_readiness(%{workspace_environment: :local}) do
-    {:blocked,
-     "managed_repo_workspace_binding_missing",
-     "Managed repository is marked for local execution but has no repo-scoped workspace path.",
-     "Bind this repository to its own local workspace path and retry."}
-  end
+  defp workspace_binding_readiness(%{} = workspace_binding) do
+    error_type =
+      case Map.get(workspace_binding, :workspace_environment) do
+        :local -> "managed_repo_workspace_binding_missing"
+        _other -> "managed_repo_workspace_binding_unavailable"
+      end
 
-  defp workspace_binding_readiness(_workspace_binding) do
-    {:blocked,
-     "managed_repo_workspace_binding_unavailable",
-     "Managed repository has no repo-scoped local workspace binding for runtime execution.",
-     "Bind this repository to its own local workspace path and retry."}
+    notice =
+      ProjectWorkspaceBindingNotice.blocked_notice(
+        workspace_binding,
+        error_type: error_type,
+        surface: "workflow launch",
+        retry_action: "retry workflow launch"
+      )
+
+    {:blocked, notice.error_type, notice.detail, notice.remediation}
   end
 
   defp infer_workspace_environment(workspace_root, workspace_path)

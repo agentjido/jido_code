@@ -15,6 +15,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
     FixWorkflowKickoff,
     Inventory,
     IssueTriageWorkflowKickoff,
+    ProjectWorkspaceBindingNotice,
     RunOutcomes
   }
 
@@ -1715,6 +1716,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp memory_graph_hint(_project), do: nil
 
   defp semantic_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
+  defp semantic_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
   defp semantic_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
   defp semantic_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
   defp semantic_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
@@ -1722,6 +1724,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp semantic_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
 
   defp memory_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
+  defp memory_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
   defp memory_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
   defp memory_graph_hint_badge_class(%{state: :invalidated}), do: "badge badge-warning badge-xs"
   defp memory_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
@@ -1732,18 +1735,41 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp semantic_graph_hint_recovery_path(project, filter_values) do
     hint = semantic_graph_hint(project)
 
-    if hint && get_in(hint, [:recovery, :available?]) do
-      project_detail_path(project, filter_values)
+    cond do
+      workspace_binding_hint?(hint) ->
+        project_detail_workspace_binding_path(project, filter_values)
+
+      hint && get_in(hint, [:recovery, :available?]) ->
+        project_detail_path(project, filter_values)
+
+      true ->
+        nil
     end
   end
 
   defp memory_graph_hint_recovery_path(project, filter_values) do
     hint = memory_graph_hint(project)
 
-    if hint && hint.recovery.available? do
-      project_detail_path(project, filter_values)
-    else
-      nil
+    cond do
+      workspace_binding_hint?(hint) ->
+        project_detail_workspace_binding_path(project, filter_values)
+
+      hint && get_in(hint, [:recovery, :available?]) ->
+        project_detail_path(project, filter_values)
+
+      true ->
+        nil
+    end
+  end
+
+  defp workspace_binding_hint?(hint) do
+    ProjectWorkspaceBindingNotice.workspace_binding_error?(hint)
+  end
+
+  defp project_detail_workspace_binding_path(project, filter_values) do
+    case project_detail_path(project, filter_values) do
+      nil -> nil
+      path -> path <> "#project-detail-workspace-binding-panel"
     end
   end
 

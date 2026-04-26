@@ -165,7 +165,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
     {:error,
      update_error(
        @missing_path_error_type,
-       "Repo-scoped local workspace updates require an explicit workspace path; the workspace root is derived from that path.",
+       "Repo-scoped local workspace updates require an explicit workspace path; the parent directory is derived from that saved path.",
        @local_path_remediation
      )}
   end

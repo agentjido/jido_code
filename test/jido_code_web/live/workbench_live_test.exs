@@ -15,7 +15,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
-  alias JidoCode.Orchestration.RunPubSub
+  alias JidoCode.Orchestration.{Run, RunPubSub, WorkflowRun}
+  alias JidoCode.Projects.Project
 
   setup do
     original_workbench_loader =
@@ -207,6 +208,61 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(view, "#workbench-project-memory-hint-#{route_id}")
   end
 
+  test "surfaces repo-scoped workspace binding repair hints on workbench rows", %{conn: _conn} do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    register_owner("workbench-binding-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workbench-binding-owner@example.com", "owner-password-123")
+
+    %{route_id: route_id} =
+      provision_managed_repo!(%{
+        name: "repo-binding-needed",
+        github_full_name: "owner/repo-binding-needed",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert has_element?(view, "#workbench-project-semantic-hint-badge-#{route_id}", "Workspace binding needed")
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-detail-#{route_id}",
+             "has no repo-scoped local workspace path bound for semantic inspection"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}#project-detail-workspace-binding-panel']",
+             "Open repo detail to repair workspace binding."
+           )
+
+    assert has_element?(view, "#workbench-project-memory-hint-badge-#{route_id}", "Workspace binding needed")
+
+    assert has_element?(
+             view,
+             "#workbench-project-memory-hint-detail-#{route_id}",
+             "has no repo-scoped local workspace path bound for memory inspection"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}#project-detail-workspace-binding-panel']",
+             "Open repo detail to repair workspace binding."
+           )
+  end
+
   test "shows active repo conversation linkage on workbench rows", %{conn: _conn} do
     register_owner("workbench-conversation-owner@example.com", "owner-password-123")
 
@@ -244,7 +300,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       end
     end)
 
-    {:ok, detail_view, _html} = live(recycle(authed_conn), ~p"/repos/#{route_id}", on_error: :warn)
+    {:ok, detail_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{route_id}?section=conversations", on_error: :warn)
 
     detail_view
     |> element("#project-detail-conversation-open")
@@ -468,8 +525,17 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    %{route_id: route_id} =
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-run-outcomes",
+        github_full_name: "owner/repo-run-outcomes",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    %{managed_repo: managed_repo, route_id: route_id} =
       provision_managed_repo!(%{
+        legacy_project_id: project.id,
         name: "repo-run-outcomes",
         github_full_name: "owner/repo-run-outcomes",
         default_branch: "main",
@@ -483,18 +549,47 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       })
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
+    started_at = DateTime.add(now, -180, :second)
+    completed_at = DateTime.add(now, -60, :second)
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(
+        %{
+          project_id: project.id,
+          managed_repo_id: managed_repo.id,
+          run_id: "workbench-recent-run-#{System.unique_integer([:positive])}",
+          workflow_name: "fix_failing_tests",
+          workflow_version: 1,
+          trigger: %{source: "workbench", mode: "manual"},
+          inputs: %{"failure_signal" => "workbench indicator test"},
+          input_metadata: %{
+            "failure_signal" => %{required: true, source: "workbench_quick_action"}
+          },
+          initiating_actor: %{id: "owner-1", email: "owner@example.com"},
+          current_step: "publish_pr",
+          started_at: started_at
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "publish_pr",
+        transitioned_at: DateTime.add(started_at, 30, :second)
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :completed,
+        current_step: "publish_pr",
+        transitioned_at: completed_at
+      })
 
     {:ok, completed_run} =
-      create_workbench_run(
-        route_id,
-        "workbench-recent-run-#{System.unique_integer([:positive])}",
-        DateTime.add(now, -180, :second),
-        %{
-          status: :completed,
-          current_step: "publish_pr",
-          current_stage: "publish_pr",
-          completed_at: DateTime.add(now, -60, :second)
-        }
+      Run.get_by_workflow_run_id(
+        workflow_run.id,
+        actor: Actor.operator_actor()
       )
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
@@ -507,7 +602,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{route_id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
            )
 
     assert has_element?(
@@ -518,7 +613,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{route_id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
            )
   end
 
@@ -1742,26 +1837,6 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(view, "#workbench-project-name-owner-repo-one", "owner/repo-one")
     assert has_element?(view, "#workbench-project-name-owner-repo-two", "owner/repo-two")
-  end
-
-  defp create_workbench_run(repo_identifier, run_id, started_at, attrs \\ %{}) do
-    create_governed_run(
-      repo_identifier,
-      Map.merge(
-        %{
-          run_id: run_id,
-          workflow_name: "fix_failing_tests",
-          workflow_version: 1,
-          trigger: %{source: "workbench", mode: "manual"},
-          inputs: %{"failure_signal" => "workbench indicator test"},
-          input_metadata: %{"failure_signal" => %{required: true, source: "workbench_quick_action"}},
-          initiating_actor: %{id: "owner-1", email: "owner@example.com"},
-          current_step: "queued",
-          started_at: started_at
-        },
-        attrs
-      )
-    )
   end
 
   defp create_semantic_workspace_path!(module_name) do

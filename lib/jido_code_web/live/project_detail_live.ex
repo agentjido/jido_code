@@ -27,6 +27,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Workbench.ProjectSemanticInspection
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
   alias JidoCode.Workbench.ProjectWorkspaceBinding
+  alias JidoCode.Workbench.ProjectWorkspaceBindingNotice
 
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
   @detail_sections [:overview, :conversations, :semantic, :memory, :workflows]
@@ -539,7 +540,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </p>
                   </article>
                   <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                    <p class="text-xs uppercase text-base-content/60">Derived workspace root</p>
+                    <p class="text-xs uppercase text-base-content/60">Derived parent directory</p>
                     <p
                       id="project-detail-workspace-binding-root"
                       class="mt-1 text-sm font-semibold break-all"
@@ -1002,7 +1003,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     <div class="space-y-1">
                       <h4 class="font-semibold">Conversation runtime readiness</h4>
                       <p class="text-xs text-base-content/60">
-                        Provider selection, workspace scope, and readiness stay visible on the route before runtime metadata.
+                        Selected LLM, repo-scoped workspace binding, and readiness stay visible on the route before runtime metadata.
                       </p>
                     </div>
                     <span
@@ -1035,7 +1036,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </article>
                     <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
                       <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                        Workspace path
+                        Repo workspace path
                       </p>
                       <p
                         id="project-detail-conversation-runtime-workspace"
@@ -1077,7 +1078,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       id="project-detail-conversation-runtime-preserved"
                       class="text-sm"
                     >
-                      Latest transcript and governed linkage remain visible below while runtime prerequisites recover.
+                      Latest transcript and governed linkage remain visible below while this repository's workspace binding recovers.
                     </p>
                   </.operator_state_notice>
                 </section>
@@ -1469,7 +1470,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             <div class="space-y-1">
               <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
               <p class="text-sm text-base-content/70">
-                Semantic source-code graph insights stay repo-scoped, bounded, and product-owned on this managed-repository route.
+                Semantic source-code graph insights stay repo-scoped, bounded, product-owned, and tied to this repository's own workspace binding.
               </p>
             </div>
             <.link
@@ -1615,7 +1616,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             <div class="space-y-1">
               <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
               <p class="text-sm text-base-content/70">
-                Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, and product-owned on this managed-repository route.
+                Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, product-owned, and tied to this repository's own workspace binding.
               </p>
             </div>
             <.link
@@ -1761,7 +1762,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Workflow launch and defaults</h2>
                   <p class="text-sm text-base-content/70">
-                    Keep launch defaults, readiness remediation, and governed workflow kickoff together so this route stays an action surface instead of generic repository tooling.
+                    Keep repo-scoped workspace binding, readiness remediation, and governed workflow kickoff together so this route stays an action surface instead of generic repository tooling.
                   </p>
                 </div>
 
@@ -2395,19 +2396,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp workspace_binding_derived_root_note(%{} = form_values) do
     case form_values |> Map.get("workspace_path") |> normalize_optional_string() do
       nil ->
-        "Choose the absolute path for this repository. The workspace root is derived from that saved path."
+        "Choose the absolute path for this repository. The parent directory shown below is derived from that saved path."
 
       workspace_path ->
         if Path.type(workspace_path) == :absolute do
-          "Derived workspace root: #{Path.dirname(Path.expand(workspace_path))}"
+          "Derived parent directory: #{Path.dirname(Path.expand(workspace_path))}"
         else
-          "Choose an absolute path for this repository. The workspace root is derived from that saved path."
+          "Choose an absolute path for this repository. The parent directory shown below is derived from that saved path."
         end
     end
   end
 
   defp workspace_binding_derived_root_note(_form_values) do
-    "Choose the absolute path for this repository. The workspace root is derived from that saved path."
+    "Choose the absolute path for this repository. The parent directory shown below is derived from that saved path."
   end
 
   defp workspace_binding_save_button_label(%{} = form_values) do
@@ -2474,7 +2475,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     |> normalize_optional_string()
     |> case do
       "conversation_runtime_workspace_binding_missing" -> true
-      "conversation_runtime_workspace_unavailable" -> true
+      "conversation_runtime_workspace_binding_unavailable" -> true
       "managed_repo_workspace_binding_missing" -> true
       "managed_repo_workspace_binding_unavailable" -> true
       "semantic_workspace_binding_unavailable" -> true
@@ -2883,7 +2884,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp conversation_runtime_source_label(_runtime), do: "Unavailable"
 
   defp conversation_runtime_workspace_label(%{workspace_path: path}) when is_binary(path), do: path
-  defp conversation_runtime_workspace_label(_runtime), do: "Workspace path unavailable"
+  defp conversation_runtime_workspace_label(_runtime), do: ProjectWorkspaceBindingNotice.missing_path_label()
 
   defp conversation_continuity_detail(:live, 0), do: "Live events are arriving without detected gaps."
 

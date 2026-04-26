@@ -654,6 +654,8 @@ defmodule JidoCode.Workbench.Inventory do
     end
   end
 
+  defp normalize_optional_string(nil), do: nil
+
   defp normalize_optional_string(value) when is_atom(value),
     do: normalize_optional_string(Atom.to_string(value))
 

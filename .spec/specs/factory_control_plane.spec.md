@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, overview now exposing repo-scoped workspace inspection and repair on the canonical managed-repository route, workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces, and setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory. -->
+<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, overview now exposing repo-scoped workspace inspection and repair on the canonical managed-repository route, conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story and repair path, workbench, run detail, and dashboard conversation coverage continue to project canonical control-plane records instead of owning separate transcript surfaces, and setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
@@ -9,7 +9,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families plus repo-scoped workspace repair instead of one long mixed-context page, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families plus one shared repo-scoped workspace-repair path instead of one long mixed-context page, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -41,8 +41,11 @@ surface:
   - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/setup/project_import.ex
   - lib/jido_code/workbench/inventory.ex
+  - lib/jido_code/workbench/project_memory_inspection.ex
   - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code/workbench/project_detail.ex
+  - lib/jido_code/workbench/project_workspace_binding.ex
+  - lib/jido_code/workbench/project_workspace_binding_notice.ex
   - lib/jido_code/workbench/run_outcomes.ex
   - lib/jido_code/governance.ex
   - lib/jido_code/governance/change_request.ex
@@ -91,6 +94,7 @@ surface:
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
   - test/jido_code_web/live/phase_sixty_three_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs

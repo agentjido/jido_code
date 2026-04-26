@@ -417,6 +417,51 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert %{fix: 0, triage: 0} = Agent.get(launcher_invocations, & &1)
   end
 
+  test "surfaces repo-scoped workspace remediation when workflow launch is blocked by missing binding",
+       %{
+         conn: _conn
+       } do
+    register_owner("workflow-binding-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workflow-binding-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-workflow-binding-blocked",
+        github_full_name: "owner/repo-workflow-binding-blocked",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=workflows", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-workflow-readiness-badge", "Blocked")
+    assert has_element?(view, "#project-detail-launch-disabled-type", "managed_repo_workspace_binding_missing")
+
+    assert has_element?(
+             view,
+             "#project-detail-launch-disabled-detail",
+             "configured for local runtime, but no repo-scoped local workspace path is saved for workflow launch"
+           )
+
+    assert has_element?(
+             view,
+             "#project-detail-launch-disabled-remediation",
+             "Open Overview, save a local workspace path for this repository, and retry workflow launch."
+           )
+
+    assert has_element?(view, "#project-detail-launch-disabled-repair", "Repair workspace binding")
+  end
+
   test "renders project overview inside the overview family", %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
@@ -616,7 +661,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(
              view,
              "#project-detail-conversation-runtime-workspace",
-             "Workspace path unavailable"
+             "No repo-scoped local workspace path saved"
            )
 
     view
@@ -636,7 +681,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       rendered = render(view)
 
       rendered =~
-        "Managed repository is marked for local execution but has no repo-scoped workspace path for real conversation runtime." and
+        "configured for local runtime, but no repo-scoped local workspace path is saved for conversation runtime" and
         has_element?(view, "#project-detail-conversation-runtime-preserved") and
         not String.contains?(rendered, "deterministic explainer response")
     end)
@@ -714,6 +759,53 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
     assert has_element?(view, "#project-detail-conversation-runtime-workspace", workspace_path)
     refute has_element?(view, "#project-detail-conversation-runtime-notice")
+  end
+
+  test "surfaces repo-scoped semantic and memory binding remediation from managed repo detail", %{
+    conn: _conn
+  } do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    register_owner("repo-workspace-surface-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("repo-workspace-surface-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-workspace-surface-blocked",
+        github_full_name: "owner/repo-workspace-surface-blocked",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, semantic_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=semantic", on_error: :warn)
+
+    assert has_element?(semantic_view, "#project-detail-semantic-notice-type", "semantic_workspace_binding_unavailable")
+
+    assert has_element?(
+             semantic_view,
+             "#project-detail-semantic-notice-detail",
+             "no repo-scoped local workspace path is saved for semantic inspection"
+           )
+
+    assert has_element?(semantic_view, "#project-detail-semantic-repair-workspace", "Repair workspace binding")
+
+    {:ok, memory_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+
+    assert has_element?(memory_view, "#project-detail-memory-notice-type", "memory_workspace_binding_unavailable")
+    assert has_element?(memory_view, "#project-detail-memory-notice-detail", "no repo-scoped local workspace path is saved for memory inspection")
+    assert has_element?(memory_view, "#project-detail-memory-repair-workspace", "Repair workspace binding")
   end
 
   test "shows bounded conversation runtime readiness with the selected LLM on repo detail", %{

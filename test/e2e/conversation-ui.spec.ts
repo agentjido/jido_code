@@ -95,6 +95,7 @@ test("repo detail keeps runtime readiness and clarification continuity readable 
 
   await page.reload()
   await waitForLiveViewConnection(page)
+  await page.click("#project-detail-conversation-open")
 
   await expect(page.locator("#project-detail-conversation-pending-clarification")).toBeVisible()
   await expect(page.locator("#project-detail-conversation-turn-state")).toHaveText(
@@ -114,10 +115,10 @@ test("repo detail exposes blocked runtime readiness without pretending execution
   await expect(page.locator("#project-detail-conversation-runtime-status")).toHaveText("Blocked")
   await expect(page.locator("#project-detail-conversation-runtime-notice")).toBeVisible()
   await expect(page.locator("#project-detail-conversation-runtime-notice-type")).toContainText(
-    "conversation_runtime_workspace_binding_missing"
+    "conversation_runtime_workspace_binding_unavailable"
   )
   await expect(page.locator("#project-detail-conversation-runtime-workspace")).toHaveText(
-    "Workspace path unavailable"
+    "No repo-scoped local workspace path saved"
   )
 })
 

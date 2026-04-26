@@ -115,7 +115,7 @@ defmodule JidoCode.PhaseSixtyTwoIntegrationTest do
 
     assert {:error, notice} = RuntimeReadiness.resolve(report.project_record.id)
     assert notice["error_type"] == "conversation_runtime_workspace_binding_unavailable"
-    assert notice["detail"] =~ "no repo-scoped local workspace binding"
+    assert notice["detail"] =~ "no repo-scoped local workspace path"
   end
 
   test "62.3.3 phase 62 plan and specs remain aligned to repo-scoped workspace binding cutover" do

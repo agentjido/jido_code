@@ -14,7 +14,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.SourceCodeGraph.{ProductFeedback, ProductService}
-  alias JidoCode.Workbench.ProjectDetail
+  alias JidoCode.Workbench.{ProjectDetail, ProjectWorkspaceBindingNotice}
 
   @default_graph %{
     graph_name: "source_code",
@@ -145,8 +145,8 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
           recovery: ProductFeedback.recovery(graph)
         }
 
-      {:error, _notice} ->
-        nil
+      {:error, notice} ->
+        semantic_binding_hint(project_like, notice)
     end
   end
 
@@ -194,6 +194,8 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
       |> map_get(:managed_repo_id, "managed_repo_id")
       |> normalize_optional_string()
 
+    workspace_binding = ProjectDetail.workspace_binding(project_like)
+
     workspace_path =
       project_like
       |> ProjectDetail.workspace_path()
@@ -213,13 +215,12 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
 
       is_nil(workspace_path) ->
         {:error,
-         %{
+         ProjectWorkspaceBindingNotice.blocked_notice(
+           workspace_binding,
            error_type: "semantic_workspace_binding_unavailable",
-           detail:
-             "Semantic inspection needs the managed repository's repo-scoped local workspace binding before it can load semantic graph state.",
-           remediation:
-             "Bind this repository to its own local workspace path and then retry semantic inspection."
-         }}
+           surface: "semantic inspection",
+           retry_action: "retry semantic inspection"
+         )}
 
       true ->
         {:ok, managed_repo_id, workspace_path}
@@ -351,6 +352,18 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
 
   defp recovery_error_detail(reason, _diagnostics) do
     "Semantic source-code graph recovery failed (#{reason})."
+  end
+
+  defp semantic_binding_hint(project_like, notice) do
+    if ProjectWorkspaceBindingNotice.workspace_binding_error?(notice) do
+      ProjectWorkspaceBindingNotice.status_hint(
+        project_like |> map_get(:managed_repo_id, "managed_repo_id") |> normalize_optional_string(),
+        ProjectDetail.workspace_binding(project_like),
+        error_type: map_get(notice, :error_type, "error_type"),
+        surface: "semantic inspection",
+        retry_action: "retry semantic inspection"
+      )
+    end
   end
 
   defp map_get(map, atom_key, string_key, default \\ nil)

@@ -1,6 +1,6 @@
 # Conversation Orchestration
 
-<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host through a route-owned `Conversations` family with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, blocked runtime states now linking back to the same route's repo-scoped workspace-repair surface instead of pointing operators toward setup defaults, Workbench plus run detail plus dashboard reuse shared conversation supervision language, and browser coverage now exercises ready, blocked, clarification-reload, degraded, desktop-sidebar, and narrow-screen repo-detail conversation states. -->
+<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host through a route-owned `Conversations` family with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, blocked runtime states now linking back to the same route's repo-scoped workspace-repair surface instead of pointing operators toward setup defaults, that runtime panel now using the same repo-scoped workspace-binding vocabulary as semantic, memory, and workflow surfaces, Workbench plus run detail plus dashboard reuse shared conversation supervision language, and browser coverage now exercises ready, blocked, clarification-reload, degraded, desktop-sidebar, and narrow-screen repo-detail conversation states. -->
 
 This subject defines how productive coding conversations are coordinated across
 durable work scope, interruptible execution, and event-driven UI delivery.
@@ -9,7 +9,7 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, route-local workspace-readiness repair from blocked runtime panels, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, route-local workspace-readiness repair from blocked runtime panels using the same repo-scoped binding language as adjacent runtime surfaces, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
@@ -47,6 +47,7 @@ surface:
   - lib/jido_code/agents/refactorer.ex
   - lib/jido_code/agents/explainer.ex
   - lib/jido_code/workbench/project_conversation.ex
+  - lib/jido_code/workbench/project_workspace_binding_notice.ex
   - lib/jido_code/workbench/inventory.ex
   - lib/jido_code/workbench/dashboard_conversation_feed.ex
   - lib/jido_code_web/components/conversation_surface_components.ex
@@ -68,6 +69,7 @@ surface:
   - test/jido_code/phase_forty_two_integration_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
   - test/jido_code_web/live/phase_sixty_three_integration_test.exs
+  - test/jido_code_web/live/phase_sixty_four_integration_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs

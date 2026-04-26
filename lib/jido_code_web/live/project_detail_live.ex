@@ -540,7 +540,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </p>
                   </article>
                   <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                    <p class="text-xs uppercase text-base-content/60">Derived workspace root</p>
+                    <p class="text-xs uppercase text-base-content/60">Derived parent directory</p>
                     <p
                       id="project-detail-workspace-binding-root"
                       class="mt-1 text-sm font-semibold break-all"
@@ -2396,19 +2396,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp workspace_binding_derived_root_note(%{} = form_values) do
     case form_values |> Map.get("workspace_path") |> normalize_optional_string() do
       nil ->
-        "Choose the absolute path for this repository. The workspace root is derived from that saved path."
+        "Choose the absolute path for this repository. The parent directory shown below is derived from that saved path."
 
       workspace_path ->
         if Path.type(workspace_path) == :absolute do
-          "Derived workspace root: #{Path.dirname(Path.expand(workspace_path))}"
+          "Derived parent directory: #{Path.dirname(Path.expand(workspace_path))}"
         else
-          "Choose an absolute path for this repository. The workspace root is derived from that saved path."
+          "Choose an absolute path for this repository. The parent directory shown below is derived from that saved path."
         end
     end
   end
 
   defp workspace_binding_derived_root_note(_form_values) do
-    "Choose the absolute path for this repository. The workspace root is derived from that saved path."
+    "Choose the absolute path for this repository. The parent directory shown below is derived from that saved path."
   end
 
   defp workspace_binding_save_button_label(%{} = form_values) do

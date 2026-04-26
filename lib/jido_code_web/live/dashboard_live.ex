@@ -144,6 +144,118 @@ defmodule JidoCodeWeb.DashboardLive do
         </p>
 
         <section
+          id="dashboard-section-nav-shell"
+          class="mt-6 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
+        >
+          <div class="space-y-1 px-1">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+              Dashboard concerns
+            </p>
+            <p id="dashboard-section-nav-note" class="text-sm text-base-content/70">
+              Move between overview, governed runs, conversations, memory, runtime posture, and follow-up work without leaving the authenticated landing route.
+            </p>
+          </div>
+
+          <nav
+            id="dashboard-section-nav"
+            class="mt-3 flex flex-wrap items-stretch gap-2"
+            aria-label="Dashboard concerns"
+          >
+            <.link
+              :for={section <- dashboard_section_nav_items(assigns)}
+              id={"dashboard-section-nav-#{section.section}"}
+              patch={dashboard_section_path(@onboarding_next_actions, section.section)}
+              aria-current={if(section.selected?, do: "page", else: nil)}
+              class={[
+                "min-w-[10rem] flex-1 rounded-lg border px-3 py-3 text-left transition sm:min-w-[11rem]",
+                if(section.selected?,
+                  do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
+                  else:
+                    "border-base-300/70 bg-base-100/85 text-base-content/80 hover:border-base-300 hover:bg-base-100"
+                )
+              ]}
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 space-y-1">
+                  <p class="font-semibold">{section.label}</p>
+                  <p class="text-xs leading-5 text-base-content/65">{section.summary}</p>
+                </div>
+                <span
+                  :if={section.badge}
+                  id={"dashboard-section-nav-#{section.section}-badge"}
+                  class={dashboard_section_badge_class(section.badge.tone)}
+                >
+                  {section.badge.label}
+                </span>
+              </div>
+            </.link>
+          </nav>
+        </section>
+
+        <section
+          :if={@selected_dashboard_section == :overview}
+          id="dashboard-overview-panel"
+          class="mt-6 space-y-4"
+        >
+          <section class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Overview
+              </p>
+              <h2 class="text-xl font-semibold">Operator landing at a glance</h2>
+              <p id="dashboard-overview-note" class="text-sm text-base-content/75">
+                Use this overview to spot urgency quickly, then jump into the bounded concern tab that owns the detailed product records.
+              </p>
+            </div>
+
+            <div id="dashboard-overview-cards" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <article
+                :for={card <- dashboard_overview_cards(assigns)}
+                id={"dashboard-overview-card-#{card.section}"}
+                class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-base-content/55">
+                      {card.label}
+                    </p>
+                    <p
+                      id={"dashboard-overview-card-value-#{card.section}"}
+                      class="text-3xl font-semibold leading-none"
+                    >
+                      {card.value}
+                    </p>
+                  </div>
+                  <span
+                    :if={card.badge}
+                    id={"dashboard-overview-card-badge-#{card.section}"}
+                    class={dashboard_section_badge_class(card.badge.tone)}
+                  >
+                    {card.badge.label}
+                  </span>
+                </div>
+
+                <p
+                  id={"dashboard-overview-card-summary-#{card.section}"}
+                  class="text-sm leading-6 text-base-content/75"
+                >
+                  {card.summary}
+                </p>
+
+                <.link
+                  id={"dashboard-overview-card-link-#{card.section}"}
+                  patch={dashboard_section_path(@onboarding_next_actions, card.section)}
+                  class="link link-primary text-sm"
+                >
+                  {card.action_label}
+                </.link>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <section
+          :if={@selected_dashboard_section != :overview}
           id="dashboard-run-summaries"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
         >
@@ -244,6 +356,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
+          :if={@selected_dashboard_section != :overview}
           id="dashboard-conversation-supervision"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
@@ -362,6 +475,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
+          :if={@selected_dashboard_section != :overview}
           id="dashboard-memory-summaries"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
@@ -476,6 +590,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
+          :if={@selected_dashboard_section != :overview}
           id="dashboard-runtime-evidence"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
@@ -601,7 +716,7 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          :if={!Enum.empty?(@onboarding_next_actions)}
+          :if={!Enum.empty?(@onboarding_next_actions) and @selected_dashboard_section != :overview}
           id="dashboard-onboarding-next-actions"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4"
         >
@@ -681,6 +796,84 @@ defmodule JidoCodeWeb.DashboardLive do
     end
   end
 
+  defp dashboard_section_nav_items(assigns) do
+    Enum.map(assigns.dashboard_sections, fn section ->
+      %{
+        section: section,
+        label: dashboard_section_label(section),
+        summary: dashboard_section_summary(section, assigns),
+        badge: dashboard_section_badge(section, assigns),
+        selected?: assigns.selected_dashboard_section == section
+      }
+    end)
+  end
+
+  defp dashboard_overview_cards(assigns) do
+    [
+      %{
+        section: :runs,
+        label: "Runs",
+        value: Integer.to_string(assigns.run_summary_count),
+        summary:
+          if(assigns.run_summary_count == 0,
+            do: "No recent governed runs are materialized yet.",
+            else: "Recent governed execution summaries are ready for review."
+          ),
+        badge: dashboard_section_badge(:runs, assigns),
+        action_label: "Open governed runs"
+      },
+      %{
+        section: :conversations,
+        label: "Conversations",
+        value: Integer.to_string(assigns.conversation_summary_count),
+        summary:
+          conversation_overview_summary(
+            assigns.conversation_summary_count,
+            conversation_clarification_total(assigns.conversation_summary_rows)
+          ),
+        badge: dashboard_section_badge(:conversations, assigns),
+        action_label: "Open supervision"
+      },
+      %{
+        section: :memory,
+        label: "Memory",
+        value: Integer.to_string(assigns.memory_summary_count),
+        summary:
+          memory_overview_summary(
+            assigns.memory_summary_count,
+            memory_action_needed_count(assigns.memory_summary_rows)
+          ),
+        badge: dashboard_section_badge(:memory, assigns),
+        action_label: "Open memory review"
+      },
+      %{
+        section: runtime_overview_section(assigns.onboarding_next_actions, assigns.runtime_evidence_summary),
+        label:
+          runtime_overview_label(assigns.onboarding_next_actions, assigns.runtime_evidence_summary),
+        value:
+          runtime_overview_value(assigns.onboarding_next_actions, assigns.runtime_evidence_summary),
+        summary:
+          runtime_overview_summary(assigns.onboarding_next_actions, assigns.runtime_evidence_summary),
+        badge:
+          runtime_overview_badge(assigns.onboarding_next_actions, assigns.runtime_evidence_summary),
+        action_label:
+          runtime_overview_action_label(assigns.onboarding_next_actions, assigns.runtime_evidence_summary)
+      }
+    ]
+  end
+
+  defp dashboard_section_path(onboarding_next_actions, section) do
+    params =
+      [section: Atom.to_string(section)]
+      |> maybe_put_query_param(:onboarding, onboarding_next_actions_query_param(onboarding_next_actions))
+
+    ~p"/dashboard?#{params}"
+  end
+
+  defp onboarding_next_actions_query_param(onboarding_next_actions) do
+    if Enum.empty?(onboarding_next_actions), do: nil, else: "completed"
+  end
+
   defp normalize_dashboard_section(section_param, available_sections) do
     section_param
     |> normalize_optional_string()
@@ -707,6 +900,125 @@ defmodule JidoCodeWeb.DashboardLive do
       if section in available_sections, do: section, else: :overview
     end)
   end
+
+  defp dashboard_section_label(:overview), do: "Overview"
+  defp dashboard_section_label(:runs), do: "Runs"
+  defp dashboard_section_label(:conversations), do: "Conversations"
+  defp dashboard_section_label(:memory), do: "Memory"
+  defp dashboard_section_label(:runtime), do: "Runtime"
+  defp dashboard_section_label(:next_steps), do: "Next Steps"
+
+  defp dashboard_section_summary(:overview, _assigns),
+    do: "Operator landing signals and the next bounded route concern to open."
+
+  defp dashboard_section_summary(:runs, assigns) do
+    if assigns.run_summary_count == 0 do
+      "No recent governed runs are visible yet."
+    else
+      "#{assigns.run_summary_count} recent governed run #{pluralize(assigns.run_summary_count, "summary", "summaries")}."
+    end
+  end
+
+  defp dashboard_section_summary(:conversations, assigns) do
+    clarification_count = conversation_clarification_total(assigns.conversation_summary_rows)
+
+    cond do
+      assigns.conversation_summary_count == 0 ->
+        "No active governed conversation supervision is visible yet."
+
+      clarification_count > 0 ->
+        "#{assigns.conversation_summary_count} repo #{pluralize(assigns.conversation_summary_count, "summary", "summaries")} with #{clarification_count} clarification #{pluralize(clarification_count, "turn", "turns")} pending."
+
+      true ->
+        "#{assigns.conversation_summary_count} repo #{pluralize(assigns.conversation_summary_count, "summary", "summaries")} with active governed work."
+    end
+  end
+
+  defp dashboard_section_summary(:memory, assigns) do
+    action_needed_count = memory_action_needed_count(assigns.memory_summary_rows)
+
+    cond do
+      assigns.memory_summary_count == 0 ->
+        "No bounded memory summaries are visible yet."
+
+      action_needed_count > 0 ->
+        "#{assigns.memory_summary_count} repo #{pluralize(assigns.memory_summary_count, "summary", "summaries")} and #{action_needed_count} requiring operator follow-up."
+
+      true ->
+        "#{assigns.memory_summary_count} repository memory #{pluralize(assigns.memory_summary_count, "summary", "summaries")} are available for review."
+    end
+  end
+
+  defp dashboard_section_summary(:runtime, assigns),
+    do: runtime_evidence_summary(assigns.runtime_evidence_summary)
+
+  defp dashboard_section_summary(:next_steps, assigns) do
+    count = length(assigns.onboarding_next_actions)
+    "#{count} ready-state follow-up #{pluralize(count, "action", "actions")}."
+  end
+
+  defp dashboard_section_badge(:overview, _assigns), do: nil
+
+  defp dashboard_section_badge(:runs, assigns) do
+    if assigns.run_summary_count > 0 do
+      %{label: Integer.to_string(assigns.run_summary_count), tone: :neutral}
+    else
+      nil
+    end
+  end
+
+  defp dashboard_section_badge(:conversations, assigns) do
+    clarification_count = conversation_clarification_total(assigns.conversation_summary_rows)
+
+    cond do
+      clarification_count > 0 ->
+        %{label: "#{clarification_count} waiting", tone: :warning}
+
+      assigns.conversation_summary_count > 0 ->
+        %{label: Integer.to_string(assigns.conversation_summary_count), tone: :neutral}
+
+      true ->
+        nil
+    end
+  end
+
+  defp dashboard_section_badge(:memory, assigns) do
+    action_needed_count = memory_action_needed_count(assigns.memory_summary_rows)
+
+    cond do
+      action_needed_count > 0 ->
+        %{label: "#{action_needed_count} action", tone: :warning}
+
+      assigns.memory_summary_count > 0 ->
+        %{label: Integer.to_string(assigns.memory_summary_count), tone: :neutral}
+
+      true ->
+        nil
+    end
+  end
+
+  defp dashboard_section_badge(:runtime, assigns) do
+    case runtime_attention_badge(assigns.runtime_evidence_summary) do
+      nil -> nil
+      badge -> badge
+    end
+  end
+
+  defp dashboard_section_badge(:next_steps, assigns) do
+    count = length(assigns.onboarding_next_actions)
+
+    if count > 0 do
+      %{label: Integer.to_string(count), tone: :warning}
+    else
+      nil
+    end
+  end
+
+  defp dashboard_section_badge_class(:warning),
+    do: "badge badge-sm border border-warning/40 bg-warning/10 text-warning"
+
+  defp dashboard_section_badge_class(_tone),
+    do: "badge badge-sm border border-base-300/70 bg-base-100 text-base-content/80"
 
   defp summary_refreshed_label(%DateTime{} = datetime) do
     datetime
@@ -826,8 +1138,105 @@ defmodule JidoCodeWeb.DashboardLive do
   defp runtime_evidence_summary(_summary),
     do: "Runtime posture status is unavailable."
 
+  defp runtime_attention_badge(%{} = summary) do
+    blocked = Map.get(summary, :blocked_count, 0)
+    degraded = Map.get(summary, :degraded_count, 0)
+
+    cond do
+      blocked > 0 -> %{label: "#{blocked} blocked", tone: :warning}
+      degraded > 0 -> %{label: "#{degraded} review", tone: :warning}
+      Map.get(summary, :total_count, 0) > 0 -> %{label: "#{Map.get(summary, :total_count, 0)} repos", tone: :neutral}
+      true -> nil
+    end
+  end
+
+  defp runtime_attention_badge(_summary), do: nil
+
   defp conversation_clarification_badge(1), do: "1 clarification needed"
   defp conversation_clarification_badge(count), do: "#{count} clarifications needed"
+
+  defp conversation_clarification_total(summaries) when is_list(summaries) do
+    Enum.reduce(summaries, 0, fn summary, total ->
+      total + normalize_non_negative_integer(Map.get(summary, :clarification_count, 0))
+    end)
+  end
+
+  defp memory_action_needed_count(summaries) when is_list(summaries) do
+    Enum.count(summaries, &Map.get(&1, :action_needed?, false))
+  end
+
+  defp conversation_overview_summary(0, _clarification_count),
+    do: "No active governed conversation supervision is visible yet."
+
+  defp conversation_overview_summary(summary_count, clarification_count) when clarification_count > 0 do
+    "#{summary_count} repo #{pluralize(summary_count, "summary", "summaries")} and #{clarification_count} clarification #{pluralize(clarification_count, "turn", "turns")} need attention."
+  end
+
+  defp conversation_overview_summary(summary_count, _clarification_count),
+    do: "#{summary_count} repo #{pluralize(summary_count, "summary", "summaries")} with active governed work are ready for review."
+
+  defp memory_overview_summary(0, _action_needed_count),
+    do: "No bounded memory summaries are visible yet."
+
+  defp memory_overview_summary(summary_count, action_needed_count) when action_needed_count > 0 do
+    "#{summary_count} repo #{pluralize(summary_count, "summary", "summaries")} and #{action_needed_count} requiring operator follow-up."
+  end
+
+  defp memory_overview_summary(summary_count, _action_needed_count),
+    do: "#{summary_count} repository memory #{pluralize(summary_count, "summary", "summaries")} are ready for bounded review."
+
+  defp runtime_overview_section(onboarding_next_actions, _runtime_summary)
+       when is_list(onboarding_next_actions) and onboarding_next_actions != [],
+       do: :next_steps
+
+  defp runtime_overview_section(_onboarding_next_actions, _runtime_summary), do: :runtime
+
+  defp runtime_overview_label(onboarding_next_actions, _runtime_summary)
+       when is_list(onboarding_next_actions) and onboarding_next_actions != [],
+       do: "Next Steps"
+
+  defp runtime_overview_label(_onboarding_next_actions, _runtime_summary), do: "Runtime"
+
+  defp runtime_overview_value(onboarding_next_actions, _runtime_summary)
+       when is_list(onboarding_next_actions) and onboarding_next_actions != [],
+       do: Integer.to_string(length(onboarding_next_actions))
+
+  defp runtime_overview_value(_onboarding_next_actions, %{} = runtime_summary) do
+    attention_count =
+      Map.get(runtime_summary, :blocked_count, 0) + Map.get(runtime_summary, :degraded_count, 0)
+
+    if attention_count > 0 do
+      Integer.to_string(attention_count)
+    else
+      Integer.to_string(Map.get(runtime_summary, :available_count, 0))
+    end
+  end
+
+  defp runtime_overview_value(_onboarding_next_actions, _runtime_summary), do: "0"
+
+  defp runtime_overview_summary(onboarding_next_actions, _runtime_summary)
+       when is_list(onboarding_next_actions) and onboarding_next_actions != [],
+       do: "Ready-state follow-up remains available from onboarding completion."
+
+  defp runtime_overview_summary(_onboarding_next_actions, %{} = runtime_summary),
+    do: runtime_evidence_summary(runtime_summary)
+
+  defp runtime_overview_summary(_onboarding_next_actions, _runtime_summary),
+    do: "Runtime posture status is unavailable."
+
+  defp runtime_overview_badge(onboarding_next_actions, _runtime_summary)
+       when is_list(onboarding_next_actions) and onboarding_next_actions != [],
+       do: %{label: "#{length(onboarding_next_actions)} open", tone: :warning}
+
+  defp runtime_overview_badge(_onboarding_next_actions, runtime_summary),
+    do: runtime_attention_badge(runtime_summary)
+
+  defp runtime_overview_action_label(onboarding_next_actions, _runtime_summary)
+       when is_list(onboarding_next_actions) and onboarding_next_actions != [],
+       do: "Open next steps"
+
+  defp runtime_overview_action_label(_onboarding_next_actions, _runtime_summary),
+    do: "Open runtime posture"
 
   defp runtime_evidence_details(runtime_summary) do
     [
@@ -1026,6 +1435,12 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   defp normalize_non_negative_integer(_value), do: 0
+
+  defp maybe_put_query_param(params, _key, nil), do: params
+  defp maybe_put_query_param(params, key, value), do: Keyword.put(params, key, value)
+
+  defp pluralize(1, singular, _plural), do: singular
+  defp pluralize(_count, _singular, plural), do: plural
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

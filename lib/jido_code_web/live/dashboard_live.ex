@@ -45,6 +45,7 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:runtime_evidence_warning, nil)
       |> assign(:runtime_evidence_last_refreshed_at, nil)
       |> assign(:runtime_evidence_summary, nil)
+      |> assign(:expanded_repository_monitoring_ids, MapSet.new())
       |> assign(:memory_summary_count, 0)
       |> assign(:memory_summary_rows, [])
       |> assign(:memory_summary_warning, nil)
@@ -110,6 +111,15 @@ defmodule JidoCodeWeb.DashboardLive do
   @impl true
   def handle_event("refresh_memory_summaries", _params, socket) do
     {:noreply, socket |> load_memory_summaries() |> load_repository_monitoring_summaries()}
+  end
+
+  @impl true
+  def handle_event("toggle_repository_monitoring_detail", %{"id" => id}, socket) do
+    expanded_ids =
+      socket.assigns.expanded_repository_monitoring_ids
+      |> toggle_repository_monitoring_detail(id)
+
+    {:noreply, assign(socket, :expanded_repository_monitoring_ids, expanded_ids)}
   end
 
   @impl true
@@ -215,7 +225,7 @@ defmodule JidoCodeWeb.DashboardLive do
                   </p>
                   <h2 class="text-xl font-semibold">Repository monitoring working set</h2>
                   <p id="dashboard-overview-note" class="text-sm text-base-content/75">
-                    Repositories are ordered by the most recent governed or operator-facing work signal so you can scan the active working set before opening a deeper route.
+                    Repositories are ordered by the most recent governed or operator-facing work signal so you can scan the active working set, expand bounded detail in place, and only then jump into a deeper route when needed.
                   </p>
                 </div>
 
@@ -232,137 +242,213 @@ defmodule JidoCodeWeb.DashboardLive do
                     No managed repositories are available for dashboard monitoring yet.
                   </p>
                 <% else %>
-                  <ol id="dashboard-overview-repository-list" class="space-y-3">
+                  <ol id="dashboard-overview-repository-list" class="space-y-6">
                     <li
                       :for={entry <- @repository_monitoring_rows}
                       id={"dashboard-overview-repository-#{run_summary_dom_token(entry.id)}"}
-                      class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-4"
+                      class="space-y-3"
                     >
-                      <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                        <div class="space-y-2">
-                          <div class="flex flex-wrap items-center gap-2">
-                            <p
-                              id={"dashboard-overview-repository-name-#{run_summary_dom_token(entry.id)}"}
-                              class="text-base font-semibold"
+                      <article
+                        id={"dashboard-overview-repository-card-#{run_summary_dom_token(entry.id)}"}
+                        class="rounded-3xl border border-base-300/70 bg-base-100 px-5 py-5 shadow-sm shadow-base-300/20"
+                      >
+                        <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                          <div class="min-w-0 flex-1 space-y-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                              <div class="min-w-0 space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                  <p
+                                    id={"dashboard-overview-repository-name-#{run_summary_dom_token(entry.id)}"}
+                                    class="text-lg font-semibold tracking-tight"
+                                  >
+                                    {entry.repo_name}
+                                  </p>
+                                  <span class="badge badge-outline badge-sm">
+                                    {entry.top_card.branch_label}
+                                  </span>
+                                </div>
+
+                                <p
+                                  id={"dashboard-overview-repository-label-#{run_summary_dom_token(entry.id)}"}
+                                  class="text-sm text-base-content/75"
+                                >
+                                  {entry.repo_label}
+                                </p>
+                              </div>
+
+                              <div class="rounded-2xl bg-base-200/65 px-4 py-3 text-sm text-base-content/75 xl:max-w-xs xl:text-right">
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                  Most recent signal
+                                </p>
+                                <p
+                                  id={"dashboard-overview-repository-order-label-#{run_summary_dom_token(entry.id)}"}
+                                  class="mt-2 font-medium text-base-content/90"
+                                >
+                                  {entry.top_card.signal_label}
+                                </p>
+                                <p
+                                  id={"dashboard-overview-repository-order-detail-#{run_summary_dom_token(entry.id)}"}
+                                  class="mt-1 leading-6"
+                                >
+                                  {entry.top_card.signal_detail}
+                                </p>
+                                <p
+                                  :if={entry.top_card.last_worked_on_label}
+                                  id={"dashboard-overview-repository-last-worked-on-#{run_summary_dom_token(entry.id)}"}
+                                  class="mt-2 text-xs text-base-content/65"
+                                >
+                                  {entry.top_card.last_worked_on_label}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div
+                              id={"dashboard-overview-repository-primary-cue-#{run_summary_dom_token(entry.id)}"}
+                              class="rounded-2xl bg-base-200/45 px-4 py-4"
                             >
-                              {entry.repo_name}
+                              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                Why it matters now
+                              </p>
+                              <p
+                                id={"dashboard-overview-repository-summary-#{run_summary_dom_token(entry.id)}"}
+                                class="mt-2 text-sm leading-6 text-base-content/85"
+                              >
+                                {entry.top_card.primary_cue}
+                              </p>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/80">
+                              <span
+                                :for={badge <- entry.top_card.badges}
+                                id={"dashboard-overview-repository-#{badge.id}-#{run_summary_dom_token(entry.id)}"}
+                                class={badge.class}
+                              >
+                                {badge.label}
+                              </span>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-4 text-sm">
+                              <.link
+                                :for={link <- entry.top_card.links}
+                                id={"dashboard-overview-repository-#{link.id}-link-#{run_summary_dom_token(entry.id)}"}
+                                navigate={link.route}
+                                class={link.class}
+                              >
+                                {link.label}
+                              </.link>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+
+                      <details
+                        id={"dashboard-overview-repository-accordion-shell-#{run_summary_dom_token(entry.id)}"}
+                        class="rounded-3xl bg-base-200/30 px-5 py-4"
+                        open={
+                          repository_monitoring_detail_expanded?(
+                            @expanded_repository_monitoring_ids,
+                            entry.id
+                          )
+                        }
+                      >
+                        <summary
+                          id={"dashboard-overview-repository-accordion-toggle-#{run_summary_dom_token(entry.id)}"}
+                          class="flex w-full list-none flex-col gap-3 text-left md:flex-row md:items-center md:justify-between [&::-webkit-details-marker]:hidden"
+                          phx-click="toggle_repository_monitoring_detail"
+                          phx-value-id={entry.id}
+                          aria-expanded={
+                            to_string(
+                              repository_monitoring_detail_expanded?(
+                                @expanded_repository_monitoring_ids,
+                                entry.id
+                              )
+                            )
+                          }
+                          aria-controls={"dashboard-overview-repository-accordion-panel-#{run_summary_dom_token(entry.id)}"}
+                        >
+                          <div class="space-y-1">
+                            <p class="text-sm font-semibold text-base-content/85">
+                              Repository monitoring detail
                             </p>
-                            <span class="badge badge-outline badge-sm">
-                              branch {entry.default_branch}
-                            </span>
+                            <p class="text-sm text-base-content/70">
+                              Expand this repository in place to inspect bounded governed-run, conversation, memory, and runtime signals without leaving dashboard.
+                            </p>
                           </div>
 
-                          <p
-                            id={"dashboard-overview-repository-label-#{run_summary_dom_token(entry.id)}"}
-                            class="text-sm text-base-content/75"
+                          <span
+                            id={"dashboard-overview-repository-accordion-state-#{run_summary_dom_token(entry.id)}"}
+                            class="badge badge-outline badge-sm"
                           >
-                            {entry.repo_label}
+                            {repository_monitoring_detail_state_label(
+                              @expanded_repository_monitoring_ids,
+                              entry.id
+                            )}
+                          </span>
+                        </summary>
+
+                        <div
+                          id={"dashboard-overview-repository-accordion-panel-#{run_summary_dom_token(entry.id)}"}
+                          class="mt-4 space-y-4"
+                        >
+                          <p
+                            :if={entry.detail_empty?}
+                            id={"dashboard-overview-repository-accordion-empty-#{run_summary_dom_token(entry.id)}"}
+                            class="rounded-2xl border border-dashed border-base-300/70 bg-base-100/80 px-4 py-4 text-sm text-base-content/70"
+                          >
+                            No governed run, conversation, memory, or runtime detail has materialized for this repository yet. Open the repository route to continue setup or start the first governed action.
                           </p>
 
-                          <p
-                            id={"dashboard-overview-repository-summary-#{run_summary_dom_token(entry.id)}"}
-                            class="text-sm text-base-content/80"
+                          <div
+                            :if={not entry.detail_empty?}
+                            class="grid gap-3 xl:grid-cols-2"
                           >
-                            {entry.recent_activity_summary}
-                          </p>
+                            <section
+                              :for={section <- entry.accordion_sections}
+                              id={"dashboard-overview-repository-detail-#{section.id}-#{run_summary_dom_token(entry.id)}"}
+                              class="rounded-2xl border border-base-300/70 bg-base-100/85 px-4 py-4 space-y-3"
+                            >
+                              <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                    {section.title}
+                                  </p>
+                                  <p class="text-sm font-medium text-base-content/90">
+                                    {section.heading}
+                                  </p>
+                                </div>
+                                <span
+                                  :if={section.status_badge}
+                                  class={section.status_badge.class}
+                                >
+                                  {section.status_badge.label}
+                                </span>
+                              </div>
+
+                              <p class="text-sm text-base-content/75">
+                                {section.summary}
+                              </p>
+
+                              <p
+                                :if={section.meta}
+                                class="text-xs text-base-content/65"
+                              >
+                                {section.meta}
+                              </p>
+
+                              <div class="flex flex-wrap items-center gap-3 text-sm">
+                                <.link
+                                  :for={link <- section.links}
+                                  id={"dashboard-overview-repository-detail-#{section.id}-#{link.id}-link-#{run_summary_dom_token(entry.id)}"}
+                                  navigate={link.route}
+                                  class={link.class}
+                                >
+                                  {link.label}
+                                </.link>
+                              </div>
+                            </section>
+                          </div>
                         </div>
-
-                        <div class="space-y-1 text-sm text-base-content/70 xl:max-w-xs xl:text-right">
-                          <p
-                            id={"dashboard-overview-repository-order-label-#{run_summary_dom_token(entry.id)}"}
-                            class="font-medium text-base-content/80"
-                          >
-                            {entry.ordering_label}
-                          </p>
-
-                          <p id={"dashboard-overview-repository-order-detail-#{run_summary_dom_token(entry.id)}"}>
-                            {entry.ordering_detail}
-                          </p>
-
-                          <p
-                            :if={entry.latest_worked_on_at}
-                            id={"dashboard-overview-repository-last-worked-on-#{run_summary_dom_token(entry.id)}"}
-                          >
-                            Last worked on: {summary_refreshed_label(entry.latest_worked_on_at)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/80">
-                        <span
-                          id={"dashboard-overview-repository-issues-#{run_summary_dom_token(entry.id)}"}
-                          class="badge badge-outline badge-sm"
-                        >
-                          {entry.open_issue_count} open {pluralize(entry.open_issue_count, "issue", "issues")}
-                        </span>
-
-                        <span
-                          id={"dashboard-overview-repository-prs-#{run_summary_dom_token(entry.id)}"}
-                          class="badge badge-outline badge-sm"
-                        >
-                          {entry.open_pr_count} open PR{if(entry.open_pr_count == 1, do: "", else: "s")}
-                        </span>
-
-                        <span
-                          :if={entry.latest_run}
-                          id={"dashboard-overview-repository-run-#{run_summary_dom_token(entry.id)}"}
-                          class={run_status_badge_class(Map.get(entry.latest_run, :status))}
-                        >
-                          Latest run: {Map.get(entry.latest_run, :workflow_name)} {Map.get(entry.latest_run, :status)}
-                        </span>
-
-                        <span
-                          :if={entry.conversation_summary}
-                          id={"dashboard-overview-repository-conversations-#{run_summary_dom_token(entry.id)}"}
-                          class="badge badge-outline badge-sm"
-                        >
-                          {Map.get(entry.conversation_summary, :active_count, 0)} active conversations
-                        </span>
-
-                        <span
-                          :if={Map.get(entry.conversation_summary || %{}, :clarification_count, 0) > 0}
-                          id={"dashboard-overview-repository-clarifications-#{run_summary_dom_token(entry.id)}"}
-                          class="badge badge-warning badge-outline badge-sm"
-                        >
-                          {Map.get(entry.conversation_summary, :clarification_count, 0)} clarifications waiting
-                        </span>
-
-                        <span
-                          :if={entry.memory_summary}
-                          id={"dashboard-overview-repository-memory-#{run_summary_dom_token(entry.id)}"}
-                          class={memory_summary_badge_class(Map.get(entry.memory_summary, :state))}
-                        >
-                          Memory: {Map.get(entry.memory_summary, :label)}
-                        </span>
-
-                        <span
-                          :if={entry.runtime_summary}
-                          id={"dashboard-overview-repository-runtime-#{run_summary_dom_token(entry.id)}"}
-                          class={runtime_evidence_badge_class(Map.get(entry.runtime_summary, :status))}
-                        >
-                          Runtime: {runtime_evidence_status_label(Map.get(entry.runtime_summary, :status))}
-                        </span>
-                      </div>
-
-                      <div class="flex flex-wrap items-center gap-4 text-sm">
-                        <.link
-                          :if={entry.repo_route}
-                          id={"dashboard-overview-repository-link-#{run_summary_dom_token(entry.id)}"}
-                          navigate={entry.repo_route}
-                          class="link link-primary"
-                        >
-                          Open repository
-                        </.link>
-
-                        <.link
-                          :if={entry.latest_run_route}
-                          id={"dashboard-overview-repository-run-link-#{run_summary_dom_token(entry.id)}"}
-                          navigate={entry.latest_run_route}
-                          class="link link-secondary"
-                        >
-                          Open latest run
-                        </.link>
-                      </div>
+                      </details>
                     </li>
                   </ol>
                 <% end %>
@@ -979,7 +1065,7 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_section_label(:next_steps), do: "Next Steps"
 
   defp dashboard_section_summary(:overview, _assigns),
-    do: "Repository-first monitoring ordered by the most recent governed or operator-facing work."
+    do: "Repository-first monitoring panels ordered by the most recent governed or operator-facing work."
 
   defp dashboard_section_summary(:runs, assigns) do
     if assigns.run_summary_count == 0 do
@@ -1089,6 +1175,37 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp dashboard_section_badge_class(_tone),
     do: "badge badge-sm border border-base-300/70 bg-base-100 text-base-content/80"
+
+  defp toggle_repository_monitoring_detail(%MapSet{} = expanded_ids, id) do
+    case normalize_optional_string(id) do
+      nil ->
+        expanded_ids
+
+      normalized_id ->
+        if MapSet.member?(expanded_ids, normalized_id) do
+          MapSet.delete(expanded_ids, normalized_id)
+        else
+          MapSet.put(expanded_ids, normalized_id)
+        end
+    end
+  end
+
+  defp repository_monitoring_detail_expanded?(%MapSet{} = expanded_ids, id) do
+    case normalize_optional_string(id) do
+      nil -> false
+      normalized_id -> MapSet.member?(expanded_ids, normalized_id)
+    end
+  end
+
+  defp repository_monitoring_detail_expanded?(_expanded_ids, _id), do: false
+
+  defp repository_monitoring_detail_state_label(expanded_ids, id) do
+    if repository_monitoring_detail_expanded?(expanded_ids, id) do
+      "Collapse detail"
+    else
+      "Detail stays collapsed until expanded"
+    end
+  end
 
   defp summary_refreshed_label(%DateTime{} = datetime) do
     datetime

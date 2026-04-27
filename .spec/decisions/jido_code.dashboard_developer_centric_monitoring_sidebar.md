@@ -138,11 +138,20 @@ This newer ADR narrows the next design step:
 
 ## Implementation Status
 
-Phase 66 has landed the left sidebar that acts as the canonical tab rail on
-wide screens, the route-owned narrow-screen fallback, and the repository-first
+Phase 66 landed the left sidebar that acts as the canonical tab rail on wide
+screens, the route-owned narrow-screen fallback, and the repository-first
 monitoring feed that orders overview entries by recent governed or
 operator-facing activity.
 
-Current implementation is still transitional in one important way: the final
-borderless split-panel and accordion composition described above remains future
-work for the next dashboard phase.
+Phase 67 has now landed the final overview composition on top of that
+foundation:
+
+- each overview repository entry renders as a borderless monitoring panel
+- the top half is a compact repository-information card
+- the bottom half is a bounded LiveView-owned accordion region
+- bounded run, conversation, memory, and runtime detail now expand in place
+  with explicit handoff links back to canonical repository, run, and settings
+  routes
+- route-level LiveView and browser coverage now exercise both the split-panel
+  shell and the in-place accordion interaction on wide and narrow dashboard
+  layouts

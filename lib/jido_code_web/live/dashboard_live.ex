@@ -131,7 +131,7 @@ defmodule JidoCodeWeb.DashboardLive do
       <div
         id="dashboard-root"
         data-dashboard-section={Atom.to_string(@selected_dashboard_section)}
-        class="max-w-4xl mx-auto py-8"
+        class="max-w-7xl mx-auto py-8"
       >
         <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
         <p class="text-base-content/70">Welcome, {@current_user.email}</p>
@@ -143,59 +143,62 @@ defmodule JidoCodeWeb.DashboardLive do
           <.link navigate={~p"/settings/auth"} class="link link-primary">Settings</.link>.
         </p>
 
-        <section
-          id="dashboard-section-nav-shell"
-          class="mt-6 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
-        >
-          <div class="space-y-1 px-1">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-              Dashboard concerns
-            </p>
-            <p id="dashboard-section-nav-note" class="text-sm text-base-content/70">
-              Move between overview, governed runs, conversations, memory, runtime posture, and follow-up work without leaving the authenticated landing route.
-            </p>
-          </div>
-
-          <nav
-            id="dashboard-section-nav"
-            class="mt-3 flex flex-wrap items-stretch gap-2"
-            aria-label="Dashboard concerns"
+        <div id="dashboard-shell" class="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
+          <section
+            id="dashboard-sidebar-shell"
+            class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 lg:sticky lg:top-24 lg:w-80 lg:flex-none"
           >
-            <.link
-              :for={section <- dashboard_section_nav_items(assigns)}
-              id={"dashboard-section-nav-#{section.section}"}
-              patch={dashboard_section_path(@onboarding_next_actions, section.section)}
-              aria-current={if(section.selected?, do: "page", else: nil)}
-              class={[
-                "min-w-[10rem] flex-1 rounded-lg border px-3 py-3 text-left transition sm:min-w-[11rem]",
-                if(section.selected?,
-                  do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
-                  else:
-                    "border-base-300/70 bg-base-100/85 text-base-content/80 hover:border-base-300 hover:bg-base-100"
-                )
-              ]}
+            <div class="space-y-1 px-1">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                Dashboard concerns
+              </p>
+              <p id="dashboard-section-nav-note" class="text-sm text-base-content/70">
+                Move between overview, governed runs, conversations, memory, runtime posture, and follow-up work without leaving the authenticated landing route.
+              </p>
+            </div>
+
+            <nav
+              id="dashboard-section-nav"
+              class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1"
+              aria-label="Dashboard concerns"
             >
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 space-y-1">
-                  <p class="font-semibold">{section.label}</p>
-                  <p class="text-xs leading-5 text-base-content/65">{section.summary}</p>
+              <.link
+                :for={section <- dashboard_section_nav_items(assigns)}
+                id={"dashboard-section-nav-#{section.section}"}
+                patch={dashboard_section_path(@onboarding_next_actions, section.section)}
+                aria-current={if(section.selected?, do: "page", else: nil)}
+                class={[
+                  "rounded-lg border px-3 py-3 text-left transition",
+                  if(section.selected?,
+                    do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
+                    else:
+                      "border-base-300/70 bg-base-100/85 text-base-content/80 hover:border-base-300 hover:bg-base-100"
+                  )
+                ]}
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0 space-y-1">
+                    <p class="font-semibold">{section.label}</p>
+                    <p class="text-xs leading-5 text-base-content/65">{section.summary}</p>
+                  </div>
+                  <span
+                    :if={section.badge}
+                    id={"dashboard-section-nav-#{section.section}-badge"}
+                    class={dashboard_section_badge_class(section.badge.tone)}
+                  >
+                    {section.badge.label}
+                  </span>
                 </div>
-                <span
-                  :if={section.badge}
-                  id={"dashboard-section-nav-#{section.section}-badge"}
-                  class={dashboard_section_badge_class(section.badge.tone)}
-                >
-                  {section.badge.label}
-                </span>
-              </div>
-            </.link>
-          </nav>
-        </section>
+              </.link>
+            </nav>
+          </section>
+
+          <div id="dashboard-content-shell" class="min-w-0 flex-1">
 
         <section
           :if={@selected_dashboard_section == :overview}
           id="dashboard-overview-panel"
-          class="mt-6 space-y-4"
+          class="space-y-4"
         >
           <section class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3">
             <div class="space-y-2">
@@ -257,7 +260,7 @@ defmodule JidoCodeWeb.DashboardLive do
         <section
           :if={@selected_dashboard_section == :runs}
           id="dashboard-run-summaries"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
+          class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold">Recent governed runs</h2>
@@ -358,7 +361,7 @@ defmodule JidoCodeWeb.DashboardLive do
         <section
           :if={@selected_dashboard_section == :conversations}
           id="dashboard-conversation-supervision"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+          class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-1">
@@ -477,7 +480,7 @@ defmodule JidoCodeWeb.DashboardLive do
         <section
           :if={@selected_dashboard_section == :memory}
           id="dashboard-memory-summaries"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+          class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-1">
@@ -592,7 +595,7 @@ defmodule JidoCodeWeb.DashboardLive do
         <section
           :if={@selected_dashboard_section == :runtime}
           id="dashboard-runtime-evidence"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+          class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-1">
@@ -718,7 +721,7 @@ defmodule JidoCodeWeb.DashboardLive do
         <section
           :if={!Enum.empty?(@onboarding_next_actions) and @selected_dashboard_section == :next_steps}
           id="dashboard-onboarding-next-actions"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
+          class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
         >
           <div class="space-y-1">
             <h2 class="text-lg font-semibold">Suggested next actions</h2>
@@ -735,6 +738,8 @@ defmodule JidoCodeWeb.DashboardLive do
             </li>
           </ul>
         </section>
+          </div>
+        </div>
       </div>
     </Layouts.app>
     """

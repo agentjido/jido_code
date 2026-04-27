@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, overview now exposing repo-scoped workspace inspection and repair on the canonical managed-repository route, conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story and repair path, workbench and run detail continue to project canonical control-plane records instead of owning separate transcript surfaces, dashboard now keeps one canonical authenticated route while organizing overview, runs, conversations, memory, runtime posture, and conditional next steps into route-owned concern tabs, and setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory. -->
+<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned sidebar-selected families, overview now exposing repo-scoped workspace inspection and repair on the canonical managed-repository route, conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story and repair path, workbench and run detail continue to project canonical control-plane records instead of owning separate transcript surfaces, dashboard now keeps one canonical authenticated route while organizing overview, runs, conversations, memory, runtime posture, and conditional next steps into route-owned concern tabs, setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory, and the signed-in `/settings/github` add-repository flow now routes later GitHub additions through the same canonical managed-repository import boundary instead of stopping at settings-only GitHub rows. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
@@ -9,13 +9,14 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families plus one shared repo-scoped workspace-repair path instead of one long mixed-context page, whose authenticated dashboard now keeps overview, runs, conversations, memory, runtime, and optional next-step concerns as route-owned tabs on one canonical route rather than one vertically growing summary stack, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families plus one shared repo-scoped workspace-repair path instead of one long mixed-context page, whose authenticated dashboard now keeps overview, runs, conversations, memory, runtime, and optional next-step concerns as route-owned tabs on one canonical route rather than one vertically growing summary stack, whose signed-in `/settings/github` route now sends later GitHub additions through the same managed-repository import boundary instead of creating settings-only product truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.dashboard_concern_tabs_and_overview_handoff
+  - jido_code.settings_github_add_repository_uses_managed_repo_import
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.runtime_evidence_posture_and_rollout_convergence
@@ -29,6 +30,7 @@ decisions:
   - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
   - .spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md
+  - .spec/decisions/jido_code.settings_github_add_repository_uses_managed_repo_import.md
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.namespace_and_control_naming.md
@@ -141,6 +143,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
+  statement: The signed-in `/settings/github` add-repository flow shall create or refresh canonical `SourceRepo` and `ManagedRepo` control-plane records through the managed import boundary instead of persisting a settings-only GitHub repository row as product truth.
+  priority: must
+  stability: evolving
+
 - id: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
   statement: Managed repositories shall own repo-scoped workspace environment and workspace path as canonical execution binding, while install-wide setup defaults may seed initial provisioning only when import metadata does not already provide a repo-scoped binding and without requiring every local repository to share one filesystem parent root.
   priority: must
@@ -212,6 +219,7 @@ surface:
 - id: architecture.factory_control_plane.scenario_operator_surfaces_use_canonical_repo_and_run_routes
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
     - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
     - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
@@ -227,6 +235,19 @@ surface:
     - Repo-scoped intake and multiple active work-item conversations, when present, remain distinguishable to operators instead of being flattened into one repo-global conversation summary.
     - Repo-scoped execution surfaces resolve workspace binding from the managed repository's persisted workspace settings rather than re-deriving a path from one install-wide local root.
     - Repositories imported with explicit repo-scoped local paths remain first-class managed repositories even when those paths do not live under one shared install-wide parent directory.
+
+- id: architecture.factory_control_plane.scenario_settings_github_add_imports_through_canonical_repo_graph
+  covers:
+    - architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects
+    - architecture.factory_control_plane.internal_repo_loaders_use_canonical_repo_graph
+    - architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
+  given:
+    - A signed-in operator has already completed onboarding and wants to add another GitHub repository from `/settings/github`.
+  when:
+    - The operator submits a repository owner and name through the add-repository modal.
+  then:
+    - The flow creates or reuses canonical `SourceRepo` and `ManagedRepo` records through the managed import boundary before the settings route refreshes its visible GitHub repository list.
+    - The later repository addition becomes available to the rest of the product through canonical managed-repository scope rather than remaining a settings-only row.
 
 ```
 
@@ -304,6 +325,16 @@ surface:
   target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: lib/jido_code_web/live/settings_live.ex
+  covers:
+    - architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
+
+- kind: source_file
+  target: test/jido_code_web/live/security_settings_live_test.exs
+  covers:
+    - architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
 
 - kind: source_file
   target: test/jido_code_web/live/phase_sixty_five_integration_test.exs

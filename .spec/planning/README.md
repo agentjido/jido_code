@@ -32,6 +32,7 @@ The plan aligns to:
 - `../specs/runtime_service_overlay.spec.md`
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md`
+- `../decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md`
 - `../decisions/jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
 - `../decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md`
@@ -110,6 +111,8 @@ The plan aligns to:
 57. [Phase 63 - Repo-Scoped Workspace Configuration Surfaces](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-63-repo-scoped-workspace-configuration-surfaces.md): add the repo-level mutation and operator UI needed to inspect and repair each managed repository's local workspace binding directly.
 58. [Phase 64 - Runtime Surface Workspace Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-64-runtime-surface-workspace-convergence.md): align conversation, semantic, memory, and workflow readiness surfaces on the final repo-scoped workspace model and remove the last shared-root assumptions from product copy and current truth.
 59. [Phase 65 - Dashboard Concern Tab Information Architecture](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-65-dashboard-concern-tab-information-architecture.md): reorganize the authenticated dashboard around route-owned concern tabs for overview, runs, conversations, memory, runtime posture, and conditional next actions while keeping the dashboard a single LiveView-owned landing route.
+60. [Phase 66 - Dashboard Sidebar And Repository Monitoring Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md): replace the dashboard’s top concern rail with a left-sidebar shell and convert overview into a repository-first monitoring list ordered by recent meaningful work activity.
+61. [Phase 67 - Dashboard Repository Panels And Accordion Monitoring](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-67-dashboard-repository-panels-and-accordion-monitoring.md): turn the repository-first overview scaffold into the final borderless split-panel monitoring surface with a top repository-information card and a bounded lower accordion region.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once

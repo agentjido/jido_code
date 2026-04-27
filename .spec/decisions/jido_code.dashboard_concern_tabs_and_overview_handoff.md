@@ -120,9 +120,12 @@ Current implementation behaves as follows:
 - The route now uses route-owned `section` selection to move between
   `Overview`, `Runs`, `Conversations`, `Memory`, `Runtime`, and conditional
   `Next Steps`.
-- `Overview` is now the default authenticated landing concern and presents
-  compact summary cards plus handoff links instead of repeating every detailed
-  dashboard list.
+- The concern families remain bounded LiveView-owned slices even though the
+  wide-screen chrome has since evolved from a top rail into left-sidebar
+  concern navigation.
+- `Overview` is still the default authenticated landing concern, but it has
+  since evolved from compact summary cards into a repository-first monitoring
+  feed under the follow-on dashboard monitoring ADR.
 - governed runs, conversation supervision, memory summaries, runtime posture,
   and next steps now render one concern panel at a time instead of one long
   stacked route.

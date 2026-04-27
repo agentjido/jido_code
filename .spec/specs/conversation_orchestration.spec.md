@@ -1,6 +1,6 @@
 # Conversation Orchestration
 
-<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host through a route-owned `Conversations` family with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, blocked runtime states now linking back to the same route's repo-scoped workspace-repair surface instead of pointing operators toward setup defaults, that runtime panel now using the same repo-scoped workspace-binding vocabulary as semantic, memory, and workflow surfaces, Workbench plus run detail plus dashboard reuse shared conversation supervision language, dashboard conversation supervision now living behind its own route-owned dashboard concern tab rather than a stacked landing section, and browser coverage now exercises ready, blocked, clarification-reload, degraded, desktop-sidebar, and narrow-screen repo-detail conversation states. -->
+<!-- current_truth.reconciled_with_branch: repo detail now acts as the canonical conversation host through a route-owned `Conversations` family with bounded repo intake, governed work-item roster, route-owned runtime readiness and snapshot continuity panels, blocked runtime states now linking back to the same route's repo-scoped workspace-repair surface instead of pointing operators toward setup defaults, that runtime panel now using the same repo-scoped workspace-binding vocabulary as semantic, memory, and workflow surfaces, Workbench plus run detail plus dashboard reuse shared conversation supervision language, dashboard conversation supervision now living behind its own sidebar-selected dashboard concern rather than a stacked landing section, and browser coverage now exercises ready, blocked, clarification-reload, degraded, desktop-sidebar, and narrow-screen repo-detail conversation states. -->
 
 This subject defines how productive coding conversations are coordinated across
 durable work scope, interruptible execution, and event-driven UI delivery.
@@ -9,17 +9,19 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, dashboard conversation supervision now bounded inside a dedicated authenticated dashboard concern tab rather than a chat shell, route-local workspace-readiness repair from blocked runtime panels using the same repo-scoped binding language as adjacent runtime surfaces, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, dashboard conversation supervision now bounded inside a dedicated authenticated sidebar-selected dashboard conversation concern rather than a chat shell, route-local workspace-readiness repair from blocked runtime panels using the same repo-scoped binding language as adjacent runtime surfaces, and clarification on ambiguous workflow intent rather than snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
   - jido_code.llm_provider_and_model_selection
   - jido_code.dashboard_concern_tabs_and_overview_handoff
+  - jido_code.dashboard_developer_centric_monitoring_sidebar
   - jido_code.interruptible_conversation_orchestration
   - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.work_item_scoped_conversations_as_canonical_productive_threads
 surface:
   - .spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md
+  - .spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md
   - .spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md
   - .spec/decisions/jido_code.llm_provider_and_model_selection.md
   - lib/jido_code/conversations.ex
@@ -826,6 +828,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_six_integration_test.exs
   covers:
     - architecture.conversation_orchestration.workbench_and_governed_run_surfaces_project_conversation_linkage
 

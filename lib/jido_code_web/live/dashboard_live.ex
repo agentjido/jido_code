@@ -45,6 +45,7 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:runtime_evidence_warning, nil)
       |> assign(:runtime_evidence_last_refreshed_at, nil)
       |> assign(:runtime_evidence_summary, nil)
+      |> assign(:expanded_repository_monitoring_ids, MapSet.new())
       |> assign(:memory_summary_count, 0)
       |> assign(:memory_summary_rows, [])
       |> assign(:memory_summary_warning, nil)
@@ -110,6 +111,15 @@ defmodule JidoCodeWeb.DashboardLive do
   @impl true
   def handle_event("refresh_memory_summaries", _params, socket) do
     {:noreply, socket |> load_memory_summaries() |> load_repository_monitoring_summaries()}
+  end
+
+  @impl true
+  def handle_event("toggle_repository_monitoring_detail", %{"id" => id}, socket) do
+    expanded_ids =
+      socket.assigns.expanded_repository_monitoring_ids
+      |> toggle_repository_monitoring_detail(id)
+
+    {:noreply, assign(socket, :expanded_repository_monitoring_ids, expanded_ids)}
   end
 
   @impl true
@@ -390,7 +400,22 @@ defmodule JidoCodeWeb.DashboardLive do
                         id={"dashboard-overview-repository-accordion-shell-#{run_summary_dom_token(entry.id)}"}
                         class="rounded-3xl bg-base-200/30 px-5 py-4"
                       >
-                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <button
+                          id={"dashboard-overview-repository-accordion-toggle-#{run_summary_dom_token(entry.id)}"}
+                          type="button"
+                          class="flex w-full flex-col gap-3 text-left md:flex-row md:items-center md:justify-between"
+                          phx-click="toggle_repository_monitoring_detail"
+                          phx-value-id={entry.id}
+                          aria-expanded={
+                            to_string(
+                              repository_monitoring_detail_expanded?(
+                                @expanded_repository_monitoring_ids,
+                                entry.id
+                              )
+                            )
+                          }
+                          aria-controls={"dashboard-overview-repository-accordion-panel-#{run_summary_dom_token(entry.id)}"}
+                        >
                           <div class="space-y-1">
                             <p class="text-sm font-semibold text-base-content/85">
                               Repository monitoring detail
@@ -404,8 +429,244 @@ defmodule JidoCodeWeb.DashboardLive do
                             id={"dashboard-overview-repository-accordion-state-#{run_summary_dom_token(entry.id)}"}
                             class="badge badge-outline badge-sm"
                           >
-                            Detail stays collapsed until expanded
+                            {repository_monitoring_detail_state_label(
+                              @expanded_repository_monitoring_ids,
+                              entry.id
+                            )}
                           </span>
+                        </button>
+
+                        <div
+                          :if={
+                            repository_monitoring_detail_expanded?(
+                              @expanded_repository_monitoring_ids,
+                              entry.id
+                            )
+                          }
+                          id={"dashboard-overview-repository-accordion-panel-#{run_summary_dom_token(entry.id)}"}
+                          class="mt-4 space-y-4"
+                        >
+                          <p
+                            :if={repository_monitoring_detail_empty?(entry)}
+                            id={"dashboard-overview-repository-accordion-empty-#{run_summary_dom_token(entry.id)}"}
+                            class="rounded-2xl border border-dashed border-base-300/70 bg-base-100/80 px-4 py-4 text-sm text-base-content/70"
+                          >
+                            No governed run, conversation, memory, or runtime detail has materialized for this repository yet. Open the repository route to continue setup or start the first governed action.
+                          </p>
+
+                          <div
+                            :if={not repository_monitoring_detail_empty?(entry)}
+                            class="grid gap-3 xl:grid-cols-2"
+                          >
+                            <section
+                              id={"dashboard-overview-repository-detail-run-#{run_summary_dom_token(entry.id)}"}
+                              class="rounded-2xl border border-base-300/70 bg-base-100/85 px-4 py-4 space-y-3"
+                            >
+                              <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                    Governed run
+                                  </p>
+                                  <p class="text-sm font-medium text-base-content/90">
+                                    {repository_monitoring_run_heading(entry)}
+                                  </p>
+                                </div>
+                                <span
+                                  :if={entry.latest_run}
+                                  class={run_status_badge_class(Map.get(entry.latest_run, :status))}
+                                >
+                                  {Map.get(entry.latest_run, :status)}
+                                </span>
+                              </div>
+
+                              <p class="text-sm text-base-content/75">
+                                {repository_monitoring_run_detail(entry)}
+                              </p>
+
+                              <p
+                                :if={entry.latest_run}
+                                class="text-xs text-base-content/65"
+                              >
+                                {run_recency_label(entry.latest_run)}
+                              </p>
+
+                              <div class="flex flex-wrap items-center gap-3 text-sm">
+                                <.link
+                                  :if={entry.latest_run_route}
+                                  id={"dashboard-overview-repository-detail-run-link-#{run_summary_dom_token(entry.id)}"}
+                                  navigate={entry.latest_run_route}
+                                  class="link link-primary"
+                                >
+                                  Open governed run
+                                </.link>
+
+                                <.link
+                                  :if={entry.repo_route}
+                                  navigate={entry.repo_route}
+                                  class="link link-secondary"
+                                >
+                                  Open repository
+                                </.link>
+                              </div>
+                            </section>
+
+                            <section
+                              id={"dashboard-overview-repository-detail-conversation-#{run_summary_dom_token(entry.id)}"}
+                              class="rounded-2xl border border-base-300/70 bg-base-100/85 px-4 py-4 space-y-3"
+                            >
+                              <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                    Conversations
+                                  </p>
+                                  <p class="text-sm font-medium text-base-content/90">
+                                    {repository_monitoring_conversation_heading(entry)}
+                                  </p>
+                                </div>
+
+                                <span
+                                  :if={Map.get(entry.conversation_summary || %{}, :clarification_count, 0) > 0}
+                                  class="badge badge-warning badge-outline badge-sm"
+                                >
+                                  {conversation_clarification_badge(
+                                    Map.get(entry.conversation_summary, :clarification_count, 0)
+                                  )}
+                                </span>
+                              </div>
+
+                              <p class="text-sm text-base-content/75">
+                                {repository_monitoring_conversation_detail(entry)}
+                              </p>
+
+                              <p
+                                :if={entry.conversation_summary && Map.get(entry.conversation_summary, :latest_activity_at)}
+                                class="text-xs text-base-content/65"
+                              >
+                                Latest activity: {summary_refreshed_label(Map.get(entry.conversation_summary, :latest_activity_at))}
+                              </p>
+
+                              <div class="flex flex-wrap items-center gap-3 text-sm">
+                                <.link
+                                  :if={repository_monitoring_conversation_route(entry)}
+                                  id={"dashboard-overview-repository-detail-conversation-link-#{run_summary_dom_token(entry.id)}"}
+                                  navigate={repository_monitoring_conversation_route(entry)}
+                                  class="link link-primary"
+                                >
+                                  {repository_monitoring_conversation_action_label(entry)}
+                                </.link>
+
+                                <.link
+                                  :if={entry.repo_route}
+                                  navigate={entry.repo_route}
+                                  class="link link-secondary"
+                                >
+                                  Open repository
+                                </.link>
+                              </div>
+                            </section>
+
+                            <section
+                              id={"dashboard-overview-repository-detail-memory-#{run_summary_dom_token(entry.id)}"}
+                              class="rounded-2xl border border-base-300/70 bg-base-100/85 px-4 py-4 space-y-3"
+                            >
+                              <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                    Memory
+                                  </p>
+                                  <p class="text-sm font-medium text-base-content/90">
+                                    {repository_monitoring_memory_heading(entry)}
+                                  </p>
+                                </div>
+
+                                <span
+                                  :if={entry.memory_summary}
+                                  class={memory_summary_badge_class(Map.get(entry.memory_summary, :state))}
+                                >
+                                  {Map.get(entry.memory_summary, :label)}
+                                </span>
+                              </div>
+
+                              <p class="text-sm text-base-content/75">
+                                {repository_monitoring_memory_detail(entry)}
+                              </p>
+
+                              <p
+                                :if={entry.memory_summary}
+                                class="text-xs text-base-content/65"
+                              >
+                                Durable memory: {Map.get(entry.memory_summary, :memory_count, 0)} | Workflow provenance: {Map.get(entry.memory_summary, :provenance_count, 0)}
+                              </p>
+
+                              <div class="flex flex-wrap items-center gap-3 text-sm">
+                                <.link
+                                  :if={repository_monitoring_memory_route(entry)}
+                                  id={"dashboard-overview-repository-detail-memory-link-#{run_summary_dom_token(entry.id)}"}
+                                  navigate={repository_monitoring_memory_route(entry)}
+                                  class="link link-primary"
+                                >
+                                  {repository_monitoring_memory_action_label(entry)}
+                                </.link>
+
+                                <.link
+                                  :if={entry.repo_route}
+                                  navigate={entry.repo_route}
+                                  class="link link-secondary"
+                                >
+                                  Open repository
+                                </.link>
+                              </div>
+                            </section>
+
+                            <section
+                              id={"dashboard-overview-repository-detail-runtime-#{run_summary_dom_token(entry.id)}"}
+                              class="rounded-2xl border border-base-300/70 bg-base-100/85 px-4 py-4 space-y-3"
+                            >
+                              <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
+                                    Runtime
+                                  </p>
+                                  <p class="text-sm font-medium text-base-content/90">
+                                    {repository_monitoring_runtime_heading(entry)}
+                                  </p>
+                                </div>
+
+                                <span
+                                  :if={entry.runtime_summary}
+                                  class={runtime_evidence_badge_class(Map.get(entry.runtime_summary, :status))}
+                                >
+                                  {runtime_evidence_status_label(Map.get(entry.runtime_summary, :status))}
+                                </span>
+                              </div>
+
+                              <p class="text-sm text-base-content/75">
+                                {repository_monitoring_runtime_detail(entry)}
+                              </p>
+
+                              <p
+                                :if={entry.runtime_summary}
+                                class="text-xs text-base-content/65"
+                              >
+                                {runtime_evidence_details(entry.runtime_summary)}
+                              </p>
+
+                              <div class="flex flex-wrap items-center gap-3 text-sm">
+                                <.link
+                                  :if={entry.repo_route}
+                                  id={"dashboard-overview-repository-detail-runtime-link-#{run_summary_dom_token(entry.id)}"}
+                                  navigate={entry.repo_route}
+                                  class="link link-primary"
+                                >
+                                  Open repository
+                                </.link>
+
+                                <.link navigate={~p"/settings/auth"} class="link link-secondary">
+                                  Open settings
+                                </.link>
+                              </div>
+                            </section>
+                          </div>
                         </div>
                       </section>
                     </li>
@@ -1134,6 +1395,148 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp dashboard_section_badge_class(_tone),
     do: "badge badge-sm border border-base-300/70 bg-base-100 text-base-content/80"
+
+  defp toggle_repository_monitoring_detail(%MapSet{} = expanded_ids, id) do
+    case normalize_optional_string(id) do
+      nil ->
+        expanded_ids
+
+      normalized_id ->
+        if MapSet.member?(expanded_ids, normalized_id) do
+          MapSet.delete(expanded_ids, normalized_id)
+        else
+          MapSet.put(expanded_ids, normalized_id)
+        end
+    end
+  end
+
+  defp repository_monitoring_detail_expanded?(%MapSet{} = expanded_ids, id) do
+    case normalize_optional_string(id) do
+      nil -> false
+      normalized_id -> MapSet.member?(expanded_ids, normalized_id)
+    end
+  end
+
+  defp repository_monitoring_detail_expanded?(_expanded_ids, _id), do: false
+
+  defp repository_monitoring_detail_state_label(expanded_ids, id) do
+    if repository_monitoring_detail_expanded?(expanded_ids, id) do
+      "Collapse detail"
+    else
+      "Detail stays collapsed until expanded"
+    end
+  end
+
+  defp repository_monitoring_detail_empty?(entry) do
+    is_nil(Map.get(entry, :latest_run)) and is_nil(Map.get(entry, :conversation_summary)) and
+      is_nil(Map.get(entry, :memory_summary)) and is_nil(Map.get(entry, :runtime_summary))
+  end
+
+  defp repository_monitoring_run_heading(entry) do
+    case Map.get(entry, :latest_run) do
+      nil ->
+        "No governed run materialized yet"
+
+      run_summary ->
+        "#{Map.get(run_summary, :workflow_name)} #{Map.get(run_summary, :status)}"
+    end
+  end
+
+  defp repository_monitoring_run_detail(entry) do
+    case Map.get(entry, :latest_run) do
+      nil ->
+        "Latest governed run state will appear here once repository work starts from dashboard or repo detail."
+
+      run_summary ->
+        run_governance_summary(run_summary) ||
+          "Run status is #{Map.get(run_summary, :status)} with no additional governance detail yet."
+    end
+  end
+
+  defp repository_monitoring_conversation_heading(entry) do
+    case Map.get(entry, :conversation_summary) do
+      nil ->
+        "No active governed conversation supervision"
+
+      summary ->
+        active_count = Map.get(summary, :active_count, 0)
+        "#{active_count} active #{pluralize(active_count, "conversation", "conversations")}"
+    end
+  end
+
+  defp repository_monitoring_conversation_detail(entry) do
+    case Map.get(entry, :conversation_summary) do
+      nil ->
+        "Conversation detail will appear here once governed work or clarification-required supervision materializes."
+
+      summary ->
+        Map.get(summary, :detail) ||
+          "Active governed conversations: #{Map.get(summary, :active_count, 0)} | Clarification needed: #{Map.get(summary, :clarification_count, 0)}"
+    end
+  end
+
+  defp repository_monitoring_conversation_route(entry) do
+    summary = Map.get(entry, :conversation_summary) || %{}
+    normalize_optional_string(Map.get(summary, :route)) || Map.get(entry, :repo_route)
+  end
+
+  defp repository_monitoring_conversation_action_label(entry) do
+    summary = Map.get(entry, :conversation_summary) || %{}
+    normalize_optional_string(Map.get(summary, :action_label)) || "Open conversation supervision"
+  end
+
+  defp repository_monitoring_memory_heading(entry) do
+    case Map.get(entry, :memory_summary) do
+      nil ->
+        "No repository memory summary yet"
+
+      summary ->
+        normalize_optional_string(Map.get(summary, :label)) || "Repository memory summary available"
+    end
+  end
+
+  defp repository_monitoring_memory_detail(entry) do
+    case Map.get(entry, :memory_summary) do
+      nil ->
+        "Memory attention cues will appear here once durable memory or provenance state is materialized for this repository."
+
+      summary ->
+        normalize_optional_string(Map.get(summary, :detail)) ||
+          normalize_optional_string(Map.get(summary, :remediation)) ||
+          "Repository memory summary is available for deeper review."
+    end
+  end
+
+  defp repository_monitoring_memory_route(entry) do
+    summary = Map.get(entry, :memory_summary) || %{}
+    normalize_optional_string(Map.get(summary, :route)) || Map.get(entry, :repo_route)
+  end
+
+  defp repository_monitoring_memory_action_label(entry) do
+    summary = Map.get(entry, :memory_summary) || %{}
+    normalize_optional_string(Map.get(summary, :action_label)) || "Open memory review"
+  end
+
+  defp repository_monitoring_runtime_heading(entry) do
+    case Map.get(entry, :runtime_summary) do
+      nil ->
+        "No runtime posture summary yet"
+
+      summary ->
+        "Runtime posture is #{runtime_evidence_status_label(Map.get(summary, :status))}"
+    end
+  end
+
+  defp repository_monitoring_runtime_detail(entry) do
+    case Map.get(entry, :runtime_summary) do
+      nil ->
+        "Runtime posture detail will appear here once bounded delivery and readiness evidence is projected for this repository."
+
+      summary ->
+        normalize_optional_string(Map.get(summary, :summary)) ||
+          "Runtime posture evidence is available for this repository."
+    end
+  end
 
   defp summary_refreshed_label(%DateTime{} = datetime) do
     datetime

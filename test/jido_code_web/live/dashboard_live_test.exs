@@ -159,6 +159,182 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     refute has_element?(view, "#dashboard-runtime-evidence")
   end
 
+  test "expands repository monitoring detail in place without leaving dashboard overview", %{
+    conn: _conn
+  } do
+    register_owner("dashboard-accordion-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-accordion-owner@example.com", "owner-password-123")
+
+    %{route_id: route_id, managed_repo: managed_repo} =
+      provision_managed_repo!(%{
+        name: "repo-dashboard-accordion",
+        github_full_name: "owner/repo-dashboard-accordion",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {:ok, _run} =
+      create_run(route_id, "dashboard-accordion-run", DateTime.add(now, -900, :second), %{
+        status: :awaiting_approval,
+        current_step: "publish_pr",
+        current_stage: "approval"
+      })
+
+    Application.put_env(:jido_code, :dashboard_conversation_summary_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "accordion-conversation-summary",
+           route_id: route_id,
+           managed_repo_id: managed_repo.id,
+           repo_label: "owner/repo-dashboard-accordion",
+           role_scope: "work_item_scoped",
+           role_attachment_mode: "governed_work",
+           role_work_item_id: "work-item-accordion",
+           latest_status: "active",
+           active_count: 2,
+           clarification_count: 1,
+           detail:
+             "2 governed conversations active. 1 clarification turn needs an answer.",
+           latest_activity_at: now,
+           route: "/repos/#{route_id}#project-detail-conversation-panel",
+           action_label: "Open governed supervision"
+         }
+       ], nil}
+    end)
+
+    Application.put_env(:jido_code, :dashboard_memory_summary_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "accordion-memory-summary",
+           route_id: route_id,
+           managed_repo_id: managed_repo.id,
+           repo_label: "owner/repo-dashboard-accordion",
+           state: "invalidated",
+           label: "Memory graph invalidated",
+           detail: "Repository memory graph validation was explicitly invalidated.",
+           remediation: "Validate repository memory graph for the current revision.",
+           memory_count: 5,
+           provenance_count: 3,
+           route: "/repos/#{route_id}#project-detail-memory-inspection",
+           action_label: "Validate memory graph",
+           action_needed?: true
+         }
+       ], nil}
+    end)
+
+    Application.put_env(:jido_code, :dashboard_runtime_evidence_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "accordion-runtime-summary",
+           managed_repo_id: managed_repo.id,
+           repo_label: "owner/repo-dashboard-accordion",
+           status: "blocked",
+           summary: "Runtime delivery is blocked until repository workspace binding is repaired.",
+           delivery_mode: "guided",
+           reason_code: "workspace_binding_missing",
+           latest_provider: "github",
+           supervision_mode: "guided",
+           review_required: true,
+           updated_at: now
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    repo_dom_token = run_dom_token("dashboard-repository-monitoring-#{route_id}")
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-accordion-state-#{repo_dom_token}",
+             "Detail stays collapsed until expanded"
+           )
+
+    refute has_element?(
+             view,
+             "#dashboard-overview-repository-accordion-panel-#{repo_dom_token}"
+           )
+
+    view
+    |> element("#dashboard-overview-repository-accordion-toggle-#{repo_dom_token}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-accordion-state-#{repo_dom_token}",
+             "Collapse detail"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-accordion-panel-#{repo_dom_token}"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-run-#{repo_dom_token}",
+             "Stage: approval"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-conversation-#{repo_dom_token}",
+             "1 clarification turn needs an answer"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-memory-#{repo_dom_token}",
+             "Repository memory graph validation was explicitly invalidated"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-runtime-#{repo_dom_token}",
+             "Runtime delivery is blocked until repository workspace binding is repaired"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-run-link-#{repo_dom_token}[href=\"/repos/#{route_id}/runs/dashboard-accordion-run\"]",
+             "Open governed run"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-conversation-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-conversation-panel\"]",
+             "Open governed supervision"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-memory-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-memory-inspection\"]",
+             "Validate memory graph"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-detail-runtime-#{repo_dom_token} a[href=\"/settings/auth\"]",
+             "Open settings"
+           )
+
+    view
+    |> element("#dashboard-overview-repository-accordion-toggle-#{repo_dom_token}")
+    |> render_click()
+
+    refute has_element?(
+             view,
+             "#dashboard-overview-repository-accordion-panel-#{repo_dom_token}"
+           )
+  end
+
   test "defaults dashboard section selection to overview and ignores unknown section params", %{
     conn: _conn
   } do

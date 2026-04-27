@@ -259,7 +259,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     refute has_element?(
              view,
-             "#dashboard-overview-repository-accordion-panel-#{repo_dom_token}"
+             "#dashboard-overview-repository-accordion-shell-#{repo_dom_token}[open]"
            )
 
     view
@@ -270,6 +270,11 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              view,
              "#dashboard-overview-repository-accordion-state-#{repo_dom_token}",
              "Collapse detail"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-accordion-shell-#{repo_dom_token}[open]"
            )
 
     assert has_element?(
@@ -331,7 +336,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     refute has_element?(
              view,
-             "#dashboard-overview-repository-accordion-panel-#{repo_dom_token}"
+             "#dashboard-overview-repository-accordion-shell-#{repo_dom_token}[open]"
            )
   end
 

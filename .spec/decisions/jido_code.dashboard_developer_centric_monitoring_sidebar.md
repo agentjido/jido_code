@@ -152,3 +152,6 @@ foundation:
 - bounded run, conversation, memory, and runtime detail now expand in place
   with explicit handoff links back to canonical repository, run, and settings
   routes
+- route-level LiveView and browser coverage now exercise both the split-panel
+  shell and the in-place accordion interaction on wide and narrow dashboard
+  layouts

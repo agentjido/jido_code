@@ -74,6 +74,17 @@ async function activateTab(page: Page, selector: string) {
   await waitForLiveViewConnection(page)
 }
 
+async function expandFirstOverviewRepository(page: Page) {
+  const toggle = page.locator("[id^='dashboard-overview-repository-accordion-toggle-']").first()
+  await expect(toggle).toBeVisible()
+  await toggle.click()
+
+  const panel = page.locator("[id^='dashboard-overview-repository-accordion-panel-']").first()
+  await expect(panel).toBeVisible()
+
+  return panel
+}
+
 test("dashboard sidebar keeps the ready-state landing route scanable on wide screens", async ({
   page,
   request,
@@ -137,4 +148,38 @@ test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow 
   await activateTab(page, "#dashboard-section-nav-overview")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=overview$/)
   await expect(page.locator("#dashboard-overview-panel")).toBeVisible()
+})
+
+test("dashboard overview repository panels expand bounded monitoring detail on wide screens", async ({
+  page,
+  request,
+}) => {
+  await prepareScenario(request, "conversation_ready")
+  await page.setViewportSize({ width: 1440, height: 1100 })
+  await signIn(page, "/dashboard?onboarding=completed")
+
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
+  await expect(page.locator("[id^='dashboard-overview-repository-card-']").first()).toBeVisible()
+  await expect(page.locator("[id^='dashboard-overview-repository-accordion-shell-']").first()).toBeVisible()
+
+  const panel = await expandFirstOverviewRepository(page)
+
+  await expect(panel).toContainText(/Open repository|No governed run, conversation, memory, or runtime detail has materialized/)
+})
+
+test("dashboard overview repository accordions stay usable on narrow screens", async ({
+  page,
+  request,
+}) => {
+  await prepareScenario(request, "conversation_ready")
+  await page.setViewportSize({ width: 430, height: 1100 })
+  await signIn(page, "/dashboard?onboarding=completed")
+
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
+  await expectNoHorizontalOverflow(page, "#dashboard-overview-repository-list")
+
+  const panel = await expandFirstOverviewRepository(page)
+
+  await expectNoHorizontalOverflow(page, "#dashboard-overview-repository-list")
+  await expect(panel).toBeVisible()
 })

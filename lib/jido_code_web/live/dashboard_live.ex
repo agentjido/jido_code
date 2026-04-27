@@ -341,14 +341,19 @@ defmodule JidoCodeWeb.DashboardLive do
                         </div>
                       </article>
 
-                      <section
+                      <details
                         id={"dashboard-overview-repository-accordion-shell-#{run_summary_dom_token(entry.id)}"}
                         class="rounded-3xl bg-base-200/30 px-5 py-4"
+                        open={
+                          repository_monitoring_detail_expanded?(
+                            @expanded_repository_monitoring_ids,
+                            entry.id
+                          )
+                        }
                       >
-                        <button
+                        <summary
                           id={"dashboard-overview-repository-accordion-toggle-#{run_summary_dom_token(entry.id)}"}
-                          type="button"
-                          class="flex w-full flex-col gap-3 text-left md:flex-row md:items-center md:justify-between"
+                          class="flex w-full list-none flex-col gap-3 text-left md:flex-row md:items-center md:justify-between [&::-webkit-details-marker]:hidden"
                           phx-click="toggle_repository_monitoring_detail"
                           phx-value-id={entry.id}
                           aria-expanded={
@@ -379,15 +384,9 @@ defmodule JidoCodeWeb.DashboardLive do
                               entry.id
                             )}
                           </span>
-                        </button>
+                        </summary>
 
                         <div
-                          :if={
-                            repository_monitoring_detail_expanded?(
-                              @expanded_repository_monitoring_ids,
-                              entry.id
-                            )
-                          }
                           id={"dashboard-overview-repository-accordion-panel-#{run_summary_dom_token(entry.id)}"}
                           class="mt-4 space-y-4"
                         >
@@ -449,7 +448,7 @@ defmodule JidoCodeWeb.DashboardLive do
                             </section>
                           </div>
                         </div>
-                      </section>
+                      </details>
                     </li>
                   </ol>
                 <% end %>

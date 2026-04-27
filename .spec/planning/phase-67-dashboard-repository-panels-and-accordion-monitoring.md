@@ -40,7 +40,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - Accordion content should keep operators oriented toward canonical managed-repository, run, and settings routes rather than duplicating those routes wholesale inside dashboard.
 - Other dashboard concerns continue to exist, but `Overview` becomes the primary monitoring workspace for multi-project supervision.
 
-[ ] 67 Phase 67 - Dashboard Repository Panels And Accordion Monitoring
+[x] 67 Phase 67 - Dashboard Repository Panels And Accordion Monitoring
   Turn the repository-first overview scaffold into the final developer-centric monitoring surface by adopting the split borderless repository panel, bounded accordion detail, and the supporting helper plus verification convergence.
 
   [x] 67.1 Section - Split Repository Panel Composition
@@ -87,12 +87,12 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
       [x] 67.3.1.2 Subtask - Update the affected dashboard, frontend, factory-control-plane, repo-posture, conversation, memory, and runtime current-truth subjects once the repository-panel model is implemented.
       [x] 67.3.1.3 Subtask - Retire stale dashboard copy that still frames overview as summary-first or concern-first instead of repository-first monitoring.
 
-  [ ] 67.4 Section - Phase Integration Tests
+  [x] 67.4 Section - Phase Integration Tests
     Prove the final repository monitoring composition works as an operator-facing dashboard surface across the key supported layouts.
 
-    [ ] 67.4.1 Task - Add route and browser coverage for the split monitoring panels and accordion behavior
+    [x] 67.4.1 Task - Add route and browser coverage for the split monitoring panels and accordion behavior
       Verify the new overview model at the same level of fidelity as the earlier dashboard navigation cutover.
 
-      [ ] 67.4.1.1 Subtask - Add LiveView coverage proving each overview repository entry renders as a borderless split panel with a top repository-information card and a lower accordion region.
-      [ ] 67.4.1.2 Subtask - Add LiveView coverage proving accordion expansion reveals bounded detail and preserves direct handoff links to canonical routes.
-      [ ] 67.4.1.3 Subtask - Add browser coverage for desktop sidebar plus accordion behavior and narrow-screen repository monitoring fallback so the dashboard remains usable across supported viewports.
+      [x] 67.4.1.1 Subtask - Add LiveView coverage proving each overview repository entry renders as a borderless split panel with a top repository-information card and a lower accordion region.
+      [x] 67.4.1.2 Subtask - Add LiveView coverage proving accordion expansion reveals bounded detail and preserves direct handoff links to canonical routes.
+      [x] 67.4.1.3 Subtask - Add browser coverage for desktop sidebar plus accordion behavior and narrow-screen repository monitoring fallback so the dashboard remains usable across supported viewports.

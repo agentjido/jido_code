@@ -1,6 +1,6 @@
 # Repo Posture
 
-<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces, and dashboard now keeps runtime and posture summaries inside a dedicated sidebar-selected concern on the authenticated landing route. -->
+<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces, and dashboard now keeps runtime and posture summaries inside a dedicated sidebar-selected concern while repository-first overview accordions can also surface bounded runtime blockers and governed-pressure cues on the authenticated landing route. -->
 
 This subject defines how repo-native state becomes explainable posture and trust
 records for managed repositories.
@@ -11,7 +11,7 @@ records for managed repositories.
 id: architecture.repo_posture
 kind: feature
 status: active
-summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, canonical managed-repository scope, and the authenticated dashboard's dedicated sidebar-selected runtime and posture concern instead of hiding trust state inside opaque service logic.
+summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, canonical managed-repository scope, the authenticated dashboard's dedicated sidebar-selected runtime and posture concern, and the repository-first overview's bounded in-place monitoring accordions instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation

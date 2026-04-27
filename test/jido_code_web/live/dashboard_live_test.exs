@@ -285,7 +285,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-conversation-#{repo_dom_token}",
+             "#dashboard-overview-repository-detail-conversations-#{repo_dom_token}",
              "1 clarification turn needs an answer"
            )
 
@@ -303,19 +303,19 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-run-link-#{repo_dom_token}[href=\"/repos/#{route_id}/runs/dashboard-accordion-run\"]",
+             "#dashboard-overview-repository-detail-run-run-link-#{repo_dom_token}[href=\"/repos/#{route_id}/runs/dashboard-accordion-run\"]",
              "Open governed run"
            )
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-conversation-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-conversation-panel\"]",
+             "#dashboard-overview-repository-detail-conversations-conversation-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-conversation-panel\"]",
              "Open governed supervision"
            )
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-memory-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-memory-inspection\"]",
+             "#dashboard-overview-repository-detail-memory-memory-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-memory-inspection\"]",
              "Validate memory graph"
            )
 

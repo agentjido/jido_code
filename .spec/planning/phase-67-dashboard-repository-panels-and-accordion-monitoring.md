@@ -43,49 +43,49 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 [ ] 67 Phase 67 - Dashboard Repository Panels And Accordion Monitoring
   Turn the repository-first overview scaffold into the final developer-centric monitoring surface by adopting the split borderless repository panel, bounded accordion detail, and the supporting helper plus verification convergence.
 
-  [ ] 67.1 Section - Split Repository Panel Composition
+  [x] 67.1 Section - Split Repository Panel Composition
     Implement the core overview entry layout so each repository becomes a legible monitoring unit rather than a generic card or list row.
 
-    [ ] 67.1.1 Task - Render each repository overview entry as a borderless split panel
+    [x] 67.1.1 Task - Render each repository overview entry as a borderless split panel
       Give the overview list the visual structure defined by the new ADR.
 
-      [ ] 67.1.1.1 Subtask - Replace any interim repository row or boxed card styling with a borderless monitoring panel.
-      [ ] 67.1.1.2 Subtask - Split that panel vertically into a top half for repository context and a bottom half for expandable detail.
-      [ ] 67.1.1.3 Subtask - Keep the layout responsive so the split monitoring panel remains usable on narrower screens without losing the repository-first hierarchy.
+      [x] 67.1.1.1 Subtask - Replace any interim repository row or boxed card styling with a borderless monitoring panel.
+      [x] 67.1.1.2 Subtask - Split that panel vertically into a top half for repository context and a bottom half for expandable detail.
+      [x] 67.1.1.3 Subtask - Keep the layout responsive so the split monitoring panel remains usable on narrower screens without losing the repository-first hierarchy.
 
-    [ ] 67.1.2 Task - Make the top half a developer-centric repository-information card
+    [x] 67.1.2 Task - Make the top half a developer-centric repository-information card
       Ensure the first visible portion of each repository panel tells an operator why that repository currently matters.
 
-      [ ] 67.1.2.1 Subtask - Surface repository identity, latest meaningful activity timing, and the highest-signal current work cue in the top card.
-      [ ] 67.1.2.2 Subtask - Include bounded attention badges or status cues such as active conversations, run pressure, memory warnings, or runtime blockers without overwhelming the card.
-      [ ] 67.1.2.3 Subtask - Preserve direct handoff affordances from the top card back to canonical managed-repository routes.
+      [x] 67.1.2.1 Subtask - Surface repository identity, latest meaningful activity timing, and the highest-signal current work cue in the top card.
+      [x] 67.1.2.2 Subtask - Include bounded attention badges or status cues such as active conversations, run pressure, memory warnings, or runtime blockers without overwhelming the card.
+      [x] 67.1.2.3 Subtask - Preserve direct handoff affordances from the top card back to canonical managed-repository routes.
 
-  [ ] 67.2 Section - Accordion Detail And Bounded Concern Handoff
+  [x] 67.2 Section - Accordion Detail And Bounded Concern Handoff
     Use the lower half of each repository panel to reveal more detail in place while preserving dashboard’s role as a monitoring surface instead of a second primary workspace.
 
-    [ ] 67.2.1 Task - Add bounded per-repository accordion content
+    [x] 67.2.1 Task - Add bounded per-repository accordion content
       Make the expandable region useful enough for triage without collapsing the rest of the product into dashboard.
 
-      [ ] 67.2.1.1 Subtask - Populate the accordion with bounded detail such as latest governed run state, active conversation posture, memory attention cues, runtime warnings, or recent follow-up signals.
-      [ ] 67.2.1.2 Subtask - Keep each accordion section product-shaped and monitoring-oriented rather than exposing raw graph, transcript, or transport internals.
-      [ ] 67.2.1.3 Subtask - Preserve explicit handoff links from accordion detail into canonical repo detail, governed run detail, or settings routes where deeper action belongs.
+      [x] 67.2.1.1 Subtask - Populate the accordion with bounded detail such as latest governed run state, active conversation posture, memory attention cues, runtime warnings, or recent follow-up signals.
+      [x] 67.2.1.2 Subtask - Keep each accordion section product-shaped and monitoring-oriented rather than exposing raw graph, transcript, or transport internals.
+      [x] 67.2.1.3 Subtask - Preserve explicit handoff links from accordion detail into canonical repo detail, governed run detail, or settings routes where deeper action belongs.
 
-    [ ] 67.2.2 Task - Keep accordion state lightweight and route-compatible
+    [x] 67.2.2 Task - Keep accordion state lightweight and route-compatible
       Ensure the expanded monitoring detail remains a bounded LiveView interaction instead of creating a second navigation model.
 
-      [ ] 67.2.2.1 Subtask - Keep accordion expansion state inside the LiveView-owned dashboard shell rather than moving it into a separate client-owned monitoring application.
-      [ ] 67.2.2.2 Subtask - Add clear collapsed and expanded empty-state behavior so repositories without recent governed activity still render legibly.
-      [ ] 67.2.2.3 Subtask - Preserve scanability across many repositories so opening one accordion does not destabilize ordering or context for the rest of the list.
+      [x] 67.2.2.1 Subtask - Keep accordion expansion state inside the LiveView-owned dashboard shell rather than moving it into a separate client-owned monitoring application.
+      [x] 67.2.2.2 Subtask - Add clear collapsed and expanded empty-state behavior so repositories without recent governed activity still render legibly.
+      [x] 67.2.2.3 Subtask - Preserve scanability across many repositories so opening one accordion does not destabilize ordering or context for the rest of the list.
 
-  [ ] 67.3 Section - Current-Truth And Helper Convergence
+  [x] 67.3 Section - Current-Truth And Helper Convergence
     Align helper boundaries, product wording, and durable current-truth language once the final repository monitoring composition is real.
 
-    [ ] 67.3.1 Task - Reconcile overview helper boundaries and dashboard language with the monitoring-panel model
+    [x] 67.3.1 Task - Reconcile overview helper boundaries and dashboard language with the monitoring-panel model
       Keep the shipped implementation and the accepted ADR teaching the same dashboard concept.
 
-      [ ] 67.3.1.1 Subtask - Update dashboard helper or feed responsibilities so repository monitoring ordering, top-card data, and accordion detail stay cleanly separated.
-      [ ] 67.3.1.2 Subtask - Update the affected dashboard, frontend, factory-control-plane, repo-posture, conversation, memory, and runtime current-truth subjects once the repository-panel model is implemented.
-      [ ] 67.3.1.3 Subtask - Retire stale dashboard copy that still frames overview as summary-first or concern-first instead of repository-first monitoring.
+      [x] 67.3.1.1 Subtask - Update dashboard helper or feed responsibilities so repository monitoring ordering, top-card data, and accordion detail stay cleanly separated.
+      [x] 67.3.1.2 Subtask - Update the affected dashboard, frontend, factory-control-plane, repo-posture, conversation, memory, and runtime current-truth subjects once the repository-panel model is implemented.
+      [x] 67.3.1.3 Subtask - Retire stale dashboard copy that still frames overview as summary-first or concern-first instead of repository-first monitoring.
 
   [ ] 67.4 Section - Phase Integration Tests
     Prove the final repository monitoring composition works as an operator-facing dashboard surface across the key supported layouts.

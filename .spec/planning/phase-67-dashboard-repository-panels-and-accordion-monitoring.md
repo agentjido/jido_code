@@ -36,63 +36,63 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 ## Relevant Assumptions / Defaults
 - Phase 66 is the immediate foundation for this phase and should already have landed the left-sidebar shell plus repository-first overview ordering.
 - Each overview entry should remain a bounded monitoring surface, not a hidden second repo-detail route.
-- The new ADR requires a borderless repository panel split vertically into a top repository-information card and a bottom accordion region.
-- Accordion content should keep operators oriented toward canonical managed-repository, run, and settings routes rather than duplicating those routes wholesale inside dashboard.
+- The refined ADR now expects a simple repository monitoring card that keeps summary content first and bounded inline detail below it.
+- Inline detail should keep operators oriented toward canonical managed-repository, run, and settings routes rather than duplicating those routes wholesale inside dashboard.
 - Other dashboard concerns continue to exist, but `Overview` becomes the primary monitoring workspace for multi-project supervision.
 
 [x] 67 Phase 67 - Dashboard Repository Panels And Accordion Monitoring
-  Turn the repository-first overview scaffold into the final developer-centric monitoring surface by adopting the split borderless repository panel, bounded accordion detail, and the supporting helper plus verification convergence.
+  Turn the repository-first overview scaffold into the final developer-centric monitoring surface by adopting the simple repository monitoring card, bounded inline detail, and the supporting helper plus verification convergence.
 
-  [x] 67.1 Section - Split Repository Panel Composition
-    Implement the core overview entry layout so each repository becomes a legible monitoring unit rather than a generic card or list row.
+  [x] 67.1 Section - Repository Card Composition
+    Implement the core overview entry layout so each repository becomes a legible monitoring card rather than a generic list row or faux split panel.
 
-    [x] 67.1.1 Task - Render each repository overview entry as a borderless split panel
-      Give the overview list the visual structure defined by the new ADR.
+    [x] 67.1.1 Task - Render each repository overview entry as a simple monitoring card
+      Give the overview list the card-based visual structure defined by the refined ADR.
 
-      [x] 67.1.1.1 Subtask - Replace any interim repository row or boxed card styling with a borderless monitoring panel.
-      [x] 67.1.1.2 Subtask - Split that panel vertically into a top half for repository context and a bottom half for expandable detail.
-      [x] 67.1.1.3 Subtask - Keep the layout responsive so the split monitoring panel remains usable on narrower screens without losing the repository-first hierarchy.
+      [x] 67.1.1.1 Subtask - Replace any interim repository row or faux split-panel styling with a simple monitoring card.
+      [x] 67.1.1.2 Subtask - Keep repository context first and the bounded detail region below it inside the same card.
+      [x] 67.1.1.3 Subtask - Keep the layout responsive so the monitoring card remains usable on narrower screens without losing the repository-first hierarchy.
 
-    [x] 67.1.2 Task - Make the top half a developer-centric repository-information card
-      Ensure the first visible portion of each repository panel tells an operator why that repository currently matters.
+    [x] 67.1.2 Task - Make the upper summary region developer-centric
+      Ensure the first visible portion of each repository card tells an operator why that repository currently matters.
 
-      [x] 67.1.2.1 Subtask - Surface repository identity, latest meaningful activity timing, and the highest-signal current work cue in the top card.
+      [x] 67.1.2.1 Subtask - Surface repository identity, latest meaningful activity timing, and the highest-signal current work cue in the summary region.
       [x] 67.1.2.2 Subtask - Include bounded attention badges or status cues such as active conversations, run pressure, memory warnings, or runtime blockers without overwhelming the card.
       [x] 67.1.2.3 Subtask - Preserve direct handoff affordances from the top card back to canonical managed-repository routes.
 
-  [x] 67.2 Section - Accordion Detail And Bounded Concern Handoff
-    Use the lower half of each repository panel to reveal more detail in place while preserving dashboard’s role as a monitoring surface instead of a second primary workspace.
+  [x] 67.2 Section - Inline Detail And Bounded Concern Handoff
+    Use the lower portion of each repository card to reveal more detail in place while preserving dashboard’s role as a monitoring surface instead of a second primary workspace.
 
-    [x] 67.2.1 Task - Add bounded per-repository accordion content
-      Make the expandable region useful enough for triage without collapsing the rest of the product into dashboard.
+    [x] 67.2.1 Task - Add bounded per-repository inline detail
+      Make the lower detail region useful enough for triage without collapsing the rest of the product into dashboard.
 
-      [x] 67.2.1.1 Subtask - Populate the accordion with bounded detail such as latest governed run state, active conversation posture, memory attention cues, runtime warnings, or recent follow-up signals.
-      [x] 67.2.1.2 Subtask - Keep each accordion section product-shaped and monitoring-oriented rather than exposing raw graph, transcript, or transport internals.
-      [x] 67.2.1.3 Subtask - Preserve explicit handoff links from accordion detail into canonical repo detail, governed run detail, or settings routes where deeper action belongs.
+      [x] 67.2.1.1 Subtask - Populate the detail region with bounded detail such as latest governed run state, active conversation posture, memory attention cues, runtime warnings, or recent follow-up signals.
+      [x] 67.2.1.2 Subtask - Keep each detail section product-shaped and monitoring-oriented rather than exposing raw graph, transcript, or transport internals.
+      [x] 67.2.1.3 Subtask - Preserve explicit handoff links from inline detail into canonical repo detail, governed run detail, or settings routes where deeper action belongs.
 
-    [x] 67.2.2 Task - Keep accordion state lightweight and route-compatible
-      Ensure the expanded monitoring detail remains a bounded LiveView interaction instead of creating a second navigation model.
+    [x] 67.2.2 Task - Keep inline detail lightweight and route-compatible
+      Ensure the repository detail remains a bounded LiveView presentation instead of creating a second navigation model.
 
-      [x] 67.2.2.1 Subtask - Keep accordion expansion state inside the LiveView-owned dashboard shell rather than moving it into a separate client-owned monitoring application.
-      [x] 67.2.2.2 Subtask - Add clear collapsed and expanded empty-state behavior so repositories without recent governed activity still render legibly.
-      [x] 67.2.2.3 Subtask - Preserve scanability across many repositories so opening one accordion does not destabilize ordering or context for the rest of the list.
+      [x] 67.2.2.1 Subtask - Keep the inline detail inside the LiveView-owned dashboard shell rather than moving it into a separate client-owned monitoring application.
+      [x] 67.2.2.2 Subtask - Add clear empty-state behavior so repositories without recent governed activity still render legibly.
+      [x] 67.2.2.3 Subtask - Preserve scanability across many repositories so showing detail does not destabilize ordering or context for the rest of the list.
 
   [x] 67.3 Section - Current-Truth And Helper Convergence
     Align helper boundaries, product wording, and durable current-truth language once the final repository monitoring composition is real.
 
-    [x] 67.3.1 Task - Reconcile overview helper boundaries and dashboard language with the monitoring-panel model
+    [x] 67.3.1 Task - Reconcile overview helper boundaries and dashboard language with the monitoring-card model
       Keep the shipped implementation and the accepted ADR teaching the same dashboard concept.
 
-      [x] 67.3.1.1 Subtask - Update dashboard helper or feed responsibilities so repository monitoring ordering, top-card data, and accordion detail stay cleanly separated.
-      [x] 67.3.1.2 Subtask - Update the affected dashboard, frontend, factory-control-plane, repo-posture, conversation, memory, and runtime current-truth subjects once the repository-panel model is implemented.
+      [x] 67.3.1.1 Subtask - Update dashboard helper or feed responsibilities so repository monitoring ordering, summary-card data, and inline detail stay cleanly separated.
+      [x] 67.3.1.2 Subtask - Update the affected dashboard, frontend, factory-control-plane, repo-posture, conversation, memory, and runtime current-truth subjects once the repository-card model is implemented.
       [x] 67.3.1.3 Subtask - Retire stale dashboard copy that still frames overview as summary-first or concern-first instead of repository-first monitoring.
 
   [x] 67.4 Section - Phase Integration Tests
     Prove the final repository monitoring composition works as an operator-facing dashboard surface across the key supported layouts.
 
-    [x] 67.4.1 Task - Add route and browser coverage for the split monitoring panels and accordion behavior
+    [x] 67.4.1 Task - Add route and browser coverage for the repository monitoring cards and inline detail behavior
       Verify the new overview model at the same level of fidelity as the earlier dashboard navigation cutover.
 
-      [x] 67.4.1.1 Subtask - Add LiveView coverage proving each overview repository entry renders as a borderless split panel with a top repository-information card and a lower accordion region.
-      [x] 67.4.1.2 Subtask - Add LiveView coverage proving accordion expansion reveals bounded detail and preserves direct handoff links to canonical routes.
-      [x] 67.4.1.3 Subtask - Add browser coverage for desktop sidebar plus accordion behavior and narrow-screen repository monitoring fallback so the dashboard remains usable across supported viewports.
+      [x] 67.4.1.1 Subtask - Add LiveView coverage proving each overview repository entry renders as a simple monitoring card with a summary region and a lower detail region.
+      [x] 67.4.1.2 Subtask - Add LiveView coverage proving inline detail preserves direct handoff links to canonical routes.
+      [x] 67.4.1.3 Subtask - Add browser coverage for desktop sidebar plus inline detail behavior and narrow-screen repository monitoring fallback so the dashboard remains usable across supported viewports.

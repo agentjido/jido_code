@@ -74,17 +74,6 @@ async function activateTab(page: Page, selector: string) {
   await waitForLiveViewConnection(page)
 }
 
-async function expandFirstOverviewRepository(page: Page) {
-  const toggle = page.locator("[id^='dashboard-overview-repository-accordion-toggle-']").first()
-  await expect(toggle).toBeVisible()
-  await toggle.click()
-
-  const panel = page.locator("[id^='dashboard-overview-repository-accordion-panel-']").first()
-  await expect(panel).toBeVisible()
-
-  return panel
-}
-
 test("dashboard sidebar keeps the ready-state landing route scanable on wide screens", async ({
   page,
   request,
@@ -97,8 +86,8 @@ test("dashboard sidebar keeps the ready-state landing route scanable on wide scr
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
   await expect(page.locator("#dashboard-settings-handoff")).toContainText("Settings")
-  await expect(page.locator("#dashboard-overview-panel")).toBeVisible()
-  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
+  await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
+  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
 
   await activateTab(page, "#dashboard-section-nav-runs")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=runs$/)
@@ -135,7 +124,8 @@ test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow 
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
   await expectNoHorizontalOverflow(page, "#dashboard-section-nav")
-  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
+  await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
+  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
 
   await activateTab(page, "#dashboard-section-nav-next_steps")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=next_steps$/)
@@ -147,10 +137,11 @@ test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow 
 
   await activateTab(page, "#dashboard-section-nav-overview")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=overview$/)
-  await expect(page.locator("#dashboard-overview-panel")).toBeVisible()
+  await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
+  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
 })
 
-test("dashboard overview repository panels expand bounded monitoring detail on wide screens", async ({
+test("dashboard overview stays empty on wide screens", async ({
   page,
   request,
 }) => {
@@ -159,15 +150,14 @@ test("dashboard overview repository panels expand bounded monitoring detail on w
   await signIn(page, "/dashboard?onboarding=completed")
 
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
-  await expect(page.locator("[id^='dashboard-overview-repository-card-']").first()).toBeVisible()
-  await expect(page.locator("[id^='dashboard-overview-repository-accordion-shell-']").first()).toBeVisible()
-
-  const panel = await expandFirstOverviewRepository(page)
-
-  await expect(panel).toContainText(/Open repository|No governed run, conversation, memory, or runtime detail has materialized/)
+  await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
+  await expect(page.locator("#dashboard-overview-note")).toHaveCount(0)
+  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
+  await expect(page.locator("[id^='dashboard-overview-repository-card-']")).toHaveCount(0)
+  await expect(page.locator("[id^='dashboard-overview-repository-detail-shell-']")).toHaveCount(0)
 })
 
-test("dashboard overview repository accordions stay usable on narrow screens", async ({
+test("dashboard overview stays empty on narrow screens", async ({
   page,
   request,
 }) => {
@@ -175,11 +165,9 @@ test("dashboard overview repository accordions stay usable on narrow screens", a
   await page.setViewportSize({ width: 430, height: 1100 })
   await signIn(page, "/dashboard?onboarding=completed")
 
-  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
-  await expectNoHorizontalOverflow(page, "#dashboard-overview-repository-list")
-
-  const panel = await expandFirstOverviewRepository(page)
-
-  await expectNoHorizontalOverflow(page, "#dashboard-overview-repository-list")
-  await expect(panel).toBeVisible()
+  await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
+  await expectNoHorizontalOverflow(page, "#dashboard-content-shell")
+  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
+  await expect(page.locator("[id^='dashboard-overview-repository-card-']")).toHaveCount(0)
+  await expect(page.locator("[id^='dashboard-overview-repository-detail-shell-']")).toHaveCount(0)
 })

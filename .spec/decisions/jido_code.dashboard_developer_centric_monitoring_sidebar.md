@@ -37,7 +37,7 @@ That means the main dashboard should optimize for:
 - scanning many repositories as a working set
 - identifying which repositories were touched most recently
 - spotting urgency without opening each repository route first
-- expanding one repository in place to inspect more detail
+- reviewing more repository detail in place without route-hopping
 - keeping the route LiveView-owned and product-shaped rather than turning
   dashboard into a client-only workspace shell
 
@@ -62,16 +62,17 @@ rules:
 4. The `Overview` tab presents repositories ordered by most recent meaningful
    work activity, so the repositories the operator is most likely to care about
    appear first.
-5. Each repository in `Overview` renders as a borderless monitoring panel
-   rather than a boxed summary tile grid or a single undifferentiated card.
-6. That repository panel is split vertically into two stacked halves:
-   - the top half contains a compact repository-information card focused on
-     developer monitoring context such as repository identity, latest activity,
-     active work signal, and attention badges
-   - the bottom half contains the accordion region so the operator can expand
-     one repository in place to inspect more detail without leaving the
-     dashboard
-7. Accordion detail should remain bounded and product-shaped. It may expose
+5. Each repository in `Overview` renders as a simple monitoring card using the
+   same plain bordered card language as the onboarding GitHub repository
+   selection, rather than a borderless panel, boxed summary tile grid, or
+   generic admin tile.
+6. That repository card keeps two stacked zones:
+   - the upper summary region focuses on developer monitoring context such as
+     repository identity, latest activity, active work signal, and attention
+     badges
+   - the lower region contains bounded inline detail so the operator can review
+     more repository context without leaving the dashboard
+7. Inline detail should remain bounded and product-shaped. It may expose
    summaries such as latest governed run state, active conversation state,
    memory or runtime warnings, and direct handoff links back to the canonical
    managed-repository route.
@@ -103,19 +104,20 @@ age.
   actually work across many repositories.
 - Repositories become the primary scan unit, which matches the control-plane
   model better than a generic top-level summary grid.
-- The split panel gives repository identity and monitoring context stronger
-  visual priority while still keeping expandable detail attached directly below
-  it.
-- Operators can inspect more detail in place through bounded accordions before
+- The simple bordered card keeps the dashboard visual language closer to the
+  onboarding repository-selection experience while still attaching bounded
+  detail directly below the summary.
+- Operators can inspect more detail in place before
   deciding whether to jump into repo detail.
 
 ### Constraints
 
 - `/dashboard` must remain the routed LiveView host shell.
-- The top repository-information card and the bottom accordion region must stay
-  bounded and monitoring-focused; they should not collapse repo detail,
-  workbench, or full transcript surfaces into dashboard.
-- Accordion content must hand back to canonical repo, run, and settings routes
+- The upper repository-summary region and the lower inline-detail region inside
+  each monitoring card must stay bounded and monitoring-focused; they should
+  not collapse repo detail, workbench, or full transcript surfaces into
+  dashboard.
+- Inline detail must hand back to canonical repo, run, and settings routes
   rather than becoming a second primary work surface.
 - The left sidebar is the canonical wide-screen navigation model, but the route
   still needs a narrow-screen fallback with the same route-owned section
@@ -139,19 +141,11 @@ This newer ADR narrows the next design step:
 ## Implementation Status
 
 Phase 66 landed the left sidebar that acts as the canonical tab rail on wide
-screens, the route-owned narrow-screen fallback, and the repository-first
-monitoring feed that orders overview entries by recent governed or
-operator-facing activity.
+screens plus the route-owned narrow-screen fallback.
 
-Phase 67 has now landed the final overview composition on top of that
-foundation:
-
-- each overview repository entry renders as a borderless monitoring panel
-- the top half is a compact repository-information card
-- the bottom half is a bounded LiveView-owned accordion region
-- bounded run, conversation, memory, and runtime detail now expand in place
-  with explicit handoff links back to canonical repository, run, and settings
-  routes
-- route-level LiveView and browser coverage now exercise both the split-panel
-  shell and the in-place accordion interaction on wide and narrow dashboard
-  layouts
+The repository-first monitoring redesign described by this ADR remains the
+accepted target, but the current implementation does not ship that overview
+content today. The default `Overview` concern is intentionally empty while the
+other routed dashboard concerns remain available, and the dashboard tests now
+verify that empty shell rather than repository-monitoring cards or inline
+detail.

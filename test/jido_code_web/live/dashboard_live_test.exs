@@ -137,7 +137,11 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-overview-note", "most recent governed or operator-facing work signal")
     assert has_element?(view, "#dashboard-overview-repository-list")
     assert has_element?(view, "#dashboard-overview-repository-list", "owner/repo-dashboard-overview-newer")
+    assert has_element?(view, "[id^='dashboard-overview-repository-card-dashboard-repository-monitoring-']")
+    assert has_element?(view, "[id^='dashboard-overview-repository-primary-cue-dashboard-repository-monitoring-']")
     assert has_element?(view, "#dashboard-overview-repository-list", "Latest run: implement_task running")
+    assert has_element?(view, "#dashboard-overview-repository-list", "Repository monitoring detail")
+    assert has_element?(view, "#dashboard-overview-repository-list", "Detail stays collapsed until expanded")
     assert has_element?(view, ~s|a[href="/repos/#{newer_route_id}"]|, "Open repository")
 
     assert has_element?(

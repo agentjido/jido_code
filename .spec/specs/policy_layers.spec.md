@@ -1,6 +1,6 @@
 # Policy Layers
 
-<!-- current_truth.reconciled_with_branch: the routed settings shell now hosts a dedicated `/settings/auth` destination for provider-login and Git integration management, and that operator surface continues to propagate the current authenticated actor through product-owned LiveView actions instead of introducing a separate admin route family or bypassing the existing policy membrane. -->
+<!-- current_truth.reconciled_with_branch: the routed settings shell now hosts a dedicated `/settings/auth` destination for provider-login and Git integration management, the `/settings/github` add-repository flow now uses the canonical managed-repo import boundary while still propagating the current authenticated actor through settings-owned repo-anchor writes, and those operator surfaces continue to route through product-owned LiveView actions instead of introducing a separate admin route family or bypassing the existing policy membrane. -->
 
 This subject defines the layered policy model for `Jido.Code`.
 

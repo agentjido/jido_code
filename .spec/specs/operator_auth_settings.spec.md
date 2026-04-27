@@ -1,5 +1,7 @@
 # Operator Auth Settings
 
+<!-- current_truth.reconciled_with_branch: the settings-owned auth-and-integrations destination remains the durable home for provider-login broker trust and GitHub automation readiness, while the sibling `/settings/github` add-repository modal now routes later GitHub additions through the canonical managed-repository import boundary instead of treating settings-only rows as product truth. -->
+
 This subject defines the current operator auth-settings console used to configure hosted provider login separately from deployment-local Git provider automation. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
 
 <!-- covers: docs.operator_provider_auth_guide.repo_local_auth_contract_modeled -->
@@ -8,10 +10,12 @@ This subject defines the current operator auth-settings console used to configur
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, and reach that console through durable settings navigation once bootstrap is complete and ready-state auth has entered dashboard, while signed-in `/welcome` stays only a compact handoff into dashboard and `/settings/auth`.
+summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, reach that console through durable settings navigation once bootstrap is complete and ready-state auth has entered dashboard, and coexist with a sibling `/settings/github` repository-add flow that imports canonical managed repositories rather than creating a separate auth-settings truth lane, while signed-in `/welcome` stays only a compact handoff into dashboard and `/settings/auth`.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
+  - jido_code.settings_github_add_repository_uses_managed_repo_import
 surface:
+  - .spec/decisions/jido_code.settings_github_add_repository_uses_managed_repo_import.md
   - lib/jido_code_web/operator_auth_settings.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/settings_live.ex

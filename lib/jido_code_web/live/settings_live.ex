@@ -2,17 +2,20 @@ defmodule JidoCodeWeb.SettingsLive do
   # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.settings_routes_keep_repo_import_liveview_owned
   # covers: auth.operator_settings.sections_separated
   # covers: auth.operator_settings.broker_trust_configuration_ui
   # covers: auth.operator_settings.github_service_validation_feedback
   # covers: auth.operator_settings.integration_boundary_visible
   # covers: auth.operator_settings.hidden_during_bootstrap_entry
+  # covers: architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Accounts.SecurityTokens
   alias JidoCode.Control.Actor
   alias JidoCode.GitHub.Repo
   alias JidoCode.Security.SecretRefs
+  alias JidoCode.Setup.ProjectImport
   alias JidoCodeWeb.OperatorAuthSettings
   alias JidoCodeWeb.Security.UiRedaction
 
@@ -28,6 +31,7 @@ defmodule JidoCodeWeb.SettingsLive do
       socket
       |> assign(:show_add_modal, false)
       |> assign(:form, nil)
+      |> assign(:repo_save_error, nil)
       |> assign(:repo_count, 0)
       |> assign(:enabled_repo_count, 0)
       |> assign(:operator_auth_allowlist_options, OperatorAuthSettings.allowlist_options())
@@ -221,6 +225,13 @@ defmodule JidoCodeWeb.SettingsLive do
             </button>
           </div>
           <.form for={@form} phx-change="validate" phx-submit="save_repo" class="mt-4 space-y-4">
+            <div
+              :if={@repo_save_error}
+              id="settings-github-repo-save-error"
+              class="rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm"
+            >
+              {@repo_save_error}
+            </div>
             <.input
               field={@form[:owner]}
               type="text"
@@ -234,7 +245,8 @@ defmodule JidoCodeWeb.SettingsLive do
               placeholder="e.g., jido"
             />
             <p class="text-sm text-base-content/60">
-              Webhook secrets are managed in Security settings via encrypted SecretRef entries.
+              This imports the repository into the managed-repository control plane. Webhook
+              secrets remain managed in Security settings via encrypted SecretRef entries.
             </p>
             <div class="mt-6 flex justify-end gap-3">
               <button type="button" class="btn btn-outline" phx-click="close_add_modal">
@@ -329,7 +341,8 @@ defmodule JidoCodeWeb.SettingsLive do
           <.icon name="hero-inbox" class="w-12 h-12 mx-auto text-base-content/30 mb-3" />
           <p class="text-base-content/70">No repositories configured yet.</p>
           <p class="text-sm text-base-content/50 mt-1">
-            Click "Add Repository" to connect your first GitHub repo.
+            Click "Add Repository" to import your first GitHub repository into the managed
+            control plane.
           </p>
         </div>
       </div>
@@ -1133,11 +1146,11 @@ defmodule JidoCodeWeb.SettingsLive do
       |> AshPhoenix.Form.for_create(:create, actor: settings_actor(socket))
       |> to_form()
 
-    {:noreply, assign(socket, show_add_modal: true, form: form)}
+    {:noreply, assign(socket, show_add_modal: true, form: form, repo_save_error: nil)}
   end
 
   def handle_event("close_add_modal", _params, socket) do
-    {:noreply, assign(socket, show_add_modal: false, form: nil)}
+    {:noreply, assign(socket, show_add_modal: false, form: nil, repo_save_error: nil)}
   end
 
   def handle_event("validate", %{"form" => params}, socket) do
@@ -1146,26 +1159,52 @@ defmodule JidoCodeWeb.SettingsLive do
       |> AshPhoenix.Form.validate(params)
       |> to_form()
 
-    {:noreply, assign(socket, form: form)}
+    {:noreply, assign(socket, form: form, repo_save_error: nil)}
   end
 
   def handle_event("save_repo", %{"form" => params}, socket) do
-    case AshPhoenix.Form.submit(socket.assigns.form.source,
-           params: params,
-           actor: settings_actor(socket)
-         ) do
-      {:ok, repo} ->
-        socket =
-          socket
-          |> stream_insert(:repos, repo)
-          |> load_repos()
-          |> assign(show_add_modal: false, form: nil)
-          |> put_flash(:info, "Repository added successfully")
+    validated_form = AshPhoenix.Form.validate(socket.assigns.form.source, params)
 
-        {:noreply, socket}
+    cond do
+      validated_form.valid? != true ->
+        {:noreply, assign(socket, form: to_form(validated_form), repo_save_error: nil)}
 
-      {:error, form} ->
-        {:noreply, assign(socket, form: to_form(form))}
+      true ->
+        with {:ok, repo_identity} <- normalize_repo_identity(params),
+             {:ok, import_report} <- import_settings_repo(repo_identity.full_name),
+             {:ok, _repo} <- ensure_settings_repo_anchor(repo_identity, settings_actor(socket)) do
+          socket =
+            socket
+            |> load_repos()
+            |> assign(show_add_modal: false, form: nil, repo_save_error: nil)
+            |> put_flash(:info, settings_repo_import_success_message(import_report))
+
+          {:noreply, socket}
+        else
+          {:error, {:validation, message}} ->
+            {:noreply,
+             assign(
+               socket,
+               form: to_form(validated_form),
+               repo_save_error: message
+             )}
+
+          {:error, {:import_failed, message}} ->
+            {:noreply,
+             assign(
+               socket,
+               form: to_form(validated_form),
+               repo_save_error: message
+             )}
+
+          {:error, {:anchor_failed, message}} ->
+            {:noreply,
+             assign(
+               socket,
+               form: to_form(validated_form),
+               repo_save_error: message
+             )}
+        end
     end
   end
 
@@ -1339,6 +1378,109 @@ defmodule JidoCodeWeb.SettingsLive do
     |> assign(:enabled_repo_count, Enum.count(repos, &Map.get(&1, :enabled, false)))
     |> stream(:repos, repos, reset: true)
   end
+
+  defp import_settings_repo(full_name) when is_binary(full_name) do
+    case ProjectImport.run(nil, full_name, %{}) do
+      %{status: :ready} = report ->
+        {:ok, report}
+
+      report ->
+        {:error, {:import_failed, settings_repo_import_error_message(report)}}
+    end
+  end
+
+  defp import_settings_repo(_full_name) do
+    {:error, {:validation, "Enter a valid GitHub repository owner and name."}}
+  end
+
+  defp ensure_settings_repo_anchor(%{full_name: full_name} = repo_identity, actor) do
+    case Repo.get_by_full_name(full_name, actor: actor) do
+      {:ok, repo} ->
+        {:ok, repo}
+
+      _other ->
+        create_settings_repo_anchor(repo_identity, actor)
+    end
+  end
+
+  defp create_settings_repo_anchor(%{owner: owner, name: name}, actor) do
+    case Repo.create(%{owner: owner, name: name}, actor: actor) do
+      {:ok, repo} ->
+        {:ok, repo}
+
+      {:error, reason} ->
+        case Repo.get_by_full_name("#{owner}/#{name}", actor: actor) do
+          {:ok, repo} ->
+            {:ok, repo}
+
+          _other ->
+            {:error,
+             {:anchor_failed,
+              "Repository import succeeded, but the settings GitHub anchor could not be saved (#{inspect(reason)})."}}
+        end
+    end
+  end
+
+  defp normalize_repo_identity(params) when is_map(params) do
+    owner =
+      params
+      |> Map.get("owner")
+      |> normalize_optional_string()
+
+    name =
+      params
+      |> Map.get("name")
+      |> normalize_optional_string()
+
+    case {owner, name} do
+      {owner, name} when is_binary(owner) and is_binary(name) ->
+        {:ok, %{owner: owner, name: name, full_name: "#{owner}/#{name}"}}
+
+      _other ->
+        {:error, {:validation, "Enter a valid GitHub repository owner and name."}}
+    end
+  end
+
+  defp normalize_repo_identity(_params) do
+    {:error, {:validation, "Enter a valid GitHub repository owner and name."}}
+  end
+
+  defp normalize_optional_string(nil), do: nil
+
+  defp normalize_optional_string(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_string()
+
+  defp normalize_optional_string(value) when is_integer(value),
+    do: value |> Integer.to_string() |> normalize_optional_string()
+
+  defp normalize_optional_string(_value), do: nil
+
+  defp settings_repo_import_success_message(%{detail: detail}) when is_binary(detail), do: detail
+
+  defp settings_repo_import_success_message(_report) do
+    "Repository imported into the managed-repository control plane."
+  end
+
+  defp settings_repo_import_error_message(%{detail: detail, remediation: remediation}) do
+    [detail, remediation]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join(" ")
+    |> case do
+      "" -> "Repository import failed."
+      message -> message
+    end
+  end
+
+  defp settings_repo_import_error_message(%{detail: detail}) when is_binary(detail), do: detail
+
+  defp settings_repo_import_error_message(_report), do: "Repository import failed."
 
   defp load_security_status(socket) do
     owner_id = current_owner_id(socket)

@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, runtime-default copy now frames the workspace root as seed metadata for new imports rather than a permanent shared-root rule, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning while completed imports clear active selection, linked repositories group by account origin with the account name visible on each card in both richer and fallback paths, the richer selector and fallback now both support route-local account-owner filtering plus matching repository search, and the import-state badge stays distinct from selectable repos, phase-58 through phase-60 route integration coverage now exercise the shared LiveView route harness across bootstrap, continue-setup, ready-state auth boundaries, provider-auth redirects, and the settings-owned auth-settings cutover, the settings-owned `/settings/auth` destination now keeps provider-login and Git integration management inside that same routed LiveView shell through a shared helper boundary, ready-state auth handoff now enters dashboard by default across that harness, signed-in `/welcome` now uses a dashboard-first handoff card above a compact auth-settings cue, repo detail now keeps sidebar-selected family navigation, repo-scoped workspace-binding readiness and repair, consistent repo-scoped runtime wording across conversations, semantic, memory, and workflows, plus degraded continuity LiveView-owned while overview and graph exploration remain bounded hybrid regions and browser coverage exercises clarification, reload recovery, snapshot fallback, desktop sidebar behavior, and narrow-screen fallback navigation on that routed surface, and dashboard now keeps route-owned concern tabs plus a summary-first overview on the same LiveView shell rather than a client-owned dashboard application. -->
+<!-- current_truth.reconciled_with_branch: the LiveView-hosted setup surface keeps PAT capture and completion server-owned while start-path selection, runtime defaults, and GitHub repository selection are bounded live_vue regions with server fallback, runtime-default copy now frames the workspace root as seed metadata for new imports rather than a permanent shared-root rule, forced frontend fallback keeps the real built asset manifest so routed LiveView pages stay interactive, setup now has route-level Playwright coverage for both richer and degraded delivery, the GitHub selector layout continues to use the bounded Vue region for full-width scrollable multi-repository scanning while completed imports clear active selection, linked repositories group by account origin with the account name visible on each card in both richer and fallback paths, the richer selector and fallback now both support route-local account-owner filtering plus matching repository search, and the import-state badge stays distinct from selectable repos, phase-58 through phase-60 route integration coverage now exercise the shared LiveView route harness across bootstrap, continue-setup, ready-state auth boundaries, provider-auth redirects, and the settings-owned auth-settings cutover, the settings-owned `/settings/auth` destination now keeps provider-login and Git integration management inside that same routed LiveView shell through a shared helper boundary, the `/settings/github` route now keeps its overview widget bounded while the add-repository modal, validation, and canonical managed-repo import handoff stay LiveView-owned server actions, ready-state auth handoff now enters dashboard by default across that harness, signed-in `/welcome` now uses a dashboard-first handoff card above a compact auth-settings cue, repo detail now keeps sidebar-selected family navigation, repo-scoped workspace-binding readiness and repair, consistent repo-scoped runtime wording across conversations, semantic, memory, and workflows, plus degraded continuity LiveView-owned while overview and graph exploration remain bounded hybrid regions and browser coverage exercises clarification, reload recovery, snapshot fallback, desktop sidebar behavior, and narrow-screen fallback navigation on that routed surface, and dashboard now keeps route-owned concern tabs plus a summary-first overview on the same LiveView shell rather than a client-owned dashboard application. -->
 
 This subject defines the browser technology composition that `jido_code` should
 use as it grows beyond plain HEEx-only screens without fragmenting product
@@ -10,12 +10,13 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including repo detail as a LiveView-owned route with route-selected overview, conversations, semantic, memory, and workflows families plus LiveView-owned repo-scoped workspace-binding repair, consistent repo-scoped runtime wording, and product-shaped memory follow-up previews, dashboard as a LiveView-owned authenticated landing with route-owned concern tabs and a summary-first overview rather than a future SPA shell, and setup as a LiveView-owned route whose bounded runtime-defaults widget still presents import-seed copy through server-authored props while degrading safely to LiveView-owned contracts.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including repo detail as a LiveView-owned route with route-selected overview, conversations, semantic, memory, and workflows families plus LiveView-owned repo-scoped workspace-binding repair, consistent repo-scoped runtime wording, and product-shaped memory follow-up previews, dashboard as a LiveView-owned authenticated landing with route-owned concern tabs and a summary-first overview rather than a future SPA shell, setup as a LiveView-owned route whose bounded runtime-defaults widget still presents import-seed copy through server-authored props while degrading safely to LiveView-owned contracts, and `/settings/github` as a LiveView-owned route whose overview may use bounded Vue while add-repository validation and canonical managed-repo import remain server-owned.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
   - jido_code.dashboard_concern_tabs_and_overview_handoff
+  - jido_code.settings_github_add_repository_uses_managed_repo_import
   - jido_code.setup_onboarding_live_vue_surface_split
   - jido_code.memory_graph_product_adoption
   - jido_code.memory_graph_surface_rollout_and_governance_actions
@@ -24,6 +25,7 @@ decisions:
 surface:
   - .spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
+  - .spec/decisions/jido_code.settings_github_add_repository_uses_managed_repo_import.md
   - .spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md
   - .spec/specs/frontend_architecture.spec.md
   - .spec/specs/package.spec.md
@@ -109,6 +111,11 @@ surface:
   priority: should
   stability: evolving
 
+- id: architecture.frontend_stack.settings_routes_keep_repo_import_liveview_owned
+  statement: The `/settings/github` route may use bounded Vue for overview or summary regions, but the add-repository modal, validation, and canonical managed-repo import handoff shall remain LiveView-owned server actions.
+  priority: should
+  stability: evolving
+
 - id: architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
   statement: Browser-facing verification shall keep LiveView tests as the primary routed-surface harness and should add LiveVue-aware test helpers for Vue-mounted surfaces instead of assuming a standalone SPA testing model.
   priority: should
@@ -182,12 +189,14 @@ surface:
     - architecture.frontend_stack.product_owned_mounting_boundary
     - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.settings_routes_keep_repo_import_liveview_owned
   given:
     - An operator-facing route such as dashboard or settings benefits from richer summary grouping or client-local filtering.
   when:
     - The route adopts a bounded Vue-backed widget for that summary region.
   then:
     - The route stays LiveView-owned, server-authored props remain bounded, and the Vue-backed region augments rather than replaces the routed product shell.
+    - Settings summary widgets may emit back into LiveView-owned modal or mutation flows without moving repository import validation or canonical managed-repo creation into a client-owned sub-application.
 
 - id: architecture.frontend_stack.scenario_setup_entry_route_expands_incrementally
   covers:
@@ -525,6 +534,16 @@ surface:
     - architecture.frontend_stack.product_owned_mounting_boundary
     - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: lib/jido_code_web/live/settings_live.ex
+  covers:
+    - architecture.frontend_stack.settings_routes_keep_repo_import_liveview_owned
+
+- kind: source_file
+  target: test/jido_code_web/live/security_settings_live_test.exs
+  covers:
+    - architecture.frontend_stack.settings_routes_keep_repo_import_liveview_owned
 
 - kind: source_file
   target: test/e2e/setup-onboarding.spec.ts

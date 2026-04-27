@@ -2,7 +2,9 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.settings_routes_keep_repo_import_liveview_owned
   # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+  # covers: architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
   use JidoCodeWeb.ConnCase, async: false
 
   require Ash.Query
@@ -15,6 +17,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
   alias JidoCode.Accounts.ApiKey
   alias JidoCode.Accounts.Token
   alias JidoCode.Accounts.User
+  alias JidoCode.Control.RepoBridge
   alias JidoCode.GitHub.Repo
   alias JidoCode.Security.SecretRefs
 
@@ -466,6 +469,158 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     assert has_element?(view, "#add-repo-modal")
   end
 
+  test "github settings add repository imports the canonical managed repo and refreshes the settings list",
+       %{conn: _conn} do
+    original_importer = Application.get_env(:jido_code, :setup_project_importer, :__missing__)
+
+    on_exit(fn ->
+      restore_env(:setup_project_importer, original_importer)
+    end)
+
+    Application.put_env(:jido_code, :setup_project_importer, fn %{
+                                                                  checked_at: checked_at,
+                                                                  selected_repository: full_name
+                                                                } ->
+      [_owner, name] = String.split(full_name, "/", parts: 2)
+
+      {:ok, %{managed_repo: managed_repo}} =
+        RepoBridge.upsert_managed_repo(%{
+          full_name: full_name,
+          display_name: name,
+          default_branch: "main",
+          workspace_settings: %{
+            "workspace_environment" => "sprite",
+            "workspace_initialized" => true,
+            "baseline_synced" => true,
+            "clone_status" => "ready",
+            "clone_status_history" => [
+              %{
+                "status" => "ready",
+                "transitioned_at" => DateTime.to_iso8601(checked_at)
+              }
+            ],
+            "last_synced_at" => DateTime.to_iso8601(checked_at),
+            "synced_branch" => "main"
+          }
+        })
+
+      settings_import_report(full_name, managed_repo, checked_at)
+    end)
+
+    {:ok, _owner} =
+      User.bootstrap_admin(
+        %{
+          email: "settings-import-owner@example.com",
+          password: "owner-password-123",
+          password_confirmation: "owner-password-123"
+        },
+        authorize?: false
+      )
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_owner_conn(
+        "settings-import-owner@example.com",
+        "owner-password-123",
+        return_owner: true
+      )
+
+    unique = System.unique_integer([:positive])
+    full_name = "agentjido/settings-import-#{unique}"
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/github", on_error: :warn)
+
+    view
+    |> element("button[phx-click='open_add_modal']")
+    |> render_click()
+
+    view
+    |> form("#add-repo-modal form", %{
+      "form" => %{
+        "owner" => "agentjido",
+        "name" => "settings-import-#{unique}"
+      }
+    })
+    |> render_submit()
+
+    refute has_element?(view, "#add-repo-modal")
+    assert has_element?(view, "#repos-list", full_name)
+    refute has_element?(view, "#settings-github-repo-save-error")
+
+    assert {:ok, %{managed_repo: managed_repo}} = RepoBridge.repo_scope(full_name)
+    assert managed_repo.display_name == "settings-import-#{unique}"
+  end
+
+  test "github settings keep the modal open and surface importer remediation when managed import blocks",
+       %{conn: _conn} do
+    original_importer = Application.get_env(:jido_code, :setup_project_importer, :__missing__)
+
+    on_exit(fn ->
+      restore_env(:setup_project_importer, original_importer)
+    end)
+
+    Application.put_env(:jido_code, :setup_project_importer, fn %{
+                                                                  checked_at: checked_at,
+                                                                  selected_repository: full_name
+                                                                } ->
+      %{
+        checked_at: checked_at,
+        status: :blocked,
+        selected_repository: full_name,
+        project_record: nil,
+        baseline_metadata: nil,
+        detail: "Selected repository is not in the validated repository access list.",
+        remediation: "Refresh GitHub access and retry import from Settings.",
+        error_type: "repository_selection_unavailable"
+      }
+    end)
+
+    {:ok, _owner} =
+      User.bootstrap_admin(
+        %{
+          email: "settings-import-blocked@example.com",
+          password: "owner-password-123",
+          password_confirmation: "owner-password-123"
+        },
+        authorize?: false
+      )
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_owner_conn(
+        "settings-import-blocked@example.com",
+        "owner-password-123",
+        return_owner: true
+      )
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/github", on_error: :warn)
+
+    view
+    |> element("button[phx-click='open_add_modal']")
+    |> render_click()
+
+    view
+    |> form("#add-repo-modal form", %{
+      "form" => %{
+        "owner" => "blocked-owner",
+        "name" => "blocked-repo"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#add-repo-modal")
+
+    assert has_element?(
+             view,
+             "#settings-github-repo-save-error",
+             "Selected repository is not in the validated repository access list."
+           )
+
+    assert has_element?(
+             view,
+             "#settings-github-repo-save-error",
+             "Refresh GitHub access and retry import from Settings."
+           )
+  end
+
   defp issue_api_key(owner) do
     expires_at = DateTime.add(DateTime.utc_now(), 3600, :second)
 
@@ -494,5 +649,42 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     {:ok, [api_key]} = Ash.read(query, domain: Accounts, authorize?: false)
 
     api_key
+  end
+
+  defp settings_import_report(full_name, managed_repo, checked_at) do
+    %{
+      checked_at: checked_at,
+      status: :ready,
+      selected_repository: full_name,
+      project_record: %{
+        id: managed_repo.id,
+        name: managed_repo.display_name,
+        source_kind: :github,
+        source_identifier: full_name,
+        github_full_name: full_name,
+        local_path: nil,
+        default_branch: "main",
+        import_mode: :created,
+        imported_at: checked_at,
+        clone_status: :ready,
+        clone_status_history: [%{status: :ready, transitioned_at: checked_at}],
+        last_synced_at: checked_at
+      },
+      baseline_metadata: %{
+        workspace_initialized: true,
+        baseline_synced: true,
+        default_workflow_registered: true,
+        agent_configuration_registered: true,
+        status: :ready,
+        initialized_at: checked_at,
+        synced_branch: "main",
+        last_synced_at: checked_at,
+        workspace_environment: :sprite,
+        workspace_path: nil
+      },
+      detail: "Repository import is complete. Workspace clone is ready and baseline synced to `main`.",
+      remediation: "Project import is ready.",
+      error_type: nil
+    }
   end
 end

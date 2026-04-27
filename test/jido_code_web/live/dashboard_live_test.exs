@@ -55,7 +55,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    {:ok, completed_run} =
+    {:ok, _completed_run} =
       create_run(route_id, "dashboard-run-completed", DateTime.add(now, -3_600, :second), %{
         status: :completed,
         current_step: "publish_pr",
@@ -85,25 +85,69 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert Enum.any?(vue.props["runSummaries"], fn run_summary ->
              run_summary["runId"] == "dashboard-run-completed" and
                run_summary["terminal"] == true
-            end)
+           end)
   end
 
-  test "renders a summary-first overview with tab handoff cards by default", %{conn: _conn} do
+  test "renders a repository-first overview ordered by recent governed activity", %{conn: _conn} do
     register_owner("dashboard-overview-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("dashboard-overview-owner@example.com", "owner-password-123")
 
+    %{route_id: older_route_id} =
+      provision_managed_repo!(%{
+        name: "repo-dashboard-overview-older",
+        github_full_name: "owner/repo-dashboard-overview-older",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    %{route_id: newer_route_id} =
+      provision_managed_repo!(%{
+        name: "repo-dashboard-overview-newer",
+        github_full_name: "owner/repo-dashboard-overview-newer",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {:ok, _older_run} =
+      create_run(older_route_id, "dashboard-overview-older-run", DateTime.add(now, -7_200, :second), %{
+        status: :completed,
+        current_step: "summarize",
+        current_stage: "summarize",
+        completed_at: DateTime.add(now, -7_080, :second)
+      })
+
+    {:ok, _newer_run} =
+      create_run(newer_route_id, "dashboard-overview-newer-run", DateTime.add(now, -900, :second), %{
+        status: :running,
+        current_step: "implement",
+        current_stage: "implement"
+      })
+
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    html = render(view)
 
     assert has_element?(view, "#dashboard-root[data-dashboard-section='overview']")
     assert has_element?(view, "#dashboard-section-nav")
+    assert has_element?(view, "#dashboard-sidebar-shell")
     assert has_element?(view, "#dashboard-overview-panel")
-    assert has_element?(view, "#dashboard-overview-note", "jump into the bounded concern tab")
-    assert has_element?(view, "#dashboard-overview-card-runs")
-    assert has_element?(view, "#dashboard-overview-card-conversations")
-    assert has_element?(view, "#dashboard-overview-card-memory")
-    assert has_element?(view, "#dashboard-overview-card-runtime")
+    assert has_element?(view, "#dashboard-overview-note", "most recent governed or operator-facing work signal")
+    assert has_element?(view, "#dashboard-overview-repository-list")
+    assert has_element?(view, "#dashboard-overview-repository-list", "owner/repo-dashboard-overview-newer")
+    assert has_element?(view, "#dashboard-overview-repository-list", "Latest run: implement_task running")
+    assert has_element?(view, ~s|a[href="/repos/#{newer_route_id}"]|, "Open repository")
+
+    assert has_element?(
+             view,
+             ~s|a[href="/repos/#{newer_route_id}/runs/dashboard-overview-newer-run"]|,
+             "Open latest run"
+           )
+
+    assert string_position(html, "owner/repo-dashboard-overview-newer") <
+             string_position(html, "owner/repo-dashboard-overview-older")
 
     refute has_element?(view, "#dashboard-run-summaries")
     refute has_element?(view, "#dashboard-conversation-supervision")
@@ -602,8 +646,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
             %{
               to_status: status,
               current_step: Map.get(attrs, :current_step, workflow_run.current_step),
-              transitioned_at:
-                Map.get(attrs, :completed_at) || DateTime.add(started_at, 60, :second)
+              transitioned_at: Map.get(attrs, :completed_at) || DateTime.add(started_at, 60, :second)
             },
             actor: Actor.operator_actor()
           )
@@ -637,5 +680,12 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
   defp assert_eventually(_assertion_fun, 0) do
     flunk("expected condition to become true")
+  end
+
+  defp string_position(haystack, needle) do
+    case :binary.match(haystack, needle) do
+      {position, _length} -> position
+      :nomatch -> flunk("expected #{inspect(needle)} to appear in rendered output")
+    end
   end
 end

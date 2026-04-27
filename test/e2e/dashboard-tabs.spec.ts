@@ -74,7 +74,7 @@ async function activateTab(page: Page, selector: string) {
   await waitForLiveViewConnection(page)
 }
 
-test("dashboard concern tabs keep the ready-state landing route scanable on wide screens", async ({
+test("dashboard sidebar keeps the ready-state landing route scanable on wide screens", async ({
   page,
   request,
 }) => {
@@ -83,9 +83,11 @@ test("dashboard concern tabs keep the ready-state landing route scanable on wide
   await signIn(page, "/dashboard?onboarding=completed")
 
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
+  await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
   await expect(page.locator("#dashboard-settings-handoff")).toContainText("Settings")
   await expect(page.locator("#dashboard-overview-panel")).toBeVisible()
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
 
   await activateTab(page, "#dashboard-section-nav-runs")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=runs$/)
@@ -111,7 +113,7 @@ test("dashboard concern tabs keep the ready-state landing route scanable on wide
   await expect(page.locator("#dashboard-onboarding-next-actions")).toBeVisible()
 })
 
-test("dashboard concern navigation stays usable as a wrapped fallback on narrow screens", async ({
+test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow screens", async ({
   page,
   request,
 }) => {
@@ -119,8 +121,10 @@ test("dashboard concern navigation stays usable as a wrapped fallback on narrow 
   await page.setViewportSize({ width: 430, height: 1100 })
   await signIn(page, "/dashboard?onboarding=completed")
 
+  await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
   await expectNoHorizontalOverflow(page, "#dashboard-section-nav")
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
 
   await activateTab(page, "#dashboard-section-nav-next_steps")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=next_steps$/)

@@ -138,8 +138,11 @@ This newer ADR narrows the next design step:
 
 ## Implementation Status
 
-This decision is accepted but not yet landed in product code.
+Phase 66 has landed the left sidebar that acts as the canonical tab rail on
+wide screens, the route-owned narrow-screen fallback, and the repository-first
+monitoring feed that orders overview entries by recent governed or
+operator-facing activity.
 
-Current implementation still uses the earlier route-owned concern-tab model and
-a summary-first overview. Future implementation should treat that current
-dashboard as transitional rather than final.
+Current implementation is still transitional in one important way: the final
+borderless split-panel and accordion composition described above remains future
+work for the next dashboard phase.

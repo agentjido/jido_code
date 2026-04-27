@@ -1,6 +1,6 @@
 # Runtime Service Overlay
 
-<!-- current_truth.reconciled_with_branch: run detail continues to keep runtime narratives product-oriented alongside bounded memory context, while dashboard runtime posture now renders behind a dedicated route-owned concern tab on the authenticated dashboard route. -->
+<!-- current_truth.reconciled_with_branch: run detail continues to keep runtime narratives product-oriented alongside bounded memory context, while dashboard runtime posture now renders behind a dedicated left-sidebar runtime concern on the authenticated dashboard route. -->
 
 This subject defines how `Jido.Code` should integrate with the newer
 authority-backed runtime-services model in `jido_os` without surrendering
@@ -10,10 +10,11 @@ product control-plane ownership.
 id: architecture.runtime_service_overlay
 kind: policy
 status: deprecated
-summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context, cross-graph follow-up preview, and runtime posture language without collapsing those concerns into one semantic lane, dashboard runtime posture remains a bounded concern behind its own authenticated dashboard tab, and Ash-backed product truth remains canonical.
+summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context, cross-graph follow-up preview, and runtime posture language without collapsing those concerns into one semantic lane, dashboard runtime posture remains a bounded concern behind its own authenticated left-sidebar runtime concern, and Ash-backed product truth remains canonical.
 superseded_by: architecture.agent_os_integration
 decisions:
   - jido_code.dashboard_concern_tabs_and_overview_handoff
+  - jido_code.dashboard_developer_centric_monitoring_sidebar
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
@@ -21,6 +22,7 @@ decisions:
   - jido_code.jido_agent_os_integration
 surface:
   - .spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md
+  - .spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md
   - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
@@ -218,6 +220,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/phase_sixty_five_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_sixty_six_integration_test.exs
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
 

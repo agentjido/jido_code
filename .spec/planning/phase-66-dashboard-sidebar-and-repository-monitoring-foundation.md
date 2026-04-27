@@ -39,49 +39,49 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
 - Concern navigation should remain route-owned and product-shaped even as the chrome moves from top tabs to a left sidebar on wide screens.
 - The first dashboard tab remains `Overview`, but it now needs to become repository-first and ordered by recent meaningful work activity instead of summary-first.
 
-[ ] 66 Phase 66 - Dashboard Sidebar And Repository Monitoring Foundation
+[x] 66 Phase 66 - Dashboard Sidebar And Repository Monitoring Foundation
   Reframe the authenticated dashboard around a developer-centric navigation and repository-monitoring foundation so operators can scan multiple repositories as a working set before the richer per-repository panel composition arrives.
 
-  [ ] 66.1 Section - Sidebar Navigation And Route Ownership
+  [x] 66.1 Section - Sidebar Navigation And Route Ownership
     Replace the current top-of-content dashboard concern rail with a left-sidebar model while preserving the existing route-owned section semantics and narrow-screen fallback behavior.
 
-    [ ] 66.1.1 Task - Adopt the left sidebar as the canonical dashboard concern navigator
+    [x] 66.1.1 Task - Adopt the left sidebar as the canonical dashboard concern navigator
       Establish the wide-screen dashboard shell that matches the new developer-centric ADR without introducing a second application shell.
 
-      [ ] 66.1.1.1 Subtask - Replace the current top concern rail with a left sidebar that owns `Overview`, `Runs`, `Conversations`, `Memory`, `Runtime`, and conditional `Next Steps`.
-      [ ] 66.1.1.2 Subtask - Preserve bounded badge or warning affordances on sidebar items so operators can still see counts or attention cues before opening a section.
-      [ ] 66.1.1.3 Subtask - Keep a narrow-screen fallback navigation path that preserves the same section ordering and route semantics without depending on the desktop sidebar layout.
+      [x] 66.1.1.1 Subtask - Replace the current top concern rail with a left sidebar that owns `Overview`, `Runs`, `Conversations`, `Memory`, `Runtime`, and conditional `Next Steps`.
+      [x] 66.1.1.2 Subtask - Preserve bounded badge or warning affordances on sidebar items so operators can still see counts or attention cues before opening a section.
+      [x] 66.1.1.3 Subtask - Keep a narrow-screen fallback navigation path that preserves the same section ordering and route semantics without depending on the desktop sidebar layout.
 
-    [ ] 66.1.2 Task - Keep dashboard selection and framing LiveView-owned
+    [x] 66.1.2 Task - Keep dashboard selection and framing LiveView-owned
       Preserve the current routed dashboard contract while changing the layout model around it.
 
-      [ ] 66.1.2.1 Subtask - Keep section selection in route-owned LiveView state such as the current patchable query-param contract rather than client-only tab state.
-      [ ] 66.1.2.2 Subtask - Keep dashboard authentication, summary-feed loading, and refresh behavior in the routed LiveView shell instead of moving them into client-owned sidebar logic.
-      [ ] 66.1.2.3 Subtask - Keep page title, signed-in orientation copy, and the settings handoff outside the sidebar-controlled concern body.
+      [x] 66.1.2.1 Subtask - Keep section selection in route-owned LiveView state such as the current patchable query-param contract rather than client-only tab state.
+      [x] 66.1.2.2 Subtask - Keep dashboard authentication, summary-feed loading, and refresh behavior in the routed LiveView shell instead of moving them into client-owned sidebar logic.
+      [x] 66.1.2.3 Subtask - Keep page title, signed-in orientation copy, and the settings handoff outside the sidebar-controlled concern body.
 
-  [ ] 66.2 Section - Repository-First Overview Feed Foundation
+  [x] 66.2 Section - Repository-First Overview Feed Foundation
     Turn `Overview` from a summary-first landing panel into the repository-first monitoring scaffold that will anchor the developer-centric dashboard.
 
-    [ ] 66.2.1 Task - Define explainable repository recency ordering
+    [x] 66.2.1 Task - Define explainable repository recency ordering
       Make the overview list prioritize the repositories the operator most likely needs to inspect next.
 
-      [ ] 66.2.1.1 Subtask - Introduce a product-owned helper or feed boundary that derives per-repository “last worked on” ordering from meaningful governed or operator-facing activity instead of static repository metadata.
-      [ ] 66.2.1.2 Subtask - Keep the ordering explainable to operators so the dashboard can later show why one repository appears above another.
-      [ ] 66.2.1.3 Subtask - Preserve bounded empty-state behavior when no managed repositories or no recent activity are available.
+      [x] 66.2.1.1 Subtask - Introduce a product-owned helper or feed boundary that derives per-repository “last worked on” ordering from meaningful governed or operator-facing activity instead of static repository metadata.
+      [x] 66.2.1.2 Subtask - Keep the ordering explainable to operators so the dashboard can later show why one repository appears above another.
+      [x] 66.2.1.3 Subtask - Preserve bounded empty-state behavior when no managed repositories or no recent activity are available.
 
-    [ ] 66.2.2 Task - Replace summary-first overview with a repository monitoring list scaffold
+    [x] 66.2.2 Task - Replace summary-first overview with a repository monitoring list scaffold
       Change the default dashboard landing so repositories become the primary scan unit.
 
-      [ ] 66.2.2.1 Subtask - Replace the current overview summary-card grid with an ordered list of repository monitoring entries.
-      [ ] 66.2.2.2 Subtask - Keep each repository entry bounded and monitoring-focused rather than embedding full repo-detail or workbench surfaces directly on dashboard.
-      [ ] 66.2.2.3 Subtask - Preserve direct handoff paths from overview entries back to canonical managed-repository and governed-run routes.
+      [x] 66.2.2.1 Subtask - Replace the current overview summary-card grid with an ordered list of repository monitoring entries.
+      [x] 66.2.2.2 Subtask - Keep each repository entry bounded and monitoring-focused rather than embedding full repo-detail or workbench surfaces directly on dashboard.
+      [x] 66.2.2.3 Subtask - Preserve direct handoff paths from overview entries back to canonical managed-repository and governed-run routes.
 
-  [ ] 66.3 Section - Phase Integration Tests
+  [x] 66.3 Section - Phase Integration Tests
     Prove that the new sidebar shell and repository-first overview foundation improve scanability without breaking the current routed dashboard contract.
 
-    [ ] 66.3.1 Task - Add dashboard route coverage for sidebar navigation and repository ordering
+    [x] 66.3.1 Task - Add dashboard route coverage for sidebar navigation and repository ordering
       Verify the foundational developer-centric dashboard behavior at the route and browser levels.
 
-      [ ] 66.3.1.1 Subtask - Add LiveView coverage proving the left sidebar owns the same route-selected concern families as the earlier top-tab shell.
-      [ ] 66.3.1.2 Subtask - Add LiveView coverage proving `Overview` now defaults to a repository-ordered monitoring list rather than the prior summary-first grid.
-      [ ] 66.3.1.3 Subtask - Add browser coverage for wide-screen sidebar behavior and narrow-screen fallback navigation so the authenticated landing remains usable across supported viewports.
+      [x] 66.3.1.1 Subtask - Add LiveView coverage proving the left sidebar owns the same route-selected concern families as the earlier top-tab shell.
+      [x] 66.3.1.2 Subtask - Add LiveView coverage proving `Overview` now defaults to a repository-ordered monitoring list rather than the prior summary-first grid.
+      [x] 66.3.1.3 Subtask - Add browser coverage for wide-screen sidebar behavior and narrow-screen fallback navigation so the authenticated landing remains usable across supported viewports.

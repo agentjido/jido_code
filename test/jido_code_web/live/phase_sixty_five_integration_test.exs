@@ -85,6 +85,10 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
       repo_file!(".spec/planning/phase-65-dashboard-concern-tab-information-architecture.md")
 
     adr = repo_file!(".spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md")
+
+    monitoring_adr =
+      repo_file!(".spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md")
+
     baseline_spec = repo_file!(".spec/specs/baseline_surface.spec.md")
     factory_spec = repo_file!(".spec/specs/factory_control_plane.spec.md")
     frontend_spec = repo_file!(".spec/specs/frontend_architecture.spec.md")
@@ -104,28 +108,33 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
 
     assert adr =~ "This decision is now landed in product code."
     assert adr =~ "route-owned `section` selection"
-    assert adr =~ "Overview` is now the default authenticated landing concern"
+    assert adr =~ "evolved from a top rail into left-sidebar"
 
-    assert baseline_spec =~ "route-owned concern tabs"
+    assert monitoring_adr =~ "Phase 66 has landed"
+    assert monitoring_adr =~ "repository-first"
+    assert monitoring_adr =~ "monitoring feed that orders overview entries"
+
+    assert baseline_spec =~ "left-sidebar concern navigation"
     assert baseline_spec =~ "durable authenticated landing"
 
-    assert factory_spec =~ "route-owned tabs on one canonical route"
+    assert factory_spec =~ "left-sidebar concern navigation"
     assert factory_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
 
-    assert frontend_spec =~ "dashboard as a LiveView-owned authenticated landing with route-owned concern tabs"
+    assert frontend_spec =~ "dashboard as a LiveView-owned authenticated landing"
+    assert frontend_spec =~ "repository-first overview"
     assert frontend_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
     assert frontend_spec =~ "test/e2e/dashboard-tabs.spec.ts"
 
-    assert conversation_spec =~ "dashboard conversation supervision now bounded inside a dedicated authenticated dashboard concern tab"
+    assert conversation_spec =~ "sidebar-selected dashboard conversation concern"
     assert conversation_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
 
-    assert memory_spec =~ "dashboard memory context behind a dedicated authenticated dashboard concern tab"
+    assert memory_spec =~ "sidebar-selected dashboard memory concern"
     assert memory_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
 
-    assert repo_posture_spec =~ "dashboard's dedicated runtime and posture concern tab"
+    assert repo_posture_spec =~ "sidebar-selected runtime and posture concern"
     assert repo_posture_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
 
-    assert runtime_spec =~ "dashboard runtime posture remains a bounded concern behind its own authenticated dashboard tab"
+    assert runtime_spec =~ "authenticated left-sidebar runtime concern"
     assert runtime_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
 
     assert package_spec =~ ".spec/planning/phase-65-dashboard-concern-tab-information-architecture.md"
@@ -133,10 +142,10 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     assert package_spec =~ "test/e2e/dashboard-tabs.spec.ts"
 
     assert browser_spec =~
-             "dashboard concern tabs keep the ready-state landing route scanable on wide screens"
+             "dashboard sidebar keeps the ready-state landing route scanable on wide screens"
 
     assert browser_spec =~
-             "dashboard concern navigation stays usable as a wrapped fallback on narrow screens"
+             "dashboard sidebar navigation stays usable as a wrapped fallback on narrow screens"
   end
 
   defp repo_file!(path) do

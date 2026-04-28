@@ -202,7 +202,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
            end)
   end
 
-  test "repo detail keeps route-owned subject selection with overview as the default readiness family", %{
+  test "repo detail keeps route-owned subject selection with overview as the default readiness subject", %{
     conn: _conn
   } do
     bootstrap_owner!("owner@example.com", "owner-password-123")
@@ -565,7 +565,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-launch-disabled-repair", "Repair workspace binding")
   end
 
-  test "renders project overview inside the overview family", %{conn: _conn} do
+  test "renders project overview inside the overview subject", %{conn: _conn} do
     bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -600,7 +600,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-overview-panel")
     assert has_element?(view, "#project-detail-shell-parent-subjects-readiness[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-overview[aria-current='page']")
-    assert has_element?(view, "#project-detail-overview-family-guides")
+    assert has_element?(view, "#project-detail-overview-subject-guides")
     assert has_element?(view, "#project-detail-overview-open-conversations")
     assert has_element?(view, "#project-detail-overview-open-workflows")
     refute has_element?(view, "#project-detail-conversation-panel")

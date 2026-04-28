@@ -620,9 +620,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 </.form>
               </section>
 
-              <section id="project-detail-overview-family-guides" class="grid gap-3 md:grid-cols-2">
+              <section id="project-detail-overview-subject-guides" class="grid gap-3 md:grid-cols-2">
                 <article
-                  :for={section <- overview_family_guides(assigns)}
+                  :for={section <- overview_subject_guides(assigns)}
                   id={"project-detail-overview-guide-#{section.section}"}
                   class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
                 >
@@ -1684,17 +1684,17 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         id="project-detail-workflow-readiness-detail"
                         class="text-sm text-base-content/70"
                       >
-                        {workflow_family_summary(@project_detail)}
+                        {workflow_launch_posture_summary(@project_detail)}
                       </p>
                     </div>
                     <span
                       id="project-detail-workflow-readiness-badge"
                       class={[
                         "badge border font-medium",
-                        workflow_family_badge_class(@project_detail)
+                        workflow_launch_posture_badge_class(@project_detail)
                       ]}
                     >
-                      {workflow_family_badge_label(@project_detail)}
+                      {workflow_launch_posture_badge_label(@project_detail)}
                     </span>
                   </div>
                 </article>
@@ -2053,7 +2053,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     })
   end
 
-  defp overview_family_guides(assigns) do
+  defp overview_subject_guides(assigns) do
     detail_subject_sections()
     |> Map.values()
     |> List.flatten()
@@ -2272,11 +2272,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp detail_section_badge_class(:info), do: "border-info/50 bg-info/10 text-info"
   defp detail_section_badge_class(:neutral), do: "border-base-300 bg-base-200/70 text-base-content/75"
 
-  defp workflow_family_badge_label(project_detail) do
+  defp workflow_launch_posture_badge_label(project_detail) do
     if project_ready_for_launch?(project_detail), do: "Ready", else: "Blocked"
   end
 
-  defp workflow_family_badge_class(project_detail) do
+  defp workflow_launch_posture_badge_class(project_detail) do
     if project_ready_for_launch?(project_detail) do
       detail_section_badge_class(:success)
     else
@@ -2284,7 +2284,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     end
   end
 
-  defp workflow_family_summary(project_detail) do
+  defp workflow_launch_posture_summary(project_detail) do
     if project_ready_for_launch?(project_detail) do
       "Launch defaults are ready and workflow kickoff from this route preserves governed run traceability."
     else
@@ -2349,7 +2349,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         "Runtime prerequisites are blocked, but the latest durable conversation state remains visible on this route."
 
       stream_mode == :degraded ->
-        "Live delivery is degraded, so the conversation family is showing the latest durable snapshot."
+        "Live delivery is degraded, so the conversation subject is showing the latest durable snapshot."
 
       true ->
         "Runtime posture, selected model, and continuity remain legible while work continues."

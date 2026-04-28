@@ -20,12 +20,12 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
   def subject_tree_shell(assigns) do
     ~H"""
-    <section id={@id} class={["space-y-4", @class]}>
+    <section id={@id} class={["space-y-4 overflow-x-clip", @class]}>
       <.breadcrumb_lane id={"#{@id}-breadcrumbs"} breadcrumbs={@breadcrumbs} />
       <.parent_subject_rail id={"#{@id}-parent-subjects"} subjects={@parent_subjects} />
 
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <aside id={@sidebar_id} class="min-w-0 lg:w-80 lg:flex-none">
+        <aside id={@sidebar_id} class="min-w-0 lg:sticky lg:top-24 lg:w-80 lg:flex-none">
           <.child_subject_sidebar
             id={@child_nav_id}
             label={@child_nav_label}
@@ -51,9 +51,9 @@ defmodule JidoCodeWeb.OperatorShellComponents do
     <nav
       id={@id}
       aria-label="Operator breadcrumbs"
-      class="rounded-lg border border-base-300/70 bg-base-200/20 px-4 py-3"
+      class="overflow-x-auto rounded-lg border border-base-300/70 bg-base-200/20 px-4 py-3"
     >
-      <ol class="flex flex-wrap items-center gap-2 text-sm text-base-content/75">
+      <ol class="flex min-w-max flex-nowrap items-center gap-2 text-sm text-base-content/75 sm:min-w-0 sm:flex-wrap">
         <li :for={{breadcrumb, index} <- Enum.with_index(@breadcrumbs)} class="flex items-center gap-2">
           <.breadcrumb_item breadcrumb={breadcrumb} />
           <.icon
@@ -111,9 +111,9 @@ defmodule JidoCodeWeb.OperatorShellComponents do
     <nav
       id={@id}
       aria-label="Top-level subjects"
-      class="rounded-lg border border-base-300/70 bg-base-100 px-3 py-3"
+      class="overflow-x-auto rounded-lg border border-base-300/70 bg-base-100 px-3 py-3"
     >
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex min-w-max flex-nowrap items-center gap-2 sm:min-w-0 sm:flex-wrap">
         <.subject_chip :for={subject <- @subjects} subject={subject} />
       </div>
     </nav>
@@ -124,16 +124,66 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
   defp subject_chip(assigns) do
     ~H"""
-    <div class={[
-      "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+    <.link
+      :if={is_binary(@subject.patch)}
+      patch={@subject.patch}
+      aria-current={if(@subject.selected?, do: "page", else: nil)}
+      class={[
+        "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
+        if(@subject.selected?,
+          do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
+          else: "border-base-300/70 bg-base-200/20 text-base-content/80 hover:border-base-300 hover:bg-base-100"
+        )
+      ]}
+    >
+      <.subject_chip_content subject={@subject} />
+    </.link>
+
+    <.link
+      :if={!is_binary(@subject.patch) and is_binary(@subject.navigate)}
+      navigate={@subject.navigate}
+      aria-current={if(@subject.selected?, do: "page", else: nil)}
+      class={[
+        "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
+        if(@subject.selected?,
+          do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
+          else: "border-base-300/70 bg-base-200/20 text-base-content/80 hover:border-base-300 hover:bg-base-100"
+        )
+      ]}
+    >
+      <.subject_chip_content subject={@subject} />
+    </.link>
+
+    <span
+      :if={!is_binary(@subject.patch) and !is_binary(@subject.navigate)}
+      aria-current={if(@subject.selected?, do: "page", else: nil)}
+      class={[
+        "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+        if(@subject.selected?,
+          do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
+          else: "border-base-300/70 bg-base-200/20 text-base-content/80"
+        )
+      ]}
+    >
+      <.subject_chip_content subject={@subject} />
+    </span>
+    """
+  end
+
+  attr :subject, :map, required: true
+
+  defp subject_chip_content(assigns) do
+    ~H"""
+    <span class={[
+      "inline-flex items-center gap-2 rounded-lg text-sm",
       if(@subject.selected?,
-        do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
-        else: "border-base-300/70 bg-base-200/20 text-base-content/80"
+        do: "text-base-content",
+        else: "text-inherit"
       )
     ]}>
       <span class="font-semibold">{@subject.label}</span>
       <.subject_description_bubble description={@subject.description} />
-    </div>
+    </span>
     """
   end
 
@@ -162,11 +212,14 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
   def child_subject_sidebar(assigns) do
     ~H"""
-    <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-3">
+    <section
+      aria-labelledby={"#{@id}-heading"}
+      class="rounded-lg border border-base-300/70 bg-base-200/20 p-3"
+    >
       <div class="space-y-1 px-1">
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+        <h2 id={"#{@id}-heading"} class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
           {@heading}
-        </p>
+        </h2>
         <p :if={@summary} id={"#{@id}-note"} class="text-sm text-base-content/70">
           {@summary}
         </p>
@@ -194,8 +247,11 @@ defmodule JidoCodeWeb.OperatorShellComponents do
       id={"#{@nav_id}-#{@subject.id}"}
       patch={@subject.patch}
       aria-current={if(@subject.selected?, do: "page", else: nil)}
+      aria-controls={@subject.pane_id}
+      aria-describedby={subject_link_describedby(@nav_id, @subject)}
+      data-pane-id={@subject.pane_id}
       class={[
-        "rounded-lg border px-3 py-3 text-left transition",
+        "rounded-lg border px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
         if(@subject.selected?,
           do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
           else: "border-base-300/70 bg-base-100/85 text-base-content/80 hover:border-base-300 hover:bg-base-100"
@@ -210,8 +266,11 @@ defmodule JidoCodeWeb.OperatorShellComponents do
       id={"#{@nav_id}-#{@subject.id}"}
       navigate={@subject.navigate}
       aria-current={if(@subject.selected?, do: "page", else: nil)}
+      aria-controls={@subject.pane_id}
+      aria-describedby={subject_link_describedby(@nav_id, @subject)}
+      data-pane-id={@subject.pane_id}
       class={[
-        "rounded-lg border px-3 py-3 text-left transition",
+        "rounded-lg border px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
         if(@subject.selected?,
           do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
           else: "border-base-300/70 bg-base-100/85 text-base-content/80 hover:border-base-300 hover:bg-base-100"
@@ -238,7 +297,7 @@ defmodule JidoCodeWeb.OperatorShellComponents do
       <span
         :if={@subject.badge}
         id={"#{@nav_id}-#{@subject.id}-badge"}
-        class="badge badge-sm border font-medium"
+        class={["badge badge-sm border font-medium", subject_badge_class(@subject.badge)]}
       >
         {@subject.badge.label}
       </span>
@@ -253,7 +312,13 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
   def subject_pane(assigns) do
     ~H"""
-    <section id={@pane.id} class={["space-y-0 rounded-lg border border-base-300 bg-base-100", @class]}>
+    <section
+      id={@pane.id}
+      role="region"
+      aria-labelledby={"#{@pane.id}-title"}
+      aria-describedby={"#{@pane.id}-summary"}
+      class={["space-y-0 rounded-lg border border-base-300 bg-base-100", @class]}
+    >
       <header id={"#{@pane.id}-header"} class="space-y-1 border-b border-base-300/70 px-4 py-4">
         <h2 id={"#{@pane.id}-title"} class="text-lg font-semibold">{@pane.title}</h2>
         <p id={"#{@pane.id}-summary"} class="text-sm text-base-content/70">
@@ -274,4 +339,32 @@ defmodule JidoCodeWeb.OperatorShellComponents do
     </section>
     """
   end
+
+  defp subject_link_describedby(nav_id, subject) do
+    [subject_summary_id(nav_id, subject), subject_badge_id(nav_id, subject)]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      ids -> Enum.join(ids, " ")
+    end
+  end
+
+  defp subject_summary_id(nav_id, %{summary: summary, id: id}) when is_binary(summary),
+    do: "#{nav_id}-#{id}-summary"
+
+  defp subject_summary_id(_nav_id, _subject), do: nil
+
+  defp subject_badge_id(nav_id, %{badge: badge, id: id}) when is_map(badge),
+    do: "#{nav_id}-#{id}-badge"
+
+  defp subject_badge_id(_nav_id, _subject), do: nil
+
+  defp subject_badge_class(%{tone: :warning}),
+    do: "border-warning/50 bg-warning/10 text-warning"
+
+  defp subject_badge_class(%{tone: :neutral}),
+    do: "border-base-300/70 bg-base-200/30 text-base-content/80"
+
+  defp subject_badge_class(_badge),
+    do: "border-base-300/70 bg-base-200/30 text-base-content/80"
 end

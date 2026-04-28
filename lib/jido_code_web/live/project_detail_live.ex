@@ -1930,6 +1930,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         selected?: assigns.selected_detail_section == section.section,
         summary: detail_section_summary(section.section, assigns),
         badge: detail_section_badge(section.section, assigns),
+        pane_id: "project-detail-pane-#{section.section}",
         patch:
           project_detail_section_path(
             assigns.project_detail,

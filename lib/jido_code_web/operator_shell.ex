@@ -20,6 +20,7 @@ defmodule JidoCodeWeb.OperatorShell do
           optional(:summary) => String.t() | nil,
           optional(:description) => String.t() | nil,
           optional(:badge) => badge() | nil,
+          optional(:pane_id) => String.t() | nil,
           optional(:selected?) => boolean(),
           optional(:navigate) => String.t() | nil,
           optional(:patch) => String.t() | nil
@@ -68,6 +69,7 @@ defmodule JidoCodeWeb.OperatorShell do
       summary: optional_string(attrs, :summary),
       description: optional_string(attrs, :description),
       badge: Map.get(attrs, :badge),
+      pane_id: optional_string(attrs, :pane_id),
       selected?: Map.get(attrs, :selected?, false),
       navigate: optional_string(attrs, :navigate),
       patch: optional_string(attrs, :patch)

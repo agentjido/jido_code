@@ -732,6 +732,7 @@ defmodule JidoCodeWeb.DashboardLive do
         label: dashboard_section_label(section),
         summary: dashboard_section_summary(section, assigns),
         badge: dashboard_section_badge(section, assigns),
+        pane_id: "dashboard-pane-#{section}",
         selected?: assigns.selected_dashboard_section == section,
         patch: dashboard_section_path(assigns.onboarding_next_actions, section)
       })

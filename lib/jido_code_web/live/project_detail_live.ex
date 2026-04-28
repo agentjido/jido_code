@@ -31,6 +31,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Workbench.ProjectWorkspaceBindingNotice
 
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
+  @detail_subject_order [:readiness, :work, :knowledge]
   @detail_sections [:overview, :conversations, :semantic, :memory, :workflows]
 
   @impl true
@@ -61,6 +62,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
+     |> assign(:selected_detail_subject, :readiness)
      |> assign(:selected_detail_section, :overview)
      |> assign(
        :workspace_binding_form,
@@ -77,7 +79,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     project_id = Map.get(params, "id")
     return_to_path = normalize_return_to_path(Map.get(params, "return_to"))
     selected_work_item_id = present_optional_string(Map.get(params, "work_item_id"))
-    selected_detail_section = normalize_detail_section(Map.get(params, "section"))
+    {selected_detail_subject, selected_detail_section} = normalize_detail_selection(params)
 
     socket =
       socket
@@ -120,6 +122,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      socket
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, return_to_path)
+     |> assign(:selected_detail_subject, selected_detail_subject)
      |> assign(:selected_detail_section, selected_detail_section)}
   end
 
@@ -472,18 +475,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       <section
         :if={@project_detail}
         id={"project-detail-panel-#{@project_detail.id}"}
+        data-detail-subject={Atom.to_string(@selected_detail_subject)}
         data-detail-section={Atom.to_string(@selected_detail_section)}
         class="space-y-4"
       >
         <.subject_tree_shell
           id="project-detail-shell"
           breadcrumbs={project_detail_breadcrumbs(assigns)}
-          parent_subjects={project_detail_parent_subjects()}
+          parent_subjects={project_detail_parent_subjects(assigns)}
           child_subjects={detail_section_items(assigns)}
           child_nav_id="project-detail-section-nav"
-          child_nav_label="Repo sections"
-          child_nav_heading="Repo sections"
-          child_nav_summary="Move between repository summary, productive work, knowledge, and launch controls without leaving this managed-repository route."
+          child_nav_label={project_detail_child_nav_label(assigns.selected_detail_subject)}
+          child_nav_heading={project_detail_child_nav_heading(assigns.selected_detail_subject)}
+          child_nav_summary={project_detail_child_nav_summary(assigns.selected_detail_subject)}
           sidebar_id="project-detail-section-sidebar"
           content_id="project-detail-section-content"
         >
@@ -610,25 +614,15 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     Cloud-default mode leaves this repository unbound until you later save a local workspace path here.
                   </p>
 
-                  <div class="flex flex-wrap items-center justify-between gap-3">
-                    <p id="project-detail-workspace-binding-form-note" class="text-sm text-base-content/70">
-                      This updates only {@project_detail.github_full_name}. It does not rewrite setup defaults or sibling repositories.
-                    </p>
-
-                    <button
-                      id="project-detail-workspace-binding-save"
-                      type="submit"
-                      class="btn btn-primary"
-                    >
-                      {workspace_binding_save_button_label(@workspace_binding_form_values)}
-                    </button>
-                  </div>
+                  <p id="project-detail-workspace-binding-form-note" class="text-sm text-base-content/70">
+                    This updates only {@project_detail.github_full_name}. It does not rewrite setup defaults or sibling repositories.
+                  </p>
                 </.form>
               </section>
 
-              <section id="project-detail-overview-family-guides" class="grid gap-3 md:grid-cols-2">
+              <section id="project-detail-overview-subject-guides" class="grid gap-3 md:grid-cols-2">
                 <article
-                  :for={section <- overview_family_guides(assigns)}
+                  :for={section <- overview_subject_guides(assigns)}
                   id={"project-detail-overview-guide-#{section.section}"}
                   class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
                 >
@@ -1061,24 +1055,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         kind={:error}
                         compact={true}
                       >
-                        <:actions>
-                          <.link
-                            :if={workspace_binding_repair_visible?(@conversation_runtime.notice)}
-                            id="project-detail-conversation-runtime-repair"
-                            patch={
-                              project_detail_section_path(
-                                @project_detail,
-                                @return_to_path,
-                                section: :overview,
-                                work_item_id: @selected_work_item_id,
-                                anchor: "project-detail-workspace-binding-panel"
-                              )
-                            }
-                            class="btn btn-xs btn-outline"
-                          >
-                            Repair workspace binding
-                          </.link>
-                        </:actions>
                         <p
                           :if={conversation_runtime_preserves_state?(@conversation_runtime, @conversation_surface)}
                           id="project-detail-conversation-runtime-preserved"
@@ -1479,20 +1455,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     Semantic source-code graph insights stay repo-scoped, bounded, product-owned, and tied to this repository's own workspace binding.
                   </p>
                 </div>
-                <.link
-                  id="project-detail-semantic-open-memory"
-                  class="btn btn-xs btn-outline"
-                  patch={
-                    project_detail_section_path(
-                      @project_detail,
-                      @return_to_path,
-                      section: :memory,
-                      work_item_id: @selected_work_item_id
-                    )
-                  }
-                >
-                  Open memory and provenance
-                </.link>
               </div>
 
               <.operator_state_notice
@@ -1509,35 +1471,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 title="Semantic graph status"
                 state={@semantic_inspection.notice}
                 kind={semantic_notice_kind(@semantic_inspection)}
-              >
-                <:actions>
-                  <.link
-                    :if={workspace_binding_repair_visible?(@semantic_inspection.notice)}
-                    id="project-detail-semantic-repair-workspace"
-                    patch={
-                      project_detail_section_path(
-                        @project_detail,
-                        @return_to_path,
-                        section: :overview,
-                        work_item_id: @selected_work_item_id,
-                        anchor: "project-detail-workspace-binding-panel"
-                      )
-                    }
-                    class="btn btn-sm btn-outline"
-                  >
-                    Repair workspace binding
-                  </.link>
-                  <button
-                    :if={semantic_recovery_available?(@semantic_inspection)}
-                    id="project-detail-semantic-recover"
-                    type="button"
-                    class="btn btn-sm btn-outline"
-                    phx-click="recover_semantic_graph"
-                  >
-                    {semantic_recovery_label(@semantic_inspection)}
-                  </button>
-                </:actions>
-              </.operator_state_notice>
+              />
 
               <.vue_surface
                 id="project-detail-semantic-explorer-widget"
@@ -1627,20 +1561,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, product-owned, and tied to this repository's own workspace binding.
                   </p>
                 </div>
-                <.link
-                  id="project-detail-memory-open-semantic"
-                  class="btn btn-xs btn-outline"
-                  patch={
-                    project_detail_section_path(
-                      @project_detail,
-                      @return_to_path,
-                      section: :semantic,
-                      work_item_id: @selected_work_item_id
-                    )
-                  }
-                >
-                  Open semantic inspection
-                </.link>
               </div>
 
               <.operator_state_notice
@@ -1658,30 +1578,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 state={@memory_inspection.notice}
                 kind={Map.get(@memory_inspection, :notice_kind, :warning)}
                 recovery={Map.get(@memory_inspection, :recovery)}
-                recover_event="recover_memory_graph"
+                recover_event={nil}
                 recover_id="project-detail-memory-recover"
               />
-
-              <div
-                :if={workspace_binding_repair_visible?(@memory_inspection.notice)}
-                id="project-detail-memory-repair-workspace"
-                class="flex"
-              >
-                <.link
-                  patch={
-                    project_detail_section_path(
-                      @project_detail,
-                      @return_to_path,
-                      section: :overview,
-                      work_item_id: @selected_work_item_id,
-                      anchor: "project-detail-workspace-binding-panel"
-                    )
-                  }
-                  class="btn btn-sm btn-outline"
-                >
-                  Repair workspace binding
-                </.link>
-              </div>
 
               <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
                 <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
@@ -1785,17 +1684,17 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         id="project-detail-workflow-readiness-detail"
                         class="text-sm text-base-content/70"
                       >
-                        {workflow_family_summary(@project_detail)}
+                        {workflow_launch_posture_summary(@project_detail)}
                       </p>
                     </div>
                     <span
                       id="project-detail-workflow-readiness-badge"
                       class={[
                         "badge border font-medium",
-                        workflow_family_badge_class(@project_detail)
+                        workflow_launch_posture_badge_class(@project_detail)
                       ]}
                     >
-                      {workflow_family_badge_label(@project_detail)}
+                      {workflow_launch_posture_badge_label(@project_detail)}
                     </span>
                   </div>
                 </article>
@@ -1838,26 +1737,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 <p id="project-detail-launch-disabled-remediation" class="text-sm">
                   {project_readiness(@project_detail).remediation}
                 </p>
-                <div
-                  :if={workspace_binding_repair_visible?(project_readiness(@project_detail))}
-                  class="pt-2"
-                >
-                  <.link
-                    id="project-detail-launch-disabled-repair"
-                    patch={
-                      project_detail_section_path(
-                        @project_detail,
-                        @return_to_path,
-                        section: :overview,
-                        work_item_id: @selected_work_item_id,
-                        anchor: "project-detail-workspace-binding-panel"
-                      )
-                    }
-                    class="btn btn-sm btn-outline"
-                  >
-                    Repair workspace binding
-                  </.link>
-                </div>
               </section>
 
               <section id="project-detail-workflow-controls" class="grid gap-3 md:grid-cols-2">
@@ -1908,6 +1787,177 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 </article>
               </section>
             </div>
+            <:footer_actions>
+              <button
+                :if={@selected_detail_section == :overview}
+                id="project-detail-workspace-binding-save"
+                type="submit"
+                form="project-detail-workspace-binding-form"
+                class="btn btn-primary"
+              >
+                {workspace_binding_save_button_label(@workspace_binding_form_values)}
+              </button>
+
+              <.link
+                :if={@selected_detail_section == :overview}
+                id="project-detail-overview-open-conversations-footer"
+                class="btn btn-sm btn-outline"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :conversations,
+                    work_item_id: @selected_work_item_id
+                  )
+                }
+              >
+                Open conversations
+              </.link>
+
+              <.link
+                :if={@selected_detail_section == :overview}
+                id="project-detail-overview-open-workflows-footer"
+                class="btn btn-sm btn-outline"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :workflows,
+                    work_item_id: @selected_work_item_id
+                  )
+                }
+              >
+                Open workflows
+              </.link>
+
+              <.link
+                :if={
+                  @selected_detail_section == :conversations and
+                    workspace_binding_repair_visible?(@conversation_runtime.notice)
+                }
+                id="project-detail-conversation-runtime-repair"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :overview,
+                    work_item_id: @selected_work_item_id,
+                    anchor: "project-detail-workspace-binding-panel"
+                  )
+                }
+                class="btn btn-sm btn-outline"
+              >
+                Repair workspace binding
+              </.link>
+
+              <.link
+                :if={@selected_detail_section == :semantic}
+                id="project-detail-semantic-open-memory"
+                class="btn btn-sm btn-outline"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :memory,
+                    work_item_id: @selected_work_item_id
+                  )
+                }
+              >
+                Open memory and provenance
+              </.link>
+
+              <.link
+                :if={
+                  @selected_detail_section == :semantic and workspace_binding_repair_visible?(@semantic_inspection.notice)
+                }
+                id="project-detail-semantic-repair-workspace"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :overview,
+                    work_item_id: @selected_work_item_id,
+                    anchor: "project-detail-workspace-binding-panel"
+                  )
+                }
+                class="btn btn-sm btn-outline"
+              >
+                Repair workspace binding
+              </.link>
+
+              <button
+                :if={@selected_detail_section == :semantic and semantic_recovery_available?(@semantic_inspection)}
+                id="project-detail-semantic-recover"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="recover_semantic_graph"
+              >
+                {semantic_recovery_label(@semantic_inspection)}
+              </button>
+
+              <.link
+                :if={@selected_detail_section == :memory}
+                id="project-detail-memory-open-semantic"
+                class="btn btn-sm btn-outline"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :semantic,
+                    work_item_id: @selected_work_item_id
+                  )
+                }
+              >
+                Open semantic inspection
+              </.link>
+
+              <.link
+                :if={@selected_detail_section == :memory and workspace_binding_repair_visible?(@memory_inspection.notice)}
+                id="project-detail-memory-repair-workspace"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :overview,
+                    work_item_id: @selected_work_item_id,
+                    anchor: "project-detail-workspace-binding-panel"
+                  )
+                }
+                class="btn btn-sm btn-outline"
+              >
+                Repair workspace binding
+              </.link>
+
+              <button
+                :if={@selected_detail_section == :memory and memory_recovery_available?(@memory_inspection)}
+                id="project-detail-memory-recover"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="recover_memory_graph"
+              >
+                {memory_recovery_label(@memory_inspection)}
+              </button>
+
+              <.link
+                :if={
+                  @selected_detail_section == :workflows and
+                    workspace_binding_repair_visible?(project_readiness(@project_detail))
+                }
+                id="project-detail-launch-disabled-repair"
+                patch={
+                  project_detail_section_path(
+                    @project_detail,
+                    @return_to_path,
+                    section: :overview,
+                    work_item_id: @selected_work_item_id,
+                    anchor: "project-detail-workspace-binding-panel"
+                  )
+                }
+                class="btn btn-sm btn-outline"
+              >
+                Repair workspace binding
+              </.link>
+            </:footer_actions>
           </.subject_pane>
         </.subject_tree_shell>
       </section>
@@ -1916,30 +1966,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp detail_section_items(assigns) do
-    [
-      %{section: :overview, label: "Overview"},
-      %{section: :conversations, label: "Conversations"},
-      %{section: :semantic, label: "Semantic"},
-      %{section: :memory, label: "Memory"},
-      %{section: :workflows, label: "Workflows"}
-    ]
+    detail_subject_sections()
+    |> Map.fetch!(assigns.selected_detail_subject)
     |> Enum.map(fn section ->
       OperatorShell.child_subject(%{
-        id: section.section,
-        label: section.label,
-        selected?: assigns.selected_detail_section == section.section,
-        summary: detail_section_summary(section.section, assigns),
-        badge: detail_section_badge(section.section, assigns),
-        pane_id: "project-detail-pane-#{section.section}",
+        id: section,
+        label: detail_section_label(section),
+        selected?: assigns.selected_detail_section == section,
+        summary: detail_section_summary(section, assigns),
+        badge: detail_section_badge(section, assigns),
+        pane_id: "project-detail-pane-#{section}",
         patch:
           project_detail_section_path(
             assigns.project_detail,
             assigns.return_to_path,
-            section: section.section,
+            section: section,
             work_item_id: assigns.selected_work_item_id
           )
       })
-      |> Map.put(:section, section.section)
+      |> Map.put(:section, section)
     end)
   end
 
@@ -1951,22 +1996,51 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         navigate: assigns.return_to_path
       }),
       OperatorShell.breadcrumb(%{
-        id: "project-detail-breadcrumb-current",
+        id: "project-detail-breadcrumb-repo",
         label: assigns.project_detail.github_full_name,
+        patch:
+          project_detail_subject_path(
+            assigns.project_detail,
+            assigns.return_to_path,
+            :readiness,
+            assigns.selected_work_item_id
+          )
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "project-detail-breadcrumb-subject",
+        label: project_detail_subject_label(assigns.selected_detail_subject),
+        patch:
+          project_detail_subject_path(
+            assigns.project_detail,
+            assigns.return_to_path,
+            assigns.selected_detail_subject,
+            assigns.selected_work_item_id
+          )
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "project-detail-breadcrumb-current",
+        label: detail_section_label(assigns.selected_detail_section),
         current?: true
       })
     ]
   end
 
-  defp project_detail_parent_subjects do
-    [
+  defp project_detail_parent_subjects(assigns) do
+    Enum.map(@detail_subject_order, fn subject ->
       OperatorShell.parent_subject(%{
-        id: :repo,
-        label: "Repo",
-        description: "Canonical repository workspace for governed work, knowledge, and execution posture.",
-        selected?: true
+        id: subject,
+        label: project_detail_subject_label(subject),
+        description: project_detail_subject_description(subject),
+        selected?: assigns.selected_detail_subject == subject,
+        patch:
+          project_detail_subject_path(
+            assigns.project_detail,
+            assigns.return_to_path,
+            subject,
+            assigns.selected_work_item_id
+          )
       })
-    ]
+    end)
   end
 
   defp project_detail_selected_pane(assigns) do
@@ -1979,11 +2053,74 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     })
   end
 
-  defp overview_family_guides(assigns) do
-    assigns
-    |> detail_section_items()
-    |> Enum.reject(&(&1.section == :overview))
+  defp overview_subject_guides(assigns) do
+    detail_subject_sections()
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.reject(&(&1 == :overview))
+    |> Enum.map(fn section ->
+      %{
+        section: section,
+        label: detail_section_label(section),
+        summary: detail_section_summary(section, assigns),
+        badge: detail_section_badge(section, assigns)
+      }
+    end)
   end
+
+  defp detail_subject_sections,
+    do: %{readiness: [:overview], work: [:conversations, :workflows], knowledge: [:semantic, :memory]}
+
+  defp project_detail_child_nav_label(:readiness), do: "Repository readiness subjects"
+  defp project_detail_child_nav_label(:work), do: "Repository work subjects"
+  defp project_detail_child_nav_label(:knowledge), do: "Repository knowledge subjects"
+
+  defp project_detail_child_nav_heading(:readiness), do: "Readiness"
+  defp project_detail_child_nav_heading(:work), do: "Work"
+  defp project_detail_child_nav_heading(:knowledge), do: "Knowledge"
+
+  defp project_detail_child_nav_summary(:readiness) do
+    "Repository identity, repo-scoped workspace binding, and launch posture stay grouped here before deeper work begins."
+  end
+
+  defp project_detail_child_nav_summary(:work) do
+    "Repo intake, governed conversations, and workflow launch stay grouped on this canonical managed-repository route."
+  end
+
+  defp project_detail_child_nav_summary(:knowledge) do
+    "Semantic inspection and durable memory stay grouped here for repository-scoped review and recovery."
+  end
+
+  defp project_detail_subject_path(project_detail, return_to_path, subject, selected_work_item_id) do
+    project_detail_section_path(
+      project_detail,
+      return_to_path,
+      section: default_detail_section_for_subject(subject),
+      work_item_id: selected_work_item_id
+    )
+  end
+
+  defp project_detail_subject_label(:readiness), do: "Readiness"
+  defp project_detail_subject_label(:work), do: "Work"
+  defp project_detail_subject_label(:knowledge), do: "Knowledge"
+
+  defp project_detail_subject_description(:readiness) do
+    "Repository identity, workspace binding, and launch posture stay grouped here."
+  end
+
+  defp project_detail_subject_description(:work) do
+    "Repo intake, governed conversations, and workflow launch stay grouped here."
+  end
+
+  defp project_detail_subject_description(:knowledge) do
+    "Semantic inspection and durable memory stay grouped here."
+  end
+
+  defp detail_section_label(:overview), do: "Overview"
+  defp detail_section_label(:conversations), do: "Conversations"
+  defp detail_section_label(:semantic), do: "Semantic"
+  defp detail_section_label(:memory), do: "Memory"
+  defp detail_section_label(:workflows), do: "Workflows"
 
   defp detail_section_summary(:overview, _assigns),
     do: "Repository identity, launch posture, and the next place to drill in."
@@ -2135,11 +2272,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp detail_section_badge_class(:info), do: "border-info/50 bg-info/10 text-info"
   defp detail_section_badge_class(:neutral), do: "border-base-300 bg-base-200/70 text-base-content/75"
 
-  defp workflow_family_badge_label(project_detail) do
+  defp workflow_launch_posture_badge_label(project_detail) do
     if project_ready_for_launch?(project_detail), do: "Ready", else: "Blocked"
   end
 
-  defp workflow_family_badge_class(project_detail) do
+  defp workflow_launch_posture_badge_class(project_detail) do
     if project_ready_for_launch?(project_detail) do
       detail_section_badge_class(:success)
     else
@@ -2147,7 +2284,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     end
   end
 
-  defp workflow_family_summary(project_detail) do
+  defp workflow_launch_posture_summary(project_detail) do
     if project_ready_for_launch?(project_detail) do
       "Launch defaults are ready and workflow kickoff from this route preserves governed run traceability."
     else
@@ -2212,7 +2349,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         "Runtime prerequisites are blocked, but the latest durable conversation state remains visible on this route."
 
       stream_mode == :degraded ->
-        "Live delivery is degraded, so the conversation family is showing the latest durable snapshot."
+        "Live delivery is degraded, so the conversation subject is showing the latest durable snapshot."
 
       true ->
         "Runtime posture, selected model, and continuity remain legible while work continues."
@@ -3295,6 +3432,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       |> Keyword.get(:section, :overview)
       |> normalize_detail_section()
 
+    subject =
+      opts
+      |> Keyword.get(:subject, detail_subject_for_section(section))
+      |> normalize_detail_subject()
+
     work_item_id =
       opts
       |> Keyword.get(:work_item_id)
@@ -3308,6 +3450,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     query =
       %{}
       |> maybe_put("return_to", normalized_return_to_param(return_to_path))
+      |> maybe_put("subject", detail_subject_param(subject))
       |> maybe_put("section", detail_section_param(section))
       |> maybe_put("work_item_id", work_item_id)
 
@@ -3329,13 +3472,52 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     end
   end
 
-  defp detail_section_param(:overview), do: nil
   defp detail_section_param(section), do: Atom.to_string(section)
+  defp detail_subject_param(subject), do: Atom.to_string(subject)
+
+  defp normalize_detail_selection(params) when is_map(params) do
+    case Map.get(params, "section") |> normalize_detail_section_param() do
+      nil ->
+        subject =
+          params
+          |> Map.get("subject")
+          |> normalize_detail_subject()
+
+        {subject, default_detail_section_for_subject(subject)}
+
+      section ->
+        {detail_subject_for_section(section), section}
+    end
+  end
+
+  defp normalize_detail_selection(_params), do: {:readiness, :overview}
+
+  defp normalize_detail_subject(subject) when is_atom(subject) and subject in @detail_subject_order,
+    do: subject
+
+  defp normalize_detail_subject(subject) when is_binary(subject) do
+    subject
+    |> normalize_optional_string()
+    |> case do
+      "readiness" -> :readiness
+      "work" -> :work
+      "knowledge" -> :knowledge
+      _other -> :readiness
+    end
+  end
+
+  defp normalize_detail_subject(_subject), do: :readiness
 
   defp normalize_detail_section(section) when is_atom(section) and section in @detail_sections,
     do: section
 
   defp normalize_detail_section(section) when is_binary(section) do
+    normalize_detail_section_param(section) || :overview
+  end
+
+  defp normalize_detail_section(_section), do: :overview
+
+  defp normalize_detail_section_param(section) when is_binary(section) do
     section
     |> normalize_optional_string()
     |> case do
@@ -3344,11 +3526,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       "semantic" -> :semantic
       "memory" -> :memory
       "workflows" -> :workflows
-      _other -> :overview
+      _other -> nil
     end
   end
 
-  defp normalize_detail_section(_section), do: :overview
+  defp normalize_detail_section_param(_section), do: nil
+
+  defp default_detail_section_for_subject(subject) do
+    detail_subject_sections()
+    |> Map.fetch!(subject)
+    |> List.first()
+  end
+
+  defp detail_subject_for_section(section) do
+    detail_subject_sections()
+    |> Enum.find_value(:readiness, fn {subject, sections} ->
+      if section in sections, do: subject, else: nil
+    end)
+  end
 
   defp normalized_return_to_param("/workbench"), do: nil
   defp normalized_return_to_param(value), do: present_optional_string(value)
@@ -3580,6 +3775,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp semantic_recovery_label(%{recovery: %{label: label}}) when is_binary(label), do: label
   defp semantic_recovery_label(_inspection), do: "Recover semantic graph"
+
+  defp memory_recovery_available?(%{recovery: %{available?: true}}), do: true
+  defp memory_recovery_available?(_inspection), do: false
+
+  defp memory_recovery_label(%{recovery: %{label: label}}) when is_binary(label), do: label
+  defp memory_recovery_label(_inspection), do: "Recover memory graph"
 
   defp semantic_group_count(%{groups: groups}, group_key) when is_map(groups) do
     groups

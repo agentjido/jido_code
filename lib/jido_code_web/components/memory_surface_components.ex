@@ -14,7 +14,7 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
   attr :state, :map, required: true
   attr :kind, :atom, default: :warning
   attr :recovery, :map, default: nil
-  attr :recover_event, :string, default: nil
+  attr :recover_event, :any, default: nil
   attr :recover_id, :string, default: nil
 
   def memory_status_notice(assigns) do

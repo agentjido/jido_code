@@ -74,6 +74,24 @@ async function activateTab(page: Page, selector: string) {
   await waitForLiveViewConnection(page)
 }
 
+async function expectDashboardUrl(
+  page: Page,
+  options: { subject: string; section: string; onboarding?: string }
+) {
+  await page.waitForURL(url => {
+    if (url.pathname !== "/dashboard") {
+      return false
+    }
+
+    return (
+      url.searchParams.get("subject") === options.subject &&
+      url.searchParams.get("section") === options.section &&
+      (options.onboarding === undefined ||
+        url.searchParams.get("onboarding") === options.onboarding)
+    )
+  })
+}
+
 async function shellLayoutMetrics(page: Page, sidebarSelector: string, paneSelector: string) {
   return page.evaluate(
     ([sidebarQuery, paneQuery]) => {
@@ -114,7 +132,7 @@ async function expectSidebarAbovePane(page: Page, sidebarSelector: string, paneS
   expect(Math.abs((metrics?.sidebarLeft ?? 0) - (metrics?.paneLeft ?? 0))).toBeLessThan(12)
 }
 
-test("dashboard sidebar keeps the ready-state landing route scanable on wide screens", async ({
+test("dashboard subject-tree shell keeps the ready-state landing route scanable on wide screens", async ({
   page,
   request,
 }) => {
@@ -122,10 +140,14 @@ test("dashboard sidebar keeps the ready-state landing route scanable on wide scr
   await page.setViewportSize({ width: 1440, height: 1100 })
   await signIn(page, "/dashboard?onboarding=completed")
 
+  await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "work")
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
   await expect(page.locator("#dashboard-shell-breadcrumbs")).toBeVisible()
+  await expect(page.locator("#dashboard-shell-parent-subjects")).toBeVisible()
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
+  await expect(page.locator("#dashboard-shell-parent-subjects-work")).toHaveAttribute("aria-current", "page")
   await expect(page.locator("#dashboard-section-nav-overview")).toHaveAttribute("aria-controls", "dashboard-pane-overview")
   await expect(page.locator("#dashboard-settings-handoff")).toContainText("Settings")
   await expectSidebarLeftOfPane(page, "#dashboard-sidebar-shell", "#dashboard-pane-overview")
@@ -133,10 +155,13 @@ test("dashboard sidebar keeps the ready-state landing route scanable on wide scr
   await expect(page.locator("#dashboard-pane-overview-middle")).toBeVisible()
   await expect(page.locator("#dashboard-pane-overview-footer")).toBeVisible()
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
-  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
+  await expect(page.locator("#dashboard-overview-note")).toBeVisible()
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
+  await expect(page.locator("[id^='dashboard-overview-repository-card-']").first()).toBeVisible()
 
   await activateTab(page, "#dashboard-section-nav-runs")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=runs$/)
+  await expectDashboardUrl(page, { subject: "work", section: "runs", onboarding: "completed" })
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "work")
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "runs")
   await expect(page.locator("#dashboard-section-nav-runs")).toHaveAttribute("aria-controls", "dashboard-pane-runs")
   await expect(page.locator("#dashboard-pane-runs-header")).toContainText("Recent governed runs")
@@ -144,24 +169,32 @@ test("dashboard sidebar keeps the ready-state landing route scanable on wide scr
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(0)
 
   await activateTab(page, "#dashboard-section-nav-conversations")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=conversations$/)
+  await expectDashboardUrl(page, { subject: "work", section: "conversations", onboarding: "completed" })
   await expect(page.locator("#dashboard-conversation-supervision")).toBeVisible()
   await expect(page.locator("#dashboard-run-summaries")).toHaveCount(0)
 
-  await activateTab(page, "#dashboard-section-nav-memory")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=memory$/)
+  await activateTab(page, "#dashboard-shell-parent-subjects-knowledge")
+  await expectDashboardUrl(page, { subject: "knowledge", section: "memory", onboarding: "completed" })
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "knowledge")
+  await expect(page.locator("#dashboard-shell-parent-subjects-knowledge")).toHaveAttribute("aria-current", "page")
   await expect(page.locator("#dashboard-memory-summaries")).toBeVisible()
+  await expect(page.locator("#dashboard-section-nav-memory")).toHaveAttribute("aria-current", "page")
 
-  await activateTab(page, "#dashboard-section-nav-runtime")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=runtime$/)
+  await activateTab(page, "#dashboard-shell-parent-subjects-runtime")
+  await expectDashboardUrl(page, { subject: "runtime", section: "runtime", onboarding: "completed" })
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "runtime")
+  await expect(page.locator("#dashboard-shell-parent-subjects-runtime")).toHaveAttribute("aria-current", "page")
   await expect(page.locator("#dashboard-runtime-evidence")).toBeVisible()
 
+  await activateTab(page, "#dashboard-shell-parent-subjects-work")
+  await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
+
   await activateTab(page, "#dashboard-section-nav-next_steps")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=next_steps$/)
+  await expectDashboardUrl(page, { subject: "work", section: "next_steps", onboarding: "completed" })
   await expect(page.locator("#dashboard-onboarding-next-actions")).toBeVisible()
 })
 
-test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow screens", async ({
+test("dashboard subject navigation stays usable as a wrapped fallback on narrow screens", async ({
   page,
   request,
 }) => {
@@ -170,28 +203,37 @@ test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow 
   await signIn(page, "/dashboard?onboarding=completed")
 
   await expect(page.locator("#dashboard-shell-breadcrumbs")).toBeVisible()
+  await expect(page.locator("#dashboard-shell-parent-subjects")).toBeVisible()
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
+  await expectNoHorizontalOverflow(page, "#dashboard-shell-parent-subjects")
   await expectNoHorizontalOverflow(page, "#dashboard-section-nav")
   await expectSidebarAbovePane(page, "#dashboard-sidebar-shell", "#dashboard-pane-overview")
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
-  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
 
   await activateTab(page, "#dashboard-section-nav-next_steps")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=next_steps$/)
+  await expectDashboardUrl(page, { subject: "work", section: "next_steps", onboarding: "completed" })
   await expect(page.locator("#dashboard-onboarding-next-actions")).toBeVisible()
 
+  await activateTab(page, "#dashboard-shell-parent-subjects-knowledge")
+  await expectDashboardUrl(page, { subject: "knowledge", section: "memory", onboarding: "completed" })
+  await expect(page.locator("#dashboard-memory-summaries")).toBeVisible()
+
+  await activateTab(page, "#dashboard-shell-parent-subjects-work")
+  await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
+
   await activateTab(page, "#dashboard-section-nav-conversations")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=conversations$/)
+  await expectDashboardUrl(page, { subject: "work", section: "conversations", onboarding: "completed" })
   await expect(page.locator("#dashboard-conversation-supervision")).toBeVisible()
 
   await activateTab(page, "#dashboard-section-nav-overview")
-  await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=overview$/)
+  await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
-  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
 })
 
-test("dashboard overview stays empty on wide screens", async ({
+test("dashboard overview shows repository monitoring cards on wide screens", async ({
   page,
   request,
 }) => {
@@ -199,15 +241,17 @@ test("dashboard overview stays empty on wide screens", async ({
   await page.setViewportSize({ width: 1440, height: 1100 })
   await signIn(page, "/dashboard?onboarding=completed")
 
+  await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "work")
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
-  await expect(page.locator("#dashboard-overview-note")).toHaveCount(0)
-  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
-  await expect(page.locator("[id^='dashboard-overview-repository-card-']")).toHaveCount(0)
-  await expect(page.locator("[id^='dashboard-overview-repository-detail-shell-']")).toHaveCount(0)
+  await expect(page.locator("#dashboard-overview-note")).toBeVisible()
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
+  await expect(page.locator("[id^='dashboard-overview-repository-card-']").first()).toBeVisible()
+  await expect(page.locator("[id^='dashboard-overview-repository-accordion-toggle-']").first()).toBeVisible()
 })
 
-test("dashboard overview stays empty on narrow screens", async ({
+test("dashboard overview stays bounded on narrow screens", async ({
   page,
   request,
 }) => {
@@ -217,7 +261,7 @@ test("dashboard overview stays empty on narrow screens", async ({
 
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
   await expectNoHorizontalOverflow(page, "#dashboard-content-shell")
-  await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
-  await expect(page.locator("[id^='dashboard-overview-repository-card-']")).toHaveCount(0)
-  await expect(page.locator("[id^='dashboard-overview-repository-detail-shell-']")).toHaveCount(0)
+  await expect(page.locator("#dashboard-overview-repository-list")).toBeVisible()
+  await expect(page.locator("[id^='dashboard-overview-repository-card-']").first()).toBeVisible()
+  await expect(page.locator("[id^='dashboard-overview-repository-accordion-toggle-']").first()).toBeVisible()
 })

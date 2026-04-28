@@ -9,7 +9,7 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, the current `/welcome` to `/setup` to `/dashboard` and `/settings/auth` route ownership model, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that points back to `.spec` as current truth plus the semantic product verification expectations now reflected in `CONTRIBUTING.md` and `AGENTS.md`.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, the current `/welcome` to `/setup` to `/dashboard` and `/settings/auth` route ownership model, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that starts with Spec Led Development orientation, points back to `.spec` as current truth, and reflects the semantic product verification expectations now carried in `CONTRIBUTING.md` and `AGENTS.md`.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -73,6 +73,11 @@ surface:
   statement: The repository shall expose the adjacent contributor and explanatory developer guides through the top-level README, including the repo-local spec workflow, the derived `docs/developer/` guide set, the separate desktop packaging guide, and the direct Mix-based CLI surfaces.
   priority: must
   stability: stable
+
+- id: docs.product_foundation.spec_led_intro_guide_present
+  statement: The derived `docs/developer/` guide set shall begin with a guide that explains the repo-local `spec_led_ex` workflow, the `.spec` workspace structure, and drift-control expectations while keeping `.spec/planning/` explicitly optional for contributors.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -101,6 +106,16 @@ surface:
     - The contributor looks for the adjacent contributor and architecture guides.
   then:
     - The README links the spec workspace, contributor guide, derived developer architecture guide set, and separate desktop runtime guide directly.
+
+- id: docs.product_foundation.scenario.developer_guides_start_with_spec_led_orientation
+  covers:
+    - docs.product_foundation.spec_led_intro_guide_present
+  given:
+    - A contributor starts from the developer guide set instead of from the top-level README.
+  when:
+    - The contributor follows the documented reading order.
+  then:
+    - The first guide explains the repo-local Spec Led Development workflow, the `.spec` workspace layout, and the anti-drift loop without making `.spec/planning/` mandatory.
 ```
 
 ## Verification
@@ -169,4 +184,14 @@ surface:
   target: .spec/decisions/jido_code.vsm_recursion_and_scope.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: docs/developer/00-spec-led-development-and-drift-control.md
+  covers:
+    - docs.product_foundation.spec_led_intro_guide_present
+
+- kind: source_file
+  target: docs/developer/README.md
+  covers:
+    - docs.product_foundation.spec_led_intro_guide_present
 ```

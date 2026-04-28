@@ -12,6 +12,7 @@ defmodule JidoCodeWeb.DashboardLive do
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
+  alias JidoCodeWeb.OperatorShell
   alias JidoCode.Workbench.{DashboardConversationFeed, DashboardRepositoryMonitoringFeed}
 
   @dashboard_sections [:overview, :runs, :conversations, :memory, :runtime]
@@ -762,13 +763,14 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp dashboard_section_nav_items(assigns) do
     Enum.map(assigns.dashboard_sections, fn section ->
-      %{
-        section: section,
+      OperatorShell.child_subject(%{
+        id: section,
         label: dashboard_section_label(section),
         summary: dashboard_section_summary(section, assigns),
         badge: dashboard_section_badge(section, assigns),
         selected?: assigns.selected_dashboard_section == section
-      }
+      })
+      |> Map.put(:section, section)
     end)
   end
 

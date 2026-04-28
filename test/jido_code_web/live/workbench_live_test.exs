@@ -448,6 +448,12 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
+    assert has_element?(
+             view,
+             ~s|#workbench-dashboard-handoff a[href="/dashboard?subject=work&section=overview"]|,
+             "Dashboard Work"
+           )
+
     assert has_element?(view, "#workbench-project-table")
     assert has_element?(view, "#workbench-project-name-#{repo_one_id}", "owner/repo-one")
     assert has_element?(view, "#workbench-project-open-issues-#{repo_one_id}", "12")
@@ -859,7 +865,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(
              view,
              "[id^='workbench-project-issues-github-disabled-workbench-row-'][aria-disabled='true']",
-             "GitHub issues"
+             "GitHub Issues"
            )
 
     assert has_element?(

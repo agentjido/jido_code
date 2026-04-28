@@ -59,19 +59,25 @@ defmodule JidoCodeWeb.ConnCase do
   def register_owner(email, password) do
     strategy = Info.strategy!(User, :password)
 
-    {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
+    case Strategy.action(
+           strategy,
+           :register,
+           %{
+             "email" => email,
+             "password" => password,
+             "password_confirmation" => password
+           },
+           context: %{token_type: :sign_in}
+         ) do
+      {:ok, _owner} ->
+        :ok
 
-    :ok
+      {:error, %Ash.Error.Forbidden{}} ->
+        bootstrap_owner(email, password)
+
+      {:error, reason} ->
+        raise "owner registration failed: #{Exception.message(reason)}"
+    end
   end
 
   def authenticate_owner_conn(email, password) when is_binary(email) and is_binary(password) do
@@ -205,6 +211,27 @@ defmodule JidoCodeWeb.ConnCase do
   defp auth_result(conn, session_token, _owner, true, false), do: {conn, session_token}
   defp auth_result(conn, _session_token, owner, false, true), do: {conn, owner}
   defp auth_result(conn, session_token, owner, true, true), do: {conn, session_token, owner}
+
+  defp bootstrap_owner(email, password) do
+    case User.bootstrap_admin(
+           %{
+             email: email,
+             password: password,
+             password_confirmation: password
+           },
+           authorize?: false
+         ) do
+      {:ok, _owner} ->
+        :ok
+
+      {:error, reason} ->
+        if Exception.message(reason) =~ "has already been taken" do
+          :ok
+        else
+          raise "owner bootstrap failed: #{Exception.message(reason)}"
+        end
+    end
+  end
 
   defp governed_run_repo_scope(%{repo_scope: repo_scope}) when is_map(repo_scope), do: {:ok, repo_scope}
   defp governed_run_repo_scope(%{route_id: route_id}) when is_binary(route_id), do: RepoBridge.repo_scope(route_id)

@@ -17,6 +17,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
   import Phoenix.LiveViewTest
 
   alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
+  alias JidoCode.Repo
 
   @checker_env :setup_github_credential_checker
   @resolver_env :provider_auth_broker_jwks_resolver
@@ -39,6 +40,8 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
 
     Application.delete_env(:jido_code, :system_config_loader)
     Application.delete_env(:jido_code, @checker_env)
+
+    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -98,7 +101,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
     {:ok, dashboard_view, _html} =
       live(recycle(auth_response), ~p"/dashboard?onboarding=completed", on_error: :warn)
 
-    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product overview")
+    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product home")
   end
 
   test "60.3.2 ready-state local and provider sign-in land on dashboard while settings owns auth and integrations",
@@ -143,7 +146,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
 
     {:ok, dashboard_view, _html} = live(recycle(auth_response), ~p"/dashboard", on_error: :warn)
 
-    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product overview")
+    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product home")
     assert has_element?(dashboard_view, ~s|a[href="/settings/auth"]|, "Settings")
 
     {:ok, settings_view, _html} = live(recycle(auth_response), ~p"/settings/auth", on_error: :warn)
@@ -185,7 +188,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
     assert has_element?(
              provider_dashboard_view,
              "#dashboard-entry-summary",
-             "authenticated product overview"
+             "authenticated product home"
            )
 
     assert provider_dashboard_html =~ "phase60-owner@example.com"

@@ -9,11 +9,19 @@ defmodule JidoCodeWeb.DashboardLive do
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
+  import JidoCodeWeb.ManagedRepoInventoryComponents
+
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
   alias JidoCodeWeb.OperatorShell
-  alias JidoCode.Workbench.{DashboardConversationFeed, DashboardRepositoryMonitoringFeed}
+  alias JidoCode.Workbench.{
+    DashboardConversationFeed,
+    FixWorkflowKickoff,
+    InventoryActionState,
+    InventorySurface,
+    IssueTriageWorkflowKickoff
+  }
 
   @dashboard_subject_order [:work, :knowledge, :runtime]
   @dashboard_sections [:overview, :runs, :conversations, :memory, :runtime]
@@ -23,7 +31,12 @@ defmodule JidoCodeWeb.DashboardLive do
     "Test the RPC client"
   ]
 
-  @run_events_for_refresh MapSet.new(["run_started", "run_completed", "run_failed"])
+  @run_events_for_refresh MapSet.new([
+                                    "run_started",
+                                    "run_completed",
+                                    "run_failed",
+                                    "run_cancelled"
+                                  ])
 
   @impl true
   def mount(_params, _session, socket) do
@@ -56,6 +69,9 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:repository_monitoring_rows, [])
       |> assign(:repository_monitoring_warning, nil)
       |> assign(:repository_monitoring_last_refreshed_at, nil)
+      |> assign(:recent_run_outcomes, %{})
+      |> assign(:fix_workflow_kickoff_states, %{})
+      |> assign(:issue_triage_workflow_kickoff_states, %{})
       |> stream_configure(:conversation_summaries, dom_id: &conversation_summary_dom_id/1)
       |> stream(:conversation_summaries, [], reset: true)
       |> stream_configure(:memory_summaries, dom_id: &memory_summary_dom_id/1)
@@ -128,6 +144,42 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event(
+        "kickoff_fix_workflow",
+        %{"project_id" => project_id, "context_item_type" => context_item_type},
+        socket
+      ) do
+    project_row = find_project_row(socket.assigns.repository_monitoring_rows, project_id)
+    kickoff_result = FixWorkflowKickoff.kickoff(project_row, context_item_type, initiating_actor(socket))
+
+    {:noreply,
+     socket
+     |> put_fix_workflow_kickoff_state(project_id, context_item_type, kickoff_result)
+     |> put_recent_run_outcome_from_kickoff(project_id, kickoff_result)}
+  end
+
+  @impl true
+  def handle_event(
+        "kickoff_issue_triage_workflow",
+        %{"project_id" => project_id, "context_item_type" => context_item_type},
+        socket
+      ) do
+    project_row = find_project_row(socket.assigns.repository_monitoring_rows, project_id)
+
+    kickoff_result =
+      IssueTriageWorkflowKickoff.kickoff(
+        project_row,
+        context_item_type,
+        initiating_actor(socket)
+      )
+
+    {:noreply,
+     socket
+     |> put_issue_triage_workflow_kickoff_state(project_id, context_item_type, kickoff_result)
+     |> put_recent_run_outcome_from_kickoff(project_id, kickoff_result)}
+  end
+
+  @impl true
   def handle_info({:run_event, payload}, socket) do
     event_name =
       payload
@@ -160,7 +212,7 @@ defmodule JidoCodeWeb.DashboardLive do
         <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
         <p class="text-base-content/70">Welcome, {@current_user.email}</p>
         <p id="dashboard-entry-summary" class="mt-1 text-sm text-base-content/75">
-          Dashboard is the authenticated product overview for governed runs, conversations, memory, and runtime posture.
+          Dashboard is the authenticated product home for managed-repository inventory, governed runs, conversations, memory, and runtime posture.
         </p>
         <p id="dashboard-settings-handoff" class="mt-2 text-sm text-base-content/70">
           Provider login and Git automation configuration live in <.link
@@ -190,9 +242,13 @@ defmodule JidoCodeWeb.DashboardLive do
             >
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="space-y-1">
-                  <h2 class="text-lg font-semibold">Repository monitoring</h2>
+                  <h2 class="text-lg font-semibold">Managed repo inventory</h2>
                   <p id="dashboard-overview-note" class="text-sm text-base-content/80">
-                    Repository-first monitoring keeps the landing route bounded while routing deeper governed work back to canonical managed-repository detail.
+                    Dashboard Work is the primary signed-in home for repository inventory, governed triage, and repo-detail follow-up. <.link
+                      id="dashboard-overview-workbench-link"
+                      navigate={dashboard_workbench_path(assigns)}
+                      class="link link-primary"
+                    >Workbench</.link> stays available as the denser specialist mode.
                   </p>
                 </div>
                 <p id="dashboard-overview-last-refreshed" class="text-xs text-base-content/70">
@@ -203,21 +259,21 @@ defmodule JidoCodeWeb.DashboardLive do
               <.operator_state_notice
                 :if={@repository_monitoring_warning}
                 id="dashboard-overview-warning"
-                title="Repository monitoring may be stale"
+                title="Managed repo inventory may be stale"
                 state={@repository_monitoring_warning}
                 compact={true}
               />
 
               <%= if @repository_monitoring_count == 0 do %>
                 <p id="dashboard-overview-empty-state" class="text-sm text-base-content/70">
-                  No repository-first monitoring signals are available yet.
+                  No managed-repository inventory is available yet.
                 </p>
               <% else %>
-                <ol id="dashboard-overview-repository-list" class="space-y-4">
+                <ol id="dashboard-overview-repository-list" class="grid gap-4 xl:grid-cols-2">
                   <li
                     :for={entry <- @repository_monitoring_rows}
                     id={"dashboard-overview-repository-card-#{repo_monitoring_dom_token(entry.id)}"}
-                    class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-4"
+                    class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-4"
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="space-y-1">
@@ -225,25 +281,36 @@ defmodule JidoCodeWeb.DashboardLive do
                           id={"dashboard-overview-repository-label-#{repo_monitoring_dom_token(entry.id)}"}
                           class="text-sm font-semibold"
                         >
-                          {entry.repo_label}
-                        </p>
-                        <p
-                          id={"dashboard-overview-repository-ordering-#{repo_monitoring_dom_token(entry.id)}"}
-                          class="text-xs font-medium uppercase tracking-[0.12em] text-base-content/60"
-                        >
-                          {entry.ordering_label}
+                          {entry.github_full_name}
                         </p>
                         <p
                           id={"dashboard-overview-repository-detail-#{repo_monitoring_dom_token(entry.id)}"}
-                          class="text-sm text-base-content/80"
+                          class="text-xs text-base-content/65"
                         >
-                          {entry.ordering_detail}
+                          {entry.name}
                         </p>
                       </div>
 
-                      <div class="space-y-1 text-right text-xs text-base-content/70">
-                        <p>{entry.top_card.branch_label}</p>
-                        <p :if={entry.top_card.last_worked_on_label}>{entry.top_card.last_worked_on_label}</p>
+                      <div class="flex flex-wrap gap-2">
+                        <span
+                          id={"dashboard-overview-repository-badge-issues-#{repo_monitoring_dom_token(entry.id)}"}
+                          class="badge badge-outline badge-sm"
+                        >
+                          {entry.open_issue_count} open {pluralize(entry.open_issue_count, "issue", "issues")}
+                        </span>
+                        <span
+                          id={"dashboard-overview-repository-badge-prs-#{repo_monitoring_dom_token(entry.id)}"}
+                          class="badge badge-outline badge-sm"
+                        >
+                          {entry.open_pr_count} open PR{if(entry.open_pr_count == 1, do: "", else: "s")}
+                        </span>
+                        <span
+                          :if={runtime_badge = dashboard_runtime_inventory_badge(@runtime_evidence_rows, entry)}
+                          id={"dashboard-overview-repository-badge-runtime-#{repo_monitoring_dom_token(entry.id)}"}
+                          class={runtime_badge.class}
+                        >
+                          {runtime_badge.label}
+                        </span>
                       </div>
                     </div>
 
@@ -251,95 +318,63 @@ defmodule JidoCodeWeb.DashboardLive do
                       id={"dashboard-overview-repository-summary-#{repo_monitoring_dom_token(entry.id)}"}
                       class="text-sm text-base-content/80"
                     >
-                      {entry.top_card.primary_cue}
+                      {entry.recent_activity_summary}
                     </p>
 
-                    <div
-                      id={"dashboard-overview-repository-badges-#{repo_monitoring_dom_token(entry.id)}"}
-                      class="flex flex-wrap gap-2"
-                    >
-                      <span
-                        :for={badge <- entry.top_card.badges}
-                        id={"dashboard-overview-repository-badge-#{badge.id}-#{repo_monitoring_dom_token(entry.id)}"}
-                        class={badge.class}
-                      >
-                        {badge.label}
-                      </span>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-base-content/70">
+                      <p id={"dashboard-overview-repository-branch-#{repo_monitoring_dom_token(entry.id)}"}>
+                        Branch: {entry.default_branch}
+                      </p>
+                      <p id={"dashboard-overview-repository-activity-#{repo_monitoring_dom_token(entry.id)}"}>
+                        {dashboard_inventory_activity_label(entry)}
+                      </p>
                     </div>
 
-                    <div class="flex flex-wrap gap-3">
-                      <.link
-                        :for={link <- entry.top_card.links}
-                        id={"dashboard-overview-repository-link-#{link.id}-#{repo_monitoring_dom_token(entry.id)}"}
-                        navigate={link.route}
-                        class={link.class}
-                      >
-                        {link.label}
-                      </.link>
+                    <.managed_repo_hint_stack
+                      row={entry}
+                      dom_prefix="dashboard-overview-repository"
+                      detail_path={dashboard_inventory_detail_path(assigns, entry)}
+                    />
+
+                    <div class="grid gap-4 lg:grid-cols-2">
+                      <.managed_repo_action_cluster
+                        row={entry}
+                        dom_prefix="dashboard-overview-repository-issues"
+                        detail_path={dashboard_inventory_detail_path(assigns, entry)}
+                        kind={:issue}
+                        recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, entry.id)}
+                        triage_policy_state={InventorySurface.issue_triage_policy_state(entry)}
+                        issue_triage_feedback={
+                          InventoryActionState.issue_triage_feedback(
+                            @issue_triage_workflow_kickoff_states,
+                            entry.id,
+                            :issue
+                          )
+                        }
+                        fix_feedback={
+                          InventoryActionState.fix_feedback(
+                            @fix_workflow_kickoff_states,
+                            entry.id,
+                            :issue
+                          )
+                        }
+                      />
+
+                      <.managed_repo_action_cluster
+                        row={entry}
+                        dom_prefix="dashboard-overview-repository-prs"
+                        detail_path={dashboard_inventory_detail_path(assigns, entry)}
+                        kind={:pull_request}
+                        recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, entry.id)}
+                        fix_feedback={
+                          InventoryActionState.fix_feedback(
+                            @fix_workflow_kickoff_states,
+                            entry.id,
+                            :pull_request
+                          )
+                        }
+                      />
                     </div>
-
-                    <details
-                      id={"dashboard-overview-repository-accordion-shell-#{repo_monitoring_dom_token(entry.id)}"}
-                      class="rounded-lg border border-base-300/70 bg-base-100"
-                    >
-                      <summary
-                        id={"dashboard-overview-repository-accordion-toggle-#{repo_monitoring_dom_token(entry.id)}"}
-                        class="cursor-pointer px-4 py-3 text-sm font-medium"
-                      >
-                        Open repo signals
-                      </summary>
-
-                      <div
-                        id={"dashboard-overview-repository-accordion-panel-#{repo_monitoring_dom_token(entry.id)}"}
-                        class="grid gap-3 border-t border-base-300/70 p-4 md:grid-cols-2"
-                      >
-                        <section
-                          :for={section <- entry.accordion_sections}
-                          id={"dashboard-overview-repository-detail-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
-                          class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-2"
-                        >
-                          <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="text-sm font-semibold">{section.title}</p>
-                            <span :if={section.status_badge} class={section.status_badge.class}>
-                              {section.status_badge.label}
-                            </span>
-                          </div>
-
-                          <p
-                            id={"dashboard-overview-repository-detail-heading-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
-                            class="text-sm text-base-content/85"
-                          >
-                            {section.heading}
-                          </p>
-
-                          <p
-                            id={"dashboard-overview-repository-detail-summary-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
-                            class="text-xs text-base-content/75"
-                          >
-                            {section.summary}
-                          </p>
-
-                          <p
-                            :if={section.meta}
-                            id={"dashboard-overview-repository-detail-meta-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
-                            class="text-xs text-base-content/65"
-                          >
-                            {section.meta}
-                          </p>
-
-                          <div class="flex flex-wrap gap-3">
-                            <.link
-                              :for={link <- section.links}
-                              id={"dashboard-overview-repository-detail-#{section.id}-#{link.id}-link-#{repo_monitoring_dom_token(entry.id)}"}
-                              navigate={link.route}
-                              class={link.class}
-                            >
-                              {link.label}
-                            </.link>
-                          </div>
-                        </section>
-                      </div>
-                    </details>
                   </li>
                 </ol>
               <% end %>
@@ -786,6 +821,15 @@ defmodule JidoCodeWeb.DashboardLive do
               </ul>
             </section>
             <:footer_actions>
+              <.link
+                :if={@selected_dashboard_section == :overview}
+                id="dashboard-overview-open-workbench"
+                navigate={dashboard_workbench_path(assigns)}
+                class="btn btn-sm btn-outline"
+              >
+                Open dense Workbench mode
+              </.link>
+
               <button
                 :if={@selected_dashboard_section == :overview}
                 id="dashboard-overview-refresh"
@@ -1001,7 +1045,7 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_child_nav_heading(:runtime), do: "Runtime"
 
   defp dashboard_child_nav_summary(:work) do
-    "Repository monitoring, governed runs, governed conversations, and ready follow-up stay grouped here without leaving the authenticated landing route."
+    "Primary managed-repository inventory, governed runs, governed conversations, and ready follow-up stay grouped here without leaving the authenticated landing route."
   end
 
   defp dashboard_child_nav_summary(:knowledge) do
@@ -1123,7 +1167,7 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_subject_label(:runtime), do: "Runtime"
 
   defp dashboard_subject_description(:work) do
-    "Repository monitoring, governed activity, and ready follow-up stay grouped here."
+    "Managed-repository inventory, governed activity, and ready follow-up stay grouped here."
   end
 
   defp dashboard_subject_description(:knowledge) do
@@ -1141,7 +1185,7 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_section_label(:runtime), do: "Posture"
   defp dashboard_section_label(:next_steps), do: "Follow-up"
 
-  defp dashboard_pane_title(:overview), do: "Dashboard overview"
+  defp dashboard_pane_title(:overview), do: "Managed repo inventory"
   defp dashboard_pane_title(:runs), do: "Recent governed runs"
   defp dashboard_pane_title(:conversations), do: "Conversation supervision"
   defp dashboard_pane_title(:memory), do: "Repository memory"
@@ -1149,7 +1193,7 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_pane_title(:next_steps), do: "Suggested next actions"
 
   defp dashboard_pane_summary(:overview),
-    do: "The selected child subject owns this pane, while dashboard route framing stays outside it."
+    do: "Dashboard Work owns the primary managed-repository inventory here while Workbench remains the denser specialist mode."
 
   defp dashboard_pane_summary(:runs),
     do: "Review bounded governed-run status here without leaving the authenticated landing route."
@@ -1168,9 +1212,9 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp dashboard_section_summary(:overview, assigns) do
     if assigns.repository_monitoring_count == 0 do
-      "No repository-first monitoring signals are visible yet."
+      "No managed-repository inventory is visible yet."
     else
-      "#{assigns.repository_monitoring_count} repositories ordered by recent governed or operator-facing work."
+      "#{assigns.repository_monitoring_count} managed repositories ready for inventory and triage review."
     end
   end
 
@@ -1478,18 +1522,14 @@ defmodule JidoCodeWeb.DashboardLive do
   defp load_repository_monitoring_summaries(socket) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    case DashboardRepositoryMonitoringFeed.load(%{
-           run_summaries: socket.assigns.run_summary_rows,
-           conversation_summaries: socket.assigns.conversation_summary_rows,
-           memory_summaries: socket.assigns.memory_summary_rows,
-           runtime_summaries: socket.assigns.runtime_evidence_rows
-         }) do
-      {:ok, summaries, warning} ->
+    case InventorySurface.load() do
+      {:ok, rows, recent_run_outcomes, warning} ->
         socket
-        |> assign(:repository_monitoring_count, length(summaries))
-        |> assign(:repository_monitoring_rows, summaries)
+        |> assign(:repository_monitoring_count, length(rows))
+        |> assign(:repository_monitoring_rows, rows)
         |> assign(:repository_monitoring_warning, warning)
         |> assign(:repository_monitoring_last_refreshed_at, now)
+        |> assign(:recent_run_outcomes, recent_run_outcomes)
 
       {:error, warning} ->
         socket
@@ -1497,6 +1537,7 @@ defmodule JidoCodeWeb.DashboardLive do
         |> assign(:repository_monitoring_rows, [])
         |> assign(:repository_monitoring_warning, warning)
         |> assign(:repository_monitoring_last_refreshed_at, now)
+        |> assign(:recent_run_outcomes, %{})
     end
   end
 
@@ -1587,6 +1628,108 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   defp runtime_evidence_widget_counts(_summary), do: %{blocked: 0, degraded: 0, available: 0}
+
+  defp dashboard_workbench_path(_assigns), do: ~p"/workbench"
+
+  defp dashboard_inventory_detail_path(assigns, project) do
+    InventorySurface.project_detail_path(
+      project,
+      dashboard_selection_path(assigns.onboarding_next_actions, :work, :overview)
+    )
+  end
+
+  defp dashboard_runtime_inventory_badge(runtime_rows, project) when is_list(runtime_rows) do
+    managed_repo_id =
+      project
+      |> Map.get(:managed_repo_id)
+      |> normalize_optional_string()
+
+    runtime_rows
+    |> Enum.find(fn runtime_summary ->
+      runtime_summary
+      |> Map.get(:managed_repo_id)
+      |> normalize_optional_string() == managed_repo_id
+    end)
+    |> case do
+      %{review_required: true} = runtime_summary ->
+        %{
+          label: "Runtime: review required",
+          class: runtime_evidence_badge_class(Map.get(runtime_summary, :status))
+        }
+
+      %{} = runtime_summary ->
+        %{
+          label: "Runtime: #{runtime_evidence_status_label(Map.get(runtime_summary, :status))}",
+          class: runtime_evidence_badge_class(Map.get(runtime_summary, :status))
+        }
+
+      _other ->
+        nil
+    end
+  end
+
+  defp dashboard_runtime_inventory_badge(_runtime_rows, _project), do: nil
+
+  defp dashboard_inventory_activity_label(project) do
+    case Map.get(project, :recent_activity_at) do
+      %DateTime{} = recent_activity_at ->
+        "Recent activity #{relative_time_label(recent_activity_at)}"
+
+      _other ->
+        "Recent activity timing is unavailable."
+    end
+  end
+
+  defp find_project_row(rows, project_id), do: InventoryActionState.find_row(rows, project_id)
+
+  defp put_fix_workflow_kickoff_state(socket, project_id, context_item_type, kickoff_result) do
+    update(socket, :fix_workflow_kickoff_states, fn states ->
+      InventoryActionState.put_fix_feedback(states, project_id, context_item_type, kickoff_result)
+    end)
+  end
+
+  defp put_issue_triage_workflow_kickoff_state(
+         socket,
+         project_id,
+         context_item_type,
+         kickoff_result
+       ) do
+    update(socket, :issue_triage_workflow_kickoff_states, fn states ->
+      InventoryActionState.put_issue_triage_feedback(
+        states,
+        project_id,
+        context_item_type,
+        kickoff_result
+      )
+    end)
+  end
+
+  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result) do
+    update(socket, :recent_run_outcomes, fn outcomes ->
+      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result)
+    end)
+  end
+
+  defp initiating_actor(socket) do
+    socket.assigns
+    |> Map.get(:current_user)
+    |> case do
+      %{} = user ->
+        %{
+          id:
+            user
+            |> Map.get(:id)
+            |> normalize_optional_string() || "unknown",
+          email:
+            user
+            |> Map.get(:email)
+            |> normalize_optional_string()
+        }
+
+      _other ->
+        %{id: "unknown", email: nil}
+    end
+  end
 
   defp summarize_runtime_evidence(summaries) when is_list(summaries) do
     %{

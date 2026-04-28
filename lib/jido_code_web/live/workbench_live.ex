@@ -241,7 +241,10 @@ defmodule JidoCodeWeb.WorkbenchLive do
       <section class="space-y-2">
         <h1 class="text-2xl font-bold">Workbench</h1>
         <p class="text-base-content/70">
-          Unified managed-repository inventory for issue and pull request triage.
+          Dense managed-repository inventory and triage mode for Dashboard Work.
+        </p>
+        <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
+          Use <.link navigate={~p"/dashboard?subject=work&section=overview"} class="link link-primary">Dashboard Work</.link> for the lighter signed-in home when you do not need full filter and inventory controls.
         </p>
       </section>
 

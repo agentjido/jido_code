@@ -122,6 +122,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
           )})
         </p>
         <.link
+          :if={is_binary(@detail_path)}
           id={"#{@dom_prefix}-conversation-link-#{@row.id}"}
           class="link link-primary text-[11px]"
           href={@detail_path}
@@ -148,6 +149,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
           {InventorySurface.conversation_supervision_notice(@row).detail}
         </p>
         <.link
+          :if={is_binary(@detail_path)}
           id={"#{@dom_prefix}-conversation-notice-link-#{@row.id}"}
           class="link link-primary text-[11px]"
           href={@detail_path}

@@ -74,6 +74,46 @@ async function activateTab(page: Page, selector: string) {
   await waitForLiveViewConnection(page)
 }
 
+async function shellLayoutMetrics(page: Page, sidebarSelector: string, paneSelector: string) {
+  return page.evaluate(
+    ([sidebarQuery, paneQuery]) => {
+      const sidebar = document.querySelector(sidebarQuery)
+      const pane = document.querySelector(paneQuery)
+
+      if (!(sidebar instanceof HTMLElement) || !(pane instanceof HTMLElement)) {
+        return null
+      }
+
+      const sidebarBox = sidebar.getBoundingClientRect()
+      const paneBox = pane.getBoundingClientRect()
+
+      return {
+        sidebarLeft: sidebarBox.left,
+        sidebarRight: sidebarBox.right,
+        sidebarBottom: sidebarBox.bottom,
+        paneLeft: paneBox.left,
+        paneTop: paneBox.top,
+      }
+    },
+    [sidebarSelector, paneSelector] as const
+  )
+}
+
+async function expectSidebarLeftOfPane(page: Page, sidebarSelector: string, paneSelector: string) {
+  const metrics = await shellLayoutMetrics(page, sidebarSelector, paneSelector)
+
+  expect(metrics).not.toBeNull()
+  expect((metrics?.sidebarRight ?? 0) + 12).toBeLessThan(metrics?.paneLeft ?? 0)
+}
+
+async function expectSidebarAbovePane(page: Page, sidebarSelector: string, paneSelector: string) {
+  const metrics = await shellLayoutMetrics(page, sidebarSelector, paneSelector)
+
+  expect(metrics).not.toBeNull()
+  expect((metrics?.sidebarBottom ?? 0) - 4).toBeLessThanOrEqual(metrics?.paneTop ?? 0)
+  expect(Math.abs((metrics?.sidebarLeft ?? 0) - (metrics?.paneLeft ?? 0))).toBeLessThan(12)
+}
+
 test("dashboard sidebar keeps the ready-state landing route scanable on wide screens", async ({
   page,
   request,
@@ -83,15 +123,23 @@ test("dashboard sidebar keeps the ready-state landing route scanable on wide scr
   await signIn(page, "/dashboard?onboarding=completed")
 
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
+  await expect(page.locator("#dashboard-shell-breadcrumbs")).toBeVisible()
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
+  await expect(page.locator("#dashboard-section-nav-overview")).toHaveAttribute("aria-controls", "dashboard-pane-overview")
   await expect(page.locator("#dashboard-settings-handoff")).toContainText("Settings")
+  await expectSidebarLeftOfPane(page, "#dashboard-sidebar-shell", "#dashboard-pane-overview")
+  await expect(page.locator("#dashboard-pane-overview-header")).toContainText("Dashboard overview")
+  await expect(page.locator("#dashboard-pane-overview-middle")).toBeVisible()
+  await expect(page.locator("#dashboard-pane-overview-footer")).toBeVisible()
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
   await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
 
   await activateTab(page, "#dashboard-section-nav-runs")
   await expect(page).toHaveURL(/\/dashboard\?onboarding=completed&section=runs$/)
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "runs")
+  await expect(page.locator("#dashboard-section-nav-runs")).toHaveAttribute("aria-controls", "dashboard-pane-runs")
+  await expect(page.locator("#dashboard-pane-runs-header")).toContainText("Recent governed runs")
   await expect(page.locator("#dashboard-run-summaries")).toBeVisible()
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(0)
 
@@ -121,9 +169,11 @@ test("dashboard sidebar navigation stays usable as a wrapped fallback on narrow 
   await page.setViewportSize({ width: 430, height: 1100 })
   await signIn(page, "/dashboard?onboarding=completed")
 
+  await expect(page.locator("#dashboard-shell-breadcrumbs")).toBeVisible()
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
   await expectNoHorizontalOverflow(page, "#dashboard-section-nav")
+  await expectSidebarAbovePane(page, "#dashboard-sidebar-shell", "#dashboard-pane-overview")
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
   await expect(page.locator("#dashboard-overview-repository-list")).toHaveCount(0)
 

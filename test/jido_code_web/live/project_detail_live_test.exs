@@ -19,6 +19,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   import Phoenix.LiveViewTest
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Accounts.User
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
@@ -62,7 +63,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
   test "launches supported builtin workflows from /repos/:id with defaults and repo-detail traceability",
        %{conn: _conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
@@ -198,7 +199,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "repo detail keeps route-owned section selection with overview as the default family", %{
     conn: _conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
@@ -268,7 +269,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   end
 
   test "route-owned section navigation switches repo-detail families in place", %{conn: _conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
@@ -343,11 +344,58 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute has_element?(view, "#project-detail-memory-inspection")
   end
 
+  test "repo detail renders breadcrumbs before child subjects and targets the selected pane", %{
+    conn: _conn
+  } do
+    bootstrap_owner!("repo-shell-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("repo-shell-owner@example.com", "owner-password-123")
+
+    workspace_path = create_workspace_path!()
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-shell-layout",
+        github_full_name: "owner/repo-shell-layout",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+
+    html = render(view)
+
+    assert rendered_fragment_index(html, ~s(id="project-detail-github-full-name")) <
+             rendered_fragment_index(html, ~s(id="project-detail-shell-breadcrumbs"))
+
+    assert rendered_fragment_index(html, ~s(id="project-detail-shell-breadcrumbs")) <
+             rendered_fragment_index(html, ~s(id="project-detail-section-nav"))
+
+    assert has_element?(
+             view,
+             "#project-detail-section-nav-memory[aria-controls='project-detail-pane-memory'][aria-current='page']"
+           )
+
+    assert has_element?(view, "#project-detail-pane-memory[role='region']")
+    assert has_element?(view, "#project-detail-pane-memory-header")
+    assert has_element?(view, "#project-detail-pane-memory-middle")
+    assert has_element?(view, "#project-detail-pane-memory-footer")
+  end
+
   test "disables project-detail launch controls with remediation when execution prerequisites are blocked",
        %{
          conn: _conn
        } do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
@@ -421,7 +469,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
        %{
          conn: _conn
        } do
-    register_owner("workflow-binding-owner@example.com", "owner-password-123")
+    bootstrap_owner!("workflow-binding-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("workflow-binding-owner@example.com", "owner-password-123")
@@ -463,7 +511,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   end
 
   test "renders project overview inside the overview family", %{conn: _conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
@@ -504,7 +552,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   end
 
   test "hosts repo conversation interaction inside the managed repo detail route", %{conn: _conn} do
-    register_owner("conversation-owner@example.com", "owner-password-123")
+    bootstrap_owner!("conversation-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("conversation-owner@example.com", "owner-password-123")
@@ -606,7 +654,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "surfaces explicit conversation runtime readiness failures on the repo detail route", %{
     conn: _conn
   } do
-    register_owner("conversation-runtime-owner@example.com", "owner-password-123")
+    bootstrap_owner!("conversation-runtime-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("conversation-runtime-owner@example.com", "owner-password-123")
@@ -693,7 +741,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "repo detail can repair a blocked repo-scoped workspace binding directly from the route", %{
     conn: _conn
   } do
-    register_owner("conversation-runtime-repair-owner@example.com", "owner-password-123")
+    bootstrap_owner!("conversation-runtime-repair-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn(
@@ -733,6 +781,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-overview-panel")
     assert has_element?(view, "#project-detail-workspace-binding-badge", "Needs path")
+
     assert has_element?(
              view,
              "#project-detail-workspace-binding-form-note",
@@ -767,7 +816,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
     Application.put_env(:jido_code, :memory_graph_enabled, true)
 
-    register_owner("repo-workspace-surface-owner@example.com", "owner-password-123")
+    bootstrap_owner!("repo-workspace-surface-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("repo-workspace-surface-owner@example.com", "owner-password-123")
@@ -804,14 +853,20 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
 
     assert has_element?(memory_view, "#project-detail-memory-notice-type", "memory_workspace_binding_unavailable")
-    assert has_element?(memory_view, "#project-detail-memory-notice-detail", "no repo-scoped local workspace path is saved for memory inspection")
+
+    assert has_element?(
+             memory_view,
+             "#project-detail-memory-notice-detail",
+             "no repo-scoped local workspace path is saved for memory inspection"
+           )
+
     assert has_element?(memory_view, "#project-detail-memory-repair-workspace", "Repair workspace binding")
   end
 
   test "shows bounded conversation runtime readiness with the selected LLM on repo detail", %{
     conn: _conn
   } do
-    register_owner("conversation-readiness-owner@example.com", "owner-password-123")
+    bootstrap_owner!("conversation-readiness-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("conversation-readiness-owner@example.com", "owner-password-123")
@@ -856,7 +911,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       JidoCodeWeb.FailingConversationSubscriber
     )
 
-    register_owner("conversation-degraded-owner@example.com", "owner-password-123")
+    bootstrap_owner!("conversation-degraded-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("conversation-degraded-owner@example.com", "owner-password-123")
@@ -919,7 +974,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "hosts bounded semantic inspection inside the managed repo detail route", %{conn: _conn} do
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
 
-    register_owner("semantic-owner@example.com", "owner-password-123")
+    bootstrap_owner!("semantic-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("semantic-owner@example.com", "owner-password-123")
@@ -981,7 +1036,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "shows stale semantic status and lets operators recover from repo detail", %{conn: _conn} do
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
 
-    register_owner("semantic-stale-owner@example.com", "owner-password-123")
+    bootstrap_owner!("semantic-stale-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("semantic-stale-owner@example.com", "owner-password-123")
@@ -1037,7 +1092,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "falls back to server-rendered semantic inspection when richer delivery degrades", %{conn: _conn} do
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
 
-    register_owner("semantic-fallback-owner@example.com", "owner-password-123")
+    bootstrap_owner!("semantic-fallback-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("semantic-fallback-owner@example.com", "owner-password-123")
@@ -1094,7 +1149,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     Application.put_env(:jido_code, :memory_graph_enabled, true)
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
 
-    register_owner("memory-owner@example.com", "owner-password-123")
+    bootstrap_owner!("memory-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("memory-owner@example.com", "owner-password-123")
@@ -1143,7 +1198,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "surfaces stale memory inspection with recovery on repo detail", %{conn: _conn} do
     Application.put_env(:jido_code, :memory_graph_enabled, true)
 
-    register_owner("memory-stale-owner@example.com", "owner-password-123")
+    bootstrap_owner!("memory-stale-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
       authenticate_owner_conn("memory-stale-owner@example.com", "owner-password-123")
@@ -1315,6 +1370,27 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              )
   end
 
+  defp bootstrap_owner!(email, password) when is_binary(email) and is_binary(password) do
+    case User.bootstrap_admin(
+           %{
+             email: email,
+             password: password,
+             password_confirmation: password
+           },
+           authorize?: false
+         ) do
+      {:ok, _owner} ->
+        :ok
+
+      {:error, reason} ->
+        if Exception.message(reason) =~ "has already been taken" do
+          :ok
+        else
+          raise "owner bootstrap failed: #{Exception.message(reason)}"
+        end
+    end
+  end
+
   defp latest_repo_conversation_id!(managed_repo_id) do
     assert {:ok, %{id: conversation_id}} =
              AgentWorkspace.latest_repo_conversation(managed_repo_id, actor: Actor.operator_actor())
@@ -1332,6 +1408,13 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
           false
       end
     end)
+  end
+
+  defp rendered_fragment_index(html, fragment) when is_binary(html) and is_binary(fragment) do
+    case :binary.match(html, fragment) do
+      {index, _length} -> index
+      :nomatch -> flunk("expected fragment #{inspect(fragment)} in rendered output")
+    end
   end
 
   defp assert_eventually(fun, attempts \\ 20)

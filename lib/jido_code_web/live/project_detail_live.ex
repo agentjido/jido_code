@@ -21,6 +21,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Conversations.PubSub, as: ConversationPubSub
   alias JidoCode.Conversations.RuntimeReadiness
   alias JidoCode.LLMSelection
+  alias JidoCodeWeb.OperatorShell
   alias JidoCode.Workbench.ProjectDetail
   alias JidoCode.Workbench.ProjectConversation
   alias JidoCode.Workbench.ProjectMemoryInspection
@@ -61,7 +62,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
      |> assign(:selected_detail_section, :overview)
-     |> assign(:workspace_binding_form, to_form(%{"workspace_environment" => "sprite", "workspace_path" => ""}, as: :workspace_binding))
+     |> assign(
+       :workspace_binding_form,
+       to_form(%{"workspace_environment" => "sprite", "workspace_path" => ""}, as: :workspace_binding)
+     )
      |> assign(:workspace_binding_form_values, %{"workspace_environment" => "sprite", "workspace_path" => ""})
      |> assign(:workspace_binding_feedback, nil)
      |> assign(:workspace_binding_feedback_kind, :info)
@@ -103,7 +107,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               |> assign(:semantic_action_feedback, nil)
               |> assign(:memory_inspection, nil)
               |> assign(:memory_action_feedback, nil)
-              |> assign(:workspace_binding_form, to_form(%{"workspace_environment" => "sprite", "workspace_path" => ""}, as: :workspace_binding))
+              |> assign(
+                :workspace_binding_form,
+                to_form(%{"workspace_environment" => "sprite", "workspace_path" => ""}, as: :workspace_binding)
+              )
               |> assign(:workspace_binding_form_values, %{"workspace_environment" => "sprite", "workspace_path" => ""})
               |> clear_project_conversation()
           end
@@ -249,8 +256,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
          |> assign_workspace_binding_form(workspace_binding_form_values(workspace_settings))
          |> assign(:workspace_binding_feedback, %{
            error_type: "managed_repo_workspace_binding_updated",
-           detail:
-             "Repo-scoped workspace binding saved for #{socket.assigns.project_detail.github_full_name}.",
+           detail: "Repo-scoped workspace binding saved for #{socket.assigns.project_detail.github_full_name}.",
            remediation:
              "Conversation, semantic, memory, and workflow readiness on this route now read from the updated repo-scoped binding."
          })
@@ -447,12 +453,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         kind={:error}
       />
 
-      <section
-        :if={@project_detail}
-        id={"project-detail-panel-#{@project_detail.id}"}
-        data-detail-section={Atom.to_string(@selected_detail_section)}
-        class="space-y-4 rounded-lg border border-base-300 bg-base-100 p-4"
-      >
+      <section :if={@project_detail} class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p id="project-detail-github-full-name" class="text-lg font-semibold">
@@ -466,26 +467,27 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             Back
           </.link>
         </div>
+      </section>
 
-        <div class="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
-          <aside id="project-detail-section-sidebar" class="min-w-0">
-            <.detail_section_nav
-              id="project-detail-section-nav"
-              project_detail={@project_detail}
-              return_to_path={@return_to_path}
-              selected_detail_section={@selected_detail_section}
-              selected_work_item_id={@selected_work_item_id}
-              conversation_roster={@conversation_roster}
-              repo_intake_surface={@repo_intake_surface}
-              conversation_snapshot={@conversation_snapshot}
-              conversation_runtime={@conversation_runtime}
-              conversation_stream_mode={@conversation_stream_mode}
-              semantic_inspection={@semantic_inspection}
-              memory_inspection={@memory_inspection}
-            />
-          </aside>
-
-          <div id="project-detail-section-content" class="min-w-0 space-y-4">
+      <section
+        :if={@project_detail}
+        id={"project-detail-panel-#{@project_detail.id}"}
+        data-detail-section={Atom.to_string(@selected_detail_section)}
+        class="space-y-4"
+      >
+        <.subject_tree_shell
+          id="project-detail-shell"
+          breadcrumbs={project_detail_breadcrumbs(assigns)}
+          parent_subjects={project_detail_parent_subjects()}
+          child_subjects={detail_section_items(assigns)}
+          child_nav_id="project-detail-section-nav"
+          child_nav_label="Repo sections"
+          child_nav_heading="Repo sections"
+          child_nav_summary="Move between repository summary, productive work, knowledge, and launch controls without leaving this managed-repository route."
+          sidebar_id="project-detail-section-sidebar"
+          content_id="project-detail-section-content"
+        >
+          <.subject_pane pane={project_detail_selected_pane(assigns)}>
             <section :if={@selected_detail_section == :overview} id="project-detail-overview-panel" class="space-y-4">
               <div class="space-y-1">
                 <h2 class="text-lg font-semibold">Repository overview</h2>
@@ -670,1091 +672,1097 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               </section>
             </section>
 
-            <section :if={@selected_detail_section == :conversations} id="project-detail-conversation-panel" class="space-y-4">
-          <div class="space-y-1">
-            <h2 class="text-lg font-semibold">Repository conversation</h2>
-            <p class="text-sm text-base-content/70">
-              Repository conversations stay product-owned on this managed-repository route: repo intake stays bounded here, governed work-item conversations stay resumable here, and live delivery recovers from the latest durable snapshot when the stream degrades.
-            </p>
-          </div>
-
-          <section id="project-detail-conversation-workspace-summary" class="grid gap-3 md:grid-cols-3">
-            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-                Current focus
-              </p>
-              <p id="project-detail-conversation-workspace-focus" class="font-semibold">
-                {conversation_workspace_focus_label(
-                  @selected_work_item_id,
-                  @conversation_surface,
-                  @repo_intake_surface
-                )}
-              </p>
-              <p class="text-sm text-base-content/70">
-                {conversation_workspace_focus_summary(
-                  @selected_work_item_id,
-                  @conversation_surface,
-                  @repo_intake_surface
-                )}
-              </p>
-            </article>
-
-            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-                Governed work
-              </p>
-              <p id="project-detail-conversation-governed-count" class="font-semibold">
-                {length(@conversation_roster)} active thread{if length(@conversation_roster) == 1, do: "", else: "s"}
-              </p>
-              <p class="text-sm text-base-content/70">
-                {conversation_governed_summary(@conversation_roster)}
-              </p>
-            </article>
-
-            <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-                Runtime posture
-              </p>
-              <p id="project-detail-conversation-workspace-runtime" class="font-semibold">
-                {conversation_workspace_runtime_label(
-                  @conversation_runtime,
-                  @conversation_stream_mode
-                )}
-              </p>
-              <p class="text-sm text-base-content/70">
-                {conversation_workspace_runtime_summary(
-                  @conversation_runtime,
-                  @conversation_stream_mode
-                )}
-              </p>
-            </article>
-          </section>
-
-          <.operator_state_notice
-            :if={@conversation_action_feedback}
-            id="project-detail-conversation-feedback"
-            title="Repository conversation update"
-            state={@conversation_action_feedback}
-            kind={@conversation_action_feedback_kind}
-          />
-
-          <div class="grid gap-4 xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
-            <aside class="space-y-4">
-              <section
-                id="project-detail-conversation-intake"
-                class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
-              >
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="space-y-1">
-                    <h3 class="font-semibold">Repo intake</h3>
-                    <p class="text-sm text-base-content/70">
-                      Keep triage and pre-work clarification here before work settles onto governed WorkItems.
-                    </p>
-                  </div>
-                  <.conversation_role_badge
-                    :if={@repo_intake_surface && @repo_intake_surface.conversation}
-                    id="project-detail-conversation-intake-role"
-                    scope={Map.get(@repo_intake_surface.conversation, :scope)}
-                    attachment_mode={Map.get(@repo_intake_surface.conversation, :attachment_mode)}
-                    work_item_id={Map.get(@repo_intake_surface.conversation, :work_item_id)}
-                  />
-                </div>
-
-                <%= if @repo_intake_surface.conversation do %>
-                  <div class="space-y-2">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <.conversation_status_badge
-                        id="project-detail-conversation-intake-status"
-                        status={Map.get(@repo_intake_surface.conversation, :status)}
-                      />
-                      <p
-                        id="project-detail-conversation-intake-id"
-                        class="text-xs font-mono text-base-content/60"
-                      >
-                        {Map.get(@repo_intake_surface.conversation, :id)}
-                      </p>
-                    </div>
-                    <p
-                      id="project-detail-conversation-intake-detail"
-                      class="text-sm text-base-content/80"
-                    >
-                      {repo_intake_summary(@repo_intake_surface)}
-                    </p>
-                    <p
-                      :if={repo_intake_handoff_work_item_id(@repo_intake_surface)}
-                      id="project-detail-conversation-intake-handoff"
-                      class="text-xs text-base-content/70"
-                    >
-                      Latest handoff targets WorkItem {repo_intake_handoff_work_item_id(@repo_intake_surface)}.
-                    </p>
-                    <p
-                      :if={conversation_latest_activity_label(@repo_intake_surface)}
-                      id="project-detail-conversation-intake-latest-activity"
-                      class="text-xs text-base-content/70"
-                    >
-                      Latest activity: {conversation_latest_activity_label(@repo_intake_surface)}
-                    </p>
-                  </div>
-                <% else %>
-                  <p id="project-detail-conversation-intake-empty" class="text-sm text-base-content/70">
-                    No repo intake conversation is open yet for this managed repository.
-                  </p>
-                <% end %>
-
-                <.operator_state_notice
-                  :if={conversation_notice_visible?(@repo_intake_surface)}
-                  id="project-detail-conversation-intake-notice"
-                  title="Repo intake state"
-                  state={@repo_intake_surface.notice}
-                  kind={:warning}
-                  compact={true}
-                />
-
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    :if={@selected_work_item_id}
-                    id="project-detail-conversation-focus-intake"
-                    type="button"
-                    class="btn btn-xs btn-outline"
-                    phx-click="focus_repo_intake_conversation"
-                  >
-                    View repo intake detail
-                  </button>
-                  <button
-                    id="project-detail-conversation-open"
-                    type="button"
-                    class="btn btn-sm btn-primary"
-                    phx-click="open_repo_conversation"
-                  >
-                    {@repo_intake_surface.action_label}
-                  </button>
-                </div>
-              </section>
-
-              <section
-                id="project-detail-conversation-roster"
-                class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
-              >
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                  <div class="space-y-1">
-                    <h3 class="font-semibold">Active governed conversations</h3>
-                    <p class="text-sm text-base-content/70">
-                      Each active work item keeps its own productive conversation thread.
-                    </p>
-                  </div>
-                  <span id="project-detail-conversation-roster-count" class="badge badge-outline">
-                    {length(@conversation_roster)}
-                  </span>
-                </div>
-
-                <.operator_state_notice
-                  :if={@conversation_roster_notice}
-                  id="project-detail-conversation-roster-notice"
-                  title="Governed conversation roster"
-                  state={@conversation_roster_notice}
-                  kind={:warning}
-                  compact={true}
-                />
-
-                <%= if @conversation_roster == [] do %>
-                  <p id="project-detail-conversation-roster-empty" class="text-sm text-base-content/70">
-                    No active governed work-item conversations are attached to this repository yet.
-                  </p>
-                <% else %>
-                  <ol id="project-detail-conversation-roster-list" class="space-y-3">
-                    <li
-                      :for={entry <- @conversation_roster}
-                      id={"project-detail-conversation-roster-entry-#{Map.get(entry.work_item || %{}, :id)}"}
-                      class={[
-                        "rounded-lg border p-3 space-y-2",
-                        if(conversation_roster_selected?(@selected_work_item_id, entry),
-                          do: "border-primary/60 bg-primary/5",
-                          else: "border-base-300/70 bg-base-200/20"
-                        )
-                      ]}
-                    >
-                      <div class="flex flex-wrap items-start justify-between gap-2">
-                        <div class="space-y-1">
-                          <p
-                            id={"project-detail-conversation-roster-work-item-#{Map.get(entry.work_item || %{}, :id)}"}
-                            class="text-sm font-medium"
-                          >
-                            {Map.get(entry.work_item || %{}, :summary)}
-                          </p>
-                          <p class="text-xs text-base-content/70">
-                            {Map.get(entry.work_item || %{}, :id)}
-                          </p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                          <.conversation_role_badge
-                            id={"project-detail-conversation-roster-role-#{Map.get(entry.work_item || %{}, :id)}"}
-                            scope={Map.get(entry.conversation || %{}, :scope)}
-                            attachment_mode={Map.get(entry.conversation || %{}, :attachment_mode)}
-                            work_item_id={Map.get(entry.conversation || %{}, :work_item_id)}
-                          />
-                          <.conversation_status_badge
-                            id={"project-detail-conversation-roster-status-#{Map.get(entry.work_item || %{}, :id)}"}
-                            status={Map.get(entry.conversation || %{}, :status)}
-                          />
-                        </div>
-                      </div>
-
-                      <p
-                        id={"project-detail-conversation-roster-detail-#{Map.get(entry.work_item || %{}, :id)}"}
-                        class="text-sm text-base-content/80"
-                      >
-                        {conversation_surface_summary(entry)}
-                      </p>
-
-                      <p
-                        :if={conversation_latest_activity_label(entry)}
-                        id={"project-detail-conversation-roster-latest-activity-#{Map.get(entry.work_item || %{}, :id)}"}
-                        class="text-xs text-base-content/70"
-                      >
-                        Latest activity: {conversation_latest_activity_label(entry)}
-                      </p>
-
-                      <p
-                        :if={entry.historical_conversation}
-                        id={"project-detail-conversation-roster-history-#{Map.get(entry.work_item || %{}, :id)}"}
-                        class="text-xs text-base-content/70"
-                      >
-                        Historical lineage preserved from {entry.historical_conversation.id}.
-                      </p>
-
-                      <div class="flex flex-wrap items-center gap-2">
-                        <button
-                          id={"project-detail-conversation-roster-focus-#{Map.get(entry.work_item || %{}, :id)}"}
-                          type="button"
-                          class="btn btn-xs btn-outline"
-                          phx-click="focus_work_item_conversation"
-                          phx-value-work_item_id={Map.get(entry.work_item || %{}, :id)}
-                        >
-                          {if conversation_roster_selected?(@selected_work_item_id, entry),
-                            do: "Selected detail",
-                            else: "View governed detail"}
-                        </button>
-                      </div>
-                    </li>
-                  </ol>
-                <% end %>
-              </section>
-            </aside>
-
             <section
-              id="project-detail-conversation-detail"
-              class="rounded-lg border border-base-300/70 bg-base-100"
+              :if={@selected_detail_section == :conversations}
+              id="project-detail-conversation-panel"
+              class="space-y-4"
             >
-              <div class="border-b border-base-300/70 px-4 py-3 space-y-2">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="space-y-1">
-                    <h3 id="project-detail-conversation-detail-title" class="font-semibold">
-                      {selected_conversation_title(@selected_work_item_id, @conversation_surface)}
-                    </h3>
-                    <p class="text-sm text-base-content/70">
-                      {selected_conversation_summary(@selected_work_item_id, @conversation_surface)}
-                    </p>
-                    <p
-                      :if={@selected_work_item_id && @conversation_surface.work_item}
-                      id="project-detail-selected-work-item"
-                      class="text-xs text-base-content/70"
-                    >
-                      Following governed conversation for WorkItem {@selected_work_item_id}.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap items-center gap-2 text-xs">
-                    <.conversation_role_badge
-                      :if={@conversation_surface.conversation}
-                      id="project-detail-conversation-role"
-                      scope={Map.get(@conversation_surface.conversation, :scope)}
-                      attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
-                      work_item_id={Map.get(@conversation_surface.conversation, :work_item_id)}
-                      historical={!is_nil(@conversation_surface.historical_conversation)}
-                    />
-                    <.conversation_status_badge
-                      :if={@conversation_surface.conversation}
-                      id="project-detail-conversation-status"
-                      status={Map.get(@conversation_surface.conversation, :status)}
-                    />
-                    <p
-                      :if={@conversation_surface.conversation}
-                      id="project-detail-conversation-id"
-                      class="text-xs font-mono text-base-content/60"
-                    >
-                      {Map.get(@conversation_surface.conversation, :id)}
-                    </p>
-                  </div>
-                </div>
-
-                <.operator_state_notice
-                  :if={conversation_notice_visible?(@conversation_surface)}
-                  id="project-detail-conversation-notice"
-                  title="Selected conversation state"
-                  state={@conversation_surface.notice}
-                  kind={:warning}
-                  compact={true}
-                />
-
-                <section
-                  id="project-detail-conversation-runtime"
-                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-3"
-                >
-                  <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="space-y-1">
-                      <h4 class="font-semibold">Conversation runtime readiness</h4>
-                      <p class="text-xs text-base-content/60">
-                        Selected LLM, repo-scoped workspace binding, and readiness stay visible on the route before runtime metadata.
-                      </p>
-                    </div>
-                    <span
-                      id="project-detail-conversation-runtime-status"
-                      class={[
-                        "badge badge-sm badge-outline font-medium",
-                        conversation_runtime_status_class(@conversation_runtime)
-                      ]}
-                    >
-                      {conversation_runtime_status_label(@conversation_runtime)}
-                    </span>
-                  </div>
-
-                  <div class="grid gap-2 md:grid-cols-3">
-                    <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
-                      <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                        Selected LLM
-                      </p>
-                      <p id="project-detail-conversation-runtime-llm" class="mt-1 text-sm font-medium break-all">
-                        {conversation_runtime_llm_label(@conversation_runtime)}
-                      </p>
-                    </article>
-                    <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
-                      <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                        Selection source
-                      </p>
-                      <p id="project-detail-conversation-runtime-source" class="mt-1 text-sm font-medium">
-                        {conversation_runtime_source_label(@conversation_runtime)}
-                      </p>
-                    </article>
-                    <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
-                      <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                        Repo workspace path
-                      </p>
-                      <p
-                        id="project-detail-conversation-runtime-workspace"
-                        class="mt-1 text-sm font-medium break-all"
-                      >
-                        {conversation_runtime_workspace_label(@conversation_runtime)}
-                      </p>
-                    </article>
-                  </div>
-
-                  <.operator_state_notice
-                    :if={conversation_runtime_notice_visible?(@conversation_runtime)}
-                    id="project-detail-conversation-runtime-notice"
-                    title="Conversation runtime readiness"
-                    state={@conversation_runtime.notice}
-                    kind={:error}
-                    compact={true}
-                  >
-                    <:actions>
-                      <.link
-                        :if={workspace_binding_repair_visible?(@conversation_runtime.notice)}
-                        id="project-detail-conversation-runtime-repair"
-                        patch={
-                          project_detail_section_path(
-                            @project_detail,
-                            @return_to_path,
-                            section: :overview,
-                            work_item_id: @selected_work_item_id,
-                            anchor: "project-detail-workspace-binding-panel"
-                          )
-                        }
-                        class="btn btn-xs btn-outline"
-                      >
-                        Repair workspace binding
-                      </.link>
-                    </:actions>
-                    <p
-                      :if={conversation_runtime_preserves_state?(@conversation_runtime, @conversation_surface)}
-                      id="project-detail-conversation-runtime-preserved"
-                      class="text-sm"
-                    >
-                      Latest transcript and governed linkage remain visible below while this repository's workspace binding recovers.
-                    </p>
-                  </.operator_state_notice>
-                </section>
-
-                <div
-                  :if={@conversation_stream_mode == :degraded}
-                  id="project-detail-conversation-degraded"
-                  class="rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm text-warning-content"
-                >
-                  <p class="font-semibold">Conversation stream degraded</p>
-                  <p class="mt-1">{@conversation_degraded_mode_message}</p>
-                </div>
+              <div class="space-y-1">
+                <h2 class="text-lg font-semibold">Repository conversation</h2>
+                <p class="text-sm text-base-content/70">
+                  Repository conversations stay product-owned on this managed-repository route: repo intake stays bounded here, governed work-item conversations stay resumable here, and live delivery recovers from the latest durable snapshot when the stream degrades.
+                </p>
               </div>
 
-              <%= cond do %>
-                <% @conversation_surface.snapshot -> %>
-                  <div class="grid gap-3 lg:grid-cols-[2fr,1fr] p-4">
-                    <section class="rounded-lg border border-base-300/70 bg-base-100">
-                      <div class="border-b border-base-300/70 px-4 py-3">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <h3 class="font-semibold">Conversation transcript</h3>
-                            <p class="text-xs text-base-content/60">
-                              Recent event-driven transcript and operator controls for the selected conversation.
-                            </p>
-                          </div>
-                        </div>
+              <section id="project-detail-conversation-workspace-summary" class="grid gap-3 md:grid-cols-3">
+                <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                    Current focus
+                  </p>
+                  <p id="project-detail-conversation-workspace-focus" class="font-semibold">
+                    {conversation_workspace_focus_label(
+                      @selected_work_item_id,
+                      @conversation_surface,
+                      @repo_intake_surface
+                    )}
+                  </p>
+                  <p class="text-sm text-base-content/70">
+                    {conversation_workspace_focus_summary(
+                      @selected_work_item_id,
+                      @conversation_surface,
+                      @repo_intake_surface
+                    )}
+                  </p>
+                </article>
 
-                        <div id="project-detail-conversation-continuity" class="mt-3 grid gap-2 md:grid-cols-3">
-                          <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                              Stream continuity
-                            </p>
-                            <div class="mt-2 flex flex-wrap items-center gap-2">
-                              <.conversation_stream_badge
-                                id="project-detail-conversation-stream-mode"
-                                stream_mode={@conversation_stream_mode}
-                                discontinuity_count={@conversation_stream_discontinuity_count}
-                              />
-                            </div>
-                            <p
-                              id="project-detail-conversation-continuity-detail"
-                              class="mt-2 text-xs text-base-content/70"
-                            >
-                              {conversation_continuity_detail(
-                                @conversation_stream_mode,
-                                @conversation_stream_discontinuity_count
-                              )}
-                            </p>
-                          </article>
+                <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                    Governed work
+                  </p>
+                  <p id="project-detail-conversation-governed-count" class="font-semibold">
+                    {length(@conversation_roster)} active thread{if length(@conversation_roster) == 1, do: "", else: "s"}
+                  </p>
+                  <p class="text-sm text-base-content/70">
+                    {conversation_governed_summary(@conversation_roster)}
+                  </p>
+                </article>
 
-                          <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                              Latest activity
-                            </p>
-                            <p
-                              id="project-detail-conversation-latest-activity"
-                              class="mt-1 text-sm font-medium"
-                            >
-                              {conversation_latest_activity_label(@conversation_surface) ||
-                                "No recent conversation activity"}
-                            </p>
-                            <p class="mt-2 text-xs text-base-content/70">
-                              Route continuity stays anchored to the latest durable snapshot.
-                            </p>
-                          </article>
+                <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                    Runtime posture
+                  </p>
+                  <p id="project-detail-conversation-workspace-runtime" class="font-semibold">
+                    {conversation_workspace_runtime_label(
+                      @conversation_runtime,
+                      @conversation_stream_mode
+                    )}
+                  </p>
+                  <p class="text-sm text-base-content/70">
+                    {conversation_workspace_runtime_summary(
+                      @conversation_runtime,
+                      @conversation_stream_mode
+                    )}
+                  </p>
+                </article>
+              </section>
 
-                          <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/60">
-                              Current turn
-                            </p>
-                            <p
-                              id="project-detail-conversation-turn-state"
-                              class="mt-1 text-sm font-medium"
-                            >
-                              {conversation_turn_summary(@conversation_snapshot)}
-                            </p>
-                            <p
-                              id="project-detail-conversation-sequence-summary"
-                              class="mt-2 text-xs text-base-content/70"
-                            >
-                              {conversation_sequence_summary(
-                                @conversation_last_event_sequence,
-                                @conversation_stream_discontinuity_count
-                              )}
-                            </p>
-                          </article>
-                        </div>
+              <.operator_state_notice
+                :if={@conversation_action_feedback}
+                id="project-detail-conversation-feedback"
+                title="Repository conversation update"
+                state={@conversation_action_feedback}
+                kind={@conversation_action_feedback_kind}
+              />
+
+              <div class="grid gap-4 xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+                <aside class="space-y-4">
+                  <section
+                    id="project-detail-conversation-intake"
+                    class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
+                  >
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div class="space-y-1">
+                        <h3 class="font-semibold">Repo intake</h3>
+                        <p class="text-sm text-base-content/70">
+                          Keep triage and pre-work clarification here before work settles onto governed WorkItems.
+                        </p>
                       </div>
+                      <.conversation_role_badge
+                        :if={@repo_intake_surface && @repo_intake_surface.conversation}
+                        id="project-detail-conversation-intake-role"
+                        scope={Map.get(@repo_intake_surface.conversation, :scope)}
+                        attachment_mode={Map.get(@repo_intake_surface.conversation, :attachment_mode)}
+                        work_item_id={Map.get(@repo_intake_surface.conversation, :work_item_id)}
+                      />
+                    </div>
 
-                      <div id="project-detail-conversation-events" class="max-h-96 space-y-3 overflow-y-auto px-4 py-4">
-                        <%= for event <- @conversation_events do %>
-                          <.conversation_event_row
-                            id={"project-detail-conversation-event-#{map_get(event, :id, "id")}"}
-                            sequence={map_get(event, :sequence, "sequence")}
-                            label={conversation_event_label(event)}
-                            event_name={map_get(event, :name, "name")}
-                            occurred_at={format_time(map_get(event, :occurred_at, "occurred_at"))}
-                            title={conversation_event_title(event)}
-                            excerpt={conversation_event_excerpt(event)}
-                            tone={conversation_event_tone(event)}
+                    <%= if @repo_intake_surface.conversation do %>
+                      <div class="space-y-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <.conversation_status_badge
+                            id="project-detail-conversation-intake-status"
+                            status={Map.get(@repo_intake_surface.conversation, :status)}
                           />
-                        <% end %>
-                      </div>
-
-                      <div class="border-t border-base-300/70 px-4 py-4">
-                        <div
-                          :if={conversation_pending_clarification(@conversation_snapshot)}
-                          id="project-detail-conversation-pending-clarification"
-                          class="mb-3 rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm"
-                        >
-                          <p class="font-semibold">Input required</p>
-                          <p class="mt-1">
-                            {conversation_clarification_prompt(@conversation_snapshot) ||
-                              "The active turn is waiting on clarification."}
-                          </p>
-                        </div>
-
-                        <form
-                          id="project-detail-conversation-form"
-                          phx-submit="send_conversation"
-                          class="flex flex-col gap-3 sm:flex-row"
-                        >
-                          <input
-                            id="project-detail-conversation-input"
-                            type="text"
-                            name="input"
-                            value={@conversation_input}
-                            phx-change="update_conversation_input"
-                            placeholder={
-                              if conversation_awaiting_input?(@conversation_snapshot) do
-                                conversation_clarification_prompt(@conversation_snapshot) ||
-                                  "Provide the missing clarification…"
-                              else
-                                "Describe the repository work this conversation should coordinate…"
-                              end
-                            }
-                            class="input input-bordered flex-1"
-                            autocomplete="off"
-                          />
-                          <button
-                            id="project-detail-conversation-submit"
-                            type="submit"
-                            class="btn btn-primary"
-                            disabled={
-                              String.trim(@conversation_input) == "" || conversation_paused?(@conversation_snapshot)
-                            }
-                          >
-                            {if conversation_awaiting_input?(@conversation_snapshot),
-                              do: "Resume turn",
-                              else: "Submit turn"}
-                          </button>
-                        </form>
-                      </div>
-                    </section>
-
-                    <aside class="space-y-3">
-                      <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
-                        <h3 class="font-semibold">Conversation state</h3>
-                        <dl class="mt-3 space-y-2 text-sm">
-                          <div class="flex justify-between gap-3">
-                            <dt class="text-base-content/70">Status</dt>
-                            <dd class="font-medium">
-                              <.conversation_status_badge
-                                id="project-detail-conversation-status-detail"
-                                status={Map.get(@conversation_surface.conversation, :status)}
-                              />
-                            </dd>
-                          </div>
-                          <div class="flex justify-between gap-3">
-                            <dt class="text-base-content/70">Scope</dt>
-                            <dd class="font-medium">
-                              <.conversation_role_badge
-                                id="project-detail-conversation-scope"
-                                scope={Map.get(@conversation_surface.conversation, :scope)}
-                                attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
-                                work_item_id={Map.get(@conversation_surface.conversation, :work_item_id)}
-                              />
-                            </dd>
-                          </div>
-                          <div class="flex justify-between gap-3">
-                            <dt class="text-base-content/70">Attachment</dt>
-                            <dd id="project-detail-conversation-attachment" class="font-medium">
-                              {Map.get(@conversation_surface.conversation, :attachment_mode)}
-                            </dd>
-                          </div>
-                          <div class="flex justify-between gap-3">
-                            <dt class="text-base-content/70">Work item</dt>
-                            <dd id="project-detail-conversation-work-item" class="font-medium">
-                              {Map.get(@conversation_snapshot, :work_item_id) || "repo-scoped"}
-                            </dd>
-                          </div>
-                          <div class="flex justify-between gap-3">
-                            <dt class="text-base-content/70">Resolution</dt>
-                            <dd id="project-detail-conversation-work-resolution" class="font-medium">
-                              {conversation_work_resolution_action(@conversation_surface)}
-                            </dd>
-                          </div>
-                          <div class="flex justify-between gap-3">
-                            <dt class="text-base-content/70">Active turn</dt>
-                            <dd class="font-medium">
-                              {conversation_turn_state(@conversation_snapshot)}
-                            </dd>
-                          </div>
-                        </dl>
-
-                        <section
-                          :if={@conversation_surface.work_item}
-                          id="project-detail-conversation-governed-work"
-                          class="mt-4 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
-                        >
-                          <div class="flex items-start justify-between gap-3">
-                            <div class="space-y-1">
-                              <p class="text-xs uppercase tracking-wide text-base-content/60">
-                                Governed work item
-                              </p>
-                              <p
-                                id="project-detail-conversation-governed-work-summary"
-                                class="font-semibold"
-                              >
-                                {Map.get(@conversation_surface.work_item, :summary)}
-                              </p>
-                              <p
-                                id="project-detail-conversation-governed-work-id"
-                                class="text-xs font-mono text-base-content/60"
-                              >
-                                {Map.get(@conversation_surface.work_item, :id)}
-                              </p>
-                            </div>
-                            <span
-                              id="project-detail-conversation-governed-work-status"
-                              class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
-                            >
-                              {Map.get(@conversation_surface.work_item, :status)}
-                            </span>
-                          </div>
-
                           <p
-                            id="project-detail-conversation-work-resolution-detail"
-                            class="mt-2 text-sm text-base-content/70"
+                            id="project-detail-conversation-intake-id"
+                            class="text-xs font-mono text-base-content/60"
                           >
-                            {conversation_work_resolution_detail(@conversation_surface)}
-                          </p>
-
-                          <div class="mt-3 flex flex-wrap gap-2">
-                            <.link
-                              :if={conversation_workbench_path(@project_detail)}
-                              id="project-detail-conversation-open-workbench"
-                              class="btn btn-xs btn-outline"
-                              navigate={conversation_workbench_path(@project_detail)}
-                            >
-                              Open in Workbench
-                            </.link>
-                          </div>
-                        </section>
-                      </section>
-
-                      <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
-                        <h3 class="font-semibold">Execution</h3>
-                        <div
-                          :if={conversation_latest_progress(@conversation_snapshot)}
-                          id="project-detail-conversation-progress"
-                          class="mt-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm"
-                        >
-                          <p class="font-semibold">Latest progress</p>
-                          <p class="mt-1">
-                            {conversation_latest_progress(@conversation_snapshot)["summary"] ||
-                              "Runtime progress update received."}
+                            {Map.get(@repo_intake_surface.conversation, :id)}
                           </p>
                         </div>
-
-                        <div
-                          :if={conversation_stdout_preview(@conversation_snapshot) != []}
-                          id="project-detail-conversation-stdout"
-                          class="mt-3 rounded-lg border border-base-300/70 bg-base-200/30 p-3 text-sm"
+                        <p
+                          id="project-detail-conversation-intake-detail"
+                          class="text-sm text-base-content/80"
                         >
-                          <p class="font-semibold">Recent tool output</p>
-                          <pre class="mt-2 whitespace-pre-wrap font-mono text-xs">
-                            <%= for line <- conversation_stdout_preview(@conversation_snapshot) do %>
-                              {line}
-                            <% end %>
-                          </pre>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap gap-2">
-                          <button
-                            id="project-detail-conversation-pause"
-                            type="button"
-                            class="btn btn-sm btn-outline"
-                            phx-click="pause_conversation"
-                            disabled={
-                              conversation_paused?(@conversation_snapshot) ||
-                                !is_binary(Map.get(@conversation_surface.conversation || %{}, :id))
-                            }
-                          >
-                            Pause
-                          </button>
-                          <button
-                            id="project-detail-conversation-resume"
-                            type="button"
-                            class="btn btn-sm btn-outline"
-                            phx-click="resume_conversation"
-                            disabled={!conversation_paused?(@conversation_snapshot)}
-                          >
-                            Resume
-                          </button>
-                          <button
-                            id="project-detail-conversation-stop-turn"
-                            type="button"
-                            class="btn btn-sm btn-outline"
-                            phx-click="stop_conversation_turn"
-                            disabled={!conversation_active_turn?(@conversation_snapshot)}
-                          >
-                            Stop turn
-                          </button>
-                        </div>
-                      </section>
-                    </aside>
-                  </div>
-                <% @conversation_surface.conversation || @conversation_surface.work_item -> %>
-                  <div class="p-4 space-y-4">
-                    <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3">
-                      <p
-                        :if={@conversation_surface.conversation}
-                        id="project-detail-conversation-detail-summary"
-                        class="text-sm text-base-content/80"
-                      >
-                        {conversation_surface_summary(@conversation_surface)}
-                      </p>
-                      <p
-                        :if={@conversation_surface.work_item}
-                        id="project-detail-conversation-detail-work-item"
-                        class="text-sm text-base-content/70"
-                      >
-                        Governed work item: {Map.get(@conversation_surface.work_item, :summary)}
-                      </p>
-                      <p
-                        :if={@conversation_surface.historical_conversation}
-                        id="project-detail-conversation-detail-history"
-                        class="text-xs text-base-content/70"
-                      >
-                        Historical lineage preserved from {@conversation_surface.historical_conversation.id}.
-                      </p>
-                      <div class="flex flex-wrap gap-2">
-                        <button
-                          :if={@selected_work_item_id}
-                          id="project-detail-conversation-open-selected"
-                          type="button"
-                          class="btn btn-sm btn-primary"
-                          phx-click="open_selected_conversation"
+                          {repo_intake_summary(@repo_intake_surface)}
+                        </p>
+                        <p
+                          :if={repo_intake_handoff_work_item_id(@repo_intake_surface)}
+                          id="project-detail-conversation-intake-handoff"
+                          class="text-xs text-base-content/70"
                         >
-                          {@conversation_surface.action_label}
-                        </button>
-                        <button
-                          :if={!@selected_work_item_id}
-                          id="project-detail-conversation-open-detail"
-                          type="button"
-                          class="btn btn-sm btn-primary"
-                          phx-click="open_repo_conversation"
+                          Latest handoff targets WorkItem {repo_intake_handoff_work_item_id(@repo_intake_surface)}.
+                        </p>
+                        <p
+                          :if={conversation_latest_activity_label(@repo_intake_surface)}
+                          id="project-detail-conversation-intake-latest-activity"
+                          class="text-xs text-base-content/70"
                         >
-                          {@repo_intake_surface.action_label}
-                        </button>
+                          Latest activity: {conversation_latest_activity_label(@repo_intake_surface)}
+                        </p>
                       </div>
-                    </section>
-                  </div>
-                <% true -> %>
-                  <div class="p-4">
-                    <div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 p-4 space-y-3">
-                      <p class="text-sm text-base-content/70">
-                        Open a repository conversation to coordinate repo-scoped work without leaving the managed-repository detail route.
+                    <% else %>
+                      <p id="project-detail-conversation-intake-empty" class="text-sm text-base-content/70">
+                        No repo intake conversation is open yet for this managed repository.
                       </p>
+                    <% end %>
+
+                    <.operator_state_notice
+                      :if={conversation_notice_visible?(@repo_intake_surface)}
+                      id="project-detail-conversation-intake-notice"
+                      title="Repo intake state"
+                      state={@repo_intake_surface.notice}
+                      kind={:warning}
+                      compact={true}
+                    />
+
+                    <div class="flex flex-wrap gap-2">
                       <button
-                        id="project-detail-conversation-open-empty"
+                        :if={@selected_work_item_id}
+                        id="project-detail-conversation-focus-intake"
                         type="button"
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-xs btn-outline"
+                        phx-click="focus_repo_intake_conversation"
+                      >
+                        View repo intake detail
+                      </button>
+                      <button
+                        id="project-detail-conversation-open"
+                        type="button"
+                        class="btn btn-sm btn-primary"
                         phx-click="open_repo_conversation"
                       >
                         {@repo_intake_surface.action_label}
                       </button>
                     </div>
+                  </section>
+
+                  <section
+                    id="project-detail-conversation-roster"
+                    class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div class="space-y-1">
+                        <h3 class="font-semibold">Active governed conversations</h3>
+                        <p class="text-sm text-base-content/70">
+                          Each active work item keeps its own productive conversation thread.
+                        </p>
+                      </div>
+                      <span id="project-detail-conversation-roster-count" class="badge badge-outline">
+                        {length(@conversation_roster)}
+                      </span>
+                    </div>
+
+                    <.operator_state_notice
+                      :if={@conversation_roster_notice}
+                      id="project-detail-conversation-roster-notice"
+                      title="Governed conversation roster"
+                      state={@conversation_roster_notice}
+                      kind={:warning}
+                      compact={true}
+                    />
+
+                    <%= if @conversation_roster == [] do %>
+                      <p id="project-detail-conversation-roster-empty" class="text-sm text-base-content/70">
+                        No active governed work-item conversations are attached to this repository yet.
+                      </p>
+                    <% else %>
+                      <ol id="project-detail-conversation-roster-list" class="space-y-3">
+                        <li
+                          :for={entry <- @conversation_roster}
+                          id={"project-detail-conversation-roster-entry-#{Map.get(entry.work_item || %{}, :id)}"}
+                          class={[
+                            "rounded-lg border p-3 space-y-2",
+                            if(conversation_roster_selected?(@selected_work_item_id, entry),
+                              do: "border-primary/60 bg-primary/5",
+                              else: "border-base-300/70 bg-base-200/20"
+                            )
+                          ]}
+                        >
+                          <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div class="space-y-1">
+                              <p
+                                id={"project-detail-conversation-roster-work-item-#{Map.get(entry.work_item || %{}, :id)}"}
+                                class="text-sm font-medium"
+                              >
+                                {Map.get(entry.work_item || %{}, :summary)}
+                              </p>
+                              <p class="text-xs text-base-content/70">
+                                {Map.get(entry.work_item || %{}, :id)}
+                              </p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                              <.conversation_role_badge
+                                id={"project-detail-conversation-roster-role-#{Map.get(entry.work_item || %{}, :id)}"}
+                                scope={Map.get(entry.conversation || %{}, :scope)}
+                                attachment_mode={Map.get(entry.conversation || %{}, :attachment_mode)}
+                                work_item_id={Map.get(entry.conversation || %{}, :work_item_id)}
+                              />
+                              <.conversation_status_badge
+                                id={"project-detail-conversation-roster-status-#{Map.get(entry.work_item || %{}, :id)}"}
+                                status={Map.get(entry.conversation || %{}, :status)}
+                              />
+                            </div>
+                          </div>
+
+                          <p
+                            id={"project-detail-conversation-roster-detail-#{Map.get(entry.work_item || %{}, :id)}"}
+                            class="text-sm text-base-content/80"
+                          >
+                            {conversation_surface_summary(entry)}
+                          </p>
+
+                          <p
+                            :if={conversation_latest_activity_label(entry)}
+                            id={"project-detail-conversation-roster-latest-activity-#{Map.get(entry.work_item || %{}, :id)}"}
+                            class="text-xs text-base-content/70"
+                          >
+                            Latest activity: {conversation_latest_activity_label(entry)}
+                          </p>
+
+                          <p
+                            :if={entry.historical_conversation}
+                            id={"project-detail-conversation-roster-history-#{Map.get(entry.work_item || %{}, :id)}"}
+                            class="text-xs text-base-content/70"
+                          >
+                            Historical lineage preserved from {entry.historical_conversation.id}.
+                          </p>
+
+                          <div class="flex flex-wrap items-center gap-2">
+                            <button
+                              id={"project-detail-conversation-roster-focus-#{Map.get(entry.work_item || %{}, :id)}"}
+                              type="button"
+                              class="btn btn-xs btn-outline"
+                              phx-click="focus_work_item_conversation"
+                              phx-value-work_item_id={Map.get(entry.work_item || %{}, :id)}
+                            >
+                              {if conversation_roster_selected?(@selected_work_item_id, entry),
+                                do: "Selected detail",
+                                else: "View governed detail"}
+                            </button>
+                          </div>
+                        </li>
+                      </ol>
+                    <% end %>
+                  </section>
+                </aside>
+
+                <section
+                  id="project-detail-conversation-detail"
+                  class="rounded-lg border border-base-300/70 bg-base-100"
+                >
+                  <div class="border-b border-base-300/70 px-4 py-3 space-y-2">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div class="space-y-1">
+                        <h3 id="project-detail-conversation-detail-title" class="font-semibold">
+                          {selected_conversation_title(@selected_work_item_id, @conversation_surface)}
+                        </h3>
+                        <p class="text-sm text-base-content/70">
+                          {selected_conversation_summary(@selected_work_item_id, @conversation_surface)}
+                        </p>
+                        <p
+                          :if={@selected_work_item_id && @conversation_surface.work_item}
+                          id="project-detail-selected-work-item"
+                          class="text-xs text-base-content/70"
+                        >
+                          Following governed conversation for WorkItem {@selected_work_item_id}.
+                        </p>
+                      </div>
+                      <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <.conversation_role_badge
+                          :if={@conversation_surface.conversation}
+                          id="project-detail-conversation-role"
+                          scope={Map.get(@conversation_surface.conversation, :scope)}
+                          attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
+                          work_item_id={Map.get(@conversation_surface.conversation, :work_item_id)}
+                          historical={!is_nil(@conversation_surface.historical_conversation)}
+                        />
+                        <.conversation_status_badge
+                          :if={@conversation_surface.conversation}
+                          id="project-detail-conversation-status"
+                          status={Map.get(@conversation_surface.conversation, :status)}
+                        />
+                        <p
+                          :if={@conversation_surface.conversation}
+                          id="project-detail-conversation-id"
+                          class="text-xs font-mono text-base-content/60"
+                        >
+                          {Map.get(@conversation_surface.conversation, :id)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <.operator_state_notice
+                      :if={conversation_notice_visible?(@conversation_surface)}
+                      id="project-detail-conversation-notice"
+                      title="Selected conversation state"
+                      state={@conversation_surface.notice}
+                      kind={:warning}
+                      compact={true}
+                    />
+
+                    <section
+                      id="project-detail-conversation-runtime"
+                      class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-3"
+                    >
+                      <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="space-y-1">
+                          <h4 class="font-semibold">Conversation runtime readiness</h4>
+                          <p class="text-xs text-base-content/60">
+                            Selected LLM, repo-scoped workspace binding, and readiness stay visible on the route before runtime metadata.
+                          </p>
+                        </div>
+                        <span
+                          id="project-detail-conversation-runtime-status"
+                          class={[
+                            "badge badge-sm badge-outline font-medium",
+                            conversation_runtime_status_class(@conversation_runtime)
+                          ]}
+                        >
+                          {conversation_runtime_status_label(@conversation_runtime)}
+                        </span>
+                      </div>
+
+                      <div class="grid gap-2 md:grid-cols-3">
+                        <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
+                          <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                            Selected LLM
+                          </p>
+                          <p id="project-detail-conversation-runtime-llm" class="mt-1 text-sm font-medium break-all">
+                            {conversation_runtime_llm_label(@conversation_runtime)}
+                          </p>
+                        </article>
+                        <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
+                          <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                            Selection source
+                          </p>
+                          <p id="project-detail-conversation-runtime-source" class="mt-1 text-sm font-medium">
+                            {conversation_runtime_source_label(@conversation_runtime)}
+                          </p>
+                        </article>
+                        <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
+                          <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                            Repo workspace path
+                          </p>
+                          <p
+                            id="project-detail-conversation-runtime-workspace"
+                            class="mt-1 text-sm font-medium break-all"
+                          >
+                            {conversation_runtime_workspace_label(@conversation_runtime)}
+                          </p>
+                        </article>
+                      </div>
+
+                      <.operator_state_notice
+                        :if={conversation_runtime_notice_visible?(@conversation_runtime)}
+                        id="project-detail-conversation-runtime-notice"
+                        title="Conversation runtime readiness"
+                        state={@conversation_runtime.notice}
+                        kind={:error}
+                        compact={true}
+                      >
+                        <:actions>
+                          <.link
+                            :if={workspace_binding_repair_visible?(@conversation_runtime.notice)}
+                            id="project-detail-conversation-runtime-repair"
+                            patch={
+                              project_detail_section_path(
+                                @project_detail,
+                                @return_to_path,
+                                section: :overview,
+                                work_item_id: @selected_work_item_id,
+                                anchor: "project-detail-workspace-binding-panel"
+                              )
+                            }
+                            class="btn btn-xs btn-outline"
+                          >
+                            Repair workspace binding
+                          </.link>
+                        </:actions>
+                        <p
+                          :if={conversation_runtime_preserves_state?(@conversation_runtime, @conversation_surface)}
+                          id="project-detail-conversation-runtime-preserved"
+                          class="text-sm"
+                        >
+                          Latest transcript and governed linkage remain visible below while this repository's workspace binding recovers.
+                        </p>
+                      </.operator_state_notice>
+                    </section>
+
+                    <div
+                      :if={@conversation_stream_mode == :degraded}
+                      id="project-detail-conversation-degraded"
+                      class="rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm text-warning-content"
+                    >
+                      <p class="font-semibold">Conversation stream degraded</p>
+                      <p class="mt-1">{@conversation_degraded_mode_message}</p>
+                    </div>
                   </div>
-              <% end %>
-            </section>
-          </div>
+
+                  <%= cond do %>
+                    <% @conversation_surface.snapshot -> %>
+                      <div class="grid gap-3 lg:grid-cols-[2fr,1fr] p-4">
+                        <section class="rounded-lg border border-base-300/70 bg-base-100">
+                          <div class="border-b border-base-300/70 px-4 py-3">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <h3 class="font-semibold">Conversation transcript</h3>
+                                <p class="text-xs text-base-content/60">
+                                  Recent event-driven transcript and operator controls for the selected conversation.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div id="project-detail-conversation-continuity" class="mt-3 grid gap-2 md:grid-cols-3">
+                              <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
+                                <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                                  Stream continuity
+                                </p>
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                  <.conversation_stream_badge
+                                    id="project-detail-conversation-stream-mode"
+                                    stream_mode={@conversation_stream_mode}
+                                    discontinuity_count={@conversation_stream_discontinuity_count}
+                                  />
+                                </div>
+                                <p
+                                  id="project-detail-conversation-continuity-detail"
+                                  class="mt-2 text-xs text-base-content/70"
+                                >
+                                  {conversation_continuity_detail(
+                                    @conversation_stream_mode,
+                                    @conversation_stream_discontinuity_count
+                                  )}
+                                </p>
+                              </article>
+
+                              <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
+                                <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                                  Latest activity
+                                </p>
+                                <p
+                                  id="project-detail-conversation-latest-activity"
+                                  class="mt-1 text-sm font-medium"
+                                >
+                                  {conversation_latest_activity_label(@conversation_surface) ||
+                                    "No recent conversation activity"}
+                                </p>
+                                <p class="mt-2 text-xs text-base-content/70">
+                                  Route continuity stays anchored to the latest durable snapshot.
+                                </p>
+                              </article>
+
+                              <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
+                                <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                                  Current turn
+                                </p>
+                                <p
+                                  id="project-detail-conversation-turn-state"
+                                  class="mt-1 text-sm font-medium"
+                                >
+                                  {conversation_turn_summary(@conversation_snapshot)}
+                                </p>
+                                <p
+                                  id="project-detail-conversation-sequence-summary"
+                                  class="mt-2 text-xs text-base-content/70"
+                                >
+                                  {conversation_sequence_summary(
+                                    @conversation_last_event_sequence,
+                                    @conversation_stream_discontinuity_count
+                                  )}
+                                </p>
+                              </article>
+                            </div>
+                          </div>
+
+                          <div id="project-detail-conversation-events" class="max-h-96 space-y-3 overflow-y-auto px-4 py-4">
+                            <%= for event <- @conversation_events do %>
+                              <.conversation_event_row
+                                id={"project-detail-conversation-event-#{map_get(event, :id, "id")}"}
+                                sequence={map_get(event, :sequence, "sequence")}
+                                label={conversation_event_label(event)}
+                                event_name={map_get(event, :name, "name")}
+                                occurred_at={format_time(map_get(event, :occurred_at, "occurred_at"))}
+                                title={conversation_event_title(event)}
+                                excerpt={conversation_event_excerpt(event)}
+                                tone={conversation_event_tone(event)}
+                              />
+                            <% end %>
+                          </div>
+
+                          <div class="border-t border-base-300/70 px-4 py-4">
+                            <div
+                              :if={conversation_pending_clarification(@conversation_snapshot)}
+                              id="project-detail-conversation-pending-clarification"
+                              class="mb-3 rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm"
+                            >
+                              <p class="font-semibold">Input required</p>
+                              <p class="mt-1">
+                                {conversation_clarification_prompt(@conversation_snapshot) ||
+                                  "The active turn is waiting on clarification."}
+                              </p>
+                            </div>
+
+                            <form
+                              id="project-detail-conversation-form"
+                              phx-submit="send_conversation"
+                              class="flex flex-col gap-3 sm:flex-row"
+                            >
+                              <input
+                                id="project-detail-conversation-input"
+                                type="text"
+                                name="input"
+                                value={@conversation_input}
+                                phx-change="update_conversation_input"
+                                placeholder={
+                                  if conversation_awaiting_input?(@conversation_snapshot) do
+                                    conversation_clarification_prompt(@conversation_snapshot) ||
+                                      "Provide the missing clarification…"
+                                  else
+                                    "Describe the repository work this conversation should coordinate…"
+                                  end
+                                }
+                                class="input input-bordered flex-1"
+                                autocomplete="off"
+                              />
+                              <button
+                                id="project-detail-conversation-submit"
+                                type="submit"
+                                class="btn btn-primary"
+                                disabled={
+                                  String.trim(@conversation_input) == "" || conversation_paused?(@conversation_snapshot)
+                                }
+                              >
+                                {if conversation_awaiting_input?(@conversation_snapshot),
+                                  do: "Resume turn",
+                                  else: "Submit turn"}
+                              </button>
+                            </form>
+                          </div>
+                        </section>
+
+                        <aside class="space-y-3">
+                          <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                            <h3 class="font-semibold">Conversation state</h3>
+                            <dl class="mt-3 space-y-2 text-sm">
+                              <div class="flex justify-between gap-3">
+                                <dt class="text-base-content/70">Status</dt>
+                                <dd class="font-medium">
+                                  <.conversation_status_badge
+                                    id="project-detail-conversation-status-detail"
+                                    status={Map.get(@conversation_surface.conversation, :status)}
+                                  />
+                                </dd>
+                              </div>
+                              <div class="flex justify-between gap-3">
+                                <dt class="text-base-content/70">Scope</dt>
+                                <dd class="font-medium">
+                                  <.conversation_role_badge
+                                    id="project-detail-conversation-scope"
+                                    scope={Map.get(@conversation_surface.conversation, :scope)}
+                                    attachment_mode={Map.get(@conversation_surface.conversation, :attachment_mode)}
+                                    work_item_id={Map.get(@conversation_surface.conversation, :work_item_id)}
+                                  />
+                                </dd>
+                              </div>
+                              <div class="flex justify-between gap-3">
+                                <dt class="text-base-content/70">Attachment</dt>
+                                <dd id="project-detail-conversation-attachment" class="font-medium">
+                                  {Map.get(@conversation_surface.conversation, :attachment_mode)}
+                                </dd>
+                              </div>
+                              <div class="flex justify-between gap-3">
+                                <dt class="text-base-content/70">Work item</dt>
+                                <dd id="project-detail-conversation-work-item" class="font-medium">
+                                  {Map.get(@conversation_snapshot, :work_item_id) || "repo-scoped"}
+                                </dd>
+                              </div>
+                              <div class="flex justify-between gap-3">
+                                <dt class="text-base-content/70">Resolution</dt>
+                                <dd id="project-detail-conversation-work-resolution" class="font-medium">
+                                  {conversation_work_resolution_action(@conversation_surface)}
+                                </dd>
+                              </div>
+                              <div class="flex justify-between gap-3">
+                                <dt class="text-base-content/70">Active turn</dt>
+                                <dd class="font-medium">
+                                  {conversation_turn_state(@conversation_snapshot)}
+                                </dd>
+                              </div>
+                            </dl>
+
+                            <section
+                              :if={@conversation_surface.work_item}
+                              id="project-detail-conversation-governed-work"
+                              class="mt-4 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
+                            >
+                              <div class="flex items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                  <p class="text-xs uppercase tracking-wide text-base-content/60">
+                                    Governed work item
+                                  </p>
+                                  <p
+                                    id="project-detail-conversation-governed-work-summary"
+                                    class="font-semibold"
+                                  >
+                                    {Map.get(@conversation_surface.work_item, :summary)}
+                                  </p>
+                                  <p
+                                    id="project-detail-conversation-governed-work-id"
+                                    class="text-xs font-mono text-base-content/60"
+                                  >
+                                    {Map.get(@conversation_surface.work_item, :id)}
+                                  </p>
+                                </div>
+                                <span
+                                  id="project-detail-conversation-governed-work-status"
+                                  class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
+                                >
+                                  {Map.get(@conversation_surface.work_item, :status)}
+                                </span>
+                              </div>
+
+                              <p
+                                id="project-detail-conversation-work-resolution-detail"
+                                class="mt-2 text-sm text-base-content/70"
+                              >
+                                {conversation_work_resolution_detail(@conversation_surface)}
+                              </p>
+
+                              <div class="mt-3 flex flex-wrap gap-2">
+                                <.link
+                                  :if={conversation_workbench_path(@project_detail)}
+                                  id="project-detail-conversation-open-workbench"
+                                  class="btn btn-xs btn-outline"
+                                  navigate={conversation_workbench_path(@project_detail)}
+                                >
+                                  Open in Workbench
+                                </.link>
+                              </div>
+                            </section>
+                          </section>
+
+                          <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                            <h3 class="font-semibold">Execution</h3>
+                            <div
+                              :if={conversation_latest_progress(@conversation_snapshot)}
+                              id="project-detail-conversation-progress"
+                              class="mt-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm"
+                            >
+                              <p class="font-semibold">Latest progress</p>
+                              <p class="mt-1">
+                                {conversation_latest_progress(@conversation_snapshot)["summary"] ||
+                                  "Runtime progress update received."}
+                              </p>
+                            </div>
+
+                            <div
+                              :if={conversation_stdout_preview(@conversation_snapshot) != []}
+                              id="project-detail-conversation-stdout"
+                              class="mt-3 rounded-lg border border-base-300/70 bg-base-200/30 p-3 text-sm"
+                            >
+                              <p class="font-semibold">Recent tool output</p>
+                              <pre class="mt-2 whitespace-pre-wrap font-mono text-xs">
+                            <%= for line <- conversation_stdout_preview(@conversation_snapshot) do %>
+                              {line}
+                            <% end %>
+                          </pre>
+                            </div>
+
+                            <div class="mt-4 flex flex-wrap gap-2">
+                              <button
+                                id="project-detail-conversation-pause"
+                                type="button"
+                                class="btn btn-sm btn-outline"
+                                phx-click="pause_conversation"
+                                disabled={
+                                  conversation_paused?(@conversation_snapshot) ||
+                                    !is_binary(Map.get(@conversation_surface.conversation || %{}, :id))
+                                }
+                              >
+                                Pause
+                              </button>
+                              <button
+                                id="project-detail-conversation-resume"
+                                type="button"
+                                class="btn btn-sm btn-outline"
+                                phx-click="resume_conversation"
+                                disabled={!conversation_paused?(@conversation_snapshot)}
+                              >
+                                Resume
+                              </button>
+                              <button
+                                id="project-detail-conversation-stop-turn"
+                                type="button"
+                                class="btn btn-sm btn-outline"
+                                phx-click="stop_conversation_turn"
+                                disabled={!conversation_active_turn?(@conversation_snapshot)}
+                              >
+                                Stop turn
+                              </button>
+                            </div>
+                          </section>
+                        </aside>
+                      </div>
+                    <% @conversation_surface.conversation || @conversation_surface.work_item -> %>
+                      <div class="p-4 space-y-4">
+                        <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3">
+                          <p
+                            :if={@conversation_surface.conversation}
+                            id="project-detail-conversation-detail-summary"
+                            class="text-sm text-base-content/80"
+                          >
+                            {conversation_surface_summary(@conversation_surface)}
+                          </p>
+                          <p
+                            :if={@conversation_surface.work_item}
+                            id="project-detail-conversation-detail-work-item"
+                            class="text-sm text-base-content/70"
+                          >
+                            Governed work item: {Map.get(@conversation_surface.work_item, :summary)}
+                          </p>
+                          <p
+                            :if={@conversation_surface.historical_conversation}
+                            id="project-detail-conversation-detail-history"
+                            class="text-xs text-base-content/70"
+                          >
+                            Historical lineage preserved from {@conversation_surface.historical_conversation.id}.
+                          </p>
+                          <div class="flex flex-wrap gap-2">
+                            <button
+                              :if={@selected_work_item_id}
+                              id="project-detail-conversation-open-selected"
+                              type="button"
+                              class="btn btn-sm btn-primary"
+                              phx-click="open_selected_conversation"
+                            >
+                              {@conversation_surface.action_label}
+                            </button>
+                            <button
+                              :if={!@selected_work_item_id}
+                              id="project-detail-conversation-open-detail"
+                              type="button"
+                              class="btn btn-sm btn-primary"
+                              phx-click="open_repo_conversation"
+                            >
+                              {@repo_intake_surface.action_label}
+                            </button>
+                          </div>
+                        </section>
+                      </div>
+                    <% true -> %>
+                      <div class="p-4">
+                        <div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 p-4 space-y-3">
+                          <p class="text-sm text-base-content/70">
+                            Open a repository conversation to coordinate repo-scoped work without leaving the managed-repository detail route.
+                          </p>
+                          <button
+                            id="project-detail-conversation-open-empty"
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            phx-click="open_repo_conversation"
+                          >
+                            {@repo_intake_surface.action_label}
+                          </button>
+                        </div>
+                      </div>
+                  <% end %>
+                </section>
+              </div>
             </section>
 
             <section :if={@selected_detail_section == :semantic} id="project-detail-semantic-inspection" class="space-y-4">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="space-y-1">
-              <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
-              <p class="text-sm text-base-content/70">
-                Semantic source-code graph insights stay repo-scoped, bounded, product-owned, and tied to this repository's own workspace binding.
-              </p>
-            </div>
-            <.link
-              id="project-detail-semantic-open-memory"
-              class="btn btn-xs btn-outline"
-              patch={
-                project_detail_section_path(
-                  @project_detail,
-                  @return_to_path,
-                  section: :memory,
-                  work_item_id: @selected_work_item_id
-                )
-              }
-            >
-              Open memory and provenance
-            </.link>
-          </div>
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="space-y-1">
+                  <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
+                  <p class="text-sm text-base-content/70">
+                    Semantic source-code graph insights stay repo-scoped, bounded, product-owned, and tied to this repository's own workspace binding.
+                  </p>
+                </div>
+                <.link
+                  id="project-detail-semantic-open-memory"
+                  class="btn btn-xs btn-outline"
+                  patch={
+                    project_detail_section_path(
+                      @project_detail,
+                      @return_to_path,
+                      section: :memory,
+                      work_item_id: @selected_work_item_id
+                    )
+                  }
+                >
+                  Open memory and provenance
+                </.link>
+              </div>
 
-          <.operator_state_notice
-            :if={@semantic_action_feedback}
-            id="project-detail-semantic-feedback"
-            title="Semantic graph recovery update"
-            state={@semantic_action_feedback}
-            kind={:info}
-          />
+              <.operator_state_notice
+                :if={@semantic_action_feedback}
+                id="project-detail-semantic-feedback"
+                title="Semantic graph recovery update"
+                state={@semantic_action_feedback}
+                kind={:info}
+              />
 
-          <.operator_state_notice
-            :if={semantic_notice_visible?(@semantic_inspection)}
-            id="project-detail-semantic-notice"
-            title="Semantic graph status"
-            state={@semantic_inspection.notice}
-            kind={semantic_notice_kind(@semantic_inspection)}
-          >
-            <:actions>
-              <.link
-                :if={workspace_binding_repair_visible?(@semantic_inspection.notice)}
-                id="project-detail-semantic-repair-workspace"
-                patch={
-                  project_detail_section_path(
-                    @project_detail,
-                    @return_to_path,
-                    section: :overview,
-                    work_item_id: @selected_work_item_id,
-                    anchor: "project-detail-workspace-binding-panel"
-                  )
-                }
-                class="btn btn-sm btn-outline"
+              <.operator_state_notice
+                :if={semantic_notice_visible?(@semantic_inspection)}
+                id="project-detail-semantic-notice"
+                title="Semantic graph status"
+                state={@semantic_inspection.notice}
+                kind={semantic_notice_kind(@semantic_inspection)}
               >
-                Repair workspace binding
-              </.link>
-              <button
-                :if={semantic_recovery_available?(@semantic_inspection)}
-                id="project-detail-semantic-recover"
-                type="button"
-                class="btn btn-sm btn-outline"
-                phx-click="recover_semantic_graph"
-              >
-                {semantic_recovery_label(@semantic_inspection)}
-              </button>
-            </:actions>
-          </.operator_state_notice>
+                <:actions>
+                  <.link
+                    :if={workspace_binding_repair_visible?(@semantic_inspection.notice)}
+                    id="project-detail-semantic-repair-workspace"
+                    patch={
+                      project_detail_section_path(
+                        @project_detail,
+                        @return_to_path,
+                        section: :overview,
+                        work_item_id: @selected_work_item_id,
+                        anchor: "project-detail-workspace-binding-panel"
+                      )
+                    }
+                    class="btn btn-sm btn-outline"
+                  >
+                    Repair workspace binding
+                  </.link>
+                  <button
+                    :if={semantic_recovery_available?(@semantic_inspection)}
+                    id="project-detail-semantic-recover"
+                    type="button"
+                    class="btn btn-sm btn-outline"
+                    phx-click="recover_semantic_graph"
+                  >
+                    {semantic_recovery_label(@semantic_inspection)}
+                  </button>
+                </:actions>
+              </.operator_state_notice>
 
-          <.vue_surface
-            id="project-detail-semantic-explorer-widget"
-            component="ProjectDetailSemanticExplorerWidget"
-            socket={@socket}
-            props={project_detail_semantic_explorer_props(assigns)}
-            events={%{"requestRecovery" => "recover_semantic_graph"}}
-            fallback_title="Interactive semantic explorer temporarily unavailable"
-            fallback_detail="This repository is using the server-rendered semantic summary while the richer explorer is unavailable."
-          >
-            <section id="project-detail-semantic-fallback" class="space-y-3">
-              <div class="grid gap-3 md:grid-cols-4">
-                <article
-                  id="project-detail-semantic-fallback-modules"
-                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+              <.vue_surface
+                id="project-detail-semantic-explorer-widget"
+                component="ProjectDetailSemanticExplorerWidget"
+                socket={@socket}
+                props={project_detail_semantic_explorer_props(assigns)}
+                events={%{"requestRecovery" => "recover_semantic_graph"}}
+                fallback_title="Interactive semantic explorer temporarily unavailable"
+                fallback_detail="This repository is using the server-rendered semantic summary while the richer explorer is unavailable."
+              >
+                <section id="project-detail-semantic-fallback" class="space-y-3">
+                  <div class="grid gap-3 md:grid-cols-4">
+                    <article
+                      id="project-detail-semantic-fallback-modules"
+                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                    >
+                      <p class="text-xs uppercase text-base-content/60">Modules</p>
+                      <p class="mt-1 text-xl font-semibold">
+                        {semantic_group_count(@semantic_inspection.summary, :modules)}
+                      </p>
+                    </article>
+                    <article
+                      id="project-detail-semantic-fallback-functions"
+                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                    >
+                      <p class="text-xs uppercase text-base-content/60">Functions</p>
+                      <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.functions)}</p>
+                    </article>
+                    <article
+                      id="project-detail-semantic-fallback-runtime-patterns"
+                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                    >
+                      <p class="text-xs uppercase text-base-content/60">Runtime patterns</p>
+                      <p class="mt-1 text-xl font-semibold">
+                        {semantic_result_count(@semantic_inspection.runtime_patterns)}
+                      </p>
+                    </article>
+                    <article
+                      id="project-detail-semantic-fallback-impact"
+                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                    >
+                      <p class="text-xs uppercase text-base-content/60">Impact relationships</p>
+                      <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.impact)}</p>
+                    </article>
+                  </div>
+
+                  <div class="grid gap-3 lg:grid-cols-2">
+                    <section id="project-detail-semantic-fallback-module-list" class="space-y-2">
+                      <h3 class="font-medium">Modules</h3>
+                      <p
+                        :if={Enum.empty?(semantic_items(@semantic_inspection.modules))}
+                        class="text-sm text-base-content/70"
+                      >
+                        No module summaries are currently available.
+                      </p>
+                      <ul :if={!Enum.empty?(semantic_items(@semantic_inspection.modules))} class="space-y-1 text-sm">
+                        <li :for={item <- semantic_items(@semantic_inspection.modules)}>
+                          {Map.get(item, :module_name) || "Unnamed module"}
+                        </li>
+                      </ul>
+                    </section>
+
+                    <section id="project-detail-semantic-fallback-impact-list" class="space-y-2">
+                      <h3 class="font-medium">Impact</h3>
+                      <p
+                        :if={Enum.empty?(semantic_items(@semantic_inspection.impact))}
+                        class="text-sm text-base-content/70"
+                      >
+                        No bounded impact relationships are currently available.
+                      </p>
+                      <ul :if={!Enum.empty?(semantic_items(@semantic_inspection.impact))} class="space-y-1 text-sm">
+                        <li :for={item <- semantic_items(@semantic_inspection.impact)}>
+                          {Map.get(item, :predicate_name) || "relationship"}
+                        </li>
+                      </ul>
+                    </section>
+                  </div>
+                </section>
+              </.vue_surface>
+            </section>
+
+            <section :if={@selected_detail_section == :memory} id="project-detail-memory-inspection" class="space-y-4">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="space-y-1">
+                  <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
+                  <p class="text-sm text-base-content/70">
+                    Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, product-owned, and tied to this repository's own workspace binding.
+                  </p>
+                </div>
+                <.link
+                  id="project-detail-memory-open-semantic"
+                  class="btn btn-xs btn-outline"
+                  patch={
+                    project_detail_section_path(
+                      @project_detail,
+                      @return_to_path,
+                      section: :semantic,
+                      work_item_id: @selected_work_item_id
+                    )
+                  }
                 >
-                  <p class="text-xs uppercase text-base-content/60">Modules</p>
-                  <p class="mt-1 text-xl font-semibold">{semantic_group_count(@semantic_inspection.summary, :modules)}</p>
-                </article>
-                <article
-                  id="project-detail-semantic-fallback-functions"
-                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                  Open semantic inspection
+                </.link>
+              </div>
+
+              <.operator_state_notice
+                :if={@memory_action_feedback}
+                id="project-detail-memory-feedback"
+                title="Memory graph recovery update"
+                state={@memory_action_feedback}
+                kind={memory_feedback_kind(@memory_action_feedback)}
+              />
+
+              <.memory_status_notice
+                :if={is_map(@memory_inspection.notice)}
+                id="project-detail-memory-notice"
+                title="Repository memory status"
+                state={@memory_inspection.notice}
+                kind={Map.get(@memory_inspection, :notice_kind, :warning)}
+                recovery={Map.get(@memory_inspection, :recovery)}
+                recover_event="recover_memory_graph"
+                recover_id="project-detail-memory-recover"
+              />
+
+              <div
+                :if={workspace_binding_repair_visible?(@memory_inspection.notice)}
+                id="project-detail-memory-repair-workspace"
+                class="flex"
+              >
+                <.link
+                  patch={
+                    project_detail_section_path(
+                      @project_detail,
+                      @return_to_path,
+                      section: :overview,
+                      work_item_id: @selected_work_item_id,
+                      anchor: "project-detail-workspace-binding-panel"
+                    )
+                  }
+                  class="btn btn-sm btn-outline"
                 >
-                  <p class="text-xs uppercase text-base-content/60">Functions</p>
-                  <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.functions)}</p>
-                </article>
-                <article
-                  id="project-detail-semantic-fallback-runtime-patterns"
-                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
-                >
-                  <p class="text-xs uppercase text-base-content/60">Runtime patterns</p>
-                  <p class="mt-1 text-xl font-semibold">
-                    {semantic_result_count(@semantic_inspection.runtime_patterns)}
+                  Repair workspace binding
+                </.link>
+              </div>
+
+              <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
+                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Durable memories</p>
+                  <p id="project-detail-memory-summary-memories" class="mt-1 text-xl font-semibold">
+                    {memory_group_count(@memory_inspection.summary, :memories)}
                   </p>
                 </article>
-                <article
-                  id="project-detail-semantic-fallback-impact"
-                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
-                >
-                  <p class="text-xs uppercase text-base-content/60">Impact relationships</p>
-                  <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.impact)}</p>
+                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Workflow provenance</p>
+                  <p id="project-detail-memory-summary-provenance" class="mt-1 text-xl font-semibold">
+                    {memory_group_count(@memory_inspection.summary, :provenance)}
+                  </p>
+                </article>
+                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Memory state</p>
+                  <p id="project-detail-memory-summary-state" class="mt-1 text-sm font-semibold">
+                    {Map.get(@memory_inspection.graph, :state, :unavailable)}
+                  </p>
+                </article>
+                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Validated revision</p>
+                  <p id="project-detail-memory-summary-revision" class="mt-1 text-sm font-semibold break-all">
+                    {Map.get(@memory_inspection.graph, :validated_revision) || "Not validated"}
+                  </p>
                 </article>
               </div>
 
               <div class="grid gap-3 lg:grid-cols-2">
-                <section id="project-detail-semantic-fallback-module-list" class="space-y-2">
-                  <h3 class="font-medium">Modules</h3>
-                  <p
-                    :if={Enum.empty?(semantic_items(@semantic_inspection.modules))}
-                    class="text-sm text-base-content/70"
-                  >
-                    No module summaries are currently available.
+                <section id="project-detail-memory-list" class="space-y-2">
+                  <h3 class="font-medium">Durable memory</h3>
+                  <p :if={Enum.empty?(memory_items(@memory_inspection.memories))} class="text-sm text-base-content/70">
+                    No durable memory is currently available for this repository.
                   </p>
-                  <ul :if={!Enum.empty?(semantic_items(@semantic_inspection.modules))} class="space-y-1 text-sm">
-                    <li :for={item <- semantic_items(@semantic_inspection.modules)}>
-                      {Map.get(item, :module_name) || "Unnamed module"}
+                  <ul :if={!Enum.empty?(memory_items(@memory_inspection.memories))} class="space-y-2 text-sm">
+                    <li
+                      :for={item <- memory_items(@memory_inspection.memories)}
+                      id={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
+                      class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                    >
+                      <p class="font-medium">
+                        {Map.get(item, :memory_kind) || "Memory"}
+                      </p>
+                      <p class="text-base-content/80">{Map.get(item, :content)}</p>
+                      <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
+                        Code anchor: {Map.get(item, :module_name)}
+                      </p>
+                      <.memory_link_groups
+                        dom_prefix={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
+                        item={item}
+                      />
                     </li>
                   </ul>
                 </section>
 
-                <section id="project-detail-semantic-fallback-impact-list" class="space-y-2">
-                  <h3 class="font-medium">Impact</h3>
-                  <p
-                    :if={Enum.empty?(semantic_items(@semantic_inspection.impact))}
-                    class="text-sm text-base-content/70"
-                  >
-                    No bounded impact relationships are currently available.
+                <section id="project-detail-provenance-list" class="space-y-2">
+                  <h3 class="font-medium">Workflow provenance</h3>
+                  <p :if={Enum.empty?(memory_items(@memory_inspection.provenance))} class="text-sm text-base-content/70">
+                    No workflow provenance is currently available for this repository.
                   </p>
-                  <ul :if={!Enum.empty?(semantic_items(@semantic_inspection.impact))} class="space-y-1 text-sm">
-                    <li :for={item <- semantic_items(@semantic_inspection.impact)}>
-                      {Map.get(item, :predicate_name) || "relationship"}
+                  <ul :if={!Enum.empty?(memory_items(@memory_inspection.provenance))} class="space-y-2 text-sm">
+                    <li
+                      :for={item <- memory_items(@memory_inspection.provenance)}
+                      id={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
+                      class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                    >
+                      <p class="font-medium">
+                        {Map.get(item, :label) || Map.get(item, :provenance_kind) || "Provenance"}
+                      </p>
+                      <p :if={Map.get(item, :content)} class="text-base-content/80">{Map.get(item, :content)}</p>
+                      <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
+                        Code anchor: {Map.get(item, :module_name)}
+                      </p>
+                      <.memory_link_groups
+                        dom_prefix={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
+                        item={item}
+                      />
                     </li>
                   </ul>
                 </section>
               </div>
-            </section>
-          </.vue_surface>
-            </section>
-
-            <section :if={@selected_detail_section == :memory} id="project-detail-memory-inspection" class="space-y-4">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="space-y-1">
-              <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
-              <p class="text-sm text-base-content/70">
-                Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, product-owned, and tied to this repository's own workspace binding.
-              </p>
-            </div>
-            <.link
-              id="project-detail-memory-open-semantic"
-              class="btn btn-xs btn-outline"
-              patch={
-                project_detail_section_path(
-                  @project_detail,
-                  @return_to_path,
-                  section: :semantic,
-                  work_item_id: @selected_work_item_id
-                )
-              }
-            >
-              Open semantic inspection
-            </.link>
-          </div>
-
-          <.operator_state_notice
-            :if={@memory_action_feedback}
-            id="project-detail-memory-feedback"
-            title="Memory graph recovery update"
-            state={@memory_action_feedback}
-            kind={memory_feedback_kind(@memory_action_feedback)}
-          />
-
-          <.memory_status_notice
-            :if={is_map(@memory_inspection.notice)}
-            id="project-detail-memory-notice"
-            title="Repository memory status"
-            state={@memory_inspection.notice}
-            kind={Map.get(@memory_inspection, :notice_kind, :warning)}
-            recovery={Map.get(@memory_inspection, :recovery)}
-            recover_event="recover_memory_graph"
-            recover_id="project-detail-memory-recover"
-          />
-
-          <div
-            :if={workspace_binding_repair_visible?(@memory_inspection.notice)}
-            id="project-detail-memory-repair-workspace"
-            class="flex"
-          >
-            <.link
-              patch={
-                project_detail_section_path(
-                  @project_detail,
-                  @return_to_path,
-                  section: :overview,
-                  work_item_id: @selected_work_item_id,
-                  anchor: "project-detail-workspace-binding-panel"
-                )
-              }
-              class="btn btn-sm btn-outline"
-            >
-              Repair workspace binding
-            </.link>
-          </div>
-
-          <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
-            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-              <p class="text-xs uppercase text-base-content/60">Durable memories</p>
-              <p id="project-detail-memory-summary-memories" class="mt-1 text-xl font-semibold">
-                {memory_group_count(@memory_inspection.summary, :memories)}
-              </p>
-            </article>
-            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-              <p class="text-xs uppercase text-base-content/60">Workflow provenance</p>
-              <p id="project-detail-memory-summary-provenance" class="mt-1 text-xl font-semibold">
-                {memory_group_count(@memory_inspection.summary, :provenance)}
-              </p>
-            </article>
-            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-              <p class="text-xs uppercase text-base-content/60">Memory state</p>
-              <p id="project-detail-memory-summary-state" class="mt-1 text-sm font-semibold">
-                {Map.get(@memory_inspection.graph, :state, :unavailable)}
-              </p>
-            </article>
-            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-              <p class="text-xs uppercase text-base-content/60">Validated revision</p>
-              <p id="project-detail-memory-summary-revision" class="mt-1 text-sm font-semibold break-all">
-                {Map.get(@memory_inspection.graph, :validated_revision) || "Not validated"}
-              </p>
-            </article>
-          </div>
-
-          <div class="grid gap-3 lg:grid-cols-2">
-            <section id="project-detail-memory-list" class="space-y-2">
-              <h3 class="font-medium">Durable memory</h3>
-              <p :if={Enum.empty?(memory_items(@memory_inspection.memories))} class="text-sm text-base-content/70">
-                No durable memory is currently available for this repository.
-              </p>
-              <ul :if={!Enum.empty?(memory_items(@memory_inspection.memories))} class="space-y-2 text-sm">
-                <li
-                  :for={item <- memory_items(@memory_inspection.memories)}
-                  id={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
-                  class="rounded-md border border-base-300/60 bg-base-100 p-3"
-                >
-                  <p class="font-medium">
-                    {Map.get(item, :memory_kind) || "Memory"}
-                  </p>
-                  <p class="text-base-content/80">{Map.get(item, :content)}</p>
-                  <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
-                    Code anchor: {Map.get(item, :module_name)}
-                  </p>
-                  <.memory_link_groups
-                    dom_prefix={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
-                    item={item}
-                  />
-                </li>
-              </ul>
-            </section>
-
-            <section id="project-detail-provenance-list" class="space-y-2">
-              <h3 class="font-medium">Workflow provenance</h3>
-              <p :if={Enum.empty?(memory_items(@memory_inspection.provenance))} class="text-sm text-base-content/70">
-                No workflow provenance is currently available for this repository.
-              </p>
-              <ul :if={!Enum.empty?(memory_items(@memory_inspection.provenance))} class="space-y-2 text-sm">
-                <li
-                  :for={item <- memory_items(@memory_inspection.provenance)}
-                  id={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
-                  class="rounded-md border border-base-300/60 bg-base-100 p-3"
-                >
-                  <p class="font-medium">
-                    {Map.get(item, :label) || Map.get(item, :provenance_kind) || "Provenance"}
-                  </p>
-                  <p :if={Map.get(item, :content)} class="text-base-content/80">{Map.get(item, :content)}</p>
-                  <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
-                    Code anchor: {Map.get(item, :module_name)}
-                  </p>
-                  <.memory_link_groups
-                    dom_prefix={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
-                    item={item}
-                  />
-                </li>
-              </ul>
-            </section>
-          </div>
             </section>
 
             <div :if={@selected_detail_section == :workflows} id="project-detail-workflows-panel" class="space-y-4">
@@ -1900,89 +1908,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 </article>
               </section>
             </div>
-          </div>
-        </div>
+          </.subject_pane>
+        </.subject_tree_shell>
       </section>
     </Layouts.app>
-    """
-  end
-
-  attr :id, :string, required: true
-  attr :project_detail, :map, required: true
-  attr :return_to_path, :string, required: true
-  attr :selected_detail_section, :atom, required: true
-  attr :selected_work_item_id, :string, default: nil
-  attr :conversation_roster, :list, default: []
-  attr :repo_intake_surface, :map, default: %{}
-  attr :conversation_snapshot, :map, default: nil
-  attr :conversation_runtime, :map, default: %{}
-  attr :conversation_stream_mode, :atom, default: :idle
-  attr :semantic_inspection, :map, default: nil
-  attr :memory_inspection, :map, default: nil
-
-  defp detail_section_nav(assigns) do
-    assigns =
-      assign(assigns, :sections, detail_section_items(assigns))
-
-    ~H"""
-    <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-3">
-      <div class="space-y-1 px-1">
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-          Repo sections
-        </p>
-        <p class="text-sm text-base-content/70">
-          Move between repository summary, productive work, knowledge, and launch controls without leaving this managed-repository route.
-        </p>
-      </div>
-
-      <nav id={@id} class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
-        <.link
-          :for={section <- @sections}
-          id={"#{@id}-#{section.section}"}
-          patch={
-            project_detail_section_path(
-              @project_detail,
-              @return_to_path,
-              section: section.section,
-              work_item_id: @selected_work_item_id
-            )
-          }
-          aria-current={if(section.selected?, do: "page", else: nil)}
-          class={[
-            "min-w-[13rem] rounded-lg border px-3 py-3 text-left transition lg:min-w-0",
-            if(section.selected?,
-              do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
-              else:
-                "border-base-300/70 bg-base-100/80 text-base-content/80 hover:border-base-300 hover:bg-base-100"
-            )
-          ]}
-        >
-          <div class="space-y-2">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="font-semibold">{section.label}</p>
-              </div>
-              <span
-                :if={section.badge}
-                id={"#{@id}-#{section.section}-badge"}
-                class={[
-                  "badge badge-sm border font-medium",
-                  detail_section_badge_class(section.badge.tone)
-                ]}
-              >
-                {section.badge.label}
-              </span>
-            </div>
-            <p
-              id={"#{@id}-#{section.section}-summary"}
-              class="text-xs leading-5 text-base-content/65"
-            >
-              {section.summary}
-            </p>
-          </div>
-        </.link>
-      </nav>
-    </section>
     """
   end
 
@@ -1995,11 +1924,59 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       %{section: :workflows, label: "Workflows"}
     ]
     |> Enum.map(fn section ->
-      section
-      |> Map.put(:selected?, assigns.selected_detail_section == section.section)
-      |> Map.put(:summary, detail_section_summary(section.section, assigns))
-      |> Map.put(:badge, detail_section_badge(section.section, assigns))
+      OperatorShell.child_subject(%{
+        id: section.section,
+        label: section.label,
+        selected?: assigns.selected_detail_section == section.section,
+        summary: detail_section_summary(section.section, assigns),
+        badge: detail_section_badge(section.section, assigns),
+        pane_id: "project-detail-pane-#{section.section}",
+        patch:
+          project_detail_section_path(
+            assigns.project_detail,
+            assigns.return_to_path,
+            section: section.section,
+            work_item_id: assigns.selected_work_item_id
+          )
+      })
+      |> Map.put(:section, section.section)
     end)
+  end
+
+  defp project_detail_breadcrumbs(assigns) do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "project-detail-breadcrumb-return",
+        label: return_to_label(assigns.return_to_path),
+        navigate: assigns.return_to_path
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "project-detail-breadcrumb-current",
+        label: assigns.project_detail.github_full_name,
+        current?: true
+      })
+    ]
+  end
+
+  defp project_detail_parent_subjects do
+    [
+      OperatorShell.parent_subject(%{
+        id: :repo,
+        label: "Repo",
+        description: "Canonical repository workspace for governed work, knowledge, and execution posture.",
+        selected?: true
+      })
+    ]
+  end
+
+  defp project_detail_selected_pane(assigns) do
+    section = assigns.selected_detail_section
+
+    OperatorShell.pane(%{
+      id: "project-detail-pane-#{section}",
+      title: project_detail_pane_title(section),
+      summary: project_detail_pane_summary(section)
+    })
   end
 
   defp overview_family_guides(assigns) do
@@ -2043,6 +2020,38 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       "Workflow launch posture is blocked and needs remediation."
     end
   end
+
+  defp project_detail_pane_title(:overview), do: "Repository overview"
+  defp project_detail_pane_title(:conversations), do: "Repository conversation"
+  defp project_detail_pane_title(:semantic), do: "Semantic inspection"
+  defp project_detail_pane_title(:memory), do: "Repository memory"
+  defp project_detail_pane_title(:workflows), do: "Workflow launch"
+
+  defp project_detail_pane_summary(:overview),
+    do:
+      "Repository identity, launch posture, and workflow readiness stay together here before you drill into work, knowledge, or execution detail."
+
+  defp project_detail_pane_summary(:conversations),
+    do:
+      "Repo intake, governed work-item conversations, and degraded continuity stay product-owned on this managed-repository route."
+
+  defp project_detail_pane_summary(:semantic),
+    do:
+      "Freshness, recovery, and bounded graph exploration stay explicit here before semantic context informs operator follow-up."
+
+  defp project_detail_pane_summary(:memory),
+    do:
+      "Durable coding memory, workflow provenance, and validation remain product-owned here before memory influences operator decisions."
+
+  defp project_detail_pane_summary(:workflows),
+    do:
+      "Builtin workflow launch stays governed and repository-scoped here so blocked remediation and run traceability stay together."
+
+  defp return_to_label("/dashboard"), do: "Dashboard"
+  defp return_to_label("/repos"), do: "Repositories"
+  defp return_to_label("/workbench"), do: "Workbench"
+  defp return_to_label("/settings"), do: "Settings"
+  defp return_to_label(path) when is_binary(path), do: "Back"
 
   defp detail_section_badge(:overview, _assigns), do: nil
 

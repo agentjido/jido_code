@@ -189,6 +189,33 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     refute has_element?(runtime_view, "#dashboard-memory-summaries")
   end
 
+  test "renders breadcrumbs between route framing and selected pane chrome", %{conn: _conn} do
+    register_owner("dashboard-shell-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-shell-owner@example.com", "owner-password-123")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard?section=runs", on_error: :warn)
+
+    html = render(view)
+
+    assert rendered_fragment_index(html, ~s(id="dashboard-settings-handoff")) <
+             rendered_fragment_index(html, ~s(id="dashboard-shell-breadcrumbs"))
+
+    assert rendered_fragment_index(html, ~s(id="dashboard-shell-breadcrumbs")) <
+             rendered_fragment_index(html, ~s(id="dashboard-section-nav"))
+
+    assert has_element?(
+             view,
+             "#dashboard-section-nav-runs[aria-controls='dashboard-pane-runs'][aria-current='page']"
+           )
+
+    assert has_element?(view, "#dashboard-pane-runs[role='region']")
+    assert has_element?(view, "#dashboard-pane-runs-header")
+    assert has_element?(view, "#dashboard-pane-runs-middle")
+    assert has_element?(view, "#dashboard-pane-runs-footer")
+  end
+
   test "next_steps section is only selectable when onboarding follow-up is present", %{conn: _conn} do
     register_owner("dashboard-next-steps-owner@example.com", "owner-password-123")
 
@@ -657,6 +684,13 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     |> String.replace(~r/[^a-zA-Z0-9_-]/, "-")
   end
 
+  defp rendered_fragment_index(html, fragment) when is_binary(html) and is_binary(fragment) do
+    case :binary.match(html, fragment) do
+      {index, _length} -> index
+      :nomatch -> flunk("expected fragment #{inspect(fragment)} in rendered output")
+    end
+  end
+
   defp assert_eventually(assertion_fun, attempts \\ 20)
 
   defp assert_eventually(assertion_fun, attempts) when attempts > 0 do
@@ -674,5 +708,4 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   defp assert_eventually(_assertion_fun, 0) do
     flunk("expected condition to become true")
   end
-
 end

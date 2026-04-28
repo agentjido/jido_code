@@ -29,11 +29,27 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     original_conversation_loader =
       Application.get_env(:jido_code, :dashboard_conversation_summary_loader, :__missing__)
 
+    original_workbench_inventory_loader =
+      Application.get_env(:jido_code, :workbench_inventory_loader, :__missing__)
+
+    original_fix_workflow_launcher =
+      Application.get_env(:jido_code, :workbench_fix_workflow_launcher, :__missing__)
+
+    original_issue_triage_workflow_launcher =
+      Application.get_env(:jido_code, :workbench_issue_triage_workflow_launcher, :__missing__)
+
     on_exit(fn ->
       restore_env(:dashboard_run_summary_loader, original_loader)
       restore_env(:dashboard_runtime_evidence_loader, original_runtime_loader)
       restore_env(:dashboard_memory_summary_loader, original_memory_loader)
       restore_env(:dashboard_conversation_summary_loader, original_conversation_loader)
+      restore_env(:workbench_inventory_loader, original_workbench_inventory_loader)
+      restore_env(:workbench_fix_workflow_launcher, original_fix_workflow_launcher)
+
+      restore_env(
+        :workbench_issue_triage_workflow_launcher,
+        original_issue_triage_workflow_launcher
+      )
     end)
 
     Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
@@ -69,7 +85,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/dashboard?subject=work&section=runs", on_error: :warn)
 
-    assert has_element?(view, "#dashboard-entry-summary", "authenticated product overview")
+    assert has_element?(view, "#dashboard-entry-summary", "authenticated product home")
     assert has_element?(view, ~s|a[href="/settings/auth"]|, "Settings")
     assert has_element?(view, "#dashboard-root[data-dashboard-subject='work'][data-dashboard-section='runs']")
     assert has_element?(view, "#dashboard-shell-parent-subjects-work[aria-current='page']")
@@ -92,7 +108,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
            end)
   end
 
-  test "renders repository monitoring overview cards ordered by recent governed work", %{
+  test "renders managed repo inventory overview cards ordered by recent governed work", %{
     conn: _conn
   } do
     register_owner("dashboard-overview-owner@example.com", "owner-password-123")
@@ -140,12 +156,14 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-section-nav")
     assert has_element?(view, "#dashboard-sidebar-shell")
     assert has_element?(view, "#dashboard-overview-panel")
-    assert has_element?(view, "#dashboard-overview-note", "Repository-first monitoring")
+    assert has_element?(view, "#dashboard-overview-note", "primary signed-in home for repository inventory")
     refute has_element?(view, "#dashboard-overview-warning")
     refute has_element?(view, "#dashboard-overview-empty-state")
     assert has_element?(view, "#dashboard-overview-repository-list")
     assert has_element?(view, "[id^='dashboard-overview-repository-card-']")
-    assert has_element?(view, "[id^='dashboard-overview-repository-accordion-toggle-']")
+    assert has_element?(view, "#dashboard-overview-workbench-link[href='/workbench']")
+    assert has_element?(view, "[id^='dashboard-overview-repository-issues-project-link-']")
+    assert has_element?(view, "[id^='dashboard-overview-repository-prs-project-link-']")
 
     html = render(view)
 
@@ -159,6 +177,87 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     refute has_element?(view, "#dashboard-conversation-supervision")
     refute has_element?(view, "#dashboard-memory-summaries")
     refute has_element?(view, "#dashboard-runtime-evidence")
+  end
+
+  test "dashboard work overview keeps shared repo-detail and run follow-up paths", %{conn: _conn} do
+    register_owner("dashboard-followup-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-followup-owner@example.com", "owner-password-123")
+
+    project_id = "owner-repo-follow-up"
+    dashboard_return_to = ~p"/dashboard?#{[subject: "work", section: "overview"]}"
+    encoded_return_to = URI.encode_www_form(dashboard_return_to)
+
+    Application.put_env(:jido_code, :workbench_inventory_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: project_id,
+           name: "repo-follow-up",
+           github_full_name: "owner/repo-follow-up",
+           default_branch: "main",
+           open_issue_count: 3,
+           open_pr_count: 1,
+           recent_activity_summary: "Recent governed work is ready for review.",
+           recent_activity_at: DateTime.utc_now() |> DateTime.truncate(:second),
+           issue_triage_policy: %{enabled: true},
+           semantic_graph_hint: %{
+             state: :blocked,
+             label: "Workspace binding needed",
+             detail: "Repo workspace binding is missing for semantic inspection.",
+             remediation: "Open repo detail to repair workspace binding.",
+             recovery: %{available?: true, label: "Repair workspace binding"},
+             error_type: "semantic_workspace_binding_unavailable"
+           },
+           memory_graph_hint: %{
+             state: :blocked,
+             label: "Workspace binding needed",
+             detail: "Repo workspace binding is missing for memory inspection.",
+             remediation: "Open repo detail to repair workspace binding.",
+             recovery: %{available?: true, label: "Repair workspace binding"},
+             error_type: "memory_workspace_binding_unavailable"
+           }
+         }
+       ], nil}
+    end)
+
+    Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn _kickoff_request ->
+      {:ok, %{run_id: "run-fix-123"}}
+    end)
+
+    Application.put_env(:jido_code, :workbench_issue_triage_workflow_launcher, fn _kickoff_request ->
+      {:ok, %{run_id: "run-triage-456"}}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+    html = render(view)
+
+    assert has_element?(view, "#dashboard-overview-workbench-link[href='/workbench']")
+    assert html =~ ~s(href="/repos/#{project_id}?return_to=#{encoded_return_to}")
+
+    assert has_element?(view, "#dashboard-overview-repository-issues-project-link-#{project_id}")
+    assert has_element?(view, "#dashboard-overview-repository-prs-project-link-#{project_id}")
+    assert has_element?(view, "#dashboard-overview-repository-semantic-hint-recovery-#{project_id}")
+    assert has_element?(view, "#dashboard-overview-repository-memory-hint-recovery-#{project_id}")
+
+    view
+    |> element("#dashboard-overview-repository-issues-triage-action-#{project_id}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-issues-triage-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-triage-456']"
+           )
+
+    view
+    |> element("#dashboard-overview-repository-issues-fix-action-#{project_id}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#dashboard-overview-repository-issues-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-fix-123']"
+           )
   end
 
   test "defaults dashboard selection to work overview and ignores unknown params", %{

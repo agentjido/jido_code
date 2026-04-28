@@ -19,6 +19,8 @@ affects:
 <!-- covers: architecture.operator_surface_information_architecture.desktop_first_operator_shell -->
 <!-- covers: architecture.operator_surface_information_architecture.subject_tree_selection_remains_route_owned -->
 <!-- covers: architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics -->
+<!-- covers: architecture.operator_surface_information_architecture.dashboard_work_subject_hosts_primary_repo_inventory -->
+<!-- covers: architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode -->
 <!-- covers: architecture.frontend_stack.liveview_remains_product_host_shell -->
 <!-- covers: package.jido_code.spec_led_workspace -->
 
@@ -31,14 +33,16 @@ stacked pages, but the layout still feels route-by-route instead of product-wide
 
 Today:
 
-- dashboard uses a left sidebar as the primary concern rail
-- managed-repository detail also uses a left sidebar as its primary family rail
-- verbose explanatory copy stays visible in navigation chrome instead of only
-  when the operator needs orientation
-- routes do not yet expose one consistent breadcrumb lane between the page
-  header and subject navigation
-- information regions inside a selected subject do not yet follow one shared
-  header, work, and action layout
+- dashboard and managed-repository detail now share the subject-tree shell
+  shape, but the dashboard `Work` subject and `/workbench` still teach slightly
+  different repository-inventory mental models
+- the densest managed-repository inventory and issue-and-PR triage tooling still
+  lives on `/workbench` even though dashboard is now the durable ready-state
+  landing route
+- repo detail can still fall back toward Workbench context when a route does not
+  pass an explicit parent return target
+- verbose explanatory copy still needs continued tightening so the newer
+  top-level subject chrome stays terse and subject-like across routes
 
 That makes the product harder to scan as a desktop working environment. The UI
 needs a stronger subject hierarchy, clearer navigation ownership, and more
@@ -80,8 +84,14 @@ The shell rules are:
 9. Navigation state remains route-owned LiveView state even when richer bounded
    widgets render inside the selected subject pane.
 10. Responsive fallback may compress or restack the rails, but it must preserve
-   the same parent-child subject semantics instead of inventing a separate
-   mobile navigation model.
+    the same parent-child subject semantics instead of inventing a separate
+    mobile navigation model.
+11. Dashboard `Work` owns the primary managed-repository inventory and triage
+    model for signed-in operators; tool-named routes such as `/workbench` do
+    not become peer top-level subjects in the shared shell.
+12. When `/workbench` remains available, it behaves as a denser specialist mode
+    or alias for that same repository-inventory domain rather than competing
+    with dashboard for ready-state landing or first-level subject ownership.
 
 ## Consequences
 
@@ -91,6 +101,10 @@ The shell rules are:
   similar-but-different navigation patterns
 - dashboard, managed-repository detail, and adjacent signed-in surfaces can
   feel more like one coherent desktop workspace
+- dashboard can absorb the strongest repository-inventory and triage patterns
+  from Workbench without teaching operators a second top-level taxonomy
+- Workbench can survive as a dense specialist mode or alias without displacing
+  the semantic top-level `Work`, `Knowledge`, and `Runtime` structure
 - terse labels reduce chrome noise while the focus bubble keeps explanatory copy
   available when orientation is needed
 - breadcrumbs give operators one consistent recovery path back to broader route
@@ -130,18 +144,25 @@ older dashboard-only sidebar shell is no longer the target UI architecture.
 
 ## Implementation Status
 
-This decision is accepted but not yet landed in product code.
+This decision is partially landed in product code.
 
-Current implementation still reflects the earlier transitional shell:
+Current implementation already reflects the shared shell on dashboard and
+managed-repository detail:
 
-- dashboard uses the left sidebar as the primary concern rail
-- managed-repository detail uses the left sidebar as the primary family rail
-- top-level subject labels still keep more always-visible summary copy than the
-  new shell intends
-- routes do not yet share one breadcrumb pattern between the page header and
-  subject navigation
-- selected subject panes do not yet share one explicit header, middle, footer
-  contract across the signed-in routes
+- both routes use the subject-tree ordering of route header, breadcrumb lane,
+  top-level subject rail, child-subject sidebar, and selected pane framing
+- selected subject panes now follow the shared header, middle, footer contract
+- dashboard owns the durable ready-state landing route after onboarding
 
-Current-truth UI specs should now teach the accepted subject-tree shell while
-remaining explicit that implementation rollout is still pending.
+Remaining convergence work is now narrower:
+
+- dashboard `Work` still uses a lighter repository-monitoring view than the
+  denser inventory and triage model on `/workbench`
+- `/workbench` still reads like a separate route-level product surface instead
+  of a specialist mode or alias for dashboard `Work`
+- repo-detail return context still needs cleanup so dashboard-originated flows
+  do not implicitly fall back to Workbench semantics
+
+Current-truth UI specs and planning docs should now treat the shared shell as
+landed on the main signed-in routes while assigning dashboard/workbench content
+convergence and return-path cleanup to the next implementation phases.

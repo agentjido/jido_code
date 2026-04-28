@@ -1,6 +1,6 @@
 # Operator Surface Information Architecture
 
-<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records a shared subject-tree shell as the accepted convergence target for dashboard, managed-repository detail, and adjacent signed-in routes, adding a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation while current route code still reflects the earlier sidebar-first implementations until rollout lands. -->
+<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeping a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, while current truth now also distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content and treats `/workbench` as a denser specialist mode rather than a peer top-level subject. -->
 
 This subject defines the durable information architecture for signed-in operator
 routes after onboarding hands work off to the main product shell.
@@ -11,7 +11,7 @@ routes after onboarding hands work off to the main product shell.
 id: architecture.operator_surface_information_architecture
 kind: policy
 status: active
-summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes.
+summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject.
 decisions:
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
@@ -23,10 +23,12 @@ surface:
   - lib/jido_code_web/components/layouts.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - test/e2e/dashboard-tabs.spec.ts
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
+  - test/jido_code_web/live/workbench_live_test.exs
 ```
 
 ## Requirements
@@ -74,6 +76,16 @@ surface:
 
 - id: architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics
   statement: Responsive fallback may restack or compress the subject rails, but it shall preserve the same parent-child subject semantics instead of introducing a separate mobile-only navigation model.
+  priority: should
+  stability: evolving
+
+- id: architecture.operator_surface_information_architecture.dashboard_work_subject_hosts_primary_repo_inventory
+  statement: The dashboard's `Work` subject shall host the primary managed-repository inventory and triage model for signed-in operators rather than promoting `Workbench` to a peer top-level subject in the shared shell.
+  priority: should
+  stability: evolving
+
+- id: architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode
+  statement: When `/workbench` remains available, it shall act as a denser specialist mode or alias for the same managed-repository inventory and triage content model instead of displacing dashboard as the ready-state landing route or first-level shell taxonomy.
   priority: should
   stability: evolving
 ```
@@ -133,6 +145,20 @@ surface:
   then:
     - The same top-level and child subject structure remains legible.
     - The fallback does not invent a separate subject taxonomy for the narrow layout.
+
+- id: architecture.operator_surface_information_architecture.scenario_dashboard_work_and_workbench_share_inventory_model
+  covers:
+    - architecture.operator_surface_information_architecture.dashboard_work_subject_hosts_primary_repo_inventory
+    - architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode
+    - architecture.operator_surface_information_architecture.post_onboarding_routes_share_subject_tree_shell
+  given:
+    - A signed-in operator needs repository-first scanning or issue-and-PR triage after onboarding.
+  when:
+    - The operator opens dashboard `Work` and later opens `/workbench` for a denser view of the same domain.
+  then:
+    - Dashboard `Work` remains the primary subject-level home for managed-repository inventory and triage.
+    - `/workbench`, if retained, behaves as a denser specialist mode or alias for that same content model.
+    - `Workbench` does not become a peer top-level subject in the shared shell taxonomy.
 ```
 
 ## Verification
@@ -150,4 +176,6 @@ surface:
     - architecture.operator_surface_information_architecture.desktop_first_operator_shell
     - architecture.operator_surface_information_architecture.subject_tree_selection_remains_route_owned
     - architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics
+    - architecture.operator_surface_information_architecture.dashboard_work_subject_hosts_primary_repo_inventory
+    - architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode
 ```

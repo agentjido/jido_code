@@ -117,6 +117,8 @@ The plan aligns to:
 61. [Phase 67 - Dashboard Repository Panels And Accordion Monitoring](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-67-dashboard-repository-panels-and-accordion-monitoring.md): historical dashboard step that refined repository monitoring cards and inline detail before the accepted subject-tree shell replaced the left-sidebar-first dashboard target.
 62. [Phase 68 - Shared Post-Onboarding Operator Shell Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-68-shared-post-onboarding-operator-shell-foundation.md): build the shared signed-in operator shell with a route header, breadcrumb lane, parent subject top rail, child subject sidebar, selected-pane header-middle-footer contract, and responsive fallback helpers.
 63. [Phase 69 - Dashboard And Managed-Repo Subject-Tree Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-69-dashboard-and-managed-repo-subject-tree-adoption.md): migrate dashboard and managed-repository detail onto the shared subject-tree shell, define each route’s parent and child subject taxonomy, and update route-level verification plus product wording.
+64. [Phase 70 - Dashboard Work Subject And Workbench Content Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-70-dashboard-work-subject-and-workbench-content-convergence.md): move the strongest managed-repository inventory and triage patterns under dashboard `Work`, keep the semantic top rail intact, and converge dashboard content with Workbench’s denser inventory model.
+65. [Phase 71 - Workbench Route Role And Return-Path Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-71-workbench-route-role-and-return-path-convergence.md): clean up route semantics once dashboard owns primary repo inventory so repo detail preserves real parent context and `/workbench` settles into a dense specialist mode, alias, or redirect.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -126,7 +128,9 @@ an orphaned planning gap.
 UI chronology note: Phases 66 and 67 remain useful historical dashboard
 implementation steps, but their left-sidebar-first shell target is superseded by
 the accepted post-onboarding subject-tree operator shell. Phases 68 and 69 own
-the forward breadcrumb plus top-rail and child-sidebar rollout.
+the forward breadcrumb plus top-rail and child-sidebar rollout, while Phases 70
+and 71 own the follow-on dashboard/workbench content convergence and return-path
+cleanup once the shared shell is in place.
 
 ## Shared Conventions
 - Numbering:

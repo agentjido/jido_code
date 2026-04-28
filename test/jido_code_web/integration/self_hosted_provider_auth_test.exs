@@ -11,6 +11,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
   alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
+  alias JidoCode.Repo
 
   @resolver_env :provider_auth_broker_jwks_resolver
   @managed_app_env_keys [
@@ -48,6 +49,8 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
       end)
     end)
 
+    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
+
     :ok
   end
 
@@ -70,7 +73,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     {:ok, dashboard_view, _html} = live(recycle(response_conn), ~p"/dashboard")
 
     assert render(dashboard_view) =~ "octocat@example.com"
-    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product overview")
+    assert has_element?(dashboard_view, "#dashboard-entry-summary", "authenticated product home")
 
     {:ok, settings_view, _html} = live(recycle(response_conn), ~p"/settings/auth")
 
@@ -246,17 +249,24 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   end
 
   defp bootstrap_owner(email, password) do
-    {:ok, _owner} =
-      User.bootstrap_admin(
-        %{
-          email: email,
-          password: password,
-          password_confirmation: password
-        },
-        authorize?: false
-      )
+    case User.bootstrap_admin(
+           %{
+             email: email,
+             password: password,
+             password_confirmation: password
+           },
+           authorize?: false
+         ) do
+      {:ok, _owner} ->
+        :ok
 
-    :ok
+      {:error, reason} ->
+        if Exception.message(reason) =~ "has already been taken" do
+          :ok
+        else
+          raise "owner bootstrap failed: #{Exception.message(reason)}"
+        end
+    end
   end
 
   defp authenticate_bootstrap_owner_conn(email, password) do

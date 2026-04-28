@@ -1,6 +1,6 @@
 # Repo Posture
 
-<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces, and dashboard now keeps runtime and posture summaries inside a dedicated sidebar-selected concern while the default dashboard `Overview` concern remains intentionally empty on the authenticated landing route. -->
+<!-- current_truth.reconciled_with_branch: run-detail posture coverage continues to coexist with bounded memory context on canonical operator surfaces, dashboard now keeps runtime and posture summaries inside a dedicated sidebar-selected concern, and dashboard `Work > Overview` plus `/workbench` now project bounded runtime posture cues through the shared managed-repository inventory model instead of leaving overview empty on the authenticated landing route. -->
 
 This subject defines how repo-native state becomes explainable posture and trust
 records for managed repositories.
@@ -11,7 +11,7 @@ records for managed repositories.
 id: architecture.repo_posture
 kind: feature
 status: active
-summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, canonical managed-repository scope, the authenticated dashboard's dedicated sidebar-selected runtime and posture concern, and the current empty-state `Overview` shell on that same route, with route-level integration and browser coverage keeping dashboard posture projection explainable instead of hiding trust state inside opaque service logic.
+summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, bounded dashboard and run-detail memory context, canonical managed-repository scope, the authenticated dashboard's dedicated sidebar-selected runtime and posture concern, and the shared dashboard `Work > Overview` plus `/workbench` inventory projection that now carries bounded runtime cues instead of an empty overview shell, with route-level integration and browser coverage keeping dashboard posture projection explainable instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -29,6 +29,8 @@ surface:
   - lib/jido_code/governance/posture_check.ex
   - lib/jido_code/governance/posture_bridge.ex
   - lib/jido_code/governance/runtime_evidence_feed.ex
+  - lib/jido_code/workbench/inventory_surface.ex
+  - lib/jido_code_web/components/managed_repo_inventory_components.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/orchestration/run_summary_feed.ex

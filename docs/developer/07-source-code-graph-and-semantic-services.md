@@ -1,5 +1,7 @@
 # 07. Source Code Graph And Semantic Services
 
+<!-- covers: docs.product_foundation.source_code_ontology_guide_present -->
+
 This guide explains the repository-scoped semantic source-code graph and how it
 is exposed to product code.
 
@@ -130,5 +132,4 @@ Prefer ordinary file reads and code inspection when you need:
 ## Read Next
 
 Continue with
-[`08-memory-graph-and-workflow-provenance.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08-memory-graph-and-workflow-provenance.md).
-
+[`07b-source-code-ontology-and-query-examples.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/07b-source-code-ontology-and-query-examples.md).

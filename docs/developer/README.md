@@ -1,6 +1,7 @@
 # Developer Guides
 
 <!-- covers: docs.product_foundation.spec_led_intro_guide_present -->
+<!-- covers: docs.product_foundation.source_code_ontology_guide_present -->
 
 These guides explain `jido_code` in contributor terms.
 
@@ -35,25 +36,28 @@ lives in:
 8. [`07-source-code-graph-and-semantic-services.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/07-source-code-graph-and-semantic-services.md)  
    Understand the repository-scoped semantic source-code graph and its
    product-facing boundaries.
-9. [`08-memory-graph-and-workflow-provenance.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08-memory-graph-and-workflow-provenance.md)  
+9. [`07b-source-code-ontology-and-query-examples.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/07b-source-code-ontology-and-query-examples.md)
+   Go one level deeper on the semantic graph contents: ontology layers, loaded
+   repository facts, and example queries.
+10. [`08-memory-graph-and-workflow-provenance.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08-memory-graph-and-workflow-provenance.md)  
    Learn how workflow provenance and durable coding memory are captured and
    surfaced.
-10. [`09-frontend-and-product-surfaces.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/09-frontend-and-product-surfaces.md)  
+11. [`09-frontend-and-product-surfaces.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/09-frontend-and-product-surfaces.md)  
    See how LiveView, `live_vue`, and product surfaces fit together.
-11. [`10-development-workflow-and-quality-gates.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/10-development-workflow-and-quality-gates.md)  
+12. [`10-development-workflow-and-quality-gates.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/10-development-workflow-and-quality-gates.md)  
     Finish with the day-to-day contributor workflow and the verification
     surfaces that protect the repo.
-12. [`11-ingress-synthesis-and-work-item-flow.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/11-ingress-synthesis-and-work-item-flow.md)
+13. [`11-ingress-synthesis-and-work-item-flow.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/11-ingress-synthesis-and-work-item-flow.md)
     Follow the concrete path from inbound demand to `WorkItem`, including the
     repo-conversation-to-governed-work handoff and a real `fix failing tests`
     example.
-13. [`12-user-request-to-llm-message-path.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/12-user-request-to-llm-message-path.md)
+14. [`12-user-request-to-llm-message-path.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/12-user-request-to-llm-message-path.md)
     See exactly how a user request is preserved, wrapped, and transformed before
     becoming the final specialist LLM message list.
-14. [`13-source-code-graph-operations.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/13-source-code-graph-operations.md)
+15. [`13-source-code-graph-operations.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/13-source-code-graph-operations.md)
     Learn operational aspects of the source code graph capability, including
     configuration, monitoring, troubleshooting, and production deployment.
-15. [`14-repository-mental-map.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/14-repository-mental-map.md)
+16. [`14-repository-mental-map.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/14-repository-mental-map.md)
     Use this as a fast "where things live" index when you want to browse the
     codebase without reconstructing the repo layout from scratch.
 

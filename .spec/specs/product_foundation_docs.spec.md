@@ -9,7 +9,7 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, the current `/welcome` to `/setup` to `/dashboard` and `/settings/auth` route ownership model, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that starts with Spec Led Development orientation, points back to `.spec` as current truth, and reflects the semantic product verification expectations now carried in `CONTRIBUTING.md` and `AGENTS.md`.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code and memory-graph orientation, verification guidance for contributors, the current `/welcome` to `/setup` to `/dashboard` and `/settings/auth` route ownership model, and the repo-owned onboarding reset commands used during local bootstrap iteration, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides, including a derived developer architecture guide set under `docs/developer/` that starts with Spec Led Development orientation, points back to `.spec` as current truth, keeps the source-code graph boundary overview separate from a follow-on ontology-and-query explainer for contributors, and reflects the semantic product verification expectations now carried in `CONTRIBUTING.md` and `AGENTS.md`.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -78,6 +78,11 @@ surface:
   statement: The derived `docs/developer/` guide set shall begin with a guide that explains the repo-local `spec_led_ex` workflow, the `.spec` workspace structure, and drift-control expectations while keeping `.spec/planning/` explicitly optional for contributors.
   priority: should
   stability: evolving
+
+- id: docs.product_foundation.source_code_ontology_guide_present
+  statement: The derived `docs/developer/` guide set shall include a follow-on guide after the source-code graph boundary overview that explains the ontology layers loaded into the repository-scoped `source_code` graph, the kinds of repository facts normally present there, and example bounded-helper or explicit-SPARQL queries contributors can use to inspect that semantic content.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -116,6 +121,17 @@ surface:
     - The contributor follows the documented reading order.
   then:
     - The first guide explains the repo-local Spec Led Development workflow, the `.spec` workspace layout, and the anti-drift loop without making `.spec/planning/` mandatory.
+
+- id: docs.product_foundation.scenario.source_code_graph_guides_cover_boundary_and_content
+  covers:
+    - docs.product_foundation.source_code_ontology_guide_present
+  given:
+    - A contributor wants to understand the repository-scoped source-code graph after learning the high-level architecture.
+  when:
+    - The contributor follows the developer guide reading order through the source-code graph section.
+  then:
+    - One guide explains the repo-scoped boundary, lifecycle, and product-owned service surface.
+    - A follow-on guide explains the loaded ontology layers, the semantic content available in the graph, and concrete query examples.
 ```
 
 ## Verification
@@ -194,4 +210,15 @@ surface:
   target: docs/developer/README.md
   covers:
     - docs.product_foundation.spec_led_intro_guide_present
+    - docs.product_foundation.source_code_ontology_guide_present
+
+- kind: source_file
+  target: docs/developer/07-source-code-graph-and-semantic-services.md
+  covers:
+    - docs.product_foundation.source_code_ontology_guide_present
+
+- kind: source_file
+  target: docs/developer/07b-source-code-ontology-and-query-examples.md
+  covers:
+    - docs.product_foundation.source_code_ontology_guide_present
 ```

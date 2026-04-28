@@ -34,6 +34,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   @conversation_degraded_mode_message "Live conversation stream unavailable. Showing the latest repository conversation snapshot only."
   @detail_subject_order [:readiness, :work, :knowledge]
   @detail_sections [:overview, :conversations, :semantic, :memory, :workflows]
+  @repositories_path "/repos"
 
   @impl true
   def mount(_params, _session, socket) do
@@ -62,7 +63,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:conversation_degraded_mode_message, @conversation_degraded_mode_message)
      |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
-     |> assign(:return_to_path, ManagedRepoRoutes.dashboard_work_overview_path())
+     |> assign(:return_to_path, @repositories_path)
      |> assign(:selected_detail_subject, :readiness)
      |> assign(:selected_detail_section, :overview)
      |> assign(
@@ -2186,11 +2187,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     do:
       "Builtin workflow launch stays governed and repository-scoped here so blocked remediation and run traceability stay together."
 
-  defp return_to_label("/dashboard" <> _suffix), do: "Dashboard"
-  defp return_to_label("/repos" <> _suffix), do: "Repo detail"
-  defp return_to_label("/workbench" <> _suffix), do: "Workbench"
-  defp return_to_label("/settings" <> _suffix), do: "Settings"
-  defp return_to_label(path) when is_binary(path), do: "Back"
+  defp return_to_label(path), do: ManagedRepoRoutes.return_to_label(path)
 
   defp detail_section_badge(:overview, _assigns), do: nil
 
@@ -3876,7 +3873,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp normalize_return_to_path(return_to) do
-    ManagedRepoRoutes.normalize_return_to_path(return_to)
+    ManagedRepoRoutes.normalize_return_to_path(return_to, @repositories_path)
   end
 
   defp map_get(map, atom_key, string_key, default \\ nil)

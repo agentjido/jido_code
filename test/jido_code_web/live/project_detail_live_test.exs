@@ -115,7 +115,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     project_return_to =
       ManagedRepoRoutes.project_detail_path(
         managed_repo_id,
-        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        return_to: "/repos",
         subject: :work,
         section: :workflows
       )
@@ -346,7 +346,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     expected_work_conversations_path =
       ManagedRepoRoutes.project_detail_path(
         managed_repo_id,
-        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        return_to: "/repos",
         subject: :work,
         section: :conversations
       )
@@ -354,7 +354,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     expected_work_workflows_path =
       ManagedRepoRoutes.project_detail_path(
         managed_repo_id,
-        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        return_to: "/repos",
         subject: :work,
         section: :workflows
       )
@@ -362,7 +362,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     expected_knowledge_semantic_path =
       ManagedRepoRoutes.project_detail_path(
         managed_repo_id,
-        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        return_to: "/repos",
         subject: :knowledge,
         section: :semantic
       )
@@ -370,7 +370,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     expected_knowledge_memory_path =
       ManagedRepoRoutes.project_detail_path(
         managed_repo_id,
-        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        return_to: "/repos",
         subject: :knowledge,
         section: :memory
       )
@@ -478,8 +478,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-breadcrumb-subject", "Knowledge")
     assert has_element?(view, "#project-detail-breadcrumb-current[aria-current='page']", "Memory")
-    assert has_element?(view, "#project-detail-breadcrumb-return[href='/dashboard?subject=work&section=overview']", "Dashboard")
-    assert has_element?(view, "#project-detail-return-link[href='/dashboard?subject=work&section=overview']", "Back to Dashboard")
+    assert has_element?(view, "#project-detail-breadcrumb-return[href='/repos']", "Repositories")
+    assert has_element?(view, "#project-detail-return-link[href='/repos']", "Back to Repositories")
     assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
 
     assert has_element?(

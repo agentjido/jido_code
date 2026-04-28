@@ -1,5 +1,8 @@
 # 08. Memory Graph And Workflow Provenance
 
+<!-- covers: docs.product_foundation.memory_ontology_guide_present -->
+<!-- covers: docs.product_foundation.workflow_provenance_ontology_guide_present -->
+
 This guide explains how repository-scoped memory and workflow provenance work in
 `jido_code`.
 
@@ -151,5 +154,8 @@ That usually tells you which boundary to use.
 ## Read Next
 
 Continue with
+[`08b-memory-ontology-and-query-examples.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08b-memory-ontology-and-query-examples.md),
+then
+[`08c-workflow-provenance-ontology-and-query-examples.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/08c-workflow-provenance-ontology-and-query-examples.md),
+then
 [`09-frontend-and-product-surfaces.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/09-frontend-and-product-surfaces.md).
-

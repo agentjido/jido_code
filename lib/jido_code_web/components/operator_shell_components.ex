@@ -114,18 +114,20 @@ defmodule JidoCodeWeb.OperatorShellComponents do
       class="overflow-x-auto rounded-lg border border-base-300/70 bg-base-100 px-3 py-3"
     >
       <div class="flex min-w-max flex-nowrap items-center gap-2 sm:min-w-0 sm:flex-wrap">
-        <.subject_chip :for={subject <- @subjects} subject={subject} />
+        <.subject_chip :for={subject <- @subjects} rail_id={@id} subject={subject} />
       </div>
     </nav>
     """
   end
 
+  attr :rail_id, :string, required: true
   attr :subject, :map, required: true
 
   defp subject_chip(assigns) do
     ~H"""
     <.link
       :if={is_binary(@subject.patch)}
+      id={"#{@rail_id}-#{@subject.id}"}
       patch={@subject.patch}
       aria-current={if(@subject.selected?, do: "page", else: nil)}
       class={[
@@ -141,6 +143,7 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
     <.link
       :if={!is_binary(@subject.patch) and is_binary(@subject.navigate)}
+      id={"#{@rail_id}-#{@subject.id}"}
       navigate={@subject.navigate}
       aria-current={if(@subject.selected?, do: "page", else: nil)}
       class={[
@@ -156,6 +159,7 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
     <span
       :if={!is_binary(@subject.patch) and !is_binary(@subject.navigate)}
+      id={"#{@rail_id}-#{@subject.id}"}
       aria-current={if(@subject.selected?, do: "page", else: nil)}
       class={[
         "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",

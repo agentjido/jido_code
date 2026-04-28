@@ -15,6 +15,7 @@ defmodule JidoCodeWeb.DashboardLive do
   alias JidoCodeWeb.OperatorShell
   alias JidoCode.Workbench.{DashboardConversationFeed, DashboardRepositoryMonitoringFeed}
 
+  @dashboard_subject_order [:work, :knowledge, :runtime]
   @dashboard_sections [:overview, :runs, :conversations, :memory, :runtime]
   @onboarding_next_actions [
     "Run your first workflow",
@@ -28,6 +29,7 @@ defmodule JidoCodeWeb.DashboardLive do
   def mount(_params, _session, socket) do
     socket =
       socket
+      |> assign(:selected_dashboard_subject, :work)
       |> assign(:selected_dashboard_section, :overview)
       |> assign(:dashboard_sections, @dashboard_sections)
       |> assign(:onboarding_next_actions, [])
@@ -83,14 +85,26 @@ defmodule JidoCodeWeb.DashboardLive do
 
     dashboard_sections = dashboard_sections(onboarding_next_actions)
 
+    {selected_dashboard_subject, selected_dashboard_section} =
+      normalize_dashboard_selection(params, onboarding_next_actions)
+
     {:noreply,
      socket
      |> assign(:onboarding_next_actions, onboarding_next_actions)
      |> assign(:dashboard_sections, dashboard_sections)
-     |> assign(
-       :selected_dashboard_section,
-       normalize_dashboard_section(Map.get(params, "section"), dashboard_sections)
-     )}
+     |> assign(:selected_dashboard_subject, selected_dashboard_subject)
+     |> assign(:selected_dashboard_section, selected_dashboard_section)}
+  end
+
+  @impl true
+  def handle_event("refresh_dashboard_overview", _params, socket) do
+    {:noreply,
+     socket
+     |> load_run_summaries()
+     |> load_conversation_summaries()
+     |> load_memory_summaries()
+     |> load_runtime_evidence_summaries()
+     |> load_repository_monitoring_summaries()}
   end
 
   @impl true
@@ -139,6 +153,7 @@ defmodule JidoCodeWeb.DashboardLive do
     <Layouts.app flash={@flash} current_scope={%{}}>
       <div
         id="dashboard-root"
+        data-dashboard-subject={Atom.to_string(@selected_dashboard_subject)}
         data-dashboard-section={Atom.to_string(@selected_dashboard_section)}
         class="max-w-7xl mx-auto py-8"
       >
@@ -157,13 +172,13 @@ defmodule JidoCodeWeb.DashboardLive do
         <.subject_tree_shell
           id="dashboard-shell"
           class="mt-6"
-          breadcrumbs={dashboard_breadcrumbs()}
-          parent_subjects={dashboard_parent_subjects()}
+          breadcrumbs={dashboard_breadcrumbs(assigns)}
+          parent_subjects={dashboard_parent_subjects(assigns)}
           child_subjects={dashboard_section_nav_items(assigns)}
           child_nav_id="dashboard-section-nav"
-          child_nav_label="Dashboard concerns"
-          child_nav_heading="Dashboard concerns"
-          child_nav_summary="Move between overview, governed runs, conversations, memory, runtime posture, and follow-up work without leaving the authenticated landing route."
+          child_nav_label={dashboard_child_nav_label(assigns.selected_dashboard_subject)}
+          child_nav_heading={dashboard_child_nav_heading(assigns.selected_dashboard_subject)}
+          child_nav_summary={dashboard_child_nav_summary(assigns.selected_dashboard_subject)}
           sidebar_id="dashboard-sidebar-shell"
           content_id="dashboard-content-shell"
         >
@@ -171,8 +186,164 @@ defmodule JidoCodeWeb.DashboardLive do
             <section
               :if={@selected_dashboard_section == :overview}
               id="dashboard-overview-panel"
-              class="block w-full min-h-8"
-            />
+              class="space-y-4"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="space-y-1">
+                  <h2 class="text-lg font-semibold">Repository monitoring</h2>
+                  <p id="dashboard-overview-note" class="text-sm text-base-content/80">
+                    Repository-first monitoring keeps the landing route bounded while routing deeper governed work back to canonical managed-repository detail.
+                  </p>
+                </div>
+                <p id="dashboard-overview-last-refreshed" class="text-xs text-base-content/70">
+                  Last refreshed: {summary_refreshed_label(@repository_monitoring_last_refreshed_at)}
+                </p>
+              </div>
+
+              <.operator_state_notice
+                :if={@repository_monitoring_warning}
+                id="dashboard-overview-warning"
+                title="Repository monitoring may be stale"
+                state={@repository_monitoring_warning}
+                compact={true}
+              />
+
+              <%= if @repository_monitoring_count == 0 do %>
+                <p id="dashboard-overview-empty-state" class="text-sm text-base-content/70">
+                  No repository-first monitoring signals are available yet.
+                </p>
+              <% else %>
+                <ol id="dashboard-overview-repository-list" class="space-y-4">
+                  <li
+                    :for={entry <- @repository_monitoring_rows}
+                    id={"dashboard-overview-repository-card-#{repo_monitoring_dom_token(entry.id)}"}
+                    class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-4"
+                  >
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div class="space-y-1">
+                        <p
+                          id={"dashboard-overview-repository-label-#{repo_monitoring_dom_token(entry.id)}"}
+                          class="text-sm font-semibold"
+                        >
+                          {entry.repo_label}
+                        </p>
+                        <p
+                          id={"dashboard-overview-repository-ordering-#{repo_monitoring_dom_token(entry.id)}"}
+                          class="text-xs font-medium uppercase tracking-[0.12em] text-base-content/60"
+                        >
+                          {entry.ordering_label}
+                        </p>
+                        <p
+                          id={"dashboard-overview-repository-detail-#{repo_monitoring_dom_token(entry.id)}"}
+                          class="text-sm text-base-content/80"
+                        >
+                          {entry.ordering_detail}
+                        </p>
+                      </div>
+
+                      <div class="space-y-1 text-right text-xs text-base-content/70">
+                        <p>{entry.top_card.branch_label}</p>
+                        <p :if={entry.top_card.last_worked_on_label}>{entry.top_card.last_worked_on_label}</p>
+                      </div>
+                    </div>
+
+                    <p
+                      id={"dashboard-overview-repository-summary-#{repo_monitoring_dom_token(entry.id)}"}
+                      class="text-sm text-base-content/80"
+                    >
+                      {entry.top_card.primary_cue}
+                    </p>
+
+                    <div
+                      id={"dashboard-overview-repository-badges-#{repo_monitoring_dom_token(entry.id)}"}
+                      class="flex flex-wrap gap-2"
+                    >
+                      <span
+                        :for={badge <- entry.top_card.badges}
+                        id={"dashboard-overview-repository-badge-#{badge.id}-#{repo_monitoring_dom_token(entry.id)}"}
+                        class={badge.class}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                      <.link
+                        :for={link <- entry.top_card.links}
+                        id={"dashboard-overview-repository-link-#{link.id}-#{repo_monitoring_dom_token(entry.id)}"}
+                        navigate={link.route}
+                        class={link.class}
+                      >
+                        {link.label}
+                      </.link>
+                    </div>
+
+                    <details
+                      id={"dashboard-overview-repository-accordion-shell-#{repo_monitoring_dom_token(entry.id)}"}
+                      class="rounded-lg border border-base-300/70 bg-base-100"
+                    >
+                      <summary
+                        id={"dashboard-overview-repository-accordion-toggle-#{repo_monitoring_dom_token(entry.id)}"}
+                        class="cursor-pointer px-4 py-3 text-sm font-medium"
+                      >
+                        Open repo signals
+                      </summary>
+
+                      <div
+                        id={"dashboard-overview-repository-accordion-panel-#{repo_monitoring_dom_token(entry.id)}"}
+                        class="grid gap-3 border-t border-base-300/70 p-4 md:grid-cols-2"
+                      >
+                        <section
+                          :for={section <- entry.accordion_sections}
+                          id={"dashboard-overview-repository-detail-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
+                          class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+                        >
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-sm font-semibold">{section.title}</p>
+                            <span :if={section.status_badge} class={section.status_badge.class}>
+                              {section.status_badge.label}
+                            </span>
+                          </div>
+
+                          <p
+                            id={"dashboard-overview-repository-detail-heading-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
+                            class="text-sm text-base-content/85"
+                          >
+                            {section.heading}
+                          </p>
+
+                          <p
+                            id={"dashboard-overview-repository-detail-summary-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
+                            class="text-xs text-base-content/75"
+                          >
+                            {section.summary}
+                          </p>
+
+                          <p
+                            :if={section.meta}
+                            id={"dashboard-overview-repository-detail-meta-#{section.id}-#{repo_monitoring_dom_token(entry.id)}"}
+                            class="text-xs text-base-content/65"
+                          >
+                            {section.meta}
+                          </p>
+
+                          <div class="flex flex-wrap gap-3">
+                            <.link
+                              :for={link <- section.links}
+                              id={"dashboard-overview-repository-detail-#{section.id}-#{link.id}-link-#{repo_monitoring_dom_token(entry.id)}"}
+                              navigate={link.route}
+                              class={link.class}
+                            >
+                              {link.label}
+                            </.link>
+                          </div>
+                        </section>
+                      </div>
+                    </details>
+                  </li>
+                </ol>
+              <% end %>
+            </section>
 
             <section
               :if={@selected_dashboard_section == :runs}
@@ -192,18 +363,7 @@ defmodule JidoCodeWeb.DashboardLive do
                 title="Run summary feed may be stale"
                 state={@run_summary_warning}
                 compact={true}
-              >
-                <:actions>
-                  <button
-                    id="dashboard-run-summary-refresh"
-                    type="button"
-                    class="btn btn-sm btn-warning"
-                    phx-click="refresh_run_summaries"
-                  >
-                    Refresh run summaries
-                  </button>
-                </:actions>
-              </.operator_state_notice>
+              />
 
               <.vue_surface
                 id="dashboard-run-summary-widget"
@@ -287,19 +447,9 @@ defmodule JidoCodeWeb.DashboardLive do
                     Active governed conversations and clarification-needed repository work stay bounded here and route back to canonical repo detail.
                   </p>
                 </div>
-                <div class="flex flex-wrap items-center gap-3">
-                  <p id="dashboard-conversation-summary-last-refreshed" class="text-xs text-base-content/70">
-                    Last refreshed: {summary_refreshed_label(@conversation_summary_last_refreshed_at)}
-                  </p>
-                  <button
-                    id="dashboard-conversation-summary-refresh"
-                    type="button"
-                    class="btn btn-sm btn-outline"
-                    phx-click="refresh_conversation_summaries"
-                  >
-                    Refresh conversation supervision
-                  </button>
-                </div>
+                <p id="dashboard-conversation-summary-last-refreshed" class="text-xs text-base-content/70">
+                  Last refreshed: {summary_refreshed_label(@conversation_summary_last_refreshed_at)}
+                </p>
               </div>
 
               <.operator_state_notice
@@ -406,19 +556,9 @@ defmodule JidoCodeWeb.DashboardLive do
                     Memory summaries stay bounded and route back to canonical managed-repository surfaces for deeper review.
                   </p>
                 </div>
-                <div class="flex flex-wrap items-center gap-3">
-                  <p id="dashboard-memory-summary-last-refreshed" class="text-xs text-base-content/70">
-                    Last refreshed: {summary_refreshed_label(@memory_summary_last_refreshed_at)}
-                  </p>
-                  <button
-                    id="dashboard-memory-summary-refresh"
-                    type="button"
-                    class="btn btn-sm btn-outline"
-                    phx-click="refresh_memory_summaries"
-                  >
-                    Refresh memory summaries
-                  </button>
-                </div>
+                <p id="dashboard-memory-summary-last-refreshed" class="text-xs text-base-content/70">
+                  Last refreshed: {summary_refreshed_label(@memory_summary_last_refreshed_at)}
+                </p>
               </div>
 
               <.operator_state_notice
@@ -524,19 +664,9 @@ defmodule JidoCodeWeb.DashboardLive do
                     Product records remain the source of truth; runtime posture only contributes bounded readiness and degraded-path evidence.
                   </p>
                 </div>
-                <div class="flex flex-wrap items-center gap-3">
-                  <p id="dashboard-runtime-evidence-last-refreshed" class="text-xs text-base-content/70">
-                    Last refreshed: {summary_refreshed_label(@runtime_evidence_last_refreshed_at)}
-                  </p>
-                  <button
-                    id="dashboard-runtime-evidence-refresh"
-                    type="button"
-                    class="btn btn-sm btn-outline"
-                    phx-click="refresh_runtime_evidence"
-                  >
-                    Refresh runtime posture
-                  </button>
-                </div>
+                <p id="dashboard-runtime-evidence-last-refreshed" class="text-xs text-base-content/70">
+                  Last refreshed: {summary_refreshed_label(@runtime_evidence_last_refreshed_at)}
+                </p>
               </div>
 
               <.operator_state_notice
@@ -655,6 +785,57 @@ defmodule JidoCodeWeb.DashboardLive do
                 </li>
               </ul>
             </section>
+            <:footer_actions>
+              <button
+                :if={@selected_dashboard_section == :overview}
+                id="dashboard-overview-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_dashboard_overview"
+              >
+                Refresh overview signals
+              </button>
+
+              <button
+                :if={@selected_dashboard_section == :runs}
+                id="dashboard-run-summary-refresh"
+                type="button"
+                class="btn btn-sm btn-warning"
+                phx-click="refresh_run_summaries"
+              >
+                Refresh run summaries
+              </button>
+
+              <button
+                :if={@selected_dashboard_section == :conversations}
+                id="dashboard-conversation-summary-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_conversation_summaries"
+              >
+                Refresh conversation supervision
+              </button>
+
+              <button
+                :if={@selected_dashboard_section == :memory}
+                id="dashboard-memory-summary-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_memory_summaries"
+              >
+                Refresh memory summaries
+              </button>
+
+              <button
+                :if={@selected_dashboard_section == :runtime}
+                id="dashboard-runtime-evidence-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_runtime_evidence"
+              >
+                Refresh runtime posture
+              </button>
+            </:footer_actions>
           </.subject_pane>
         </.subject_tree_shell>
       </div>
@@ -725,8 +906,23 @@ defmodule JidoCodeWeb.DashboardLive do
     end
   end
 
+  defp dashboard_subject_sections(onboarding_next_actions) when is_list(onboarding_next_actions) do
+    %{
+      work:
+        if(Enum.empty?(onboarding_next_actions),
+          do: [:overview, :runs, :conversations],
+          else: [:overview, :runs, :conversations, :next_steps]
+        ),
+      knowledge: [:memory],
+      runtime: [:runtime]
+    }
+  end
+
   defp dashboard_section_nav_items(assigns) do
-    Enum.map(assigns.dashboard_sections, fn section ->
+    assigns.onboarding_next_actions
+    |> dashboard_subject_sections()
+    |> Map.fetch!(assigns.selected_dashboard_subject)
+    |> Enum.map(fn section ->
       OperatorShell.child_subject(%{
         id: section,
         label: dashboard_section_label(section),
@@ -734,31 +930,56 @@ defmodule JidoCodeWeb.DashboardLive do
         badge: dashboard_section_badge(section, assigns),
         pane_id: "dashboard-pane-#{section}",
         selected?: assigns.selected_dashboard_section == section,
-        patch: dashboard_section_path(assigns.onboarding_next_actions, section)
+        patch:
+          dashboard_selection_path(
+            assigns.onboarding_next_actions,
+            assigns.selected_dashboard_subject,
+            section
+          )
       })
       |> Map.put(:section, section)
     end)
   end
 
-  defp dashboard_breadcrumbs do
+  defp dashboard_breadcrumbs(assigns) do
     [
       OperatorShell.breadcrumb(%{
-        id: "dashboard-breadcrumb-current",
+        id: "dashboard-breadcrumb-dashboard",
         label: "Dashboard",
+        patch: dashboard_selection_path(assigns.onboarding_next_actions, :work, :overview)
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "dashboard-breadcrumb-subject",
+        label: dashboard_subject_label(assigns.selected_dashboard_subject),
+        patch:
+          dashboard_subject_path(
+            assigns.onboarding_next_actions,
+            assigns.selected_dashboard_subject
+          )
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "dashboard-breadcrumb-current",
+        label: dashboard_section_label(assigns.selected_dashboard_section),
         current?: true
       })
     ]
   end
 
-  defp dashboard_parent_subjects do
-    [
-      OperatorShell.parent_subject(%{
-        id: :dashboard,
-        label: "Dashboard",
-        description: "Signed-in control surface for governed work, memory, and runtime posture.",
-        selected?: true
-      })
-    ]
+  defp dashboard_parent_subjects(assigns) do
+    assigns.onboarding_next_actions
+    |> dashboard_subject_sections()
+    |> then(fn subject_sections ->
+      Enum.map(@dashboard_subject_order, fn subject ->
+        OperatorShell.parent_subject(%{
+          id: subject,
+          label: dashboard_subject_label(subject),
+          description: dashboard_subject_description(subject),
+          selected?: assigns.selected_dashboard_subject == subject,
+          patch: dashboard_subject_path(assigns.onboarding_next_actions, subject)
+        })
+      end)
+      |> Enum.filter(fn subject -> Map.has_key?(subject_sections, subject.id) end)
+    end)
   end
 
   defp dashboard_selected_pane(assigns) do
@@ -771,9 +992,37 @@ defmodule JidoCodeWeb.DashboardLive do
     })
   end
 
-  defp dashboard_section_path(onboarding_next_actions, section) do
+  defp dashboard_child_nav_label(:work), do: "Dashboard work subjects"
+  defp dashboard_child_nav_label(:knowledge), do: "Dashboard knowledge subjects"
+  defp dashboard_child_nav_label(:runtime), do: "Dashboard runtime subjects"
+
+  defp dashboard_child_nav_heading(:work), do: "Work"
+  defp dashboard_child_nav_heading(:knowledge), do: "Knowledge"
+  defp dashboard_child_nav_heading(:runtime), do: "Runtime"
+
+  defp dashboard_child_nav_summary(:work) do
+    "Repository monitoring, governed runs, governed conversations, and ready follow-up stay grouped here without leaving the authenticated landing route."
+  end
+
+  defp dashboard_child_nav_summary(:knowledge) do
+    "Bounded memory attention stays here and routes back to canonical managed-repository detail when a deeper review is needed."
+  end
+
+  defp dashboard_child_nav_summary(:runtime) do
+    "Delivery readiness and degraded-path runtime posture stay grouped here as bounded product signals."
+  end
+
+  defp dashboard_subject_path(onboarding_next_actions, subject) do
+    dashboard_selection_path(
+      onboarding_next_actions,
+      subject,
+      default_dashboard_section_for_subject(subject, onboarding_next_actions)
+    )
+  end
+
+  defp dashboard_selection_path(onboarding_next_actions, subject, section) do
     params =
-      [section: Atom.to_string(section)]
+      [subject: Atom.to_string(subject), section: Atom.to_string(section)]
       |> maybe_put_query_param(:onboarding, onboarding_next_actions_query_param(onboarding_next_actions))
 
     ~p"/dashboard?#{params}"
@@ -783,12 +1032,56 @@ defmodule JidoCodeWeb.DashboardLive do
     if Enum.empty?(onboarding_next_actions), do: nil, else: "completed"
   end
 
+  defp normalize_dashboard_selection(params, onboarding_next_actions) do
+    subject_sections = dashboard_subject_sections(onboarding_next_actions)
+    available_sections = dashboard_sections(onboarding_next_actions)
+
+    case normalize_dashboard_section(Map.get(params, "section"), available_sections) do
+      section when is_atom(section) ->
+        {dashboard_subject_for_section(section, onboarding_next_actions), section}
+
+      nil ->
+        subject =
+          params
+          |> Map.get("subject")
+          |> parse_dashboard_subject(subject_sections)
+
+        {subject, default_dashboard_section_for_subject(subject, onboarding_next_actions)}
+    end
+  end
+
+  defp parse_dashboard_subject(subject_param, subject_sections) when is_map(subject_sections) do
+    available_subjects = Map.keys(subject_sections)
+
+    case normalize_optional_string(subject_param) do
+      nil ->
+        :work
+
+      normalized ->
+        normalized
+        |> String.trim()
+        |> String.downcase()
+        |> String.replace("-", "_")
+        |> case do
+          "work" -> :work
+          "knowledge" -> :knowledge
+          "runtime" -> :runtime
+          _other -> :work
+        end
+        |> then(fn subject -> if subject in available_subjects, do: subject, else: :work end)
+    end
+  end
+
   defp normalize_dashboard_section(section_param, available_sections) do
+    parse_dashboard_section(section_param, available_sections) || :overview
+  end
+
+  defp parse_dashboard_section(section_param, available_sections) do
     section_param
     |> normalize_optional_string()
     |> case do
       nil ->
-        :overview
+        nil
 
       normalized ->
         normalized
@@ -802,20 +1095,51 @@ defmodule JidoCodeWeb.DashboardLive do
           "conversations" -> :conversations
           "memory" -> :memory
           "runtime" -> :runtime
-          _other -> :overview
+          _other -> nil
         end
     end
     |> then(fn section ->
-      if section in available_sections, do: section, else: :overview
+      if section in available_sections, do: section, else: nil
     end)
+  end
+
+  defp default_dashboard_section_for_subject(subject, onboarding_next_actions) do
+    onboarding_next_actions
+    |> dashboard_subject_sections()
+    |> Map.fetch!(subject)
+    |> List.first()
+  end
+
+  defp dashboard_subject_for_section(section, onboarding_next_actions) do
+    onboarding_next_actions
+    |> dashboard_subject_sections()
+    |> Enum.find_value(:work, fn {subject, sections} ->
+      if section in sections, do: subject, else: nil
+    end)
+  end
+
+  defp dashboard_subject_label(:work), do: "Work"
+  defp dashboard_subject_label(:knowledge), do: "Knowledge"
+  defp dashboard_subject_label(:runtime), do: "Runtime"
+
+  defp dashboard_subject_description(:work) do
+    "Repository monitoring, governed activity, and ready follow-up stay grouped here."
+  end
+
+  defp dashboard_subject_description(:knowledge) do
+    "Bounded memory attention and repo knowledge signals stay grouped here."
+  end
+
+  defp dashboard_subject_description(:runtime) do
+    "Delivery readiness and degraded-path runtime posture stay grouped here."
   end
 
   defp dashboard_section_label(:overview), do: "Overview"
   defp dashboard_section_label(:runs), do: "Runs"
   defp dashboard_section_label(:conversations), do: "Conversations"
   defp dashboard_section_label(:memory), do: "Memory"
-  defp dashboard_section_label(:runtime), do: "Runtime"
-  defp dashboard_section_label(:next_steps), do: "Next Steps"
+  defp dashboard_section_label(:runtime), do: "Posture"
+  defp dashboard_section_label(:next_steps), do: "Follow-up"
 
   defp dashboard_pane_title(:overview), do: "Dashboard overview"
   defp dashboard_pane_title(:runs), do: "Recent governed runs"
@@ -842,8 +1166,13 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_pane_summary(:next_steps),
     do: "Post-onboarding follow-up remains bounded here instead of replacing the durable landing route."
 
-  defp dashboard_section_summary(:overview, _assigns),
-    do: "Repository-first monitoring panels ordered by the most recent governed or operator-facing work."
+  defp dashboard_section_summary(:overview, assigns) do
+    if assigns.repository_monitoring_count == 0 do
+      "No repository-first monitoring signals are visible yet."
+    else
+      "#{assigns.repository_monitoring_count} repositories ordered by recent governed or operator-facing work."
+    end
+  end
 
   defp dashboard_section_summary(:runs, assigns) do
     if assigns.run_summary_count == 0 do
@@ -891,7 +1220,18 @@ defmodule JidoCodeWeb.DashboardLive do
     "#{count} ready-state follow-up #{pluralize(count, "action", "actions")}."
   end
 
-  defp dashboard_section_badge(:overview, _assigns), do: nil
+  defp dashboard_section_badge(:overview, assigns) do
+    cond do
+      assigns.repository_monitoring_warning ->
+        %{label: "stale", tone: :warning}
+
+      assigns.repository_monitoring_count > 0 ->
+        %{label: Integer.to_string(assigns.repository_monitoring_count), tone: :neutral}
+
+      true ->
+        nil
+    end
+  end
 
   defp dashboard_section_badge(:runs, assigns) do
     if assigns.run_summary_count > 0 do
@@ -971,6 +1311,8 @@ defmodule JidoCodeWeb.DashboardLive do
   defp memory_summary_dom_id(summary) do
     "dashboard-memory-summary-#{run_summary_dom_token(summary.id)}"
   end
+
+  defp repo_monitoring_dom_token(value), do: run_summary_dom_token(value)
 
   defp run_summary_dom_token(value) do
     value

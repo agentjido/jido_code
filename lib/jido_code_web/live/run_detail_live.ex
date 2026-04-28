@@ -385,7 +385,11 @@ defmodule JidoCodeWeb.RunDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <section id="run-detail-page" class="space-y-4">
         <%= if @run do %>
           <section id="run-detail-header" class="space-y-1">

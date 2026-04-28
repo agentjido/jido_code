@@ -1,6 +1,6 @@
 # Operator Surface Information Architecture
 
-<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeping a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, while current truth now also distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content and treats `/workbench` as a denser specialist mode rather than a peer top-level subject. -->
+<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeping a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, while current truth now also distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, and now requires product-wide signed-in wayfinding so operators can move among major routes without relying only on contextual back links. -->
 
 This subject defines the durable information architecture for signed-in operator
 routes after onboarding hands work off to the main product shell.
@@ -11,7 +11,7 @@ routes after onboarding hands work off to the main product shell.
 id: architecture.operator_surface_information_architecture
 kind: policy
 status: active
-summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject.
+summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject, and requiring one coherent signed-in navigation layer across product routes so major destinations stay easy to reach.
 decisions:
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
@@ -88,6 +88,16 @@ surface:
   statement: When `/workbench` remains available, it shall act as a denser specialist mode or alias for the same managed-repository inventory and triage content model instead of displacing dashboard as the ready-state landing route or first-level shell taxonomy.
   priority: should
   stability: evolving
+
+- id: architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding
+  statement: Signed-in operator routes shall expose one coherent product-wide navigation layer for major destinations such as dashboard, settings, specialist inventory modes, managed-repository detail, and governed-run follow-up so operators can move across the application without depending only on browser history, breadcrumbs, or contextual return links.
+  priority: should
+  stability: evolving
+
+- id: architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers
+  statement: Product-wide signed-in navigation shall be composed from shared LiveView-owned helpers, metadata, and route contracts rather than each route hand-rolling bespoke top-level wayfinding chrome.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -159,6 +169,20 @@ surface:
     - Dashboard `Work` remains the primary subject-level home for managed-repository inventory and triage.
     - `/workbench`, if retained, behaves as a denser specialist mode or alias for that same content model.
     - `Workbench` does not become a peer top-level subject in the shared shell taxonomy.
+
+- id: architecture.operator_surface_information_architecture.scenario_signed_in_operator_moves_across_major_routes
+  covers:
+    - architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding
+    - architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers
+    - architecture.operator_surface_information_architecture.desktop_first_operator_shell
+  given:
+    - An authenticated operator is moving among dashboard, settings, specialist inventory, managed-repository detail, and governed-run follow-up routes during one working session.
+  when:
+    - The operator needs to switch surfaces without losing orientation or depending on browser back behavior.
+  then:
+    - The signed-in product exposes a consistent navigation layer for those major destinations.
+    - Route-local breadcrumbs and return links remain available, but they are not the only practical way to move around the product.
+    - The navigation chrome is built from shared LiveView-owned helpers so contributors do not maintain a separate bespoke top-level navigation pattern on each route.
 ```
 
 ## Verification
@@ -178,4 +202,6 @@ surface:
     - architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics
     - architecture.operator_surface_information_architecture.dashboard_work_subject_hosts_primary_repo_inventory
     - architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode
+    - architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding
+    - architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers
 ```

@@ -2,7 +2,7 @@
 
 # Runtime Environment Defaults
 
-<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject, while setup import now treats explicit repo-scoped local workspace paths as higher-priority binding input than the shared install default root, repo detail plus adjacent runtime-readiness surfaces now read and repair workspace binding from each managed repository's own persisted binding instead of pointing operators back to setup defaults, and dashboard `Work > Overview` plus `/workbench` now project those same repo-scoped readiness and repair cues through the shared managed-repository inventory model. -->
+<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject, while setup import now treats explicit repo-scoped local workspace paths as higher-priority binding input than the shared install default root, repo detail plus adjacent runtime-readiness surfaces now read and repair workspace binding from each managed repository's own persisted binding instead of pointing operators back to setup defaults, and dashboard `Work > Overview` plus `/workbench` now project those same repo-scoped readiness and repair cues through the shared managed-repository inventory model under the shared signed-in operator navigation layer. -->
 
 This subject defines how `Jido.Code` captures default runtime execution intent
 during setup and persists that choice as durable product metadata.

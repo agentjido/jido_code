@@ -209,7 +209,11 @@ defmodule JidoCodeWeb.DecisionDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <section class="mx-auto max-w-5xl space-y-6 py-8">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-1">
@@ -512,7 +516,8 @@ defmodule JidoCodeWeb.DecisionDetailLive do
         <% else %>
           <section class="rounded-xl border border-warning/40 bg-warning/10 p-6">
             <p id="decision-detail-missing-detail" class="text-sm text-base-content/80">
-              No governed decision with id <span class="font-mono">{@decision_id}</span> is available on this managed-repository route.
+              No governed decision with id <span class="font-mono">{@decision_id}</span>
+              is available on this managed-repository route.
             </p>
           </section>
         <% end %>
@@ -563,8 +568,7 @@ defmodule JidoCodeWeb.DecisionDetailLive do
          work_item: work_item,
          related_evidence: load_related_evidence(managed_repo_id, decision),
          memory_context: memory_context,
-         memory_follow_up_preview:
-           load_memory_follow_up_preview(memory_context, route_repo_id, decision)
+         memory_follow_up_preview: load_memory_follow_up_preview(memory_context, route_repo_id, decision)
        }}
     else
       _other -> {:error, :not_found}

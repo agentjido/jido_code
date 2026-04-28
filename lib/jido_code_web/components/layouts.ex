@@ -5,8 +5,6 @@ defmodule JidoCodeWeb.Layouts do
   """
   use JidoCodeWeb, :html
 
-  alias JidoCodeWeb.OperatorNavigation
-
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -34,11 +32,14 @@ defmodule JidoCodeWeb.Layouts do
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
   )
 
+  attr(:operator_navigation, :map,
+    default: nil,
+    doc: "shared signed-in operator navigation metadata"
+  )
+
   slot(:inner_block, required: true)
 
   def app(assigns) do
-    assigns = assign(assigns, :operator_navigation, OperatorNavigation.from_socket(assigns[:socket]))
-
     ~H"""
     <header class="sticky top-0 z-40 border-b border-base-300/70 bg-base-100/90 backdrop-blur">
       <div class="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">

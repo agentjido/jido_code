@@ -119,6 +119,7 @@ The plan aligns to:
 63. [Phase 69 - Dashboard And Managed-Repo Subject-Tree Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-69-dashboard-and-managed-repo-subject-tree-adoption.md): migrate dashboard and managed-repository detail onto the shared subject-tree shell, define each route’s parent and child subject taxonomy, and update route-level verification plus product wording.
 64. [Phase 70 - Dashboard Work Subject And Workbench Content Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-70-dashboard-work-subject-and-workbench-content-convergence.md): move the strongest managed-repository inventory and triage patterns under dashboard `Work`, keep the semantic top rail intact, and converge dashboard content with Workbench’s denser inventory model.
 65. [Phase 71 - Workbench Route Role And Return-Path Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-71-workbench-route-role-and-return-path-convergence.md): clean up route semantics once dashboard owns primary repo inventory so repo detail preserves real parent context and `/workbench` settles into a dense specialist mode, alias, or redirect.
+66. [Phase 72 - Global Operator Navigation Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-72-global-operator-navigation-convergence.md): add one coherent signed-in navigation layer across dashboard, Workbench, settings, repo detail, and run detail so major destinations stay easy to reach and future route composition stays reusable.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -128,9 +129,10 @@ an orphaned planning gap.
 UI chronology note: Phases 66 and 67 remain useful historical dashboard
 implementation steps, but their left-sidebar-first shell target is superseded by
 the accepted post-onboarding subject-tree operator shell. Phases 68 and 69 own
-the forward breadcrumb plus top-rail and child-sidebar rollout, while Phases 70
-and 71 own the follow-on dashboard/workbench content convergence and return-path
-cleanup once the shared shell is in place.
+the forward breadcrumb plus top-rail and child-sidebar rollout, Phases 70 and
+71 own the dashboard/workbench content convergence plus return-path cleanup once
+the shared shell is in place, and Phase 72 owns the missing product-wide
+signed-in wayfinding layer across those routes.
 
 ## Shared Conventions
 - Numbering:

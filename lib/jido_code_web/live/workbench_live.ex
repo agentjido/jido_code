@@ -9,14 +9,15 @@ defmodule JidoCodeWeb.WorkbenchLive do
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
+  import JidoCodeWeb.ManagedRepoInventoryComponents
+
   alias JidoCode.Orchestration.RunPubSub
 
   alias JidoCode.Workbench.{
     FixWorkflowKickoff,
-    Inventory,
-    IssueTriageWorkflowKickoff,
-    ProjectWorkspaceBindingNotice,
-    RunOutcomes
+    InventoryActionState,
+    InventorySurface,
+    IssueTriageWorkflowKickoff
   }
 
   @fallback_row_id_prefix "workbench-row-"
@@ -379,139 +380,11 @@ defmodule JidoCodeWeb.WorkbenchLive do
                   {project.github_full_name}
                 </p>
                 <p class="text-xs text-base-content/60">{project.name}</p>
-                <div
-                  :if={semantic_graph_hint(project)}
-                  id={"workbench-project-semantic-hint-#{project.id}"}
-                  class="space-y-1 pt-2"
-                >
-                  <span
-                    id={"workbench-project-semantic-hint-badge-#{project.id}"}
-                    class={semantic_graph_hint_badge_class(semantic_graph_hint(project))}
-                  >
-                    {semantic_graph_hint(project).label}
-                  </span>
-                  <p
-                    id={"workbench-project-semantic-hint-detail-#{project.id}"}
-                    class="text-[11px] text-base-content/65"
-                  >
-                    {semantic_graph_hint(project).detail}
-                  </p>
-                  <.link
-                    :if={semantic_graph_hint_recovery_path(project, @filter_values)}
-                    id={"workbench-project-semantic-hint-recovery-#{project.id}"}
-                    class="link link-primary text-[11px]"
-                    href={semantic_graph_hint_recovery_path(project, @filter_values)}
-                  >
-                    {semantic_graph_hint(project).remediation}
-                  </.link>
-                </div>
-                <div
-                  :if={memory_graph_hint(project)}
-                  id={"workbench-project-memory-hint-#{project.id}"}
-                  class="space-y-1 pt-2"
-                >
-                  <span
-                    id={"workbench-project-memory-hint-badge-#{project.id}"}
-                    class={memory_graph_hint_badge_class(memory_graph_hint(project))}
-                  >
-                    {memory_graph_hint(project).label}
-                  </span>
-                  <p
-                    id={"workbench-project-memory-hint-detail-#{project.id}"}
-                    class="text-[11px] text-base-content/65"
-                  >
-                    {memory_graph_hint(project).detail}
-                  </p>
-                  <.link
-                    :if={memory_graph_hint_recovery_path(project, @filter_values)}
-                    id={"workbench-project-memory-hint-recovery-#{project.id}"}
-                    class="link link-primary text-[11px]"
-                    href={memory_graph_hint_recovery_path(project, @filter_values)}
-                  >
-                    {memory_graph_hint(project).remediation}
-                  </.link>
-                </div>
-                <div
-                  :if={conversation_supervision_projection(project)}
-                  id={"workbench-project-conversation-hint-#{project.id}"}
-                  class="space-y-2 pt-2"
-                >
-                  <div class="flex flex-wrap items-center gap-2">
-                    <.conversation_role_badge
-                      id={"workbench-project-conversation-role-#{project.id}"}
-                      scope={conversation_supervision_role_scope(project)}
-                      attachment_mode={conversation_supervision_role_attachment_mode(project)}
-                      work_item_id={conversation_supervision_role_work_item_id(project)}
-                    />
-                    <.conversation_status_badge
-                      :if={conversation_supervision_status(project)}
-                      id={"workbench-project-conversation-status-#{project.id}"}
-                      status={conversation_supervision_status(project)}
-                    />
-                    <span
-                      :if={conversation_supervision_active_count(project) > 0}
-                      id={"workbench-project-conversation-hint-badge-#{project.id}"}
-                      class="badge badge-sm badge-primary badge-outline font-medium"
-                    >
-                      {conversation_supervision_active_count_label(project)}
-                    </span>
-                    <span
-                      :if={conversation_supervision_clarification_count(project) > 0}
-                      id={"workbench-project-conversation-clarification-#{project.id}"}
-                      class="badge badge-sm badge-warning badge-outline font-medium"
-                    >
-                      {conversation_supervision_clarification_count_label(project)}
-                    </span>
-                  </div>
-                  <p
-                    id={"workbench-project-conversation-hint-detail-#{project.id}"}
-                    class="text-[11px] text-base-content/65"
-                  >
-                    {conversation_supervision_detail(project)}
-                  </p>
-                  <p
-                    :if={conversation_supervision_work_item(project)}
-                    id={"workbench-project-conversation-work-item-#{project.id}"}
-                    class="text-[11px] text-base-content/70"
-                  >
-                    Latest governed work: {conversation_supervision_work_item(project).summary} ( {conversation_supervision_work_item(
-                      project
-                    ).status
-                    |> conversation_status_label()})
-                  </p>
-                  <.link
-                    id={"workbench-project-conversation-link-#{project.id}"}
-                    class="link link-primary text-[11px]"
-                    navigate={project_detail_path(project, @filter_values)}
-                  >
-                    {conversation_supervision_action_label(project)}
-                  </.link>
-                </div>
-                <div
-                  :if={conversation_supervision_notice(project)}
-                  id={"workbench-project-conversation-notice-#{project.id}"}
-                  class="space-y-1 pt-2"
-                >
-                  <span
-                    id={"workbench-project-conversation-notice-label-#{project.id}"}
-                    class="badge badge-warning badge-outline"
-                  >
-                    Conversation state unavailable
-                  </span>
-                  <p
-                    id={"workbench-project-conversation-notice-detail-#{project.id}"}
-                    class="text-[11px] text-base-content/65"
-                  >
-                    {conversation_supervision_notice(project).detail}
-                  </p>
-                  <.link
-                    id={"workbench-project-conversation-notice-link-#{project.id}"}
-                    class="link link-primary text-[11px]"
-                    navigate={project_detail_path(project, @filter_values)}
-                  >
-                    Open repo detail
-                  </.link>
-                </div>
+                <.managed_repo_hint_stack
+                  row={project}
+                  dom_prefix="workbench-project"
+                  detail_path={project_detail_path(project, @filter_values)}
+                />
               </td>
               <td id={"workbench-project-open-issues-#{project.id}"}>{project.open_issue_count}</td>
               <td id={"workbench-project-open-prs-#{project.id}"}>{project.open_pr_count}</td>
@@ -519,126 +392,42 @@ defmodule JidoCodeWeb.WorkbenchLive do
                 {project.recent_activity_summary}
               </td>
               <td id={"workbench-project-links-#{project.id}"} class="space-y-2 text-xs">
-                <div id={"workbench-project-issues-links-#{project.id}"}>
-                  <p class="font-medium text-base-content/80">Issues</p>
-                  <% triage_policy_state = issue_triage_policy_state(project) %>
-                  <div class="flex flex-col gap-0.5">
-                    <.row_link
-                      link_id={"workbench-project-issues-github-link-#{project.id}"}
-                      disabled_id={"workbench-project-issues-github-disabled-#{project.id}"}
-                      reason_id={"workbench-project-issues-github-disabled-reason-#{project.id}"}
-                      label="GitHub issues"
-                      target={issue_github_url(project)}
-                      disabled_reason={github_url_unavailable_reason()}
-                      external
-                    />
-                    <.row_link
-                      link_id={"workbench-project-issues-project-link-#{project.id}"}
-                      disabled_id={"workbench-project-issues-project-disabled-#{project.id}"}
-                      reason_id={"workbench-project-issues-project-disabled-reason-#{project.id}"}
-                      label="Repo detail"
-                      target={project_detail_path(project, @filter_values)}
-                      disabled_reason={project_detail_unavailable_reason()}
-                    />
-                    <.recent_run_outcome_indicator
-                      outcome={recent_run_outcome(@recent_run_outcomes, project.id)}
-                      dom_prefix={"workbench-project-issues-run-outcome-#{project.id}"}
-                    />
-                    <%= if Map.get(triage_policy_state, :enabled, true) do %>
-                      <button
-                        id={"workbench-project-issues-triage-action-#{project.id}"}
-                        type="button"
-                        class="btn btn-xs btn-outline btn-accent w-fit mt-1"
-                        phx-click="kickoff_issue_triage_workflow"
-                        phx-value-project_id={project.id}
-                        phx-value-context_item_type="issue"
-                      >
-                        Kick off issue triage workflow
-                      </button>
-                    <% else %>
-                      <.issue_triage_policy_blocked_feedback
-                        policy_state={triage_policy_state}
-                        dom_prefix={"workbench-project-issues-triage-disabled-#{project.id}"}
-                      />
-                    <% end %>
-                    <.issue_triage_workflow_kickoff_feedback
-                      feedback={
-                        issue_triage_workflow_kickoff_feedback(
-                          @issue_triage_workflow_kickoff_states,
-                          project.id,
-                          :issue
-                        )
-                      }
-                      dom_prefix={"workbench-project-issues-triage-#{project.id}"}
-                    />
-                    <button
-                      id={"workbench-project-issues-fix-action-#{project.id}"}
-                      type="button"
-                      class="btn btn-xs btn-outline btn-primary w-fit mt-1"
-                      phx-click="kickoff_fix_workflow"
-                      phx-value-project_id={project.id}
-                      phx-value-context_item_type="issue"
-                    >
-                      Kick off fix workflow
-                    </button>
-                    <.fix_workflow_kickoff_feedback
-                      feedback={
-                        fix_workflow_kickoff_feedback(
-                          @fix_workflow_kickoff_states,
-                          project.id,
-                          :issue
-                        )
-                      }
-                      dom_prefix={"workbench-project-issues-fix-#{project.id}"}
-                    />
-                  </div>
-                </div>
-                <div id={"workbench-project-prs-links-#{project.id}"}>
-                  <p class="font-medium text-base-content/80">PRs</p>
-                  <div class="flex flex-col gap-0.5">
-                    <.row_link
-                      link_id={"workbench-project-prs-github-link-#{project.id}"}
-                      disabled_id={"workbench-project-prs-github-disabled-#{project.id}"}
-                      reason_id={"workbench-project-prs-github-disabled-reason-#{project.id}"}
-                      label="GitHub PRs"
-                      target={pull_request_github_url(project)}
-                      disabled_reason={github_url_unavailable_reason()}
-                      external
-                    />
-                    <.row_link
-                      link_id={"workbench-project-prs-project-link-#{project.id}"}
-                      disabled_id={"workbench-project-prs-project-disabled-#{project.id}"}
-                      reason_id={"workbench-project-prs-project-disabled-reason-#{project.id}"}
-                      label="Repo detail"
-                      target={project_detail_path(project, @filter_values)}
-                      disabled_reason={project_detail_unavailable_reason()}
-                    />
-                    <.recent_run_outcome_indicator
-                      outcome={recent_run_outcome(@recent_run_outcomes, project.id)}
-                      dom_prefix={"workbench-project-prs-run-outcome-#{project.id}"}
-                    />
-                    <button
-                      id={"workbench-project-prs-fix-action-#{project.id}"}
-                      type="button"
-                      class="btn btn-xs btn-outline btn-primary w-fit mt-1"
-                      phx-click="kickoff_fix_workflow"
-                      phx-value-project_id={project.id}
-                      phx-value-context_item_type="pull_request"
-                    >
-                      Kick off fix workflow
-                    </button>
-                    <.fix_workflow_kickoff_feedback
-                      feedback={
-                        fix_workflow_kickoff_feedback(
-                          @fix_workflow_kickoff_states,
-                          project.id,
-                          :pull_request
-                        )
-                      }
-                      dom_prefix={"workbench-project-prs-fix-#{project.id}"}
-                    />
-                  </div>
-                </div>
+                <.managed_repo_action_cluster
+                  row={project}
+                  dom_prefix="workbench-project-issues"
+                  detail_path={project_detail_path(project, @filter_values)}
+                  kind={:issue}
+                  recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, project.id)}
+                  triage_policy_state={InventorySurface.issue_triage_policy_state(project)}
+                  issue_triage_feedback={
+                    InventoryActionState.issue_triage_feedback(
+                      @issue_triage_workflow_kickoff_states,
+                      project.id,
+                      :issue
+                    )
+                  }
+                  fix_feedback={
+                    InventoryActionState.fix_feedback(
+                      @fix_workflow_kickoff_states,
+                      project.id,
+                      :issue
+                    )
+                  }
+                />
+                <.managed_repo_action_cluster
+                  row={project}
+                  dom_prefix="workbench-project-prs"
+                  detail_path={project_detail_path(project, @filter_values)}
+                  kind={:pull_request}
+                  recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, project.id)}
+                  fix_feedback={
+                    InventoryActionState.fix_feedback(
+                      @fix_workflow_kickoff_states,
+                      project.id,
+                      :pull_request
+                    )
+                  }
+                />
               </td>
             </tr>
           </tbody>
@@ -649,8 +438,8 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp load_inventory(socket) do
-    case Inventory.load() do
-      {:ok, rows, stale_warning} ->
+    case InventorySurface.load() do
+      {:ok, rows, recent_run_outcomes, stale_warning} ->
         filter_values =
           socket.assigns
           |> Map.get(:filter_values, @default_filter_values)
@@ -660,7 +449,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
         socket
         |> assign(:inventory_rows_all, rows)
         |> assign(:stale_warning, stale_warning)
-        |> assign(:recent_run_outcomes, load_recent_run_outcomes(rows))
+        |> assign(:recent_run_outcomes, recent_run_outcomes)
         |> assign(:project_filter_options, project_filter_options(rows))
         |> apply_filters(filter_values)
 
@@ -704,12 +493,9 @@ defmodule JidoCodeWeb.WorkbenchLive do
       |> normalize_filter_values()
 
     socket
-    |> assign(:recent_run_outcomes, load_recent_run_outcomes(rows))
+    |> assign(:recent_run_outcomes, InventorySurface.load_recent_run_outcomes(rows))
     |> apply_filters(filter_values)
   end
-
-  defp load_recent_run_outcomes(rows) when is_list(rows), do: RunOutcomes.load(rows)
-  defp load_recent_run_outcomes(_rows), do: %{}
 
   defp apply_filter_event(socket, filter_params) do
     filter_values = normalize_filter_values(filter_params)
@@ -1306,10 +1092,9 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp find_project_row(_rows, _project_id), do: nil
 
   defp put_fix_workflow_kickoff_state(socket, project_id, context_item_type, kickoff_result) do
-    state_key = fix_workflow_kickoff_state_key(project_id, context_item_type)
-    state_value = kickoff_feedback_state(kickoff_result, project_id)
-
-    update(socket, :fix_workflow_kickoff_states, &Map.put(&1, state_key, state_value))
+    update(socket, :fix_workflow_kickoff_states, fn states ->
+      InventoryActionState.put_fix_feedback(states, project_id, context_item_type, kickoff_result)
+    end)
   end
 
   defp put_issue_triage_workflow_kickoff_state(
@@ -1318,136 +1103,20 @@ defmodule JidoCodeWeb.WorkbenchLive do
          context_item_type,
          kickoff_result
        ) do
-    state_key = issue_triage_workflow_kickoff_state_key(project_id, context_item_type)
-    state_value = kickoff_feedback_state(kickoff_result, project_id)
-
-    update(socket, :issue_triage_workflow_kickoff_states, &Map.put(&1, state_key, state_value))
+    update(socket, :issue_triage_workflow_kickoff_states, fn states ->
+      InventoryActionState.put_issue_triage_feedback(
+        states,
+        project_id,
+        context_item_type,
+        kickoff_result
+      )
+    end)
   end
 
   defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result) do
-    normalized_project_id = normalize_optional_string(project_id)
-
-    if is_binary(normalized_project_id) do
-      case kickoff_run_outcome(kickoff_result, normalized_project_id) do
-        %{} = outcome ->
-          update(socket, :recent_run_outcomes, &Map.put(&1, normalized_project_id, outcome))
-
-        _other ->
-          socket
-      end
-    else
-      socket
-    end
-  end
-
-  defp kickoff_run_outcome({:ok, kickoff_run}, project_id) when is_map(kickoff_run) do
-    run_id =
-      kickoff_run
-      |> map_get("run_id", :run_id)
-      |> normalize_optional_string()
-
-    detail_path =
-      kickoff_run
-      |> map_get("detail_path", :detail_path)
-      |> normalize_optional_string() || run_detail_path(project_id, run_id)
-
-    if run_id && detail_path do
-      %{
-        status: "pending",
-        run_id: run_id,
-        detail_path: detail_path,
-        error_type: nil,
-        detail: nil,
-        guidance: nil
-      }
-    end
-  end
-
-  defp kickoff_run_outcome({:error, kickoff_error}, project_id) when is_map(kickoff_error) do
-    run_creation_state =
-      kickoff_error
-      |> map_get("run_creation_state", :run_creation_state)
-      |> normalize_run_creation_state()
-
-    run_id =
-      kickoff_error
-      |> map_get("run_id", :run_id)
-      |> normalize_optional_string()
-
-    case {run_creation_state, run_id} do
-      {:created, resolved_run_id} when is_binary(resolved_run_id) ->
-        %{
-          status: "pending",
-          run_id: resolved_run_id,
-          detail_path: run_detail_path(project_id, resolved_run_id),
-          error_type: nil,
-          detail: nil,
-          guidance: nil
-        }
-
-      _other ->
-        nil
-    end
-  end
-
-  defp kickoff_run_outcome(_kickoff_result, _project_id), do: nil
-
-  defp kickoff_feedback_state({:ok, kickoff_run}, _project_id) when is_map(kickoff_run) do
-    %{status: :ok, run: kickoff_run, confirmation_state: :confirmed}
-  end
-
-  defp kickoff_feedback_state({:error, kickoff_error}, project_id) when is_map(kickoff_error) do
-    run_creation_state =
-      kickoff_error
-      |> map_get("run_creation_state", :run_creation_state)
-      |> normalize_run_creation_state()
-
-    run_id =
-      kickoff_error
-      |> map_get("run_id", :run_id)
-      |> normalize_optional_string()
-
-    case {run_creation_state, run_id} do
-      {:created, resolved_run_id} when is_binary(resolved_run_id) ->
-        %{
-          status: :ok,
-          run: %{
-            run_id: resolved_run_id,
-            detail_path: run_detail_path(project_id, resolved_run_id)
-          },
-          confirmation_state: :confirmed_after_interruption
-        }
-
-      {:not_created, _resolved_run_id} ->
-        %{
-          status: :error,
-          error: kickoff_error,
-          confirmation_state: :not_created_after_interruption
-        }
-
-      _other ->
-        %{status: :error, error: kickoff_error, confirmation_state: :failed}
-    end
-  end
-
-  defp kickoff_feedback_state(_kickoff_result, _project_id) do
-    %{
-      status: :error,
-      error: %{
-        error_type: "workbench_workflow_kickoff_invalid_result",
-        detail: "Workflow kickoff returned an invalid response shape.",
-        remediation: "Retry workflow kickoff from this row.",
-        run_creation_state: nil,
-        run_id: nil
-      },
-      confirmation_state: :failed
-    }
-  end
-
-  defp run_detail_path(project_id, run_id) do
-    normalized_project_id = normalize_optional_string(project_id) || "unknown-project"
-    normalized_run_id = normalize_optional_string(run_id) || "unknown-run"
-    "/repos/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
+    update(socket, :recent_run_outcomes, fn outcomes ->
+      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result)
+    end)
   end
 
   defp refresh_project_row(socket, project_row) when is_map(project_row) do
@@ -1455,47 +1124,6 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp refresh_project_row(socket, _project_row), do: socket
-
-  defp fix_workflow_kickoff_feedback(states, project_id, context_item_type) when is_map(states) do
-    Map.get(states, fix_workflow_kickoff_state_key(project_id, context_item_type))
-  end
-
-  defp fix_workflow_kickoff_feedback(_states, _project_id, _context_item_type), do: nil
-
-  defp fix_workflow_kickoff_state_key(project_id, context_item_type) do
-    normalized_project_id = normalize_optional_string(project_id) || "unknown-project"
-    normalized_context_item_type = normalize_context_item_type_for_state_key(context_item_type)
-    "#{normalized_project_id}:#{normalized_context_item_type}"
-  end
-
-  defp issue_triage_workflow_kickoff_feedback(states, project_id, context_item_type)
-       when is_map(states) do
-    Map.get(states, issue_triage_workflow_kickoff_state_key(project_id, context_item_type))
-  end
-
-  defp issue_triage_workflow_kickoff_feedback(_states, _project_id, _context_item_type), do: nil
-
-  defp issue_triage_workflow_kickoff_state_key(project_id, context_item_type) do
-    normalized_project_id = normalize_optional_string(project_id) || "unknown-project"
-    normalized_context_item_type = normalize_context_item_type_for_state_key(context_item_type)
-    "#{normalized_project_id}:#{normalized_context_item_type}"
-  end
-
-  defp issue_triage_policy_state(project_row) do
-    IssueTriageWorkflowKickoff.policy_state(project_row)
-  end
-
-  defp normalize_context_item_type_for_state_key(:issue), do: :issue
-  defp normalize_context_item_type_for_state_key("issue"), do: :issue
-  defp normalize_context_item_type_for_state_key(:pull_request), do: :pull_request
-  defp normalize_context_item_type_for_state_key("pull_request"), do: :pull_request
-  defp normalize_context_item_type_for_state_key(_context_item_type), do: :unknown
-
-  defp normalize_run_creation_state(:created), do: :created
-  defp normalize_run_creation_state("created"), do: :created
-  defp normalize_run_creation_state(:not_created), do: :not_created
-  defp normalize_run_creation_state("not_created"), do: :not_created
-  defp normalize_run_creation_state(_run_creation_state), do: nil
 
   defp recent_run_outcome(outcomes, project_id) when is_map(outcomes) do
     normalized_project_id = normalize_optional_string(project_id)
@@ -1507,569 +1135,9 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   defp recent_run_outcome(_outcomes, _project_id), do: nil
 
-  defp conversation_supervision(project) when is_map(project) do
-    case Map.get(project, :conversation_supervision) do
-      %{} = supervision ->
-        supervision
-
-      _other ->
-        case Map.get(project, :repo_conversation) do
-          %{} = repo_intake_projection ->
-            %{
-              available?: true,
-              managed_repo_id: Map.get(project, :managed_repo_id),
-              repo_intake: repo_intake_projection,
-              active_entries: [],
-              active_count: 0,
-              clarification_count: 0,
-              latest_entry: nil,
-              latest_activity_at: nil,
-              notice: conversation_projection_value(repo_intake_projection, :notice)
-            }
-
-          _other ->
-            nil
-        end
-    end
-  end
-
-  defp conversation_supervision(_project), do: nil
-
-  defp conversation_supervision_projection(project) do
-    case conversation_supervision(project) do
-      %{active_count: active_count} = supervision when active_count > 0 ->
-        supervision
-
-      %{repo_intake: %{} = repo_intake} = supervision ->
-        if conversation_projection_value(repo_intake, :conversation) do
-          supervision
-        end
-
-      _other ->
-        nil
-    end
-  end
-
-  defp conversation_supervision_notice(project) do
-    project
-    |> conversation_supervision()
-    |> conversation_projection_value(:notice)
-  end
-
-  defp conversation_supervision_active_count(project) do
-    project
-    |> conversation_supervision()
-    |> conversation_projection_value(:active_count, 0)
-  end
-
-  defp conversation_supervision_clarification_count(project) do
-    project
-    |> conversation_supervision()
-    |> conversation_projection_value(:clarification_count, 0)
-  end
-
-  defp conversation_supervision_role_projection(project) do
-    case conversation_supervision(project) do
-      %{latest_entry: %{} = latest_entry, active_count: active_count} when active_count > 0 ->
-        latest_entry
-
-      %{repo_intake: %{} = repo_intake} ->
-        repo_intake
-
-      _other ->
-        nil
-    end
-  end
-
-  defp conversation_supervision_role_scope(project) do
-    project
-    |> conversation_supervision_role_projection()
-    |> conversation_projection_value(:conversation, %{})
-    |> conversation_projection_value(:scope)
-  end
-
-  defp conversation_supervision_role_attachment_mode(project) do
-    project
-    |> conversation_supervision_role_projection()
-    |> conversation_projection_value(:conversation, %{})
-    |> conversation_projection_value(:attachment_mode)
-  end
-
-  defp conversation_supervision_role_work_item_id(project) do
-    project
-    |> conversation_supervision_role_projection()
-    |> conversation_projection_value(:conversation, %{})
-    |> conversation_projection_value(:work_item_id)
-  end
-
-  defp conversation_supervision_status(project) do
-    project
-    |> conversation_supervision_role_projection()
-    |> conversation_projection_value(:conversation, %{})
-    |> conversation_projection_value(:status)
-  end
-
-  defp conversation_supervision_work_item(project) do
-    case conversation_supervision(project) do
-      %{latest_entry: %{} = latest_entry, active_count: active_count} when active_count > 0 ->
-        conversation_projection_value(latest_entry, :work_item)
-
-      _other ->
-        nil
-    end
-  end
-
-  defp conversation_supervision_active_count_label(project) do
-    case conversation_supervision_active_count(project) do
-      1 -> "1 active work item"
-      count when is_integer(count) and count > 1 -> "#{count} active work items"
-      _other -> nil
-    end
-  end
-
-  defp conversation_supervision_clarification_count_label(project) do
-    case conversation_supervision_clarification_count(project) do
-      1 -> "1 clarification needed"
-      count when is_integer(count) and count > 1 -> "#{count} clarification turns needed"
-      _other -> nil
-    end
-  end
-
-  defp conversation_supervision_detail(project) do
-    case conversation_supervision(project) do
-      %{latest_entry: %{} = latest_entry, active_count: active_count, repo_intake: %{}}
-      when active_count > 0 ->
-        conversation_projection_detail(
-          latest_entry,
-          "Repo intake has already settled onto active governed work."
-        )
-
-      %{latest_entry: %{} = latest_entry, active_count: active_count} when active_count > 0 ->
-        conversation_projection_detail(latest_entry, "Governed work is active from repo detail.")
-
-      %{repo_intake: %{} = repo_intake} ->
-        conversation_projection_detail(repo_intake, "Repository intake is active from repo detail.")
-
-      _other ->
-        "Conversation supervision is available from repo detail."
-    end
-  end
-
-  defp conversation_supervision_action_label(project) do
-    case conversation_supervision(project) do
-      %{active_count: active_count} when active_count > 0 ->
-        "Open governed supervision"
-
-      %{clarification_count: clarification_count} when clarification_count > 0 ->
-        "Open repo intake"
-
-      %{repo_intake: %{} = repo_intake} ->
-        conversation_projection_value(repo_intake, :action_label, "Open repo intake")
-
-      _other ->
-        "Open repo detail"
-    end
-  end
-
-  defp conversation_projection_detail(%{} = projection, fallback) do
-    conversation = conversation_projection_value(projection, :conversation, %{})
-
-    work_resolution =
-      conversation
-      |> conversation_projection_value(:work_resolution, %{})
-
-    normalize_optional_string(conversation_projection_value(work_resolution, :detail)) ||
-      normalize_optional_string(conversation_projection_value(conversation, :objective)) ||
-      fallback
-  end
-
-  defp conversation_projection_detail(_projection, fallback), do: fallback
-
-  defp conversation_status_label(status) when is_binary(status), do: status
-  defp conversation_status_label(status) when is_atom(status), do: Atom.to_string(status)
-  defp conversation_status_label(_status), do: "unknown"
-
-  defp conversation_projection_value(projection, key, default \\ nil)
-
-  defp conversation_projection_value(%{} = projection, key, default) when is_atom(key) do
-    Map.get(projection, key, Map.get(projection, Atom.to_string(key), default))
-  end
-
-  defp conversation_projection_value(_projection, _key, default), do: default
-
-  defp semantic_graph_hint(project) when is_map(project) do
-    case Map.get(project, :semantic_graph_hint) do
-      %{} = hint -> hint
-      _other -> nil
-    end
-  end
-
-  defp semantic_graph_hint(_project), do: nil
-
-  defp memory_graph_hint(project) when is_map(project) do
-    case Map.get(project, :memory_graph_hint) do
-      %{} = hint -> hint
-      _other -> nil
-    end
-  end
-
-  defp memory_graph_hint(_project), do: nil
-
-  defp semantic_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
-  defp semantic_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
-  defp semantic_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
-  defp semantic_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
-  defp semantic_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
-  defp semantic_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
-  defp semantic_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
-
-  defp memory_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
-  defp memory_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
-  defp memory_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
-  defp memory_graph_hint_badge_class(%{state: :invalidated}), do: "badge badge-warning badge-xs"
-  defp memory_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
-  defp memory_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
-  defp memory_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
-  defp memory_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
-
-  defp semantic_graph_hint_recovery_path(project, filter_values) do
-    hint = semantic_graph_hint(project)
-
-    cond do
-      workspace_binding_hint?(hint) ->
-        project_detail_workspace_binding_path(project, filter_values)
-
-      hint && get_in(hint, [:recovery, :available?]) ->
-        project_detail_path(project, filter_values)
-
-      true ->
-        nil
-    end
-  end
-
-  defp memory_graph_hint_recovery_path(project, filter_values) do
-    hint = memory_graph_hint(project)
-
-    cond do
-      workspace_binding_hint?(hint) ->
-        project_detail_workspace_binding_path(project, filter_values)
-
-      hint && get_in(hint, [:recovery, :available?]) ->
-        project_detail_path(project, filter_values)
-
-      true ->
-        nil
-    end
-  end
-
-  defp workspace_binding_hint?(hint) do
-    ProjectWorkspaceBindingNotice.workspace_binding_error?(hint)
-  end
-
-  defp project_detail_workspace_binding_path(project, filter_values) do
-    case project_detail_path(project, filter_values) do
-      nil -> nil
-      path -> path <> "#project-detail-workspace-binding-panel"
-    end
-  end
-
-  attr(:outcome, :map, default: nil)
-  attr(:dom_prefix, :string, required: true)
-
-  defp recent_run_outcome_indicator(assigns) do
-    ~H"""
-    <section id={"#{@dom_prefix}-container"} class="space-y-1 pt-1">
-      <p id={"#{@dom_prefix}-label"} class="text-[11px] text-base-content/70">
-        Recent run outcome
-      </p>
-      <%= case @outcome do %>
-        <% nil -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-base-content/60">
-            No recent run.
-          </p>
-        <% %{status: "unknown"} = outcome -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-warning">
-            Recent run status: unknown
-          </p>
-          <p :if={is_binary(outcome.error_type)} id={"#{@dom_prefix}-error-type"} class="text-[11px] text-warning">
-            Typed run outcome warning: {outcome.error_type}
-          </p>
-          <p :if={is_binary(outcome.detail)} id={"#{@dom_prefix}-detail"} class="text-[11px] text-warning">
-            {outcome.detail}
-          </p>
-          <p id={"#{@dom_prefix}-guidance"} class="text-[11px] text-base-content/60">
-            {outcome.guidance || "Refresh workbench data to resolve recent run status."}
-          </p>
-          <.link
-            :if={is_binary(outcome.detail_path)}
-            id={"#{@dom_prefix}-link"}
-            class="link link-primary text-[11px]"
-            href={outcome.detail_path}
-          >
-            Open run detail
-          </.link>
-        <% outcome -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px]">
-            <span class={run_outcome_status_badge_class(outcome.status)}>
-              {run_outcome_status_label(outcome.status)}
-            </span>
-          </p>
-          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-base-content/70">
-            Run: <span class="font-mono">{outcome.run_id}</span>
-          </p>
-          <.link
-            id={"#{@dom_prefix}-link"}
-            class="link link-primary text-[11px]"
-            href={outcome.detail_path}
-          >
-            Open run detail
-          </.link>
-      <% end %>
-    </section>
-    """
-  end
-
-  defp run_outcome_status_badge_class("completed"), do: "badge badge-success badge-xs"
-  defp run_outcome_status_badge_class("running"), do: "badge badge-info badge-xs"
-  defp run_outcome_status_badge_class("failed"), do: "badge badge-error badge-xs"
-  defp run_outcome_status_badge_class("cancelled"), do: "badge badge-warning badge-xs"
-  defp run_outcome_status_badge_class("awaiting_approval"), do: "badge badge-warning badge-xs"
-  defp run_outcome_status_badge_class("pending"), do: "badge badge-outline badge-xs"
-  defp run_outcome_status_badge_class(_status), do: "badge badge-outline badge-xs"
-
-  defp run_outcome_status_label(status) do
-    status
-    |> normalize_optional_string()
-    |> case do
-      nil -> "unknown"
-      normalized_status -> normalized_status
-    end
-  end
-
-  attr(:feedback, :map, default: nil)
-  attr(:dom_prefix, :string, required: true)
-
-  defp fix_workflow_kickoff_feedback(assigns) do
-    ~H"""
-    <section :if={@feedback} id={"#{@dom_prefix}-feedback"} class="space-y-1 pt-1">
-      <%= case @feedback.status do %>
-        <% :ok -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-success">
-            {kickoff_success_status(@feedback)}
-          </p>
-          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-success">
-            Run: <span class="font-mono">{@feedback.run.run_id}</span>
-          </p>
-          <.link
-            id={"#{@dom_prefix}-run-link"}
-            class="link link-primary text-[11px]"
-            href={@feedback.run.detail_path}
-          >
-            Open run detail
-          </.link>
-        <% :error -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-error">
-            {kickoff_error_status(@feedback)}
-          </p>
-          <p id={"#{@dom_prefix}-error-type"} class="text-[11px] text-error">
-            Typed kickoff error: {@feedback.error.error_type}
-          </p>
-          <p id={"#{@dom_prefix}-error-detail"} class="text-[11px] text-error">
-            {@feedback.error.detail}
-          </p>
-          <p id={"#{@dom_prefix}-error-remediation"} class="text-[11px] text-base-content/60">
-            {@feedback.error.remediation}
-          </p>
-      <% end %>
-    </section>
-    """
-  end
-
-  attr(:feedback, :map, default: nil)
-  attr(:dom_prefix, :string, required: true)
-
-  defp issue_triage_workflow_kickoff_feedback(assigns) do
-    ~H"""
-    <section :if={@feedback} id={"#{@dom_prefix}-feedback"} class="space-y-1 pt-1">
-      <%= case @feedback.status do %>
-        <% :ok -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-success">
-            {kickoff_success_status(@feedback)}
-          </p>
-          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-success">
-            Run: <span class="font-mono">{@feedback.run.run_id}</span>
-          </p>
-          <.link
-            id={"#{@dom_prefix}-run-link"}
-            class="link link-primary text-[11px]"
-            href={@feedback.run.detail_path}
-          >
-            Open run detail
-          </.link>
-        <% :error -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-error">
-            {kickoff_error_status(@feedback)}
-          </p>
-          <p id={"#{@dom_prefix}-error-type"} class="text-[11px] text-error">
-            Typed kickoff error: {@feedback.error.error_type}
-          </p>
-          <p id={"#{@dom_prefix}-error-detail"} class="text-[11px] text-error">
-            {@feedback.error.detail}
-          </p>
-          <p id={"#{@dom_prefix}-error-remediation"} class="text-[11px] text-base-content/60">
-            {@feedback.error.remediation}
-          </p>
-      <% end %>
-    </section>
-    """
-  end
-
-  defp kickoff_success_status(feedback) when is_map(feedback) do
-    case Map.get(feedback, :confirmation_state) do
-      :confirmed_after_interruption ->
-        "Kickoff confirmed after interruption: run was created."
-
-      _other ->
-        "Kickoff confirmed: run was created."
-    end
-  end
-
-  defp kickoff_error_status(feedback) when is_map(feedback) do
-    case Map.get(feedback, :confirmation_state) do
-      :not_created_after_interruption ->
-        "Kickoff failed after interruption: run was not created."
-
-      _other ->
-        "Kickoff failed: review typed error details."
-    end
-  end
-
-  attr(:policy_state, :map, required: true)
-  attr(:dom_prefix, :string, required: true)
-
-  defp issue_triage_policy_blocked_feedback(assigns) do
-    ~H"""
-    <section :if={!@policy_state.enabled} id={"#{@dom_prefix}-feedback"} class="space-y-1 pt-1">
-      <span
-        id={@dom_prefix}
-        class="btn btn-xs btn-outline w-fit mt-1 cursor-not-allowed border-base-300 text-base-content/60"
-        aria-disabled="true"
-        title={@policy_state.detail}
-      >
-        Kick off issue triage workflow
-      </span>
-      <p id={"#{@dom_prefix}-type"} class="text-[11px] text-warning">
-        Policy state: {@policy_state.error_type}
-      </p>
-      <p id={"#{@dom_prefix}-reason"} class="text-[11px] text-warning">
-        {@policy_state.detail}
-      </p>
-      <p id={"#{@dom_prefix}-remediation"} class="text-[11px] text-base-content/60">
-        {@policy_state.remediation}
-      </p>
-    </section>
-    """
-  end
-
-  attr(:link_id, :string, required: true)
-  attr(:disabled_id, :string, required: true)
-  attr(:reason_id, :string, required: true)
-  attr(:label, :string, required: true)
-  attr(:target, :string, default: nil)
-  attr(:disabled_reason, :string, required: true)
-  attr(:external, :boolean, default: false)
-
-  defp row_link(assigns) do
-    ~H"""
-    <%= if is_binary(@target) do %>
-      <.link
-        id={@link_id}
-        class="link link-primary"
-        href={@target}
-        target={if @external, do: "_blank"}
-        rel={if @external, do: "noopener noreferrer"}
-      >
-        {@label}
-      </.link>
-    <% else %>
-      <span
-        id={@disabled_id}
-        class="text-base-content/50 cursor-not-allowed"
-        aria-disabled="true"
-        title={@disabled_reason}
-      >
-        {@label}
-      </span>
-      <p id={@reason_id} class="text-[11px] text-base-content/60">
-        Unavailable: {@disabled_reason}
-      </p>
-    <% end %>
-    """
-  end
-
-  defp issue_github_url(project) do
-    with {:ok, repository_path} <- github_repository_path(project) do
-      "#{repository_path}/issues"
-    end
-  end
-
-  defp pull_request_github_url(project) do
-    with {:ok, repository_path} <- github_repository_path(project) do
-      "#{repository_path}/pulls"
-    end
-  end
-
-  defp github_repository_path(project) do
-    project
-    |> Map.get(:github_full_name)
-    |> normalize_optional_string()
-    |> parse_github_repository_name()
-    |> case do
-      {:ok, owner, repository} -> {:ok, "https://github.com/#{owner}/#{repository}"}
-      :error -> :error
-    end
-  end
-
-  defp parse_github_repository_name(nil), do: :error
-
-  defp parse_github_repository_name(github_full_name) do
-    case String.split(github_full_name, "/", parts: 2) do
-      [owner, repository] ->
-        owner = String.trim(owner)
-        repository = String.trim(repository)
-
-        if owner == "" or repository == "" or String.contains?(owner <> repository, " ") do
-          :error
-        else
-          {:ok, owner, repository}
-        end
-
-      _other ->
-        :error
-    end
-  end
-
   defp project_detail_path(project, filter_values) do
-    project
-    |> Map.get(:id)
-    |> normalize_optional_string()
-    |> case do
-      nil ->
-        nil
-
-      <<@fallback_row_id_prefix, _::binary>> ->
-        nil
-
-      project_id ->
-        base_path = "/repos/#{URI.encode(project_id)}"
-        return_to = workbench_path_with_filter_values(normalize_filter_values(filter_values))
-
-        if return_to == "/workbench" do
-          base_path
-        else
-          "#{base_path}?return_to=#{URI.encode_www_form(return_to)}"
-        end
-    end
+    return_to = workbench_path_with_filter_values(normalize_filter_values(filter_values))
+    InventorySurface.project_detail_path(project, return_to)
   end
 
   defp initiating_actor(socket) do
@@ -2136,7 +1204,4 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp normalize_optional_datetime(_value), do: nil
-
-  defp github_url_unavailable_reason, do: "GitHub repository URL is unavailable for this row."
-  defp project_detail_unavailable_reason, do: "Repo detail link is unavailable for this row."
 end

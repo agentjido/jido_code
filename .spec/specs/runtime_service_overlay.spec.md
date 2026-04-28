@@ -1,6 +1,6 @@
 # Runtime Service Overlay
 
-<!-- current_truth.reconciled_with_branch: run detail continues to keep runtime narratives product-oriented alongside bounded memory context, while dashboard runtime posture now renders behind a dedicated left-sidebar runtime concern while the default dashboard `Overview` concern remains intentionally empty on the authenticated route. -->
+<!-- current_truth.reconciled_with_branch: run detail continues to keep runtime narratives product-oriented alongside bounded memory context, while dashboard runtime posture now renders behind a dedicated left-sidebar runtime concern and dashboard `Work > Overview` plus `/workbench` now project bounded runtime cues through the shared managed-repository inventory model instead of keeping overview empty on the authenticated route. -->
 
 This subject defines how `Jido.Code` should integrate with the newer
 authority-backed runtime-services model in `jido_os` without surrendering
@@ -10,7 +10,7 @@ product control-plane ownership.
 id: architecture.runtime_service_overlay
 kind: policy
 status: deprecated
-summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context, cross-graph follow-up preview, and runtime posture language without collapsing those concerns into one semantic lane, dashboard runtime posture remains a bounded concern behind its own authenticated left-sidebar runtime concern while the default `Overview` concern stays intentionally empty for now, with route-level integration/browser coverage proving that current routed dashboard contract stays product-oriented, and Ash-backed product truth remains canonical.
+summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts, governed run detail may co-host bounded memory context, cross-graph follow-up preview, and runtime posture language without collapsing those concerns into one semantic lane, dashboard runtime posture remains a bounded concern behind its own authenticated left-sidebar runtime concern while dashboard `Work > Overview` plus `/workbench` now project bounded runtime cues through the shared managed-repository inventory model instead of an empty overview, with route-level integration/browser coverage proving that current routed dashboard contract stays product-oriented, and Ash-backed product truth remains canonical.
 superseded_by: architecture.agent_os_integration
 decisions:
   - jido_code.dashboard_concern_tabs_and_overview_handoff
@@ -29,6 +29,8 @@ surface:
   - .spec/decisions/jido_code.jido_agent_os_integration.md
   - .spec/specs/factory_control_plane.spec.md
   - lib/jido_code/governance/runtime_evidence_feed.ex
+  - lib/jido_code/workbench/inventory_surface.ex
+  - lib/jido_code_web/components/managed_repo_inventory_components.ex
   - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue

@@ -1,6 +1,6 @@
 # Factory Control Plane
 
-<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned families, overview now exposing repo-scoped workspace inspection and repair on the canonical managed-repository route, conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story and repair path, workbench and run detail continue to project canonical control-plane records instead of owning separate transcript surfaces, dashboard now keeps one canonical authenticated landing route, and the accepted post-onboarding operator shell now converges those signed-in routes toward a shared subject tree with top-rail parent subjects and left-sidebar child subjects during the next UI rollout, while setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory and the signed-in `/settings/github` add-repository flow routes later GitHub additions through the same canonical managed-repository import boundary instead of stopping at settings-only GitHub rows. -->
+<!-- current_truth.reconciled_with_branch: repo detail now keeps one canonical managed-repository route while organizing overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned families, overview now exposing repo-scoped workspace inspection and repair on the canonical managed-repository route, conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story and repair path, dashboard now keeps one canonical authenticated landing route with the shared post-onboarding subject-tree shell landed on dashboard and repo detail, dashboard `Work` now carrying the primary signed-in repository-inventory role in current truth while `/workbench` remains a bounded dense specialist mode that still projects canonical control-plane records, and setup import now persists repo-scoped workspace binding directly even when local repositories do not share one parent directory and the signed-in `/settings/github` add-repository flow routes later GitHub additions through the same canonical managed-repository import boundary instead of stopping at settings-only GitHub rows. -->
 
 This subject defines `Jido.Code` as a governed software-factory control plane for
 Git-backed repositories.
@@ -9,7 +9,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route keeps route-owned operator families plus one shared repo-scoped workspace-repair path, whose authenticated dashboard remains one canonical landing route, and whose accepted post-onboarding operator shell now converges those signed-in routes toward a shared subject tree with top-level subject tabs, left-sidebar child subjects, and header-middle-footer content framing, while the signed-in `/settings/github` route sends later GitHub additions through the same managed-repository import boundary instead of creating settings-only product truth and repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route keeps route-owned operator families plus one shared repo-scoped workspace-repair path, whose authenticated dashboard remains one canonical landing route, whose `Work` subject now owns the primary signed-in managed-repository inventory and triage role, and whose accepted post-onboarding operator shell keeps `/workbench` as a bounded dense specialist mode or alias rather than a competing top-level product surface, while the signed-in `/settings/github` route sends later GitHub additions through the same managed-repository import boundary instead of creating settings-only product truth and repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -163,6 +163,11 @@ surface:
   priority: should
   stability: evolving
 
+- id: architecture.factory_control_plane.dashboard_work_subject_owns_primary_repo_inventory
+  statement: The authenticated dashboard `Work` subject shall act as the primary signed-in managed-repository inventory and triage surface, while `/workbench` may remain a denser specialist mode or alias over the same canonical `ManagedRepo` records.
+  priority: should
+  stability: evolving
+
 - id: architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
   statement: Operator surfaces shall distinguish bounded repo-scoped intake from canonical work-item-scoped productive conversations so repositories with multiple open work items can expose parallel governed conversation threads through product-owned records without inventing a second browser truth lane.
   priority: should
@@ -227,6 +232,7 @@ surface:
     - architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
     - architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+    - architecture.factory_control_plane.dashboard_work_subject_owns_primary_repo_inventory
     - architecture.factory_control_plane.operator_surfaces_distinguish_repo_intake_from_work_item_conversations
   given:
     - Managed repositories and governed runs already exist as the canonical control-plane records.
@@ -234,6 +240,7 @@ surface:
     - An operator opens workbench, repo detail, dashboard, or run detail.
   then:
     - The product resolves and presents canonical managed-repository and governed-run records directly.
+    - Dashboard may host the primary managed-repository inventory and triage experience inside its `Work` subject while `/workbench` remains only a denser specialist mode or alias for the same canonical records.
     - Repo detail may separate overview, conversations, semantic inspection, memory/provenance inspection, and workflow launch into route-owned families so long as those families remain one canonical managed-repository route rather than a second browser-owned application.
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
     - Productive conversation linkage, when present, is projected through canonical managed-repository, work-item, and governed-run state rather than through a separate chat-only control surface.
@@ -418,6 +425,11 @@ surface:
   target: .spec/planning/phase-51-work-item-conversation-runtime-lifecycle-and-convergence.md
   covers:
     - architecture.factory_control_plane.operator_surfaces_project_conversation_linkage_through_canonical_records
+
+- kind: source_file
+  target: .spec/planning/phase-70-dashboard-work-subject-and-workbench-content-convergence.md
+  covers:
+    - architecture.factory_control_plane.dashboard_work_subject_owns_primary_repo_inventory
 
 - kind: source_file
   target: test/jido_code/phase_fifty_one_integration_test.exs

@@ -2,7 +2,7 @@
 
 # Runtime Environment Defaults
 
-<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject, while setup import now treats explicit repo-scoped local workspace paths as higher-priority binding input than the shared install default root, and repo detail plus adjacent runtime-readiness surfaces now read and repair workspace binding from each managed repository's own persisted binding instead of pointing operators back to setup defaults. -->
+<!-- current_truth.reconciled_with_branch: persisted setup runtime defaults and related onboarding metadata remain governed by this subject, while setup import now treats explicit repo-scoped local workspace paths as higher-priority binding input than the shared install default root, repo detail plus adjacent runtime-readiness surfaces now read and repair workspace binding from each managed repository's own persisted binding instead of pointing operators back to setup defaults, and dashboard `Work > Overview` plus `/workbench` now project those same repo-scoped readiness and repair cues through the shared managed-repository inventory model. -->
 
 This subject defines how `Jido.Code` captures default runtime execution intent
 during setup and persists that choice as durable product metadata.
@@ -11,7 +11,7 @@ during setup and persists that choice as durable product metadata.
 id: setup.runtime_environment_defaults
 kind: feature
 status: active
-summary: Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, keeps that singleton writable through the shared `SystemConfig` boundary so setup reset flows can safely restore canonical defaults, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, uses that install-wide metadata only as fallback seed context for repository import and provisioning when repo-scoped binding metadata is absent, allows explicit repo-scoped local workspace paths at import time, and treats each managed repository's persisted workspace settings as the canonical execution binding once repo-scoped state exists, including for conversation, semantic, memory, and workflow readiness plus repo-scoped repair.
+summary: Jido.Code treats runtime environment choice as setup-owned metadata distinct from install flavor, persists default execution environment and optional local workspace root through the database-backed system-config singleton, keeps that singleton writable through the shared `SystemConfig` boundary so setup reset flows can safely restore canonical defaults, maps cloud defaults to Sprite-backed execution and local defaults to local workspace execution, uses that install-wide metadata only as fallback seed context for repository import and provisioning when repo-scoped binding metadata is absent, allows explicit repo-scoped local workspace paths at import time, and treats each managed repository's persisted workspace settings as the canonical execution binding once repo-scoped state exists, including for conversation, semantic, memory, and workflow readiness plus repo-scoped repair, with dashboard `Work > Overview` plus `/workbench` now reusing the same repo-scoped readiness and repair cues through the shared managed-repository inventory helpers.
 decisions:
   - jido_code.managed_repo_workspace_binding_is_repo_scoped
   - jido_code.runtime_environment_selection_is_persisted_setup_metadata
@@ -27,10 +27,13 @@ surface:
   - lib/jido_code/setup/project_import.ex
   - lib/jido_code/conversations/runtime_readiness.ex
   - lib/jido_code/workbench/project_detail.ex
+  - lib/jido_code/workbench/inventory_surface.ex
+  - lib/jido_code/workbench/inventory_action_state.ex
   - lib/jido_code/workbench/project_memory_inspection.ex
   - lib/jido_code/workbench/project_semantic_inspection.ex
   - lib/jido_code/workbench/project_workspace_binding.ex
   - lib/jido_code/workbench/project_workspace_binding_notice.ex
+  - lib/jido_code_web/components/managed_repo_inventory_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
   - config/config.exs

@@ -1,6 +1,6 @@
 # Baseline Surface
 
-<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including runtime-default copy that now frames workspace root as seed metadata for new imports, the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, a settings-owned `/settings/auth` destination as the durable home for provider-login and Git integration management, GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes while grouping linked repositories by account origin with the account name visible on each card and leaving repo-level workspace binding as later operator work, and `/dashboard` now acting as the durable authenticated landing while the accepted post-onboarding operator shell converges signed-in routes toward a subject tree with top-rail parent subjects and left-sidebar child subjects during the next UI rollout. -->
+<!-- current_truth.reconciled_with_branch: the signed-in setup start surface remains part of baseline route truth alongside public bootstrap entry behavior, including runtime-default copy that now frames workspace root as seed metadata for new imports, the ready-state local-auth cutover that now defaults to dashboard, a signed-in `/welcome` handoff card that prioritizes dashboard and settings entry over the old stale baseline banner, a settings-owned `/settings/auth` destination as the durable home for provider-login and Git integration management, GitHub PAT encryption preflight plus multi-repository GitHub import selection that clears active selection once import follow-up completes while grouping linked repositories by account origin with the account name visible on each card and leaving repo-level workspace binding as later operator work, `/dashboard` now acting as the durable authenticated landing, `/workbench` remaining a specialist authenticated route rather than the ready-state default, and the post-onboarding subject-tree shell now landing on dashboard and managed-repository detail while dashboard/workbench content convergence remains follow-on work. -->
 
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
@@ -11,7 +11,7 @@ This subject defines the current browser-facing landing, auth, and routed produc
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing, records a converging post-onboarding subject-tree shell for the signed-in operator routes after onboarding, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.
+summary: jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing, keeps `/workbench` available only as a specialist authenticated route rather than a peer landing surface, records the landed post-onboarding subject-tree shell for the main signed-in operator routes after onboarding, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.
 decisions:
   - jido_code.dashboard_concern_tabs_and_overview_handoff
   - jido_code.dashboard_developer_centric_monitoring_sidebar
@@ -25,6 +25,7 @@ surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/setup_live.ex
+  - lib/jido_code_web/live_user_auth.ex
   - lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex
   - lib/jido_code_web/components/layouts.ex
   - test/support/conn_case.ex
@@ -68,6 +69,11 @@ surface:
 
 - id: baseline.surface.welcome_surface_consolidated
   statement: The canonical `/welcome` route shall be implemented by the state-aware home live view rather than a separate legacy welcome live implementation.
+  priority: must
+  stability: evolving
+
+- id: baseline.surface.dashboard_remains_ready_state_authenticated_landing
+  statement: Ready-state authenticated entry shall route operators to `/dashboard`, while `/workbench` may remain a declared specialist authenticated route without displacing dashboard as the default signed-in landing.
   priority: must
   stability: evolving
 ```
@@ -154,4 +160,5 @@ surface:
   covers:
     - baseline.surface.public_entry_routes
     - baseline.surface.product_routes_declared
+    - baseline.surface.dashboard_remains_ready_state_authenticated_landing
 ```

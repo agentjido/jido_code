@@ -154,56 +154,20 @@ defmodule JidoCodeWeb.DashboardLive do
           >Settings</.link>.
         </p>
 
-        <div id="dashboard-shell" class="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
-          <section
-            id="dashboard-sidebar-shell"
-            class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 lg:sticky lg:top-24 lg:w-80 lg:flex-none"
-          >
-            <div class="space-y-1 px-1">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-                Dashboard concerns
-              </p>
-              <p id="dashboard-section-nav-note" class="text-sm text-base-content/70">
-                Move between overview, governed runs, conversations, memory, runtime posture, and follow-up work without leaving the authenticated landing route.
-              </p>
-            </div>
-
-            <nav
-              id="dashboard-section-nav"
-              class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1"
-              aria-label="Dashboard concerns"
-            >
-              <.link
-                :for={section <- dashboard_section_nav_items(assigns)}
-                id={"dashboard-section-nav-#{section.section}"}
-                patch={dashboard_section_path(@onboarding_next_actions, section.section)}
-                aria-current={if(section.selected?, do: "page", else: nil)}
-                class={[
-                  "rounded-lg border px-3 py-3 text-left transition",
-                  if(section.selected?,
-                    do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
-                    else: "border-base-300/70 bg-base-100/85 text-base-content/80 hover:border-base-300 hover:bg-base-100"
-                  )
-                ]}
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0 space-y-1">
-                    <p class="font-semibold">{section.label}</p>
-                    <p class="text-xs leading-5 text-base-content/65">{section.summary}</p>
-                  </div>
-                  <span
-                    :if={section.badge}
-                    id={"dashboard-section-nav-#{section.section}-badge"}
-                    class={dashboard_section_badge_class(section.badge.tone)}
-                  >
-                    {section.badge.label}
-                  </span>
-                </div>
-              </.link>
-            </nav>
-          </section>
-
-          <div id="dashboard-content-shell" class="min-w-0 flex-1">
+        <.subject_tree_shell
+          id="dashboard-shell"
+          class="mt-6"
+          breadcrumbs={dashboard_breadcrumbs()}
+          parent_subjects={dashboard_parent_subjects()}
+          child_subjects={dashboard_section_nav_items(assigns)}
+          child_nav_id="dashboard-section-nav"
+          child_nav_label="Dashboard concerns"
+          child_nav_heading="Dashboard concerns"
+          child_nav_summary="Move between overview, governed runs, conversations, memory, runtime posture, and follow-up work without leaving the authenticated landing route."
+          sidebar_id="dashboard-sidebar-shell"
+          content_id="dashboard-content-shell"
+        >
+          <.subject_pane pane={dashboard_selected_pane(assigns)}>
             <section
               :if={@selected_dashboard_section == :overview}
               id="dashboard-overview-panel"
@@ -691,8 +655,8 @@ defmodule JidoCodeWeb.DashboardLive do
                 </li>
               </ul>
             </section>
-          </div>
-        </div>
+          </.subject_pane>
+        </.subject_tree_shell>
       </div>
     </Layouts.app>
     """
@@ -768,10 +732,42 @@ defmodule JidoCodeWeb.DashboardLive do
         label: dashboard_section_label(section),
         summary: dashboard_section_summary(section, assigns),
         badge: dashboard_section_badge(section, assigns),
-        selected?: assigns.selected_dashboard_section == section
+        selected?: assigns.selected_dashboard_section == section,
+        patch: dashboard_section_path(assigns.onboarding_next_actions, section)
       })
       |> Map.put(:section, section)
     end)
+  end
+
+  defp dashboard_breadcrumbs do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "dashboard-breadcrumb-current",
+        label: "Dashboard",
+        current?: true
+      })
+    ]
+  end
+
+  defp dashboard_parent_subjects do
+    [
+      OperatorShell.parent_subject(%{
+        id: :dashboard,
+        label: "Dashboard",
+        description: "Signed-in control surface for governed work, memory, and runtime posture.",
+        selected?: true
+      })
+    ]
+  end
+
+  defp dashboard_selected_pane(assigns) do
+    section = assigns.selected_dashboard_section
+
+    OperatorShell.pane(%{
+      id: "dashboard-pane-#{section}",
+      title: dashboard_pane_title(section),
+      summary: dashboard_pane_summary(section)
+    })
   end
 
   defp dashboard_section_path(onboarding_next_actions, section) do
@@ -819,6 +815,31 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_section_label(:memory), do: "Memory"
   defp dashboard_section_label(:runtime), do: "Runtime"
   defp dashboard_section_label(:next_steps), do: "Next Steps"
+
+  defp dashboard_pane_title(:overview), do: "Dashboard overview"
+  defp dashboard_pane_title(:runs), do: "Recent governed runs"
+  defp dashboard_pane_title(:conversations), do: "Conversation supervision"
+  defp dashboard_pane_title(:memory), do: "Repository memory"
+  defp dashboard_pane_title(:runtime), do: "Runtime posture"
+  defp dashboard_pane_title(:next_steps), do: "Suggested next actions"
+
+  defp dashboard_pane_summary(:overview),
+    do: "The selected child subject owns this pane, while dashboard route framing stays outside it."
+
+  defp dashboard_pane_summary(:runs),
+    do: "Review bounded governed-run status here without leaving the authenticated landing route."
+
+  defp dashboard_pane_summary(:conversations),
+    do: "Active governed conversations stay bounded here and route back to canonical repository detail."
+
+  defp dashboard_pane_summary(:memory),
+    do: "Memory summaries remain bounded and action-oriented here rather than becoming parallel product truth."
+
+  defp dashboard_pane_summary(:runtime),
+    do: "Runtime rollout and recovery posture stay product-shaped here instead of exposing runtime internals."
+
+  defp dashboard_pane_summary(:next_steps),
+    do: "Post-onboarding follow-up remains bounded here instead of replacing the durable landing route."
 
   defp dashboard_section_summary(:overview, _assigns),
     do: "Repository-first monitoring panels ordered by the most recent governed or operator-facing work."
@@ -925,12 +946,6 @@ defmodule JidoCodeWeb.DashboardLive do
       nil
     end
   end
-
-  defp dashboard_section_badge_class(:warning),
-    do: "badge badge-sm border border-warning/40 bg-warning/10 text-warning"
-
-  defp dashboard_section_badge_class(_tone),
-    do: "badge badge-sm border border-base-300/70 bg-base-100 text-base-content/80"
 
   defp summary_refreshed_label(%DateTime{} = datetime) do
     datetime

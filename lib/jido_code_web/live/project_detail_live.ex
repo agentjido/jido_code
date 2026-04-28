@@ -453,12 +453,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         kind={:error}
       />
 
-      <section
-        :if={@project_detail}
-        id={"project-detail-panel-#{@project_detail.id}"}
-        data-detail-section={Atom.to_string(@selected_detail_section)}
-        class="space-y-4 rounded-lg border border-base-300 bg-base-100 p-4"
-      >
+      <section :if={@project_detail} class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p id="project-detail-github-full-name" class="text-lg font-semibold">
@@ -472,26 +467,27 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             Back
           </.link>
         </div>
+      </section>
 
-        <div class="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
-          <aside id="project-detail-section-sidebar" class="min-w-0">
-            <.detail_section_nav
-              id="project-detail-section-nav"
-              project_detail={@project_detail}
-              return_to_path={@return_to_path}
-              selected_detail_section={@selected_detail_section}
-              selected_work_item_id={@selected_work_item_id}
-              conversation_roster={@conversation_roster}
-              repo_intake_surface={@repo_intake_surface}
-              conversation_snapshot={@conversation_snapshot}
-              conversation_runtime={@conversation_runtime}
-              conversation_stream_mode={@conversation_stream_mode}
-              semantic_inspection={@semantic_inspection}
-              memory_inspection={@memory_inspection}
-            />
-          </aside>
-
-          <div id="project-detail-section-content" class="min-w-0 space-y-4">
+      <section
+        :if={@project_detail}
+        id={"project-detail-panel-#{@project_detail.id}"}
+        data-detail-section={Atom.to_string(@selected_detail_section)}
+        class="space-y-4"
+      >
+        <.subject_tree_shell
+          id="project-detail-shell"
+          breadcrumbs={project_detail_breadcrumbs(assigns)}
+          parent_subjects={project_detail_parent_subjects()}
+          child_subjects={detail_section_items(assigns)}
+          child_nav_id="project-detail-section-nav"
+          child_nav_label="Repo sections"
+          child_nav_heading="Repo sections"
+          child_nav_summary="Move between repository summary, productive work, knowledge, and launch controls without leaving this managed-repository route."
+          sidebar_id="project-detail-section-sidebar"
+          content_id="project-detail-section-content"
+        >
+          <.subject_pane pane={project_detail_selected_pane(assigns)}>
             <section :if={@selected_detail_section == :overview} id="project-detail-overview-panel" class="space-y-4">
               <div class="space-y-1">
                 <h2 class="text-lg font-semibold">Repository overview</h2>
@@ -1912,88 +1908,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 </article>
               </section>
             </div>
-          </div>
-        </div>
+          </.subject_pane>
+        </.subject_tree_shell>
       </section>
     </Layouts.app>
-    """
-  end
-
-  attr :id, :string, required: true
-  attr :project_detail, :map, required: true
-  attr :return_to_path, :string, required: true
-  attr :selected_detail_section, :atom, required: true
-  attr :selected_work_item_id, :string, default: nil
-  attr :conversation_roster, :list, default: []
-  attr :repo_intake_surface, :map, default: %{}
-  attr :conversation_snapshot, :map, default: nil
-  attr :conversation_runtime, :map, default: %{}
-  attr :conversation_stream_mode, :atom, default: :idle
-  attr :semantic_inspection, :map, default: nil
-  attr :memory_inspection, :map, default: nil
-
-  defp detail_section_nav(assigns) do
-    assigns =
-      assign(assigns, :sections, detail_section_items(assigns))
-
-    ~H"""
-    <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-3">
-      <div class="space-y-1 px-1">
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
-          Repo sections
-        </p>
-        <p class="text-sm text-base-content/70">
-          Move between repository summary, productive work, knowledge, and launch controls without leaving this managed-repository route.
-        </p>
-      </div>
-
-      <nav id={@id} class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
-        <.link
-          :for={section <- @sections}
-          id={"#{@id}-#{section.section}"}
-          patch={
-            project_detail_section_path(
-              @project_detail,
-              @return_to_path,
-              section: section.section,
-              work_item_id: @selected_work_item_id
-            )
-          }
-          aria-current={if(section.selected?, do: "page", else: nil)}
-          class={[
-            "min-w-[13rem] rounded-lg border px-3 py-3 text-left transition lg:min-w-0",
-            if(section.selected?,
-              do: "border-primary/60 bg-primary/8 text-base-content shadow-sm",
-              else: "border-base-300/70 bg-base-100/80 text-base-content/80 hover:border-base-300 hover:bg-base-100"
-            )
-          ]}
-        >
-          <div class="space-y-2">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="font-semibold">{section.label}</p>
-              </div>
-              <span
-                :if={section.badge}
-                id={"#{@id}-#{section.section}-badge"}
-                class={[
-                  "badge badge-sm border font-medium",
-                  detail_section_badge_class(section.badge.tone)
-                ]}
-              >
-                {section.badge.label}
-              </span>
-            </div>
-            <p
-              id={"#{@id}-#{section.section}-summary"}
-              class="text-xs leading-5 text-base-content/65"
-            >
-              {section.summary}
-            </p>
-          </div>
-        </.link>
-      </nav>
-    </section>
     """
   end
 
@@ -2011,10 +1929,53 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         label: section.label,
         selected?: assigns.selected_detail_section == section.section,
         summary: detail_section_summary(section.section, assigns),
-        badge: detail_section_badge(section.section, assigns)
+        badge: detail_section_badge(section.section, assigns),
+        patch:
+          project_detail_section_path(
+            assigns.project_detail,
+            assigns.return_to_path,
+            section: section.section,
+            work_item_id: assigns.selected_work_item_id
+          )
       })
       |> Map.put(:section, section.section)
     end)
+  end
+
+  defp project_detail_breadcrumbs(assigns) do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "project-detail-breadcrumb-return",
+        label: return_to_label(assigns.return_to_path),
+        navigate: assigns.return_to_path
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "project-detail-breadcrumb-current",
+        label: assigns.project_detail.github_full_name,
+        current?: true
+      })
+    ]
+  end
+
+  defp project_detail_parent_subjects do
+    [
+      OperatorShell.parent_subject(%{
+        id: :repo,
+        label: "Repo",
+        description: "Canonical repository workspace for governed work, knowledge, and execution posture.",
+        selected?: true
+      })
+    ]
+  end
+
+  defp project_detail_selected_pane(assigns) do
+    section = assigns.selected_detail_section
+
+    OperatorShell.pane(%{
+      id: "project-detail-pane-#{section}",
+      title: project_detail_pane_title(section),
+      summary: project_detail_pane_summary(section)
+    })
   end
 
   defp overview_family_guides(assigns) do
@@ -2058,6 +2019,38 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       "Workflow launch posture is blocked and needs remediation."
     end
   end
+
+  defp project_detail_pane_title(:overview), do: "Repository overview"
+  defp project_detail_pane_title(:conversations), do: "Repository conversation"
+  defp project_detail_pane_title(:semantic), do: "Semantic inspection"
+  defp project_detail_pane_title(:memory), do: "Repository memory"
+  defp project_detail_pane_title(:workflows), do: "Workflow launch"
+
+  defp project_detail_pane_summary(:overview),
+    do:
+      "Repository identity, launch posture, and workflow readiness stay together here before you drill into work, knowledge, or execution detail."
+
+  defp project_detail_pane_summary(:conversations),
+    do:
+      "Repo intake, governed work-item conversations, and degraded continuity stay product-owned on this managed-repository route."
+
+  defp project_detail_pane_summary(:semantic),
+    do:
+      "Freshness, recovery, and bounded graph exploration stay explicit here before semantic context informs operator follow-up."
+
+  defp project_detail_pane_summary(:memory),
+    do:
+      "Durable coding memory, workflow provenance, and validation remain product-owned here before memory influences operator decisions."
+
+  defp project_detail_pane_summary(:workflows),
+    do:
+      "Builtin workflow launch stays governed and repository-scoped here so blocked remediation and run traceability stay together."
+
+  defp return_to_label("/dashboard"), do: "Dashboard"
+  defp return_to_label("/repos"), do: "Repositories"
+  defp return_to_label("/workbench"), do: "Workbench"
+  defp return_to_label("/settings"), do: "Settings"
+  defp return_to_label(path) when is_binary(path), do: "Back"
 
   defp detail_section_badge(:overview, _assigns), do: nil
 

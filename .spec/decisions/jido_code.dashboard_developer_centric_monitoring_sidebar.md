@@ -138,6 +138,13 @@ This newer ADR narrows the next design step:
 - the dashboard should explicitly optimize for developer/operator monitoring
   across multiple repositories
 
+The broader signed-in shell rule is now superseded by
+`jido_code.post_onboarding_subject_tree_operator_shell`, which moves the
+first-level subject split back to a top rail and reserves the left sidebar for
+child subjects inside the selected parent. The repository-monitoring content
+ideas captured here may still inform future `Overview` content inside that
+newer shell.
+
 ## Implementation Status
 
 Phase 66 landed the left sidebar that acts as the canonical tab rail on wide

@@ -13,6 +13,7 @@ The plan aligns to:
 - `../specs/agent_os_integration.spec.md`
 - `../specs/factory_control_plane.spec.md`
 - `../specs/frontend_architecture.spec.md`
+- `../specs/operator_surface_information_architecture.spec.md`
 - `../specs/setup_onboarding.spec.md`
 - `../specs/runtime_environment_defaults.spec.md`
 - `../specs/memory_capture_plane.spec.md`
@@ -33,6 +34,7 @@ The plan aligns to:
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md`
 - `../decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md`
+- `../decisions/jido_code.post_onboarding_subject_tree_operator_shell.md`
 - `../decisions/jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
 - `../decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md`
@@ -111,13 +113,20 @@ The plan aligns to:
 57. [Phase 63 - Repo-Scoped Workspace Configuration Surfaces](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-63-repo-scoped-workspace-configuration-surfaces.md): add the repo-level mutation and operator UI needed to inspect and repair each managed repository's local workspace binding directly.
 58. [Phase 64 - Runtime Surface Workspace Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-64-runtime-surface-workspace-convergence.md): align conversation, semantic, memory, and workflow readiness surfaces on the final repo-scoped workspace model and remove the last shared-root assumptions from product copy and current truth.
 59. [Phase 65 - Dashboard Concern Tab Information Architecture](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-65-dashboard-concern-tab-information-architecture.md): reorganize the authenticated dashboard around route-owned concern tabs for overview, runs, conversations, memory, runtime posture, and conditional next actions while keeping the dashboard a single LiveView-owned landing route.
-60. [Phase 66 - Dashboard Sidebar And Repository Monitoring Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md): replace the dashboard’s top concern rail with a left-sidebar shell and convert overview into a repository-first monitoring list ordered by recent meaningful work activity.
-61. [Phase 67 - Dashboard Repository Panels And Accordion Monitoring](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-67-dashboard-repository-panels-and-accordion-monitoring.md): turn the repository-first overview scaffold into the final simple monitoring-card surface with a summary region and a bounded lower inline-detail region.
+60. [Phase 66 - Dashboard Sidebar And Repository Monitoring Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md): historical dashboard step that moved concern navigation into a left-sidebar shell and introduced repository-first monitoring ideas later superseded at the shell level.
+61. [Phase 67 - Dashboard Repository Panels And Accordion Monitoring](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-67-dashboard-repository-panels-and-accordion-monitoring.md): historical dashboard step that refined repository monitoring cards and inline detail before the accepted subject-tree shell replaced the left-sidebar-first dashboard target.
+62. [Phase 68 - Shared Post-Onboarding Operator Shell Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-68-shared-post-onboarding-operator-shell-foundation.md): build the shared signed-in operator shell with a route header, breadcrumb lane, parent subject top rail, child subject sidebar, selected-pane header-middle-footer contract, and responsive fallback helpers.
+63. [Phase 69 - Dashboard And Managed-Repo Subject-Tree Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-69-dashboard-and-managed-repo-subject-tree-adoption.md): migrate dashboard and managed-repository detail onto the shared subject-tree shell, define each route’s parent and child subject taxonomy, and update route-level verification plus product wording.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
 again matches the shipped coverage instead of treating that integration work as
 an orphaned planning gap.
+
+UI chronology note: Phases 66 and 67 remain useful historical dashboard
+implementation steps, but their left-sidebar-first shell target is superseded by
+the accepted post-onboarding subject-tree operator shell. Phases 68 and 69 own
+the forward breadcrumb plus top-rail and child-sidebar rollout.
 
 ## Shared Conventions
 - Numbering:

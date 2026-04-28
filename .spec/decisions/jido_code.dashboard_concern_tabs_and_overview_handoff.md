@@ -136,3 +136,9 @@ Current implementation behaves as follows:
 
 Current-truth specs should now describe this route-owned concern model directly
 rather than framing it as accepted future state.
+
+This ADR now serves as the historical step that moved dashboard away from one
+stacked operator page. The broader signed-in shell direction is now governed by
+`jido_code.post_onboarding_subject_tree_operator_shell`, which keeps the
+first-level subject split in a top rail and reserves the left sidebar for child
+subjects.

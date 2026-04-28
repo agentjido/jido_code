@@ -11,6 +11,16 @@
 
 Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/README.md)
 
+## Status Note
+- This phase remains a historical dashboard refinement step that captured useful
+  repository-monitoring composition ideas.
+- Its shell-level target is superseded by
+  `jido_code.post_onboarding_subject_tree_operator_shell` and
+  `architecture.operator_surface_information_architecture`.
+- Forward implementation work should now reuse only the still-useful monitoring
+  content ideas inside the newer shared subject-tree shell rather than reviving
+  the older left-sidebar-first dashboard shell.
+
 ## Relevant Shared APIs / Interfaces
 - `../specs/baseline_surface.spec.md`
 - `../specs/factory_control_plane.spec.md`

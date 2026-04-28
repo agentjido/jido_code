@@ -105,8 +105,14 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     )
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project_id}?section=workflows", on_error: :warn)
+      live(
+        recycle(authed_conn),
+        ~p"/repos/#{project_id}?subject=work&section=workflows",
+        on_error: :warn
+      )
 
+    assert has_element?(view, "[data-detail-subject='work'][data-detail-section='workflows']")
+    assert has_element?(view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
     assert has_element?(view, "#project-detail-workflow-readiness-summary")
     assert has_element?(view, "#project-detail-workflow-readiness-badge", "Ready")
     assert has_element?(view, "#project-detail-workflow-controls")
@@ -196,7 +202,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
            end)
   end
 
-  test "repo detail keeps route-owned section selection with overview as the default family", %{
+  test "repo detail keeps route-owned subject selection with overview as the default readiness family", %{
     conn: _conn
   } do
     bootstrap_owner!("owner@example.com", "owner-password-123")
@@ -222,9 +228,10 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              default_view,
-             "section[id^='project-detail-panel-'][data-detail-section='overview']"
+             "section[id^='project-detail-panel-'][data-detail-subject='readiness'][data-detail-section='overview']"
            )
 
+    assert has_element?(default_view, "#project-detail-shell-parent-subjects-readiness[aria-current='page']")
     assert has_element?(default_view, "#project-detail-section-nav-overview[aria-current='page']")
     assert has_element?(default_view, "#project-detail-overview-panel")
     assert has_element?(default_view, "#project-detail-overview-open-workflows")
@@ -232,24 +239,35 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute has_element?(default_view, "#project-detail-workflow-controls")
 
     {:ok, memory_view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+      live(
+        recycle(authed_conn),
+        ~p"/repos/#{project.id}?subject=knowledge&section=memory",
+        on_error: :warn
+      )
 
     assert has_element?(
              memory_view,
-             "section[id^='project-detail-panel-'][data-detail-section='memory']"
+             "section[id^='project-detail-panel-'][data-detail-subject='knowledge'][data-detail-section='memory']"
            )
 
+    assert has_element?(memory_view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
     assert has_element?(memory_view, "#project-detail-section-nav-memory[aria-current='page']")
     assert has_element?(memory_view, "#project-detail-memory-inspection")
     refute has_element?(memory_view, "#project-detail-workflow-controls")
 
     {:ok, conversations_view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
+      live(
+        recycle(authed_conn),
+        ~p"/repos/#{project.id}?subject=work&section=conversations",
+        on_error: :warn
+      )
 
     assert has_element?(
              conversations_view,
-             "section[id^='project-detail-panel-'][data-detail-section='conversations']"
+             "section[id^='project-detail-panel-'][data-detail-subject='work'][data-detail-section='conversations']"
            )
+
+    assert has_element?(conversations_view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
 
     assert has_element?(
              conversations_view,
@@ -260,15 +278,29 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute has_element?(conversations_view, "#project-detail-memory-inspection")
 
     {:ok, invalid_view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=unknown", on_error: :warn)
+      live(
+        recycle(authed_conn),
+        ~p"/repos/#{project.id}?subject=unknown&section=unknown",
+        on_error: :warn
+      )
 
     assert has_element?(
              invalid_view,
-             "section[id^='project-detail-panel-'][data-detail-section='overview']"
+             "section[id^='project-detail-panel-'][data-detail-subject='readiness'][data-detail-section='overview']"
+           )
+
+    {:ok, fallback_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+
+    assert has_element?(
+             fallback_view,
+             "section[id^='project-detail-panel-'][data-detail-subject='knowledge'][data-detail-section='memory']"
            )
   end
 
-  test "route-owned section navigation switches repo-detail families in place", %{conn: _conn} do
+  test "route-owned parent and child navigation switches repo-detail families in place", %{
+    conn: _conn
+  } do
     bootstrap_owner!("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -299,10 +331,20 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     view
+    |> element("#project-detail-shell-parent-subjects-work")
+    |> render_click()
+
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations&subject=work")
+    assert has_element?(view, "[data-detail-subject='work'][data-detail-section='conversations']")
+    assert has_element?(view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
+    assert has_element?(view, "#project-detail-conversation-panel")
+
+    view
     |> element("#project-detail-section-nav-workflows")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=workflows")
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=workflows&subject=work")
     assert has_element?(view, "#project-detail-section-nav-workflows[aria-current='page']")
     assert has_element?(view, "#project-detail-workflows-panel")
     refute has_element?(view, "#project-detail-overview-panel")
@@ -311,17 +353,19 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-section-nav-conversations")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations")
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations&subject=work")
     assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
     assert has_element?(view, "#project-detail-conversation-panel")
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
     refute has_element?(view, "#project-detail-workflows-panel")
 
     view
-    |> element("#project-detail-section-nav-semantic")
+    |> element("#project-detail-shell-parent-subjects-knowledge")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic")
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic&subject=knowledge")
+    assert has_element?(view, "[data-detail-subject='knowledge'][data-detail-section='semantic']")
+    assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-semantic[aria-current='page']")
     assert has_element?(view, "#project-detail-semantic-inspection")
     refute has_element?(view, "#project-detail-conversation-panel")
@@ -330,7 +374,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-semantic-open-memory")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=memory")
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=memory&subject=knowledge")
     assert has_element?(view, "#project-detail-section-nav-memory[aria-current='page']")
     assert has_element?(view, "#project-detail-memory-inspection")
     refute has_element?(view, "#project-detail-semantic-inspection")
@@ -339,7 +383,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-memory-open-semantic")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic")
+    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic&subject=knowledge")
     assert has_element?(view, "#project-detail-semantic-inspection")
     refute has_element?(view, "#project-detail-memory-inspection")
   end
@@ -370,7 +414,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       })
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+      live(
+        recycle(authed_conn),
+        ~p"/repos/#{project.id}?subject=knowledge&section=memory",
+        on_error: :warn
+      )
 
     html = render(view)
 
@@ -378,7 +426,14 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              rendered_fragment_index(html, ~s(id="project-detail-shell-breadcrumbs"))
 
     assert rendered_fragment_index(html, ~s(id="project-detail-shell-breadcrumbs")) <
+             rendered_fragment_index(html, ~s(id="project-detail-shell-parent-subjects"))
+
+    assert rendered_fragment_index(html, ~s(id="project-detail-shell-parent-subjects")) <
              rendered_fragment_index(html, ~s(id="project-detail-section-nav"))
+
+    assert has_element?(view, "#project-detail-breadcrumb-subject", "Knowledge")
+    assert has_element?(view, "#project-detail-breadcrumb-current[aria-current='page']", "Memory")
+    assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
 
     assert has_element?(
              view,
@@ -543,6 +598,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert length(vue.props["workflowCards"]) == 2
 
     assert has_element?(view, "#project-detail-overview-panel")
+    assert has_element?(view, "#project-detail-shell-parent-subjects-readiness[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-overview[aria-current='page']")
     assert has_element?(view, "#project-detail-overview-family-guides")
     assert has_element?(view, "#project-detail-overview-open-conversations")
@@ -691,7 +747,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
-    assert has_element?(view, "#project-detail-section-nav-conversations-badge", "Blocked")
+    assert has_element?(view, "#project-detail-overview-guide-conversations-badge", "Blocked")
 
     view
     |> element("#project-detail-overview-open-conversations")

@@ -109,6 +109,55 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-timeline-at-3", "2026-02-14T22:02:00Z")
   end
 
+  test "uses explicit Workbench return paths for direct run detail entry", %{conn: _conn} do
+    register_owner("run-detail-workbench-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("run-detail-workbench-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-run-detail-workbench-return",
+        github_full_name: "owner/repo-run-detail-workbench-return",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    run_id = "run-detail-workbench-return-#{System.unique_integer([:positive])}"
+
+    {:ok, _run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Preserve Workbench return path"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-1", email: "run-detail-workbench-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-02-14 22:00:00Z]
+      })
+
+    workbench_state_path =
+      "/workbench?project_id=#{project.id}&work_state=prs_open&freshness_window=active_24h"
+
+    encoded_return_to = URI.encode_www_form(workbench_state_path)
+
+    {:ok, view, _html} =
+      live(
+        recycle(authed_conn),
+        "/repos/#{project.id}/runs/#{run_id}?return_to=#{encoded_return_to}",
+        on_error: :warn
+      )
+
+    assert has_element?(
+             view,
+             "#run-detail-return-link[href='#{workbench_state_path}']",
+             "Back to Workbench"
+           )
+  end
+
   test "updates timeline entries in near real time for active runs and marks missing duration as unknown",
        %{conn: _conn} do
     register_owner("timeline-live-owner@example.com", "owner-password-123")
@@ -2298,6 +2347,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     render_click(element(view, "#run-detail-retry-button"))
 
     retry_run_id = "#{failed_run_id}-retry-2"
+
     retry_path =
       "/repos/#{project.id}/runs/#{retry_run_id}?return_to=#{URI.encode_www_form("/repos/#{project.id}")}"
 
@@ -2487,6 +2537,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     render_click(element(view, "#run-detail-step-retry-button"))
 
     retry_run_id = "#{failed_run_id}-retry-2"
+
     retry_path =
       "/repos/#{project.id}/runs/#{retry_run_id}?return_to=#{URI.encode_www_form("/repos/#{project.id}")}"
 

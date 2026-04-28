@@ -253,3 +253,22 @@ test("repo detail keeps narrow-screen subject navigation usable as a stacked fal
   await expectRepoDetailRoute(page, "knowledge", "semantic")
   await expect(page.locator("#project-detail-semantic-inspection")).toBeVisible()
 })
+
+test("workbench-origin repo detail links preserve the specialist parent route", async ({
+  page,
+  request
+}) => {
+  await prepareScenario(request, "conversation_ready")
+  await signIn(page, "/workbench")
+  await openRepoDetailFromWorkbench(page, "owner/browser-conversation-ready")
+
+  await expect(page.locator("#project-detail-breadcrumb-return")).toHaveAttribute("href", "/workbench")
+  await expect(page.locator("#project-detail-breadcrumb-return")).toContainText("Workbench")
+  await expect(page.locator("#project-detail-return-link")).toHaveAttribute("href", "/workbench")
+  await expect(page.locator("#project-detail-return-link")).toContainText("Back to Workbench")
+
+  await page.locator("#project-detail-return-link").click()
+  await page.waitForURL(url => url.pathname === "/workbench")
+  await waitForLiveViewConnection(page)
+  await expect(page.locator("#workbench-route-role-label")).toContainText("Dense specialist mode")
+})

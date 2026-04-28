@@ -262,6 +262,62 @@ defmodule JidoCodeWeb.DashboardLiveTest do
            )
   end
 
+  test "dashboard repository links round-trip back to Dashboard Work", %{conn: _conn} do
+    register_owner("dashboard-roundtrip-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("dashboard-roundtrip-owner@example.com", "owner-password-123")
+
+    %{route_id: project_id} =
+      provision_managed_repo!(%{
+        name: "repo-dashboard-roundtrip",
+        github_full_name: "owner/repo-dashboard-roundtrip",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    dashboard_return_to = ~p"/dashboard?#{[subject: "work", section: "overview"]}"
+
+    repo_detail_path =
+      JidoCode.ManagedRepoRoutes.project_detail_path(project_id, return_to: dashboard_return_to)
+
+    Application.put_env(:jido_code, :workbench_inventory_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: project_id,
+           name: "repo-dashboard-roundtrip",
+           github_full_name: "owner/repo-dashboard-roundtrip",
+           default_branch: "main",
+           open_issue_count: 1,
+           open_pr_count: 0,
+           recent_activity_summary: "Dashboard origin should stay explicit.",
+           recent_activity_at: DateTime.utc_now() |> DateTime.truncate(:second)
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    view
+    |> element("#dashboard-overview-repository-issues-project-link-#{project_id}")
+    |> render_click()
+
+    assert_redirect(view, repo_detail_path)
+
+    {:ok, repo_view, _html} = live(recycle(authed_conn), repo_detail_path, on_error: :warn)
+
+    assert has_element?(repo_view, "#project-detail-breadcrumb-return", "Dashboard")
+
+    assert has_element?(repo_view, "#project-detail-return-link", "Back to Dashboard")
+
+    repo_view
+    |> element("#project-detail-return-link")
+    |> render_click()
+
+    assert_redirect(repo_view, dashboard_return_to)
+  end
+
   test "defaults dashboard selection to work overview and ignores unknown params", %{
     conn: _conn
   } do

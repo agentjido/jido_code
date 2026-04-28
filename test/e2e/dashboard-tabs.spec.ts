@@ -271,3 +271,39 @@ test("dashboard overview stays bounded on narrow screens", async ({
   await expect(page.locator("[id^='dashboard-overview-repository-issues-project-link-']").first()).toBeVisible()
   await expect(page.locator("[id^='dashboard-overview-repository-prs-project-link-']").first()).toBeVisible()
 })
+
+test("dashboard repo detail links preserve Dashboard Work as the parent surface", async ({
+  page,
+  request,
+}) => {
+  await prepareScenario(request, "conversation_ready")
+  await page.setViewportSize({ width: 1440, height: 1100 })
+  await signIn(page, "/dashboard?onboarding=completed")
+
+  await page.locator("[id^='dashboard-overview-repository-issues-project-link-']").first().click()
+  await page.waitForURL(url => {
+    const returnTo = url.searchParams.get("return_to")
+
+    if (!returnTo) {
+      return false
+    }
+
+    const returnToUrl = new URL(returnTo, "http://localhost")
+
+    return (
+      url.pathname.startsWith("/repos/") &&
+      returnToUrl.pathname === "/dashboard" &&
+      returnToUrl.searchParams.get("subject") === "work" &&
+      returnToUrl.searchParams.get("section") === "overview"
+    )
+  })
+  await waitForLiveViewConnection(page)
+
+  await expect(page.locator("#project-detail-breadcrumb-return")).toContainText("Dashboard")
+  await expect(page.locator("#project-detail-return-link")).toContainText("Back to Dashboard")
+
+  await page.locator("#project-detail-return-link").click()
+  await expectDashboardUrl(page, { subject: "work", section: "overview" })
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "work")
+  await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
+})

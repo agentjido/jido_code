@@ -318,6 +318,20 @@
       {
         "affects": [
           "package.jido_code",
+          "baseline.surface",
+          "architecture.frontend_stack",
+          "architecture.factory_control_plane",
+          "setup.onboarding"
+        ],
+        "date": "2026-04-28",
+        "file": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "id": "jido_code.post_onboarding_subject_tree_operator_shell",
+        "status": "accepted",
+        "title": "Post-Onboarding Subject Tree Operator Shell"
+      },
+      {
+        "affects": [
+          "package.jido_code",
           "architecture.execution_pipeline",
           "docs.product_foundation"
         ],
@@ -1734,6 +1748,78 @@
         "stability": "proposed",
         "statement": "The ontology shall model workflow and LLM provenance with first-class entities including WorkSession, AgentRun, ToolInvocation, PromptTurn, Review, Patch, and Plan rather than flattening those concepts into string metadata.",
         "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.child_subject_tabs_live_in_left_sidebar",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The selected top-level subject shall own its child subjects inside a left sidebar, and those child tabs shall render as rounded buttons with explicit selected highlighting rather than being mixed into the top rail or hidden inside the subject body.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.desktop_first_operator_shell",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Post-onboarding operator routes shall prioritize desktop-application clarity through stable pane hierarchy, persistent subject navigation, and bounded chrome rather than long landing-page stacks, generic admin-card grids, or route-specific one-off navigation patterns.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.post_onboarding_routes_share_subject_tree_shell",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Post-onboarding operator routes that expose multiple subject families shall converge on one shared subject-tree shell with a top-level subject rail, a route-local child-subject rail, and one selected subject pane rather than each route inventing a separate primary navigation model.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Responsive fallback may restack or compress the subject rails, but it shall preserve the same parent-child subject semantics instead of introducing a separate mobile-only navigation model.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.route_breadcrumbs_sit_between_header_and_subject_navigation",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Signed-in operator routes shall expose a route-owned breadcrumb lane between the main LiveView page header and the subject-tree navigation so operators can recover hierarchical context without overloading the tab chrome.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.subject_content_uses_header_middle_footer_regions",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The selected subject pane shall be structured into header, middle, and footer regions where the header describes the current subject, the middle hosts the information and work surface, and the footer presents square action buttons directly related to that middle region.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.subject_tabs_expose_focus_bubble_descriptions",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "When terse subject labels need explanation, the route shall expose that explanation through a keyboard-focusable bubble, tooltip-style description, or equivalent accessible assistive description rather than keeping multi-line explanatory copy permanently visible in the tab chrome.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.subject_tree_selection_remains_route_owned",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Top-level and child-subject selection shall remain route-owned LiveView state even when bounded richer widgets render inside the selected subject pane.",
+        "subject_id": "architecture.operator_surface_information_architecture"
+      },
+      {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture.top_level_subject_tabs_use_terse_labels",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The first subject split on a signed-in operator route shall reuse the route's canonical top-level subjects, render them in a top rail, and prefer single-word or otherwise terse subject labels over persistent verbose tab copy.",
+        "subject_id": "architecture.operator_surface_information_architecture"
       },
       {
         "file": ".spec/specs/policy_layers.spec.md",
@@ -5295,6 +5381,87 @@
       },
       {
         "covers": [
+          "architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics",
+          "architecture.operator_surface_information_architecture.child_subject_tabs_live_in_left_sidebar"
+        ],
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "given": [
+          "The route is viewed on a narrower screen."
+        ],
+        "id": "architecture.operator_surface_information_architecture.scenario_responsive_layout_keeps_same_subject_meaning",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "then": [
+          "The same top-level and child subject structure remains legible.",
+          "The fallback does not invent a separate subject taxonomy for the narrow layout."
+        ],
+        "when": [
+          "The shell compresses or restacks its navigation chrome."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.operator_surface_information_architecture.post_onboarding_routes_share_subject_tree_shell",
+          "architecture.operator_surface_information_architecture.top_level_subject_tabs_use_terse_labels",
+          "architecture.operator_surface_information_architecture.child_subject_tabs_live_in_left_sidebar",
+          "architecture.operator_surface_information_architecture.subject_tree_selection_remains_route_owned"
+        ],
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "given": [
+          "A signed-in operator route such as dashboard or managed-repository detail exposes multiple subject families."
+        ],
+        "id": "architecture.operator_surface_information_architecture.scenario_route_organizes_subjects_as_tree",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "then": [
+          "The first split appears in a top rail using terse subject labels.",
+          "Any child subjects for the selected parent appear in the left sidebar.",
+          "Selection remains route-authored rather than client-shell-authored state."
+        ],
+        "when": [
+          "The route renders its shell and the operator selects one top-level subject."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.operator_surface_information_architecture.route_breadcrumbs_sit_between_header_and_subject_navigation",
+          "architecture.operator_surface_information_architecture.subject_content_uses_header_middle_footer_regions",
+          "architecture.operator_surface_information_architecture.desktop_first_operator_shell"
+        ],
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "given": [
+          "An operator opens one selected subject in the signed-in shell."
+        ],
+        "id": "architecture.operator_surface_information_architecture.scenario_selected_subject_uses_three_region_pane",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "then": [
+          "A breadcrumb lane appears between the route header and the subject navigation.",
+          "The header explains the current subject.",
+          "The middle hosts the information and work surface.",
+          "The footer presents square actions related to that middle region."
+        ],
+        "when": [
+          "The subject pane renders its actual content."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.operator_surface_information_architecture.top_level_subject_tabs_use_terse_labels",
+          "architecture.operator_surface_information_architecture.subject_tabs_expose_focus_bubble_descriptions"
+        ],
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "given": [
+          "A subject label is intentionally terse."
+        ],
+        "id": "architecture.operator_surface_information_architecture.scenario_terse_subject_label_needs_explanation",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "then": [
+          "The route reveals the longer explanatory message through a bubble or equivalent accessible assistive description instead of keeping the longer copy permanently visible in the tab row."
+        ],
+        "when": [
+          "The operator hovers or focuses that label from pointer or keyboard input."
+        ]
+      },
+      {
+        "covers": [
           "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
           "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
           "architecture.policy_layers.runtime_policy_governs_runtime_capability",
@@ -7168,15 +7335,18 @@
           "decisions": [
             "jido_code.dashboard_concern_tabs_and_overview_handoff",
             "jido_code.dashboard_developer_centric_monitoring_sidebar",
+            "jido_code.post_onboarding_subject_tree_operator_shell",
             "jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff"
           ],
           "id": "baseline.surface",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing through left-sidebar concern navigation with an intentionally empty default `Overview` concern for now, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.",
+          "summary": "jido_code exposes a state-aware `/welcome` landing and auth entry route, keeps `/setup` as the signed-in continuation surface for incomplete onboarding, uses `/dashboard` as the durable ready-state authenticated landing, records a converging post-onboarding subject-tree shell for the signed-in operator routes after onboarding, and keeps operator auth and Git integration management on `/settings/auth` while authenticated product, API, and dev surfaces remain declared in the router.",
           "surface": [
             ".spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md",
             ".spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md",
+            ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+            ".spec/specs/operator_surface_information_architecture.spec.md",
             "lib/jido_code_web/router.ex",
             "lib/jido_code_web/live/home_live.ex",
             "lib/jido_code_web/live/setup_live.ex",
@@ -7416,6 +7586,7 @@
             "jido_code.factory_control_plane_and_runtime_overlay",
             "jido_code.dashboard_concern_tabs_and_overview_handoff",
             "jido_code.dashboard_developer_centric_monitoring_sidebar",
+            "jido_code.post_onboarding_subject_tree_operator_shell",
             "jido_code.settings_github_add_repository_uses_managed_repo_import",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.managed_repo_workspace_binding_is_repo_scoped",
@@ -7432,10 +7603,12 @@
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route now keeps overview, conversations, semantic, memory, and workflows as route-owned operator families plus one shared repo-scoped workspace-repair path instead of one long mixed-context page, whose authenticated dashboard now keeps left-sidebar concern navigation with an intentionally empty default `Overview` concern alongside bounded runs, conversations, memory, runtime, and optional next-step slices on one canonical route rather than one vertically growing summary stack, with route-level integration and browser coverage proving that current routed dashboard contract, whose signed-in `/settings/github` route now sends later GitHub additions through the same managed-repository import boundary instead of creating settings-only product truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding, dashboard summaries, governed history, canonical follow-up staging, and work synthesis through canonical managed-repository and governed-record surfaces while preserving explicit freshness, recovery, provenance, cross-graph consistency, and durable-memory adoption metadata when those findings rejoin governed product records, whose governed product records now also have a first-class semantic model and typed repository-scoped references for cross-graph linking, whose semantic workflow and governed-adoption boundaries now emit typed governed references at the capture-envelope seam rather than generic artifact naming, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance and intentionally classify durable coding memory without turning graph-local activity into alternate control-plane truth, whose canonical managed-repository detail route keeps route-owned operator families plus one shared repo-scoped workspace-repair path, whose authenticated dashboard remains one canonical landing route, and whose accepted post-onboarding operator shell now converges those signed-in routes toward a shared subject tree with top-level subject tabs, left-sidebar child subjects, and header-middle-footer content framing, while the signed-in `/settings/github` route sends later GitHub additions through the same managed-repository import boundary instead of creating settings-only product truth and repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md",
             ".spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md",
+            ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+            ".spec/specs/operator_surface_information_architecture.spec.md",
             ".spec/decisions/jido_code.settings_github_add_repository_uses_managed_repo_import.md",
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -7524,6 +7697,7 @@
             "jido_code.live_vue_frontend_adoption",
             "jido_code.dashboard_concern_tabs_and_overview_handoff",
             "jido_code.dashboard_developer_centric_monitoring_sidebar",
+            "jido_code.post_onboarding_subject_tree_operator_shell",
             "jido_code.settings_github_add_repository_uses_managed_repo_import",
             "jido_code.setup_onboarding_live_vue_surface_split",
             "jido_code.memory_graph_product_adoption",
@@ -7534,14 +7708,16 @@
           "id": "architecture.frontend_stack",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including repo detail as a LiveView-owned route with route-selected overview, conversations, semantic, memory, and workflows families plus LiveView-owned repo-scoped workspace-binding repair, consistent repo-scoped runtime wording, and product-shaped memory follow-up previews, dashboard as a LiveView-owned authenticated landing with left-sidebar concern navigation and an intentionally empty default `Overview` concern rather than a future SPA shell, with route-level integration and Playwright coverage exercising that empty overview shell on wide and narrow layouts, setup as a LiveView-owned route whose bounded runtime-defaults widget still presents import-seed copy through server-authored props while degrading safely to LiveView-owned contracts, and `/settings/github` as a LiveView-owned route whose overview may use bounded Vue while add-repository validation and canonical managed-repo import remain server-owned.",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful across managed-repository, dashboard-summary, governed-run, work-item, evidence, decision, and other canonical product surfaces, including dashboard and repo detail as LiveView-owned signed-in routes whose current navigation remains route-authored today while the accepted post-onboarding subject-tree shell now converges those routes toward top-level subject tabs, left-sidebar child subjects, and shared header-middle-footer subject panes rather than a future SPA shell, setup as a LiveView-owned route whose bounded runtime-defaults widget still presents import-seed copy through server-authored props while degrading safely to LiveView-owned contracts, and `/settings/github` as a LiveView-owned route whose overview may use bounded Vue while add-repository validation and canonical managed-repo import remain server-owned.",
           "surface": [
             ".spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md",
             ".spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md",
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+            ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
             ".spec/decisions/jido_code.settings_github_add_repository_uses_managed_repo_import.md",
             ".spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md",
             ".spec/specs/frontend_architecture.spec.md",
+            ".spec/specs/operator_surface_information_architecture.spec.md",
             ".spec/specs/package.spec.md",
             ".spec/specs/product_foundation_docs.spec.md",
             "lib/jido_code_web/router.ex",
@@ -7925,6 +8101,35 @@
         "title": "Operator Provider Auth Guide"
       },
       {
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "id": "architecture.operator_surface_information_architecture",
+        "meta": {
+          "decisions": [
+            "jido_code.internal_cleanup_and_ui_convergence_foundation",
+            "jido_code.live_vue_frontend_adoption",
+            "jido_code.post_onboarding_subject_tree_operator_shell"
+          ],
+          "id": "architecture.operator_surface_information_architecture",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes.",
+          "surface": [
+            ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+            ".spec/specs/frontend_architecture.spec.md",
+            ".spec/specs/baseline_surface.spec.md",
+            "lib/jido_code_web/components/layouts.ex",
+            "lib/jido_code_web/live/dashboard_live.ex",
+            "lib/jido_code_web/live/project_detail_live.ex",
+            "lib/jido_code_web/live/setup_live.ex",
+            "test/e2e/dashboard-tabs.spec.ts",
+            "test/jido_code_web/live/dashboard_live_test.exs",
+            "test/jido_code_web/live/project_detail_live_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Operator Surface Information Architecture"
+      },
+      {
         "file": ".spec/specs/package.spec.md",
         "id": "package.jido_code",
         "meta": {
@@ -7933,6 +8138,7 @@
             "jido_code.canonical_repo_surface",
             "jido_code.dashboard_concern_tabs_and_overview_handoff",
             "jido_code.dashboard_developer_centric_monitoring_sidebar",
+            "jido_code.post_onboarding_subject_tree_operator_shell",
             "jido_code.settings_github_add_repository_uses_managed_repo_import",
             "jido_code.live_vue_frontend_adoption",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
@@ -7950,7 +8156,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, eager collaboration-state action surfaces, and repo-owned onboarding-reset entrypoints version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, product-owned semantic memory-adoption helpers, dashboard memory summary shaping, governed surface context loaders, canonical operator memory actions, follow-up preview boundaries, the companion governed control-plane ontology, and the typed governed-reference helper boundary under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, now treats `governed_references` as the canonical capture-envelope input for governed links while compatibility artifact shapes remain internal to the cutover, now emits typed governed control-plane relations from the writer layer and detects legacy governed-artifact store state as recovery-required memory-graph metadata, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, operator memory-action expansion, repo-scoped workspace-binding repair, seed-only setup runtime-default copy, and the now-landed dashboard concern-tab information architecture plus the phase-66 developer-centric sidebar foundation as first-class package-owned product concerns, with route-level integration and Playwright coverage now exercising the current empty overview shell and the remaining dashboard concern navigation, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, and keeps first-run bootstrap plus signed start surfaces plus repo-scoped workspace-binding import/provisioning and rebinding behavior version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, eager collaboration-state action surfaces, and repo-owned onboarding-reset entrypoints version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, now includes the concrete MemoryGraph boundary, pod contract, specialist agent scaffolding, workflow-provenance capture-envelope normalization, canonical capture-writer implementation, durable-memory envelope normalization, durable-memory writer, durable-memory update envelope normalization, durable-memory update writer, product-shaped memory feedback, repository-scoped memory recovery behavior, product-owned semantic memory-adoption helpers, dashboard memory summary shaping, governed surface context loaders, canonical operator memory actions, follow-up preview boundaries, the companion governed control-plane ontology, and the typed governed-reference helper boundary under version control, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, now treats `governed_references` as the canonical capture-envelope input for governed links while compatibility artifact shapes remain internal to the cutover, now emits typed governed control-plane relations from the writer layer and detects legacy governed-artifact store state as recovery-required memory-graph metadata, preserves stable code-graph linkage for those semantic layers, now treats bounded memory-service, memory-view-model, memory/provenance operator-surface, dashboard and governed-surface rollout, cross-graph navigation, governed-surface memory context, operator memory-action expansion, repo-scoped workspace-binding repair, seed-only setup runtime-default copy, and the accepted post-onboarding subject-tree operator shell as first-class package-owned product concerns, keeps repo-owned `mix source_graph.verify`, `mix memory.verify`, and `mix semantic.verify` verification paths aligned with that semantic stack, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, governed semantic-finding adoption layer, and explicit durable memory adoption and validation layers built on top of runtime semantic capability, and keeps first-run bootstrap plus signed start surfaces plus repo-scoped workspace-binding import/provisioning and rebinding behavior version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -8439,19 +8645,22 @@
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.managed_repo_workspace_binding_is_repo_scoped",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption",
+            "jido_code.post_onboarding_subject_tree_operator_shell",
             "jido_code.runtime_environment_selection_is_persisted_setup_metadata",
             "jido_code.setup_onboarding_live_vue_surface_split"
           ],
           "id": "setup.onboarding",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection plus route-local account-owner filtering and matching repository search to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may now expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist on a dashboard landing that now uses left-sidebar concern navigation with an intentionally empty default `Overview` concern, with route-level integration and browser coverage keeping that post-setup landing legible, rather than one stacked summary page.",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global install-flavor hint for start-surface copy, keeps explicit runtime-environment choice separate from that hint and persisted through database-backed setup metadata, presents install-wide workspace-root copy as seed context for new imports rather than as a permanent shared-root rule, uses that setup-owned runtime metadata only as fallback seed context for repository import when repo-scoped binding metadata is absent, persists repo-scoped workspace settings onto each imported managed repository for later execution, allows setup import to accept explicit repo-scoped local workspace paths that do not share one parent directory, keeps `/setup` LiveView-owned while allowing bounded `live_vue` regions for choice-heavy follow-up work, keeps forced hybrid fallback on the real built browser assets so `/setup` stays interactive while Vue regions degrade, allows optional GitHub repository multi-selection plus route-local account-owner filtering and matching repository search to resume from persisted onboarding metadata without turning `/setup` back into a blocking wizard, but clears active GitHub selection after completed imports so prior import history does not masquerade as a fresh repo choice, may capture deployment-local GitHub PAT fallback as encrypted onboarding-managed secret storage during that signed-in follow-up while surfacing encryption-key preflight before PAT save, exposes an explicit Mix reset path that can either return onboarding to first-run bootstrap or rewind it to the signed-in `/setup` surface while preserving the bootstrap owner, and defers broader repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records and later repo detail plus adjacent runtime surfaces can repair one managed repository's workspace binding directly, while post-bootstrap managed-repository and dashboard surfaces may expose bounded semantic repository inspection, repository memory inspection, recovery, and action-needed memory summaries once those control-plane records exist on a dashboard landing that now feeds the accepted post-onboarding subject-tree shell, with route-level integration and browser coverage keeping that landing legible rather than one stacked summary page.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md",
             ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
+            ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
             ".spec/decisions/jido_code.runtime_environment_selection_is_persisted_setup_metadata.md",
             ".spec/decisions/jido_code.setup_onboarding_live_vue_surface_split.md",
+            ".spec/specs/operator_surface_information_architecture.spec.md",
             ".spec/specs/baseline_surface.spec.md",
             ".spec/specs/user_administration.spec.md",
             ".spec/specs/github_identity_and_integration.spec.md",
@@ -11833,6 +12042,23 @@
         "kind": "source_file",
         "subject_id": "architecture.memory_ontology",
         "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex"
+      },
+      {
+        "covers": [
+          "architecture.operator_surface_information_architecture.post_onboarding_routes_share_subject_tree_shell",
+          "architecture.operator_surface_information_architecture.top_level_subject_tabs_use_terse_labels",
+          "architecture.operator_surface_information_architecture.subject_tabs_expose_focus_bubble_descriptions",
+          "architecture.operator_surface_information_architecture.child_subject_tabs_live_in_left_sidebar",
+          "architecture.operator_surface_information_architecture.route_breadcrumbs_sit_between_header_and_subject_navigation",
+          "architecture.operator_surface_information_architecture.subject_content_uses_header_middle_footer_regions",
+          "architecture.operator_surface_information_architecture.desktop_first_operator_shell",
+          "architecture.operator_surface_information_architecture.subject_tree_selection_remains_route_owned",
+          "architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics"
+        ],
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md"
       },
       {
         "covers": [
@@ -16544,13 +16770,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 32,
+    "decisions": 33,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 376,
-    "scenarios": 184,
-    "subjects": 44,
-    "verifications": 771
+    "requirements": 385,
+    "scenarios": 188,
+    "subjects": 45,
+    "verifications": 772
   },
   "verification": {
     "claims": [
@@ -25430,6 +25656,105 @@
         "subject_id": "architecture.memory_ontology",
         "target": "lib/jido_code/memory_graph/durable_memory_update_writer.ex",
         "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.child_subject_tabs_live_in_left_sidebar",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.desktop_first_operator_shell",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.post_onboarding_routes_share_subject_tree_shell",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.route_breadcrumbs_sit_between_header_and_subject_navigation",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.subject_content_uses_header_middle_footer_regions",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.subject_tabs_expose_focus_bubble_descriptions",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.subject_tree_selection_remains_route_owned",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.operator_surface_information_architecture.top_level_subject_tabs_use_terse_labels",
+        "file": ".spec/specs/operator_surface_information_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.operator_surface_information_architecture",
+        "target": ".spec/decisions/jido_code.post_onboarding_subject_tree_operator_shell.md",
+        "verification_index": 0
       },
       {
         "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
@@ -34600,12 +34925,12 @@
     "strength_summary": {
       "claimed": 70,
       "executed": 0,
-      "linked": 1570
+      "linked": 1579
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 32,
-    "spec_count": 44
+    "decision_count": 33,
+    "spec_count": 45
   }
 }

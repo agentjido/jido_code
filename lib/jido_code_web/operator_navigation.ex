@@ -17,16 +17,20 @@ defmodule JidoCodeWeb.OperatorNavigation do
 
   def from_view(view, assigns) when is_atom(view) and is_map(assigns) do
     if signed_in?(assigns) do
-      context = route_context(view, assigns)
+      case route_context(view, assigns) do
+        nil ->
+          nil
 
-      %{
-        id: "operator-global-nav",
-        label: "Signed-in product navigation",
-        route_badge: context.route_badge,
-        route_label: context.route_label,
-        major_destinations: major_destinations(context.major_destination),
-        context_links: context.context_links
-      }
+        context ->
+          %{
+            id: "operator-global-nav",
+            label: "Signed-in product navigation",
+            route_badge: context.route_badge,
+            route_label: context.route_label,
+            major_destinations: major_destinations(context.major_destination),
+            context_links: context.context_links
+          }
+      end
     end
   end
 
@@ -243,14 +247,7 @@ defmodule JidoCodeWeb.OperatorNavigation do
     }
   end
 
-  defp route_context(_view, _assigns) do
-    %{
-      major_destination: :dashboard,
-      route_badge: "Signed-in surface",
-      route_label: "Workspace",
-      context_links: []
-    }
-  end
+  defp route_context(_view, _assigns), do: nil
 
   defp governed_repo_link(assigns) do
     case normalize_string(Map.get(assigns, :project_id)) do

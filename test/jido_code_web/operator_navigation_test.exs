@@ -7,6 +7,10 @@ defmodule JidoCodeWeb.OperatorNavigationTest do
     assert OperatorNavigation.from_view(JidoCodeWeb.DashboardLive, %{}) == nil
   end
 
+  test "omits global navigation for non-product setup routes even when a user is present" do
+    assert OperatorNavigation.from_view(JidoCodeWeb.SetupLive, %{current_user: %{id: "user-1"}}) == nil
+  end
+
   test "marks dashboard as the selected major destination for the authenticated home" do
     navigation = OperatorNavigation.from_view(JidoCodeWeb.DashboardLive, %{current_user: %{id: "user-1"}})
 

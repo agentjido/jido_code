@@ -170,7 +170,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}']",
+             "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}?return_to=#{URI.encode_www_form("/workbench")}']",
              "Open repo detail to refresh semantic graph data."
            )
   end
@@ -244,7 +244,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}#project-detail-workspace-binding-panel']",
+             "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}?return_to=#{URI.encode_www_form("/workbench")}#project-detail-workspace-binding-panel']",
              "Open repo detail to repair workspace binding."
            )
 
@@ -258,7 +258,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}#project-detail-workspace-binding-panel']",
+             "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}?return_to=#{URI.encode_www_form("/workbench")}#project-detail-workspace-binding-panel']",
              "Open repo detail to repair workspace binding."
            )
   end
@@ -353,7 +353,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-conversation-link-#{route_id}[href='/repos/#{route_id}']",
+             "#workbench-project-conversation-link-#{route_id}[href='/repos/#{route_id}?return_to=#{URI.encode_www_form("/workbench")}']",
              "Open governed supervision"
            )
   end
@@ -407,7 +407,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}']",
+             "#workbench-project-memory-hint-recovery-#{route_id}[href='/repos/#{route_id}?return_to=#{URI.encode_www_form("/workbench")}']",
              "Open repo detail to review governed memory context and validate memory graph"
            )
   end
@@ -450,6 +450,21 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
+             ~s|#workbench-breadcrumb-dashboard-work[href="/dashboard?subject=work&section=overview"]|,
+             "Dashboard Work"
+           )
+
+    assert has_element?(view, "#workbench-breadcrumb-current[aria-current='page']", "Workbench")
+    assert has_element?(view, "#workbench-route-role-label", "Dense specialist mode")
+
+    assert has_element?(
+             view,
+             ~s|#workbench-return-dashboard[href="/dashboard?subject=work&section=overview"]|,
+             "Return to Dashboard Work"
+           )
+
+    assert has_element?(
+             view,
              ~s|#workbench-dashboard-handoff a[href="/dashboard?subject=work&section=overview"]|,
              "Dashboard Work"
            )
@@ -475,12 +490,12 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-project-link-#{repo_one_id}[href='/repos/#{repo_one_id}']"
+             "#workbench-project-issues-project-link-#{repo_one_id}[href='/repos/#{repo_one_id}?return_to=#{URI.encode_www_form("/workbench")}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-project-link-#{repo_one_id}[href='/repos/#{repo_one_id}']"
+             "#workbench-project-prs-project-link-#{repo_one_id}[href='/repos/#{repo_one_id}?return_to=#{URI.encode_www_form("/workbench")}']"
            )
 
     assert has_element?(
@@ -509,12 +524,12 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-project-link-#{repo_two_id}[href='/repos/#{repo_two_id}']"
+             "#workbench-project-issues-project-link-#{repo_two_id}[href='/repos/#{repo_two_id}?return_to=#{URI.encode_www_form("/workbench")}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-project-link-#{repo_two_id}[href='/repos/#{repo_two_id}']"
+             "#workbench-project-prs-project-link-#{repo_two_id}[href='/repos/#{repo_two_id}?return_to=#{URI.encode_www_form("/workbench")}']"
            )
 
     assert has_element?(view, "#workbench-project-recent-activity-#{repo_two_id}")
@@ -599,6 +614,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       )
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+    encoded_workbench_return_to = URI.encode_www_form("/workbench")
 
     assert has_element?(
              view,
@@ -608,7 +624,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{route_id}/runs/#{completed_run.run_id}?return_to=#{encoded_workbench_return_to}']"
            )
 
     assert has_element?(
@@ -619,7 +635,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{route_id}/runs/#{completed_run.run_id}?return_to=#{encoded_workbench_return_to}']"
            )
   end
 
@@ -643,8 +659,9 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
         }
       })
 
+    encoded_workbench_return_to = URI.encode_www_form("/workbench")
     run_id = "workbench-refresh-run-#{System.unique_integer([:positive])}"
-    run_detail_path = "/repos/#{route_id}/runs/#{run_id}"
+    run_detail_path = "/repos/#{route_id}/runs/#{run_id}?return_to=#{encoded_workbench_return_to}"
     loader_state = start_supervised!({Agent, fn -> :initial end}, id: make_ref())
 
     Application.put_env(:jido_code, :workbench_recent_run_outcome_loader, fn _rows ->
@@ -953,6 +970,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     end)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+    encoded_workbench_return_to = URI.encode_www_form("/workbench")
 
     assert has_element?(view, "#workbench-project-issues-fix-action-#{route_id}")
     assert has_element?(view, "#workbench-project-prs-fix-action-#{route_id}")
@@ -969,7 +987,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-issue-123']"
+             "#workbench-project-issues-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-issue-123?return_to=#{encoded_workbench_return_to}']"
            )
 
     refute has_element?(view, "#workbench-project-issues-fix-#{route_id}-error-type")
@@ -982,7 +1000,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-prs-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-pr-456']"
+             "#workbench-project-prs-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-pr-456?return_to=#{encoded_workbench_return_to}']"
            )
 
     refute has_element?(view, "#workbench-project-prs-fix-#{route_id}-error-type")
@@ -1044,6 +1062,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     )
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+    encoded_workbench_return_to = URI.encode_www_form("/workbench")
 
     assert has_element?(view, "#workbench-project-issues-triage-action-#{route_id}")
 
@@ -1059,7 +1078,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-triage-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-triage-789']"
+             "#workbench-project-issues-triage-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-triage-789?return_to=#{encoded_workbench_return_to}']"
            )
 
     refute has_element?(view, "#workbench-project-issues-triage-#{route_id}-error-type")
@@ -1299,7 +1318,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-recovered-789']"
+             "#workbench-project-issues-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-recovered-789?return_to=#{URI.encode_www_form("/workbench")}']"
            )
 
     refute has_element?(view, "#workbench-project-issues-fix-#{route_id}-error-type")
@@ -1689,11 +1708,27 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     now = DateTime.utc_now()
 
+    %{route_id: alpha_id} =
+      provision_managed_repo!(%{
+        name: "repo-alpha",
+        github_full_name: "owner/repo-alpha",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    %{route_id: beta_id} =
+      provision_managed_repo!(%{
+        name: "repo-beta",
+        github_full_name: "owner/repo-beta",
+        default_branch: "main",
+        settings: %{}
+      })
+
     Application.put_env(:jido_code, :workbench_inventory_loader, fn ->
       {:ok,
        [
          %{
-           id: "owner-repo-alpha",
+           id: alpha_id,
            name: "repo-alpha",
            github_full_name: "owner/repo-alpha",
            open_issue_count: 2,
@@ -1702,7 +1737,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
            recent_activity_at: DateTime.add(now, -10 * 24 * 60 * 60, :second) |> DateTime.to_iso8601()
          },
          %{
-           id: "owner-repo-beta",
+           id: beta_id,
            name: "repo-beta",
            github_full_name: "owner/repo-beta",
            open_issue_count: 0,
@@ -1716,36 +1751,45 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
     apply_workbench_filters(view, %{
-      "project_id" => "owner-repo-beta",
+      "project_id" => beta_id,
       "work_state" => "prs_open",
       "freshness_window" => "active_24h",
       "sort_order" => "recent_activity_desc"
     })
 
     workbench_state_path =
-      "/workbench?project_id=owner-repo-beta&work_state=prs_open&freshness_window=active_24h&sort_order=recent_activity_desc"
+      JidoCode.ManagedRepoRoutes.workbench_path(%{
+        project_id: beta_id,
+        work_state: "prs_open",
+        freshness_window: "active_24h",
+        sort_order: "recent_activity_desc"
+      })
 
     assert_patch(view, workbench_state_path)
-    assert has_element?(view, "#workbench-project-name-owner-repo-beta")
-    refute has_element?(view, "#workbench-project-name-owner-repo-alpha")
+    assert has_element?(view, "#workbench-project-name-#{beta_id}")
+    refute has_element?(view, "#workbench-project-name-#{alpha_id}")
 
-    encoded_return_to = URI.encode_www_form(workbench_state_path)
+    repo_detail_path =
+      JidoCode.ManagedRepoRoutes.project_detail_path(
+        beta_id,
+        return_to: workbench_state_path
+      )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-project-link-owner-repo-beta[href='/repos/owner-repo-beta?return_to=#{encoded_return_to}']"
+             "#workbench-project-issues-project-link-#{beta_id}[href='#{repo_detail_path}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-project-link-owner-repo-beta[href='/repos/owner-repo-beta?return_to=#{encoded_return_to}']"
+             "#workbench-project-prs-project-link-#{beta_id}[href='#{repo_detail_path}']"
            )
 
     {:ok, restored_view, _html} =
       live(recycle(authed_conn), workbench_state_path, on_error: :warn)
 
-    assert has_element?(restored_view, "#workbench-project-name-owner-repo-beta")
-    refute has_element?(restored_view, "#workbench-project-name-owner-repo-alpha")
+    assert has_element?(restored_view, "#workbench-project-name-#{beta_id}")
+    refute has_element?(restored_view, "#workbench-project-name-#{alpha_id}")
     assert has_element?(restored_view, "#workbench-filter-chip-project", "owner/repo-beta")
     assert has_element?(restored_view, "#workbench-filter-chip-work-state", "PRs open")
 
@@ -1763,7 +1807,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              restored_view,
-             "#workbench-filter-project option[value='owner-repo-beta'][selected]"
+             "#workbench-filter-project option[value='#{beta_id}'][selected]"
            )
 
     assert has_element?(
@@ -1780,6 +1824,36 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
              restored_view,
              "#workbench-filter-sort-order option[value='recent_activity_desc'][selected]"
            )
+
+    restored_view
+    |> element("#workbench-project-issues-project-link-#{beta_id}")
+    |> render_click()
+
+    assert_redirect(
+      restored_view,
+      repo_detail_path
+    )
+
+    {:ok, repo_view, _html} =
+      live(
+        recycle(authed_conn),
+        repo_detail_path,
+        on_error: :warn
+      )
+
+    assert has_element?(repo_view, "#project-detail-breadcrumb-return[href='#{workbench_state_path}']", "Workbench")
+
+    assert has_element?(
+             repo_view,
+             "#project-detail-return-link[href='#{workbench_state_path}']",
+             "Back to Workbench"
+           )
+
+    repo_view
+    |> element("#project-detail-return-link")
+    |> render_click()
+
+    assert_redirect(repo_view, workbench_state_path)
   end
 
   test "invalid restored workbench state falls back to defaults with a reset reason notice", %{

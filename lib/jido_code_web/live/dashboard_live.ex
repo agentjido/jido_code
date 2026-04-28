@@ -11,6 +11,7 @@ defmodule JidoCodeWeb.DashboardLive do
 
   import JidoCodeWeb.ManagedRepoInventoryComponents
 
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
@@ -104,12 +105,19 @@ defmodule JidoCodeWeb.DashboardLive do
     {selected_dashboard_subject, selected_dashboard_section} =
       normalize_dashboard_selection(params, onboarding_next_actions)
 
+    socket =
+      socket
+      |> assign(:onboarding_next_actions, onboarding_next_actions)
+      |> assign(:dashboard_sections, dashboard_sections)
+      |> assign(:selected_dashboard_subject, selected_dashboard_subject)
+      |> assign(:selected_dashboard_section, selected_dashboard_section)
+
     {:noreply,
-     socket
-     |> assign(:onboarding_next_actions, onboarding_next_actions)
-     |> assign(:dashboard_sections, dashboard_sections)
-     |> assign(:selected_dashboard_subject, selected_dashboard_subject)
-     |> assign(:selected_dashboard_section, selected_dashboard_section)}
+     assign(
+       socket,
+       :run_summary_widget_rows,
+       Enum.map(Map.get(socket.assigns, :run_summary_rows, []), &dashboard_run_summary_widget(socket.assigns, &1))
+     )}
   end
 
   @impl true
@@ -150,12 +158,20 @@ defmodule JidoCodeWeb.DashboardLive do
         socket
       ) do
     project_row = find_project_row(socket.assigns.repository_monitoring_rows, project_id)
-    kickoff_result = FixWorkflowKickoff.kickoff(project_row, context_item_type, initiating_actor(socket))
+    return_to = current_dashboard_path(socket.assigns)
+
+    kickoff_result =
+      FixWorkflowKickoff.kickoff(
+        project_row,
+        context_item_type,
+        initiating_actor(socket),
+        return_to: return_to
+      )
 
     {:noreply,
      socket
-     |> put_fix_workflow_kickoff_state(project_id, context_item_type, kickoff_result)
-     |> put_recent_run_outcome_from_kickoff(project_id, kickoff_result)}
+     |> put_fix_workflow_kickoff_state(project_id, context_item_type, kickoff_result, return_to)
+     |> put_recent_run_outcome_from_kickoff(project_id, kickoff_result, return_to)}
   end
 
   @impl true
@@ -170,13 +186,23 @@ defmodule JidoCodeWeb.DashboardLive do
       IssueTriageWorkflowKickoff.kickoff(
         project_row,
         context_item_type,
-        initiating_actor(socket)
+        initiating_actor(socket),
+        return_to: current_dashboard_path(socket.assigns)
       )
 
     {:noreply,
      socket
-     |> put_issue_triage_workflow_kickoff_state(project_id, context_item_type, kickoff_result)
-     |> put_recent_run_outcome_from_kickoff(project_id, kickoff_result)}
+     |> put_issue_triage_workflow_kickoff_state(
+       project_id,
+       context_item_type,
+       kickoff_result,
+       current_dashboard_path(socket.assigns)
+     )
+     |> put_recent_run_outcome_from_kickoff(
+       project_id,
+       kickoff_result,
+       current_dashboard_path(socket.assigns)
+     )}
   end
 
   @impl true
@@ -442,7 +468,7 @@ defmodule JidoCodeWeb.DashboardLive do
                           <.link
                             id={"dashboard-run-link-#{run_summary_dom_token(run_summary.run_id)}"}
                             class="link link-primary"
-                            navigate={run_detail_path(run_summary)}
+                            navigate={run_detail_path(assigns, run_summary)}
                           >
                             {run_summary.run_id}
                           </.link>
@@ -895,7 +921,10 @@ defmodule JidoCodeWeb.DashboardLive do
         socket
         |> assign(:run_summary_count, length(run_summaries))
         |> assign(:run_summary_rows, run_summaries)
-        |> assign(:run_summary_widget_rows, Enum.map(run_summaries, &dashboard_run_summary_widget/1))
+        |> assign(
+          :run_summary_widget_rows,
+          Enum.map(run_summaries, &dashboard_run_summary_widget(socket.assigns, &1))
+        )
         |> assign(:run_summary_warning, warning)
         |> assign(:run_summary_last_refreshed_at, now)
         |> stream(:run_summaries, run_summaries, reset: true)
@@ -1522,7 +1551,7 @@ defmodule JidoCodeWeb.DashboardLive do
   defp load_repository_monitoring_summaries(socket) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    case InventorySurface.load() do
+    case InventorySurface.load(current_dashboard_path(socket.assigns)) do
       {:ok, rows, recent_run_outcomes, warning} ->
         socket
         |> assign(:repository_monitoring_count, length(rows))
@@ -1563,7 +1592,7 @@ defmodule JidoCodeWeb.DashboardLive do
     end
   end
 
-  defp dashboard_run_summary_widget(run_summary) do
+  defp dashboard_run_summary_widget(assigns, run_summary) do
     status =
       run_summary
       |> Map.get(:status)
@@ -1586,7 +1615,7 @@ defmodule JidoCodeWeb.DashboardLive do
       statusBadgeClass: run_status_badge_class(status),
       governanceSummary: run_governance_summary(run_summary),
       recencyLabel: run_recency_label(run_summary),
-      detailPath: run_detail_path(run_summary),
+      detailPath: run_detail_path(assigns, run_summary),
       requiresAttention: run_requires_attention?(status),
       terminal: run_terminal?(status)
     }
@@ -1629,12 +1658,20 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp runtime_evidence_widget_counts(_summary), do: %{blocked: 0, degraded: 0, available: 0}
 
-  defp dashboard_workbench_path(_assigns), do: ~p"/workbench"
+  defp dashboard_workbench_path(_assigns), do: ManagedRepoRoutes.workbench_path()
 
   defp dashboard_inventory_detail_path(assigns, project) do
     InventorySurface.project_detail_path(
       project,
       dashboard_selection_path(assigns.onboarding_next_actions, :work, :overview)
+    )
+  end
+
+  defp current_dashboard_path(assigns) do
+    dashboard_selection_path(
+      Map.get(assigns, :onboarding_next_actions, @onboarding_next_actions),
+      Map.get(assigns, :selected_dashboard_subject, :work),
+      Map.get(assigns, :selected_dashboard_section, :overview)
     )
   end
 
@@ -1682,9 +1719,21 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp find_project_row(rows, project_id), do: InventoryActionState.find_row(rows, project_id)
 
-  defp put_fix_workflow_kickoff_state(socket, project_id, context_item_type, kickoff_result) do
+  defp put_fix_workflow_kickoff_state(
+         socket,
+         project_id,
+         context_item_type,
+         kickoff_result,
+         return_to
+       ) do
     update(socket, :fix_workflow_kickoff_states, fn states ->
-      InventoryActionState.put_fix_feedback(states, project_id, context_item_type, kickoff_result)
+      InventoryActionState.put_fix_feedback(
+        states,
+        project_id,
+        context_item_type,
+        kickoff_result,
+        return_to
+      )
     end)
   end
 
@@ -1692,21 +1741,23 @@ defmodule JidoCodeWeb.DashboardLive do
          socket,
          project_id,
          context_item_type,
-         kickoff_result
+         kickoff_result,
+         return_to
        ) do
     update(socket, :issue_triage_workflow_kickoff_states, fn states ->
       InventoryActionState.put_issue_triage_feedback(
         states,
         project_id,
         context_item_type,
-        kickoff_result
+        kickoff_result,
+        return_to
       )
     end)
   end
 
-  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result) do
+  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result, return_to) do
     update(socket, :recent_run_outcomes, fn outcomes ->
-      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result)
+      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result, return_to)
     end)
   end
 
@@ -1770,7 +1821,7 @@ defmodule JidoCodeWeb.DashboardLive do
     end
   end
 
-  defp run_detail_path(run_summary) do
+  defp run_detail_path(assigns, run_summary) do
     project_id =
       run_summary
       |> Map.get(:project_id)
@@ -1782,7 +1833,7 @@ defmodule JidoCodeWeb.DashboardLive do
       |> normalize_optional_string()
 
     if project_id && run_id do
-      ~p"/repos/#{project_id}/runs/#{run_id}"
+      ManagedRepoRoutes.run_detail_path(project_id, run_id, return_to: current_dashboard_path(assigns))
     else
       ~p"/dashboard"
     end

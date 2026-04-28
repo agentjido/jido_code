@@ -5,6 +5,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
   """
 
   alias JidoCode.Control.Actor
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.Orchestration.Run
 
   @fallback_row_id_prefix "workbench-row-"
@@ -32,8 +33,10 @@ defmodule JidoCode.Workbench.RunOutcomes do
           guidance: String.t() | nil
         }
 
-  @spec load([map()]) :: %{optional(String.t()) => run_outcome()}
-  def load(rows) when is_list(rows) do
+  @spec load([map()], String.t() | nil) :: %{optional(String.t()) => run_outcome()}
+  def load(rows, return_to \\ nil)
+
+  def load(rows, return_to) when is_list(rows) do
     loader =
       Application.get_env(
         :jido_code,
@@ -42,17 +45,18 @@ defmodule JidoCode.Workbench.RunOutcomes do
       )
 
     if is_function(loader, 1) do
-      safe_invoke_loader(loader, rows)
+      safe_invoke_loader(loader, rows, return_to)
     else
       fallback_unknown_outcomes(
         rows,
         "Workbench recent run outcome loader is invalid.",
-        "workbench_recent_run_outcome_loader_invalid"
+        "workbench_recent_run_outcome_loader_invalid",
+        return_to
       )
     end
   end
 
-  def load(_rows), do: %{}
+  def load(_rows, _return_to), do: %{}
 
   @doc false
   @spec default_loader([map()]) :: %{optional(String.t()) => run_outcome()}
@@ -101,27 +105,29 @@ defmodule JidoCode.Workbench.RunOutcomes do
 
   def default_loader(_rows), do: %{}
 
-  defp safe_invoke_loader(loader, rows) do
+  defp safe_invoke_loader(loader, rows, return_to) do
     try do
       case loader.(rows) do
         {:ok, outcomes} when is_map(outcomes) ->
-          normalize_outcomes(outcomes, rows)
+          normalize_outcomes(outcomes, rows, return_to)
 
         outcomes when is_map(outcomes) ->
-          normalize_outcomes(outcomes, rows)
+          normalize_outcomes(outcomes, rows, return_to)
 
         {:error, reason} ->
           fallback_unknown_outcomes(
             rows,
             "Recent run outcome lookup failed (#{format_reason(reason)}).",
-            @query_failure_error_type
+            @query_failure_error_type,
+            return_to
           )
 
         other ->
           fallback_unknown_outcomes(
             rows,
             "Recent run outcome loader returned an invalid result (#{inspect(other)}).",
-            @query_failure_error_type
+            @query_failure_error_type,
+            return_to
           )
       end
     rescue
@@ -129,14 +135,16 @@ defmodule JidoCode.Workbench.RunOutcomes do
         fallback_unknown_outcomes(
           rows,
           "Recent run outcome loader crashed (#{Exception.message(exception)}).",
-          @query_failure_error_type
+          @query_failure_error_type,
+          return_to
         )
     catch
       kind, reason ->
         fallback_unknown_outcomes(
           rows,
           "Recent run outcome loader threw #{inspect({kind, reason})}.",
-          @query_failure_error_type
+          @query_failure_error_type,
+          return_to
         )
     end
   end
@@ -222,7 +230,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
     end
   end
 
-  defp normalize_outcomes(outcomes, rows) do
+  defp normalize_outcomes(outcomes, rows, return_to) do
     rows
     |> project_ids()
     |> Enum.reduce(%{}, fn project_id, normalized ->
@@ -244,24 +252,24 @@ defmodule JidoCode.Workbench.RunOutcomes do
           end
 
         outcome when is_map(outcome) ->
-          Map.put(normalized, project_id, normalize_outcome(outcome, project_id))
+          Map.put(normalized, project_id, normalize_outcome(outcome, project_id, return_to))
 
         other ->
           Map.put(
             normalized,
             project_id,
-            unknown_outcome(
-              nil,
-              nil,
-              "Recent run outcome payload is invalid (#{inspect(other)}).",
-              @status_unresolved_error_type
-            )
+              unknown_outcome(
+                nil,
+                nil,
+                "Recent run outcome payload is invalid (#{inspect(other)}).",
+                @status_unresolved_error_type
+              )
           )
       end
     end)
   end
 
-  defp normalize_outcome(outcome, project_id) do
+  defp normalize_outcome(outcome, project_id, return_to) do
     run_id =
       outcome
       |> map_get(:run_id, "run_id")
@@ -272,10 +280,19 @@ defmodule JidoCode.Workbench.RunOutcomes do
       |> map_get(:status, "status")
       |> normalize_status()
 
+    normalized_return_to = normalize_optional_string(return_to)
+
     detail_path =
-      outcome
-      |> map_get(:detail_path, "detail_path")
-      |> normalize_optional_string() || run_detail_path(project_id, run_id)
+      case {run_id, normalized_return_to} do
+        {normalized_run_id, normalized_parent_path}
+        when is_binary(normalized_run_id) and is_binary(normalized_parent_path) ->
+          run_detail_path(project_id, normalized_run_id, normalized_parent_path)
+
+        _other ->
+          outcome
+          |> map_get(:detail_path, "detail_path")
+          |> normalize_optional_string() || run_detail_path(project_id, run_id, return_to)
+      end
 
     error_type =
       outcome
@@ -323,7 +340,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
     end
   end
 
-  defp fallback_unknown_outcomes(rows, detail, error_type) do
+  defp fallback_unknown_outcomes(rows, detail, error_type, _return_to) do
     rows
     |> project_ids()
     |> Enum.reduce(%{}, fn project_id, outcomes ->
@@ -359,12 +376,16 @@ defmodule JidoCode.Workbench.RunOutcomes do
     end)
   end
 
-  defp run_detail_path(project_id, run_id) do
+  defp run_detail_path(project_id, run_id, return_to \\ nil) do
     normalized_project_id = normalize_optional_string(project_id)
     normalized_run_id = normalize_optional_string(run_id)
 
     if normalized_project_id && normalized_run_id do
-      "/repos/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
+      ManagedRepoRoutes.run_detail_path(
+        normalized_project_id,
+        normalized_run_id,
+        return_to: normalize_optional_string(return_to)
+      )
     end
   end
 

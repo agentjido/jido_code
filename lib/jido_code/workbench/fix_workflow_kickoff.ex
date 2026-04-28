@@ -3,6 +3,7 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
   Validates and launches fix-oriented workflow runs from workbench issue/PR quick actions.
   """
 
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.Operations.Ingress
 
   @fallback_row_id_prefix "workbench-row-"
@@ -40,11 +41,16 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
         }
 
   @spec kickoff(map() | nil, term(), map() | nil) :: {:ok, kickoff_run()} | {:error, kickoff_error()}
-  def kickoff(project_row, context_item_type, initiating_actor \\ nil) do
+  def kickoff(project_row, context_item_type, initiating_actor \\ nil),
+    do: kickoff(project_row, context_item_type, initiating_actor, [])
+
+  @spec kickoff(map() | nil, term(), map() | nil, keyword()) ::
+          {:ok, kickoff_run()} | {:error, kickoff_error()}
+  def kickoff(project_row, context_item_type, initiating_actor, opts) when is_list(opts) do
     with {:ok, project_scope} <- normalize_project_scope(project_row),
          {:ok, normalized_context_item_type} <- normalize_context_item_type(context_item_type),
          kickoff_request <-
-           build_kickoff_request(project_scope, normalized_context_item_type, initiating_actor),
+           build_kickoff_request(project_scope, normalized_context_item_type, initiating_actor, opts),
          :ok <- record_workbench_intake(kickoff_request),
          {:ok, kickoff_run} <- invoke_launcher(kickoff_request) do
       {:ok, kickoff_run}
@@ -150,7 +156,12 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
          context_item_type: Map.fetch!(context_item, :type),
          context_item_label: Map.fetch!(context_item, :label),
          context_item_url: Map.get(context_item, :github_url),
-         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path:
+           ManagedRepoRoutes.run_detail_path(
+             project_id,
+             run_id,
+             return_to: Map.get(kickoff_request, :return_to)
+           ),
          started_at: started_at
        }}
     else
@@ -174,7 +185,7 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
 
   defp extract_run_id(_run_result), do: nil
 
-  defp build_kickoff_request(project_scope, context_item_type, initiating_actor) do
+  defp build_kickoff_request(project_scope, context_item_type, initiating_actor, opts) do
     %{
       workflow_name: @workflow_name,
       project_id: Map.fetch!(project_scope, :project_id),
@@ -183,6 +194,10 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
         source: "workbench",
         mode: "manual"
       },
+      return_to:
+        opts
+        |> Keyword.get(:return_to)
+        |> normalize_optional_string(),
       initiating_actor: normalize_initiating_actor(initiating_actor),
       context_item: %{
         type: context_item_type,

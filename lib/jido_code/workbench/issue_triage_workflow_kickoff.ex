@@ -6,6 +6,7 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
   """
 
   alias JidoCode.Governance.PolicyBridge
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.Operations.Ingress
 
   @fallback_row_id_prefix "workbench-row-"
@@ -66,7 +67,12 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
 
   @spec kickoff(map() | nil, term(), map() | nil) ::
           {:ok, kickoff_run()} | {:error, kickoff_error()}
-  def kickoff(project_row, context_item_type, initiating_actor) do
+  def kickoff(project_row, context_item_type, initiating_actor),
+    do: kickoff(project_row, context_item_type, initiating_actor, [])
+
+  @spec kickoff(map() | nil, term(), map() | nil, keyword()) ::
+          {:ok, kickoff_run()} | {:error, kickoff_error()}
+  def kickoff(project_row, context_item_type, initiating_actor, opts) when is_list(opts) do
     with {:ok, project_scope} <- normalize_project_scope(project_row),
          {:ok, normalized_context_item_type} <- normalize_context_item_type(context_item_type),
          {:ok, triage_policy_state} <- ensure_policy_enabled(project_row),
@@ -76,7 +82,8 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
              project_scope,
              normalized_context_item_type,
              normalized_actor,
-             triage_policy_state
+             triage_policy_state,
+             opts
            ),
          :ok <- record_workbench_intake(kickoff_request),
          {:ok, kickoff_run} <- invoke_launcher(kickoff_request) do
@@ -256,7 +263,12 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
          context_item_url: Map.get(context_item, :github_url),
          trigger: Map.fetch!(kickoff_request, :trigger),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path:
+           ManagedRepoRoutes.run_detail_path(
+             project_id,
+             run_id,
+             return_to: Map.get(kickoff_request, :return_to)
+           ),
          started_at: started_at
        }}
     else
@@ -284,20 +296,23 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
          project_scope,
          :issue = context_item_type,
          initiating_actor,
-         triage_policy_state
+         triage_policy_state,
+         opts
        ) do
     project_id = Map.fetch!(project_scope, :project_id)
     approval_policy = Map.fetch!(triage_policy_state, :approval_policy)
+    return_to = opts |> Keyword.get(:return_to) |> normalize_optional_string()
 
     %{
       workflow_name: @workflow_name,
       project_id: project_id,
       project_name: Map.fetch!(project_scope, :project_name),
+      return_to: return_to,
       trigger: %{
         source: "workbench",
         mode: "manual",
         source_row: %{
-          route: "/workbench",
+          route: return_to || ManagedRepoRoutes.workbench_path(),
           project_id: project_id,
           context_item_type: context_item_type
         },

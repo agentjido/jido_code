@@ -4,6 +4,7 @@ defmodule JidoCode.Workbench.InventorySurface do
   dashboard Work and the specialist Workbench route.
   """
 
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.Workbench.{
     Inventory,
     IssueTriageWorkflowKickoff,
@@ -15,17 +16,19 @@ defmodule JidoCode.Workbench.InventorySurface do
   @type stale_warning :: Inventory.stale_warning()
   @type run_outcomes :: %{optional(String.t()) => RunOutcomes.run_outcome()}
 
-  @spec load() :: {:ok, [Inventory.row()], run_outcomes(), stale_warning() | nil} | {:error, stale_warning()}
-  def load do
+  @spec load(String.t() | nil) ::
+          {:ok, [Inventory.row()], run_outcomes(), stale_warning() | nil} | {:error, stale_warning()}
+  def load(return_to \\ nil) do
     case Inventory.load() do
-      {:ok, rows, warning} -> {:ok, rows, RunOutcomes.load(rows), warning}
+      {:ok, rows, warning} -> {:ok, rows, RunOutcomes.load(rows, return_to), warning}
       {:error, warning} -> {:error, warning}
     end
   end
 
-  @spec load_recent_run_outcomes([map()]) :: run_outcomes()
-  def load_recent_run_outcomes(rows) when is_list(rows), do: RunOutcomes.load(rows)
-  def load_recent_run_outcomes(_rows), do: %{}
+  @spec load_recent_run_outcomes([map()], String.t() | nil) :: run_outcomes()
+  def load_recent_run_outcomes(rows, return_to \\ nil)
+  def load_recent_run_outcomes(rows, return_to) when is_list(rows), do: RunOutcomes.load(rows, return_to)
+  def load_recent_run_outcomes(_rows, _return_to), do: %{}
 
   @spec fallback_row?(map() | String.t() | nil) :: boolean()
   def fallback_row?(%{} = row) do
@@ -354,13 +357,10 @@ defmodule JidoCode.Workbench.InventorySurface do
         if fallback_row?(project_id) do
           nil
         else
-          base_path = "/repos/#{URI.encode(project_id)}"
-
-          case normalize_optional_string(return_to) do
-            nil -> base_path
-            "/workbench" -> base_path
-            normalized_return_to -> "#{base_path}?return_to=#{URI.encode_www_form(normalized_return_to)}"
-          end
+          ManagedRepoRoutes.project_detail_path(
+            project_id,
+            return_to: normalize_optional_string(return_to)
+          )
         end
     end
   end

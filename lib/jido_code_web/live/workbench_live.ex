@@ -12,6 +12,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   import JidoCodeWeb.ManagedRepoInventoryComponents
 
   alias JidoCode.Orchestration.RunPubSub
+  alias JidoCode.ManagedRepoRoutes
 
   alias JidoCode.Workbench.{
     FixWorkflowKickoff,
@@ -163,7 +164,15 @@ defmodule JidoCodeWeb.WorkbenchLive do
         socket
       ) do
     project_row = find_project_row(socket.assigns.inventory_rows_all, project_id)
-    kickoff_result = FixWorkflowKickoff.kickoff(project_row, context_item_type, initiating_actor(socket))
+    return_to = current_workbench_path(socket.assigns.filter_values)
+
+    kickoff_result =
+      FixWorkflowKickoff.kickoff(
+        project_row,
+        context_item_type,
+        initiating_actor(socket),
+        return_to: return_to
+      )
 
     state_project_id =
       case project_row do
@@ -178,8 +187,13 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
     socket =
       socket
-      |> put_fix_workflow_kickoff_state(state_project_id, context_item_type, kickoff_result)
-      |> put_recent_run_outcome_from_kickoff(state_project_id, kickoff_result)
+      |> put_fix_workflow_kickoff_state(
+        state_project_id,
+        context_item_type,
+        kickoff_result,
+        return_to
+      )
+      |> put_recent_run_outcome_from_kickoff(state_project_id, kickoff_result, return_to)
       |> refresh_project_row(project_row)
 
     {:noreply, socket}
@@ -197,7 +211,8 @@ defmodule JidoCodeWeb.WorkbenchLive do
       IssueTriageWorkflowKickoff.kickoff(
         project_row,
         context_item_type,
-        initiating_actor(socket)
+        initiating_actor(socket),
+        return_to: current_workbench_path(socket.assigns.filter_values)
       )
 
     state_project_id =
@@ -213,8 +228,17 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
     socket =
       socket
-      |> put_issue_triage_workflow_kickoff_state(state_project_id, :issue, kickoff_result)
-      |> put_recent_run_outcome_from_kickoff(state_project_id, kickoff_result)
+      |> put_issue_triage_workflow_kickoff_state(
+        state_project_id,
+        :issue,
+        kickoff_result,
+        current_workbench_path(socket.assigns.filter_values)
+      )
+      |> put_recent_run_outcome_from_kickoff(
+        state_project_id,
+        kickoff_result,
+        current_workbench_path(socket.assigns.filter_values)
+      )
       |> refresh_project_row(project_row)
 
     {:noreply, socket}
@@ -238,13 +262,49 @@ defmodule JidoCodeWeb.WorkbenchLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
-      <section class="space-y-2">
-        <h1 class="text-2xl font-bold">Workbench</h1>
-        <p class="text-base-content/70">
-          Dense managed-repository inventory and triage mode for Dashboard Work.
-        </p>
+      <section class="space-y-3">
+        <nav id="workbench-breadcrumbs" aria-label="Workbench breadcrumbs" class="breadcrumbs text-sm">
+          <ol>
+            <li>
+              <.link
+                id="workbench-breadcrumb-dashboard-work"
+                navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
+                class="link link-hover"
+              >
+                Dashboard Work
+              </.link>
+            </li>
+            <li>
+              <span id="workbench-breadcrumb-current" aria-current="page">Workbench</span>
+            </li>
+          </ol>
+        </nav>
+
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="space-y-1">
+            <p
+              id="workbench-route-role-label"
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
+            >
+              Dense specialist mode
+            </p>
+            <h1 class="text-2xl font-bold">Workbench</h1>
+            <p class="text-base-content/70">
+              Workbench shares Dashboard Work's managed-repository inventory and governed triage model, with denser filters and scanning controls for specialist use.
+            </p>
+          </div>
+
+          <.link
+            id="workbench-return-dashboard"
+            navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
+            class="btn btn-sm btn-outline"
+          >
+            Return to Dashboard Work
+          </.link>
+        </div>
+
         <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
-          Use <.link navigate={~p"/dashboard?subject=work&section=overview"} class="link link-primary">Dashboard Work</.link> for the lighter signed-in home when you do not need full filter and inventory controls.
+          Use <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">Dashboard Work</.link> for the lighter signed-in home when you do not need full filter and inventory controls.
         </p>
       </section>
 
@@ -441,7 +501,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp load_inventory(socket) do
-    case InventorySurface.load() do
+    case InventorySurface.load(current_workbench_path(socket.assigns.filter_values)) do
       {:ok, rows, recent_run_outcomes, stale_warning} ->
         filter_values =
           socket.assigns
@@ -496,7 +556,10 @@ defmodule JidoCodeWeb.WorkbenchLive do
       |> normalize_filter_values()
 
     socket
-    |> assign(:recent_run_outcomes, InventorySurface.load_recent_run_outcomes(rows))
+    |> assign(
+      :recent_run_outcomes,
+      InventorySurface.load_recent_run_outcomes(rows, current_workbench_path(filter_values))
+    )
     |> apply_filters(filter_values)
   end
 
@@ -812,24 +875,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp workbench_path_with_filter_values(filter_values) do
-    query_params =
-      @filter_state_query_keys
-      |> Enum.reduce([], fn key, acc ->
-        value = Map.get(filter_values, key, Map.fetch!(@default_filter_values, key))
-        default_value = Map.fetch!(@default_filter_values, key)
-
-        if value == default_value do
-          acc
-        else
-          [{key, value} | acc]
-        end
-      end)
-      |> Enum.reverse()
-
-    case query_params do
-      [] -> "/workbench"
-      _other -> "/workbench?" <> URI.encode_query(query_params)
-    end
+    ManagedRepoRoutes.workbench_path(filter_values)
   end
 
   defp filter_chips(filter_values, rows) do
@@ -1094,9 +1140,21 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   defp find_project_row(_rows, _project_id), do: nil
 
-  defp put_fix_workflow_kickoff_state(socket, project_id, context_item_type, kickoff_result) do
+  defp put_fix_workflow_kickoff_state(
+         socket,
+         project_id,
+         context_item_type,
+         kickoff_result,
+         return_to
+       ) do
     update(socket, :fix_workflow_kickoff_states, fn states ->
-      InventoryActionState.put_fix_feedback(states, project_id, context_item_type, kickoff_result)
+      InventoryActionState.put_fix_feedback(
+        states,
+        project_id,
+        context_item_type,
+        kickoff_result,
+        return_to
+      )
     end)
   end
 
@@ -1104,22 +1162,30 @@ defmodule JidoCodeWeb.WorkbenchLive do
          socket,
          project_id,
          context_item_type,
-         kickoff_result
+         kickoff_result,
+         return_to
        ) do
     update(socket, :issue_triage_workflow_kickoff_states, fn states ->
       InventoryActionState.put_issue_triage_feedback(
         states,
         project_id,
         context_item_type,
-        kickoff_result
+        kickoff_result,
+        return_to
       )
     end)
   end
 
-  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result) do
+  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result, return_to) do
     update(socket, :recent_run_outcomes, fn outcomes ->
-      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result)
+      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result, return_to)
     end)
+  end
+
+  defp current_workbench_path(filter_values) do
+    filter_values
+    |> normalize_filter_values()
+    |> workbench_path_with_filter_values()
   end
 
   defp refresh_project_row(socket, project_row) when is_map(project_row) do

@@ -20,6 +20,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   alias JidoCode.Conversations.PubSub, as: ConversationPubSub
   alias JidoCode.Conversations.RuntimeReadiness
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.LLMSelection
   alias JidoCodeWeb.OperatorShell
   alias JidoCode.Workbench.ProjectDetail
@@ -61,7 +62,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:conversation_degraded_mode_message, @conversation_degraded_mode_message)
      |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
-     |> assign(:return_to_path, "/workbench")
+     |> assign(:return_to_path, ManagedRepoRoutes.dashboard_work_overview_path())
      |> assign(:selected_detail_subject, :readiness)
      |> assign(:selected_detail_section, :overview)
      |> assign(
@@ -134,7 +135,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       ProjectDetailWorkflowKickoff.kickoff(
         socket.assigns.project_detail,
         workflow_name,
-        initiating_actor(socket)
+        initiating_actor(socket),
+        return_to: current_project_detail_path(socket.assigns)
       )
 
     {:noreply, put_workflow_launch_state(socket, workflow_key, kickoff_result)}
@@ -467,7 +469,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             </p>
           </div>
           <.link id="project-detail-return-link" class="btn btn-sm btn-outline" navigate={@return_to_path}>
-            Back
+            Back to {return_to_label(@return_to_path)}
           </.link>
         </div>
       </section>
@@ -2184,10 +2186,10 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     do:
       "Builtin workflow launch stays governed and repository-scoped here so blocked remediation and run traceability stay together."
 
-  defp return_to_label("/dashboard"), do: "Dashboard"
-  defp return_to_label("/repos"), do: "Repositories"
-  defp return_to_label("/workbench"), do: "Workbench"
-  defp return_to_label("/settings"), do: "Settings"
+  defp return_to_label("/dashboard" <> _suffix), do: "Dashboard"
+  defp return_to_label("/repos" <> _suffix), do: "Repo detail"
+  defp return_to_label("/workbench" <> _suffix), do: "Workbench"
+  defp return_to_label("/settings" <> _suffix), do: "Settings"
   defp return_to_label(path) when is_binary(path), do: "Back"
 
   defp detail_section_badge(:overview, _assigns), do: nil
@@ -2914,7 +2916,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp conversation_work_resolution_detail(_surface), do: nil
 
   defp conversation_workbench_path(%{id: project_id}) when is_binary(project_id) do
-    "/workbench?" <> URI.encode_query(%{"project_id" => project_id})
+    ManagedRepoRoutes.workbench_path(%{"project_id" => project_id})
   end
 
   defp conversation_workbench_path(_project_detail), do: nil
@@ -3421,6 +3423,16 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     )
   end
 
+  defp current_project_detail_path(assigns) do
+    project_detail_section_path(
+      Map.get(assigns, :project_detail),
+      Map.get(assigns, :return_to_path),
+      subject: Map.get(assigns, :selected_detail_subject, :readiness),
+      section: Map.get(assigns, :selected_detail_section, :overview),
+      work_item_id: Map.get(assigns, :selected_work_item_id)
+    )
+  end
+
   defp project_detail_section_path(project_detail, return_to_path, opts) do
     project_id =
       project_detail
@@ -3545,7 +3557,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     end)
   end
 
-  defp normalized_return_to_param("/workbench"), do: nil
   defp normalized_return_to_param(value), do: present_optional_string(value)
 
   defp format_time(nil), do: "n/a"
@@ -3865,16 +3876,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp normalize_return_to_path(return_to) do
-    case normalize_optional_string(return_to) do
-      nil ->
-        "/workbench"
-
-      "/" <> _path = normalized_path ->
-        normalized_path
-
-      _other ->
-        "/workbench"
-    end
+    ManagedRepoRoutes.normalize_return_to_path(return_to)
   end
 
   defp map_get(map, atom_key, string_key, default \\ nil)

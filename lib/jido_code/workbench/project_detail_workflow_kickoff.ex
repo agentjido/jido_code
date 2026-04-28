@@ -3,6 +3,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   Validates and launches workflow runs from repo detail route controls.
   """
 
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.Operations.Ingress
   alias JidoCode.Workbench.ProjectDetail
 
@@ -65,12 +66,17 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
 
   @spec kickoff(map() | nil, term(), map() | nil) ::
           {:ok, kickoff_run()} | {:error, kickoff_error()}
-  def kickoff(project_detail, workflow_name, initiating_actor) do
+  def kickoff(project_detail, workflow_name, initiating_actor),
+    do: kickoff(project_detail, workflow_name, initiating_actor, [])
+
+  @spec kickoff(map() | nil, term(), map() | nil, keyword()) ::
+          {:ok, kickoff_run()} | {:error, kickoff_error()}
+  def kickoff(project_detail, workflow_name, initiating_actor, opts) when is_list(opts) do
     with {:ok, project_scope} <- normalize_project_scope(project_detail),
          :ok <- ensure_project_ready(project_scope),
          {:ok, workflow_definition} <- workflow_definition(workflow_name),
          kickoff_request <-
-           build_kickoff_request(project_scope, workflow_definition, initiating_actor),
+           build_kickoff_request(project_scope, workflow_definition, initiating_actor, opts),
          :ok <- record_project_detail_intake(kickoff_request),
          {:ok, kickoff_run} <- invoke_launcher(workflow_definition, kickoff_request) do
       {:ok, kickoff_run}
@@ -182,14 +188,15 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
     end
   end
 
-  defp build_kickoff_request(project_scope, workflow_definition, initiating_actor) do
+  defp build_kickoff_request(project_scope, workflow_definition, initiating_actor, opts) do
     project_id = Map.fetch!(project_scope, :project_id)
     github_full_name = Map.get(project_scope, :github_full_name)
+    return_to = opts |> Keyword.get(:return_to) |> normalize_optional_string()
 
     trigger =
       workflow_definition
       |> Map.get(:name)
-      |> project_detail_trigger(project_id)
+      |> project_detail_trigger(project_id, return_to)
 
     %{
       workflow_name: Map.fetch!(workflow_definition, :name),
@@ -205,6 +212,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
         default_branch: Map.fetch!(project_scope, :default_branch),
         github_full_name: github_full_name
       },
+      return_to: return_to,
       trigger: trigger,
       initiating_actor: normalize_initiating_actor(initiating_actor),
       context_item: %{
@@ -238,12 +246,12 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
     end
   end
 
-  defp project_detail_trigger("issue_triage", project_id) do
+  defp project_detail_trigger("issue_triage", project_id, return_to) do
     %{
       source: "project_detail",
       mode: "manual",
       source_row: %{
-        route: "/repos/#{project_id}",
+        route: return_to || "/repos/#{project_id}",
         project_id: project_id
       },
       policy: %{
@@ -252,12 +260,12 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
     }
   end
 
-  defp project_detail_trigger(_workflow_name, project_id) do
+  defp project_detail_trigger(_workflow_name, project_id, return_to) do
     %{
       source: "project_detail",
       mode: "manual",
       source_row: %{
-        route: "/repos/#{project_id}",
+        route: return_to || "/repos/#{project_id}",
         project_id: project_id
       }
     }
@@ -384,7 +392,12 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
          project_defaults: Map.fetch!(kickoff_request, :project_defaults),
          trigger: Map.fetch!(kickoff_request, :trigger),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/repos/#{URI.encode(repo_id)}/runs/#{URI.encode(run_id)}",
+         detail_path:
+           ManagedRepoRoutes.run_detail_path(
+             repo_id,
+             run_id,
+             return_to: Map.get(kickoff_request, :return_to)
+           ),
          started_at: started_at
        }}
     else

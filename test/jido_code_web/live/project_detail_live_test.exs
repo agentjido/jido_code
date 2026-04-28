@@ -21,6 +21,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   alias JidoCode.AgentWorkspace
   alias JidoCode.Accounts.User
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
   alias JidoCode.Projects.Project
@@ -111,6 +112,16 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         on_error: :warn
       )
 
+    project_return_to =
+      ManagedRepoRoutes.project_detail_path(
+        managed_repo_id,
+        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        subject: :work,
+        section: :workflows
+      )
+
+    encoded_project_return_to = URI.encode_www_form(project_return_to)
+
     assert has_element?(view, "[data-detail-subject='work'][data-detail-section='workflows']")
     assert has_element?(view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
     assert has_element?(view, "#project-detail-workflow-readiness-summary")
@@ -136,7 +147,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              view,
-             "#project-detail-launch-fix-failing-tests-run-link[href='/repos/#{managed_repo_id}/runs/run-fix-123']"
+             "#project-detail-launch-fix-failing-tests-run-link[href='/repos/#{managed_repo_id}/runs/run-fix-123?return_to=#{encoded_project_return_to}']"
            )
 
     view
@@ -147,16 +158,17 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              view,
-             "#project-detail-launch-issue-triage-run-link[href='/repos/#{managed_repo_id}/runs/run-triage-456']"
+             "#project-detail-launch-issue-triage-run-link[href='/repos/#{managed_repo_id}/runs/run-triage-456?return_to=#{encoded_project_return_to}']"
            )
 
     recorded_requests = launch_requests |> Agent.get(&Enum.reverse(&1))
-    project_route = "/repos/#{managed_repo_id}"
+    project_route = project_return_to
 
     assert [
              %{
                workflow_name: "fix_failing_tests",
                project_id: ^managed_repo_id,
+               return_to: ^project_return_to,
                project_defaults: %{
                  default_branch: "main",
                  github_full_name: "owner/repo-ready"
@@ -175,6 +187,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              %{
                workflow_name: "issue_triage",
                project_id: ^managed_repo_id,
+               return_to: ^project_return_to,
                project_defaults: %{
                  default_branch: "main",
                  github_full_name: "owner/repo-ready"
@@ -330,11 +343,43 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
+    expected_work_conversations_path =
+      ManagedRepoRoutes.project_detail_path(
+        managed_repo_id,
+        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        subject: :work,
+        section: :conversations
+      )
+
+    expected_work_workflows_path =
+      ManagedRepoRoutes.project_detail_path(
+        managed_repo_id,
+        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        subject: :work,
+        section: :workflows
+      )
+
+    expected_knowledge_semantic_path =
+      ManagedRepoRoutes.project_detail_path(
+        managed_repo_id,
+        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        subject: :knowledge,
+        section: :semantic
+      )
+
+    expected_knowledge_memory_path =
+      ManagedRepoRoutes.project_detail_path(
+        managed_repo_id,
+        return_to: ManagedRepoRoutes.dashboard_work_overview_path(),
+        subject: :knowledge,
+        section: :memory
+      )
+
     view
     |> element("#project-detail-shell-parent-subjects-work")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations&subject=work")
+    assert_patch(view, expected_work_conversations_path)
     assert has_element?(view, "[data-detail-subject='work'][data-detail-section='conversations']")
     assert has_element?(view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
@@ -344,7 +389,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-section-nav-workflows")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=workflows&subject=work")
+    assert_patch(view, expected_work_workflows_path)
     assert has_element?(view, "#project-detail-section-nav-workflows[aria-current='page']")
     assert has_element?(view, "#project-detail-workflows-panel")
     refute has_element?(view, "#project-detail-overview-panel")
@@ -353,7 +398,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-section-nav-conversations")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=conversations&subject=work")
+    assert_patch(view, expected_work_conversations_path)
     assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
     assert has_element?(view, "#project-detail-conversation-panel")
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Ready")
@@ -363,7 +408,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-shell-parent-subjects-knowledge")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic&subject=knowledge")
+    assert_patch(view, expected_knowledge_semantic_path)
     assert has_element?(view, "[data-detail-subject='knowledge'][data-detail-section='semantic']")
     assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-semantic[aria-current='page']")
@@ -374,7 +419,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-semantic-open-memory")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=memory&subject=knowledge")
+    assert_patch(view, expected_knowledge_memory_path)
     assert has_element?(view, "#project-detail-section-nav-memory[aria-current='page']")
     assert has_element?(view, "#project-detail-memory-inspection")
     refute has_element?(view, "#project-detail-semantic-inspection")
@@ -383,7 +428,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> element("#project-detail-memory-open-semantic")
     |> render_click()
 
-    assert_patch(view, ~p"/repos/#{managed_repo_id}?section=semantic&subject=knowledge")
+    assert_patch(view, expected_knowledge_semantic_path)
     assert has_element?(view, "#project-detail-semantic-inspection")
     refute has_element?(view, "#project-detail-memory-inspection")
   end
@@ -433,6 +478,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-breadcrumb-subject", "Knowledge")
     assert has_element?(view, "#project-detail-breadcrumb-current[aria-current='page']", "Memory")
+    assert has_element?(view, "#project-detail-breadcrumb-return[href='/dashboard?subject=work&section=overview']", "Dashboard")
+    assert has_element?(view, "#project-detail-return-link[href='/dashboard?subject=work&section=overview']", "Back to Dashboard")
     assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
 
     assert has_element?(

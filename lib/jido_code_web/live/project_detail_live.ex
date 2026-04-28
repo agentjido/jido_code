@@ -2916,7 +2916,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp conversation_work_resolution_detail(_surface), do: nil
 
   defp conversation_workbench_path(%{id: project_id}) when is_binary(project_id) do
-    "/workbench?" <> URI.encode_query(%{"project_id" => project_id})
+    ManagedRepoRoutes.workbench_path(%{"project_id" => project_id})
   end
 
   defp conversation_workbench_path(_project_detail), do: nil

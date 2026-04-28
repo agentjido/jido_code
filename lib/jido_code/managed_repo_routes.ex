@@ -1,10 +1,74 @@
 defmodule JidoCode.ManagedRepoRoutes do
   @moduledoc false
 
+  @dashboard_work_subject "work"
+  @dashboard_work_overview_section "overview"
+  @workbench_path "/workbench"
+
+  @workbench_filter_defaults %{
+    "project_id" => "all",
+    "work_state" => "all",
+    "freshness_window" => "any",
+    "sort_order" => "project_name_asc"
+  }
+
+  @workbench_filter_query_keys ["project_id", "work_state", "freshness_window", "sort_order"]
+
   @dashboard_work_overview_path "/dashboard?subject=work&section=overview"
 
   @spec dashboard_work_overview_path() :: String.t()
   def dashboard_work_overview_path, do: @dashboard_work_overview_path
+
+  @spec dashboard_work_path(keyword()) :: String.t()
+  def dashboard_work_path(opts \\ []) when is_list(opts) do
+    section =
+      opts
+      |> Keyword.get(:section, @dashboard_work_overview_section)
+      |> normalize_optional_string() || @dashboard_work_overview_section
+
+    query =
+      %{}
+      |> maybe_put("subject", @dashboard_work_subject)
+      |> maybe_put("section", section)
+
+    "/dashboard" <> query_suffix(query) <> anchor_suffix(Keyword.get(opts, :anchor))
+  end
+
+  @spec workbench_path(map() | keyword() | nil) :: String.t()
+  def workbench_path(filter_values \\ nil)
+
+  def workbench_path(filter_values) when is_list(filter_values) do
+    filter_values
+    |> Enum.into(%{})
+    |> workbench_path()
+  end
+
+  def workbench_path(filter_values) when is_map(filter_values) do
+    query_params =
+      @workbench_filter_query_keys
+      |> Enum.reduce([], fn key, acc ->
+        value =
+          filter_values
+          |> workbench_filter_value(key)
+          |> normalize_optional_string() || Map.fetch!(@workbench_filter_defaults, key)
+
+        default_value = Map.fetch!(@workbench_filter_defaults, key)
+
+        if value == default_value do
+          acc
+        else
+          [{key, value} | acc]
+        end
+      end)
+      |> Enum.reverse()
+
+    case query_params do
+      [] -> @workbench_path
+      _other -> @workbench_path <> "?" <> URI.encode_query(query_params)
+    end
+  end
+
+  def workbench_path(_filter_values), do: @workbench_path
 
   @spec normalize_return_to_path(term(), String.t()) :: String.t()
   def normalize_return_to_path(return_to, fallback \\ @dashboard_work_overview_path) do
@@ -151,4 +215,18 @@ defmodule JidoCode.ManagedRepoRoutes do
     do: value |> Atom.to_string() |> normalize_optional_string()
 
   defp normalize_optional_string(_value), do: nil
+
+  defp workbench_filter_value(filter_values, "project_id") when is_map(filter_values),
+    do: Map.get(filter_values, "project_id") || Map.get(filter_values, :project_id)
+
+  defp workbench_filter_value(filter_values, "work_state") when is_map(filter_values),
+    do: Map.get(filter_values, "work_state") || Map.get(filter_values, :work_state)
+
+  defp workbench_filter_value(filter_values, "freshness_window") when is_map(filter_values),
+    do: Map.get(filter_values, "freshness_window") || Map.get(filter_values, :freshness_window)
+
+  defp workbench_filter_value(filter_values, "sort_order") when is_map(filter_values),
+    do: Map.get(filter_values, "sort_order") || Map.get(filter_values, :sort_order)
+
+  defp workbench_filter_value(_filter_values, _key), do: nil
 end

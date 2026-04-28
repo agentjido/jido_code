@@ -1658,7 +1658,7 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp runtime_evidence_widget_counts(_summary), do: %{blocked: 0, degraded: 0, available: 0}
 
-  defp dashboard_workbench_path(_assigns), do: ~p"/workbench"
+  defp dashboard_workbench_path(_assigns), do: ManagedRepoRoutes.workbench_path()
 
   defp dashboard_inventory_detail_path(assigns, project) do
     InventorySurface.project_detail_path(

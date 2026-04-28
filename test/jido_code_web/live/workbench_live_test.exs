@@ -450,6 +450,21 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
+             ~s|#workbench-breadcrumb-dashboard-work[href="/dashboard?subject=work&section=overview"]|,
+             "Dashboard Work"
+           )
+
+    assert has_element?(view, "#workbench-breadcrumb-current[aria-current='page']", "Workbench")
+    assert has_element?(view, "#workbench-route-role-label", "Dense specialist mode")
+
+    assert has_element?(
+             view,
+             ~s|#workbench-return-dashboard[href="/dashboard?subject=work&section=overview"]|,
+             "Return to Dashboard Work"
+           )
+
+    assert has_element?(
+             view,
              ~s|#workbench-dashboard-handoff a[href="/dashboard?subject=work&section=overview"]|,
              "Dashboard Work"
            )

@@ -12,7 +12,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
   @project_not_ready_error_type "project_execution_not_ready"
 
   @project_not_found_remediation """
-  Open Workbench, select an imported repository, and then retry repo detail.
+  Open Dashboard Work or the Workbench specialist mode, select an imported repository, and then retry repo detail.
   """
 
   @project_not_ready_remediation """

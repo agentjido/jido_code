@@ -879,7 +879,8 @@ defmodule JidoCode.Workbench.ProjectConversation do
     %{
       error_type: "conversation_project_detail_unavailable",
       detail: "Repository conversation state is unavailable for this route.",
-      remediation: "Open a managed repository from Workbench and then retry the conversation."
+      remediation:
+        "Open the repository from Dashboard Work or the Workbench specialist mode and then retry the conversation."
     }
   end
 

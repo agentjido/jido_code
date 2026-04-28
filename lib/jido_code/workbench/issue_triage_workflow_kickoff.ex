@@ -312,7 +312,7 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
         source: "workbench",
         mode: "manual",
         source_row: %{
-          route: return_to || "/workbench",
+          route: return_to || ManagedRepoRoutes.workbench_path(),
           project_id: project_id,
           context_item_type: context_item_type
         },

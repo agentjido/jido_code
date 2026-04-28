@@ -12,6 +12,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   import JidoCodeWeb.ManagedRepoInventoryComponents
 
   alias JidoCode.Orchestration.RunPubSub
+  alias JidoCode.ManagedRepoRoutes
 
   alias JidoCode.Workbench.{
     FixWorkflowKickoff,
@@ -261,13 +262,49 @@ defmodule JidoCodeWeb.WorkbenchLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
-      <section class="space-y-2">
-        <h1 class="text-2xl font-bold">Workbench</h1>
-        <p class="text-base-content/70">
-          Dense managed-repository inventory and triage mode for Dashboard Work.
-        </p>
+      <section class="space-y-3">
+        <nav id="workbench-breadcrumbs" aria-label="Workbench breadcrumbs" class="breadcrumbs text-sm">
+          <ol>
+            <li>
+              <.link
+                id="workbench-breadcrumb-dashboard-work"
+                navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
+                class="link link-hover"
+              >
+                Dashboard Work
+              </.link>
+            </li>
+            <li>
+              <span id="workbench-breadcrumb-current" aria-current="page">Workbench</span>
+            </li>
+          </ol>
+        </nav>
+
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="space-y-1">
+            <p
+              id="workbench-route-role-label"
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
+            >
+              Dense specialist mode
+            </p>
+            <h1 class="text-2xl font-bold">Workbench</h1>
+            <p class="text-base-content/70">
+              Workbench shares Dashboard Work's managed-repository inventory and governed triage model, with denser filters and scanning controls for specialist use.
+            </p>
+          </div>
+
+          <.link
+            id="workbench-return-dashboard"
+            navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
+            class="btn btn-sm btn-outline"
+          >
+            Return to Dashboard Work
+          </.link>
+        </div>
+
         <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
-          Use <.link navigate={~p"/dashboard?subject=work&section=overview"} class="link link-primary">Dashboard Work</.link> for the lighter signed-in home when you do not need full filter and inventory controls.
+          Use <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">Dashboard Work</.link> for the lighter signed-in home when you do not need full filter and inventory controls.
         </p>
       </section>
 
@@ -838,24 +875,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp workbench_path_with_filter_values(filter_values) do
-    query_params =
-      @filter_state_query_keys
-      |> Enum.reduce([], fn key, acc ->
-        value = Map.get(filter_values, key, Map.fetch!(@default_filter_values, key))
-        default_value = Map.fetch!(@default_filter_values, key)
-
-        if value == default_value do
-          acc
-        else
-          [{key, value} | acc]
-        end
-      end)
-      |> Enum.reverse()
-
-    case query_params do
-      [] -> "/workbench"
-      _other -> "/workbench?" <> URI.encode_query(query_params)
-    end
+    ManagedRepoRoutes.workbench_path(filter_values)
   end
 
   defp filter_chips(filter_values, rows) do

@@ -79,6 +79,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/run-detail-123", on_error: :warn)
 
     assert has_element?(view, "#run-detail-title", "Run detail")
+    assert has_element?(view, "#run-detail-return-link[href='/repos/#{project.id}']", "Back to Repo detail")
     assert has_element?(view, "#run-detail-run-id", "run-detail-123")
     assert has_element?(view, "#run-detail-status", "awaiting_approval")
     assert has_element?(view, "#run-detail-current-step", "approval_gate")
@@ -281,7 +282,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     end)
 
     {:ok, detail_view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
     detail_view
     |> element("#project-detail-conversation-open")
@@ -342,6 +343,9 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
+    encoded_dashboard_return_to =
+      URI.encode_www_form("/dashboard?subject=work&section=overview")
+
     assert has_element?(view, "#run-detail-conversation-entry")
     assert has_element?(view, "#run-detail-conversation-role", "Governed conversation")
     assert has_element?(view, "#run-detail-conversation-status", "active")
@@ -349,7 +353,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
     assert has_element?(
              view,
-             "#run-detail-conversation-open-repo[href='/repos/#{project.id}?work_item_id=#{work_item_id}#project-detail-conversation-panel']",
+             "#run-detail-conversation-open-repo[href='/repos/#{project.id}?return_to=#{encoded_dashboard_return_to}&section=conversations&work_item_id=#{work_item_id}#project-detail-conversation-panel']",
              "Resume governed conversation"
            )
   end
@@ -486,6 +490,9 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
+    encoded_dashboard_return_to =
+      URI.encode_www_form("/dashboard?subject=work&section=overview")
+
     assert has_element?(view, "#run-detail-conversation-entry")
     assert has_element?(view, "#run-detail-conversation-role", "Governed conversation")
     assert has_element?(view, "#run-detail-conversation-id", current_conversation.id)
@@ -496,7 +503,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
     assert has_element?(
              view,
-             "#run-detail-conversation-open-repo[href='/repos/#{project.id}?work_item_id=#{reopened_work_item.id}#project-detail-conversation-panel']",
+             "#run-detail-conversation-open-repo[href='/repos/#{project.id}?return_to=#{encoded_dashboard_return_to}&section=conversations&work_item_id=#{reopened_work_item.id}#project-detail-conversation-panel']",
              "Resume governed conversation"
            )
   end
@@ -2291,7 +2298,9 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     render_click(element(view, "#run-detail-retry-button"))
 
     retry_run_id = "#{failed_run_id}-retry-2"
-    retry_path = ~p"/repos/#{project.id}/runs/#{retry_run_id}"
+    retry_path =
+      "/repos/#{project.id}/runs/#{retry_run_id}?return_to=#{URI.encode_www_form("/repos/#{project.id}")}"
+
     assert_redirect(view, retry_path)
 
     {:ok, retried_run} =
@@ -2478,7 +2487,9 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     render_click(element(view, "#run-detail-step-retry-button"))
 
     retry_run_id = "#{failed_run_id}-retry-2"
-    retry_path = ~p"/repos/#{project.id}/runs/#{retry_run_id}"
+    retry_path =
+      "/repos/#{project.id}/runs/#{retry_run_id}?return_to=#{URI.encode_www_form("/repos/#{project.id}")}"
+
     assert_redirect(view, retry_path)
 
     {:ok, retried_run} =

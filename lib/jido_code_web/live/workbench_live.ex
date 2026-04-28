@@ -163,7 +163,15 @@ defmodule JidoCodeWeb.WorkbenchLive do
         socket
       ) do
     project_row = find_project_row(socket.assigns.inventory_rows_all, project_id)
-    kickoff_result = FixWorkflowKickoff.kickoff(project_row, context_item_type, initiating_actor(socket))
+    return_to = current_workbench_path(socket.assigns.filter_values)
+
+    kickoff_result =
+      FixWorkflowKickoff.kickoff(
+        project_row,
+        context_item_type,
+        initiating_actor(socket),
+        return_to: return_to
+      )
 
     state_project_id =
       case project_row do
@@ -178,8 +186,13 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
     socket =
       socket
-      |> put_fix_workflow_kickoff_state(state_project_id, context_item_type, kickoff_result)
-      |> put_recent_run_outcome_from_kickoff(state_project_id, kickoff_result)
+      |> put_fix_workflow_kickoff_state(
+        state_project_id,
+        context_item_type,
+        kickoff_result,
+        return_to
+      )
+      |> put_recent_run_outcome_from_kickoff(state_project_id, kickoff_result, return_to)
       |> refresh_project_row(project_row)
 
     {:noreply, socket}
@@ -197,7 +210,8 @@ defmodule JidoCodeWeb.WorkbenchLive do
       IssueTriageWorkflowKickoff.kickoff(
         project_row,
         context_item_type,
-        initiating_actor(socket)
+        initiating_actor(socket),
+        return_to: current_workbench_path(socket.assigns.filter_values)
       )
 
     state_project_id =
@@ -213,8 +227,17 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
     socket =
       socket
-      |> put_issue_triage_workflow_kickoff_state(state_project_id, :issue, kickoff_result)
-      |> put_recent_run_outcome_from_kickoff(state_project_id, kickoff_result)
+      |> put_issue_triage_workflow_kickoff_state(
+        state_project_id,
+        :issue,
+        kickoff_result,
+        current_workbench_path(socket.assigns.filter_values)
+      )
+      |> put_recent_run_outcome_from_kickoff(
+        state_project_id,
+        kickoff_result,
+        current_workbench_path(socket.assigns.filter_values)
+      )
       |> refresh_project_row(project_row)
 
     {:noreply, socket}
@@ -441,7 +464,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp load_inventory(socket) do
-    case InventorySurface.load() do
+    case InventorySurface.load(current_workbench_path(socket.assigns.filter_values)) do
       {:ok, rows, recent_run_outcomes, stale_warning} ->
         filter_values =
           socket.assigns
@@ -496,7 +519,10 @@ defmodule JidoCodeWeb.WorkbenchLive do
       |> normalize_filter_values()
 
     socket
-    |> assign(:recent_run_outcomes, InventorySurface.load_recent_run_outcomes(rows))
+    |> assign(
+      :recent_run_outcomes,
+      InventorySurface.load_recent_run_outcomes(rows, current_workbench_path(filter_values))
+    )
     |> apply_filters(filter_values)
   end
 
@@ -1094,9 +1120,21 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   defp find_project_row(_rows, _project_id), do: nil
 
-  defp put_fix_workflow_kickoff_state(socket, project_id, context_item_type, kickoff_result) do
+  defp put_fix_workflow_kickoff_state(
+         socket,
+         project_id,
+         context_item_type,
+         kickoff_result,
+         return_to
+       ) do
     update(socket, :fix_workflow_kickoff_states, fn states ->
-      InventoryActionState.put_fix_feedback(states, project_id, context_item_type, kickoff_result)
+      InventoryActionState.put_fix_feedback(
+        states,
+        project_id,
+        context_item_type,
+        kickoff_result,
+        return_to
+      )
     end)
   end
 
@@ -1104,22 +1142,30 @@ defmodule JidoCodeWeb.WorkbenchLive do
          socket,
          project_id,
          context_item_type,
-         kickoff_result
+         kickoff_result,
+         return_to
        ) do
     update(socket, :issue_triage_workflow_kickoff_states, fn states ->
       InventoryActionState.put_issue_triage_feedback(
         states,
         project_id,
         context_item_type,
-        kickoff_result
+        kickoff_result,
+        return_to
       )
     end)
   end
 
-  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result) do
+  defp put_recent_run_outcome_from_kickoff(socket, project_id, kickoff_result, return_to) do
     update(socket, :recent_run_outcomes, fn outcomes ->
-      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result)
+      InventoryActionState.put_recent_run_outcome(outcomes, project_id, kickoff_result, return_to)
     end)
+  end
+
+  defp current_workbench_path(filter_values) do
+    filter_values
+    |> normalize_filter_values()
+    |> workbench_path_with_filter_values()
   end
 
   defp refresh_project_row(socket, project_row) when is_map(project_row) do

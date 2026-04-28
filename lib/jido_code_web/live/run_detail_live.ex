@@ -18,6 +18,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
@@ -44,23 +45,29 @@ defmodule JidoCodeWeb.RunDetailLive do
   ]
 
   @impl true
-  def mount(%{"id" => project_id, "run_id" => run_id}, _session, socket) do
+  def mount(%{"id" => project_id, "run_id" => run_id} = params, _session, socket) do
+    return_to_path =
+      params
+      |> Map.get("return_to")
+      |> normalize_return_to_path(project_id)
+
     socket =
-      case load_run_state(project_id, run_id) do
+      case load_run_state(project_id, run_id, return_to_path) do
         {:ok, run_state} ->
           socket
           |> assign(:project_id, project_id)
           |> assign(:run_id, run_id)
+          |> assign(:return_to_path, return_to_path)
           |> assign_run_state(run_state)
           |> assign(:memory_action_feedback, nil)
           |> assign(:approval_action_error, nil)
           |> assign(:retry_action_error, nil)
 
         {:error, :not_found} ->
-          assign_missing_run(socket, project_id, run_id)
+          assign_missing_run(socket, project_id, run_id, return_to_path)
 
         {:error, _reason} ->
-          assign_missing_run(socket, project_id, run_id)
+          assign_missing_run(socket, project_id, run_id, return_to_path)
       end
 
     {:ok, maybe_subscribe_run_events(socket)}
@@ -144,7 +151,14 @@ defmodule JidoCodeWeb.RunDetailLive do
          |> assign(:retry_action_error, nil)
          |> assign(:approval_action_error, nil)
          |> put_flash(:info, "Full-run retry started as #{retried_run.run_id}.")
-         |> push_navigate(to: ~p"/repos/#{socket.assigns.project_id}/runs/#{retried_run.run_id}")}
+         |> push_navigate(
+           to:
+             ManagedRepoRoutes.run_detail_path(
+               socket.assigns.project_id,
+               retried_run.run_id,
+               return_to: socket.assigns.return_to_path
+             )
+         )}
 
       {:error, typed_failure} ->
         {:noreply,
@@ -169,7 +183,14 @@ defmodule JidoCodeWeb.RunDetailLive do
            :info,
            "Step-level retry started at #{retried_run.current_step} as #{retried_run.run_id}."
          )
-         |> push_navigate(to: ~p"/repos/#{socket.assigns.project_id}/runs/#{retried_run.run_id}")}
+         |> push_navigate(
+           to:
+             ManagedRepoRoutes.run_detail_path(
+               socket.assigns.project_id,
+               retried_run.run_id,
+               return_to: socket.assigns.return_to_path
+             )
+         )}
 
       {:error, typed_failure} ->
         {:noreply,
@@ -368,6 +389,13 @@ defmodule JidoCodeWeb.RunDetailLive do
       <section id="run-detail-page" class="space-y-4">
         <%= if @run do %>
           <section id="run-detail-header" class="space-y-1">
+            <.link
+              id="run-detail-return-link"
+              class="btn btn-sm btn-outline"
+              navigate={@return_to_path}
+            >
+              Back to {return_to_label(@return_to_path)}
+            </.link>
             <h1 id="run-detail-title" class="text-2xl font-bold">Run detail</h1>
             <p id="run-detail-run-id" class="text-sm">
               Run: <span class="font-mono">{@run.run_id}</span>
@@ -529,7 +557,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                     <.link
                       id="run-detail-conversation-open-repo"
                       class="link link-primary text-xs"
-                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage)}
+                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
                     >
                       {@conversation_linkage.action_label}
                     </.link>
@@ -567,7 +595,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                     <.link
                       id="run-detail-conversation-open-repo"
                       class="link link-primary text-xs"
-                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage)}
+                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
                     >
                       {@conversation_linkage.action_label}
                     </.link>
@@ -586,7 +614,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                     <.link
                       id="run-detail-conversation-open-repo"
                       class="link link-primary text-xs"
-                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage)}
+                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
                     >
                       Open repo detail
                     </.link>
@@ -1417,10 +1445,11 @@ defmodule JidoCodeWeb.RunDetailLive do
     """
   end
 
-  defp assign_missing_run(socket, project_id, run_id) do
+  defp assign_missing_run(socket, project_id, run_id, return_to_path) do
     socket
     |> assign(:project_id, project_id)
     |> assign(:run_id, run_id)
+    |> assign(:return_to_path, return_to_path || normalize_return_to_path(nil, project_id))
     |> assign(:run, nil)
     |> assign(:work_item, nil)
     |> assign(:conversation_linkage, nil)
@@ -1486,9 +1515,9 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp refresh_run_assigns(%{assigns: %{project_id: project_id, run_id: run_id}} = socket) do
-    case load_run_state(project_id, run_id) do
+    case load_run_state(project_id, run_id, Map.get(socket.assigns, :return_to_path)) do
       {:ok, run_state} -> assign_run_state(socket, run_state)
-      _other -> assign_missing_run(socket, project_id, run_id)
+      _other -> assign_missing_run(socket, project_id, run_id, Map.get(socket.assigns, :return_to_path))
     end
   end
 
@@ -1509,7 +1538,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   defp memory_context_graph(%{assigns: %{memory_context: %{graph: graph}}}) when is_map(graph), do: graph
   defp memory_context_graph(_socket), do: nil
 
-  defp load_run_state(project_id, run_id) do
+  defp load_run_state(project_id, run_id, return_to_path) do
     with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
          {:ok, run} <- load_governed_run(project_scope, run_id) do
       evidence_records = load_evidence_records(run)
@@ -1545,7 +1574,8 @@ defmodule JidoCodeWeb.RunDetailLive do
            load_memory_follow_up_preview(
              memory_context,
              run,
-             managed_repo_id
+             managed_repo_id,
+             return_to_path
            )
        }}
     else
@@ -1867,29 +1897,35 @@ defmodule JidoCodeWeb.RunDetailLive do
     end
   end
 
-  defp load_memory_follow_up_preview(memory_context, %Run{} = run, managed_repo_id) when is_map(memory_context) do
+  defp load_memory_follow_up_preview(memory_context, %Run{} = run, managed_repo_id, return_to_path)
+       when is_map(memory_context) do
     FollowUpSurface.preview(
       Map.get(memory_context, :memories),
-      route: follow_up_preview_route(run, managed_repo_id),
+      route: follow_up_preview_route(run, managed_repo_id, return_to_path),
       category: "governed_follow_up"
     )
   end
 
-  defp load_memory_follow_up_preview(_memory_context, _run, _managed_repo_id), do: nil
+  defp load_memory_follow_up_preview(_memory_context, _run, _managed_repo_id, _return_to_path), do: nil
 
-  defp follow_up_preview_route(%Run{} = run, managed_repo_id) do
+  defp follow_up_preview_route(%Run{} = run, managed_repo_id, return_to_path) do
     managed_repo_id = present_string(managed_repo_id)
     run_id = present_string(run.run_id)
 
     if is_binary(managed_repo_id) and is_binary(run_id) do
-      "/repos/#{managed_repo_id}/runs/#{run_id}#run-detail-memory-context"
+      ManagedRepoRoutes.run_detail_path(
+        managed_repo_id,
+        run_id,
+        return_to: return_to_path
+      ) <> "#run-detail-memory-context"
     else
       nil
     end
   end
 
-  defp route_for_conversation_linkage(project_id, conversation_linkage) do
+  defp route_for_conversation_linkage(project_id, conversation_linkage, return_to_path) do
     project_id = present_string(project_id)
+    repo_detail_return_to = ManagedRepoRoutes.repo_detail_parent_return_to(return_to_path)
 
     work_item_id =
       conversation_linkage
@@ -1899,14 +1935,38 @@ defmodule JidoCodeWeb.RunDetailLive do
 
     cond do
       is_binary(project_id) and is_binary(work_item_id) ->
-        "/repos/#{project_id}?work_item_id=#{work_item_id}#project-detail-conversation-panel"
+        ManagedRepoRoutes.project_detail_path(
+          project_id,
+          return_to: repo_detail_return_to,
+          section: "conversations",
+          work_item_id: work_item_id,
+          anchor: "project-detail-conversation-panel"
+        )
 
       is_binary(project_id) ->
-        "/repos/#{project_id}#project-detail-conversation-panel"
+        ManagedRepoRoutes.project_detail_path(
+          project_id,
+          return_to: repo_detail_return_to,
+          section: "conversations",
+          anchor: "project-detail-conversation-panel"
+        )
 
       true ->
         "#run-detail-conversation-linkage"
     end
+  end
+
+  defp return_to_label("/dashboard" <> _suffix), do: "Dashboard"
+  defp return_to_label("/repos" <> _suffix), do: "Repo detail"
+  defp return_to_label("/workbench" <> _suffix), do: "Workbench"
+  defp return_to_label("/settings" <> _suffix), do: "Settings"
+  defp return_to_label(path) when is_binary(path), do: "Back"
+
+  defp normalize_return_to_path(return_to, project_id) do
+    ManagedRepoRoutes.normalize_return_to_path(
+      return_to,
+      ManagedRepoRoutes.project_detail_path(project_id)
+    )
   end
 
   defp present_string(value) do

@@ -4,6 +4,8 @@ defmodule JidoCode.Workbench.InventoryActionState do
   surfaces.
   """
 
+  alias JidoCode.ManagedRepoRoutes
+
   @spec find_row([map()], term()) :: map() | nil
   def find_row(rows, project_id) when is_list(rows) do
     normalized_project_id = normalize_optional_string(project_id)
@@ -17,40 +19,47 @@ defmodule JidoCode.Workbench.InventoryActionState do
 
   def find_row(_rows, _project_id), do: nil
 
-  @spec put_fix_feedback(map(), term(), term(), term()) :: map()
-  def put_fix_feedback(states, project_id, context_item_type, kickoff_result)
+  @spec put_fix_feedback(map(), term(), term(), term(), String.t() | nil) :: map()
+  def put_fix_feedback(states, project_id, context_item_type, kickoff_result, return_to \\ nil)
+
+  def put_fix_feedback(states, project_id, context_item_type, kickoff_result, return_to)
       when is_map(states) do
     Map.put(
       states,
       feedback_state_key(project_id, context_item_type),
-      kickoff_feedback_state(kickoff_result, project_id)
+      kickoff_feedback_state(kickoff_result, project_id, return_to)
     )
   end
 
-  def put_fix_feedback(_states, project_id, context_item_type, kickoff_result) do
-    put_fix_feedback(%{}, project_id, context_item_type, kickoff_result)
+  def put_fix_feedback(_states, project_id, context_item_type, kickoff_result, return_to) do
+    put_fix_feedback(%{}, project_id, context_item_type, kickoff_result, return_to)
   end
 
-  @spec put_issue_triage_feedback(map(), term(), term(), term()) :: map()
-  def put_issue_triage_feedback(states, project_id, context_item_type, kickoff_result)
+  @spec put_issue_triage_feedback(map(), term(), term(), term(), String.t() | nil) :: map()
+  def put_issue_triage_feedback(states, project_id, context_item_type, kickoff_result, return_to \\ nil)
+
+  def put_issue_triage_feedback(states, project_id, context_item_type, kickoff_result, return_to)
       when is_map(states) do
     Map.put(
       states,
       feedback_state_key(project_id, context_item_type),
-      kickoff_feedback_state(kickoff_result, project_id)
+      kickoff_feedback_state(kickoff_result, project_id, return_to)
     )
   end
 
-  def put_issue_triage_feedback(_states, project_id, context_item_type, kickoff_result) do
-    put_issue_triage_feedback(%{}, project_id, context_item_type, kickoff_result)
+  def put_issue_triage_feedback(_states, project_id, context_item_type, kickoff_result, return_to) do
+    put_issue_triage_feedback(%{}, project_id, context_item_type, kickoff_result, return_to)
   end
 
-  @spec put_recent_run_outcome(map(), term(), term()) :: map()
-  def put_recent_run_outcome(outcomes, project_id, kickoff_result) when is_map(outcomes) do
+  @spec put_recent_run_outcome(map(), term(), term(), String.t() | nil) :: map()
+  def put_recent_run_outcome(outcomes, project_id, kickoff_result, return_to \\ nil)
+
+  def put_recent_run_outcome(outcomes, project_id, kickoff_result, return_to)
+      when is_map(outcomes) do
     normalized_project_id = normalize_optional_string(project_id)
 
     if is_binary(normalized_project_id) do
-      case kickoff_run_outcome(kickoff_result, normalized_project_id) do
+      case kickoff_run_outcome(kickoff_result, normalized_project_id, return_to) do
         %{} = outcome -> Map.put(outcomes, normalized_project_id, outcome)
         _other -> outcomes
       end
@@ -59,8 +68,8 @@ defmodule JidoCode.Workbench.InventoryActionState do
     end
   end
 
-  def put_recent_run_outcome(_outcomes, project_id, kickoff_result) do
-    put_recent_run_outcome(%{}, project_id, kickoff_result)
+  def put_recent_run_outcome(_outcomes, project_id, kickoff_result, return_to) do
+    put_recent_run_outcome(%{}, project_id, kickoff_result, return_to)
   end
 
   @spec fix_feedback(map(), term(), term()) :: map() | nil
@@ -77,11 +86,16 @@ defmodule JidoCode.Workbench.InventoryActionState do
 
   def issue_triage_feedback(_states, _project_id, _context_item_type), do: nil
 
-  @spec run_detail_path(term(), term()) :: String.t()
-  def run_detail_path(project_id, run_id) do
+  @spec run_detail_path(term(), term(), String.t() | nil) :: String.t()
+  def run_detail_path(project_id, run_id, return_to \\ nil) do
     normalized_project_id = normalize_optional_string(project_id) || "unknown-project"
     normalized_run_id = normalize_optional_string(run_id) || "unknown-run"
-    "/repos/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
+
+    ManagedRepoRoutes.run_detail_path(
+      normalized_project_id,
+      normalized_run_id,
+      return_to: normalize_optional_string(return_to)
+    )
   end
 
   defp feedback_state_key(project_id, context_item_type) do
@@ -90,7 +104,7 @@ defmodule JidoCode.Workbench.InventoryActionState do
     "#{normalized_project_id}:#{normalized_context_item_type}"
   end
 
-  defp kickoff_run_outcome({:ok, kickoff_run}, project_id) when is_map(kickoff_run) do
+  defp kickoff_run_outcome({:ok, kickoff_run}, project_id, return_to) when is_map(kickoff_run) do
     run_id =
       kickoff_run
       |> map_get("run_id", :run_id)
@@ -99,7 +113,7 @@ defmodule JidoCode.Workbench.InventoryActionState do
     detail_path =
       kickoff_run
       |> map_get("detail_path", :detail_path)
-      |> normalize_optional_string() || run_detail_path(project_id, run_id)
+      |> normalize_optional_string() || run_detail_path(project_id, run_id, return_to)
 
     if run_id && detail_path do
       %{
@@ -113,7 +127,7 @@ defmodule JidoCode.Workbench.InventoryActionState do
     end
   end
 
-  defp kickoff_run_outcome({:error, kickoff_error}, project_id) when is_map(kickoff_error) do
+  defp kickoff_run_outcome({:error, kickoff_error}, project_id, return_to) when is_map(kickoff_error) do
     run_creation_state =
       kickoff_error
       |> map_get("run_creation_state", :run_creation_state)
@@ -129,7 +143,7 @@ defmodule JidoCode.Workbench.InventoryActionState do
         %{
           status: "pending",
           run_id: resolved_run_id,
-          detail_path: run_detail_path(project_id, resolved_run_id),
+          detail_path: run_detail_path(project_id, resolved_run_id, return_to),
           error_type: nil,
           detail: nil,
           guidance: nil
@@ -140,13 +154,13 @@ defmodule JidoCode.Workbench.InventoryActionState do
     end
   end
 
-  defp kickoff_run_outcome(_kickoff_result, _project_id), do: nil
+  defp kickoff_run_outcome(_kickoff_result, _project_id, _return_to), do: nil
 
-  defp kickoff_feedback_state({:ok, kickoff_run}, _project_id) when is_map(kickoff_run) do
+  defp kickoff_feedback_state({:ok, kickoff_run}, _project_id, _return_to) when is_map(kickoff_run) do
     %{status: :ok, run: kickoff_run, confirmation_state: :confirmed}
   end
 
-  defp kickoff_feedback_state({:error, kickoff_error}, project_id) when is_map(kickoff_error) do
+  defp kickoff_feedback_state({:error, kickoff_error}, project_id, return_to) when is_map(kickoff_error) do
     run_creation_state =
       kickoff_error
       |> map_get("run_creation_state", :run_creation_state)
@@ -163,7 +177,7 @@ defmodule JidoCode.Workbench.InventoryActionState do
           status: :ok,
           run: %{
             run_id: resolved_run_id,
-            detail_path: run_detail_path(project_id, resolved_run_id)
+            detail_path: run_detail_path(project_id, resolved_run_id, return_to)
           },
           confirmation_state: :confirmed_after_interruption
         }
@@ -180,7 +194,7 @@ defmodule JidoCode.Workbench.InventoryActionState do
     end
   end
 
-  defp kickoff_feedback_state(_kickoff_result, _project_id) do
+  defp kickoff_feedback_state(_kickoff_result, _project_id, _return_to) do
     %{
       status: :error,
       error: %{

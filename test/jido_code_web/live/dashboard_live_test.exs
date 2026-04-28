@@ -232,6 +232,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
     html = render(view)
+    triage_run_path = "/repos/#{project_id}/runs/run-triage-456?return_to=#{encoded_return_to}"
+    fix_run_path = "/repos/#{project_id}/runs/run-fix-123?return_to=#{encoded_return_to}"
 
     assert has_element?(view, "#dashboard-overview-workbench-link[href='/workbench']")
     assert html =~ ~s(href="/repos/#{project_id}?return_to=#{encoded_return_to}")
@@ -247,7 +249,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-issues-triage-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-triage-456']"
+             "#dashboard-overview-repository-issues-triage-#{project_id}-run-link[href='#{triage_run_path}']"
            )
 
     view
@@ -256,7 +258,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-issues-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-fix-123']"
+             "#dashboard-overview-repository-issues-fix-#{project_id}-run-link[href='#{fix_run_path}']"
            )
   end
 

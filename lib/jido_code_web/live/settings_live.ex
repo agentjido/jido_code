@@ -74,7 +74,11 @@ defmodule JidoCodeWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <div class="max-w-6xl mx-auto py-8">
         <h1 class="text-2xl font-bold mb-6">Settings</h1>
 

@@ -16,6 +16,7 @@ defmodule JidoCodeWeb.DashboardLive do
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
   alias JidoCodeWeb.OperatorShell
+
   alias JidoCode.Workbench.{
     DashboardConversationFeed,
     FixWorkflowKickoff,
@@ -33,11 +34,11 @@ defmodule JidoCodeWeb.DashboardLive do
   ]
 
   @run_events_for_refresh MapSet.new([
-                                    "run_started",
-                                    "run_completed",
-                                    "run_failed",
-                                    "run_cancelled"
-                                  ])
+                            "run_started",
+                            "run_completed",
+                            "run_failed",
+                            "run_cancelled"
+                          ])
 
   @impl true
   def mount(_params, _session, socket) do
@@ -228,7 +229,11 @@ defmodule JidoCodeWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <div
         id="dashboard-root"
         data-dashboard-subject={Atom.to_string(@selected_dashboard_subject)}
@@ -270,11 +275,15 @@ defmodule JidoCodeWeb.DashboardLive do
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Managed repo inventory</h2>
                   <p id="dashboard-overview-note" class="text-sm text-base-content/80">
-                    Dashboard Work is the primary signed-in home for repository inventory, governed triage, and repo-detail follow-up. <.link
+                    Dashboard Work is the primary signed-in home for repository inventory, governed triage, and repo-detail follow-up.
+                    <.link
                       id="dashboard-overview-workbench-link"
                       navigate={dashboard_workbench_path(assigns)}
                       class="link link-primary"
-                    >Workbench</.link> stays available as the denser specialist mode.
+                    >
+                      Workbench
+                    </.link>
+                    stays available as the denser specialist mode.
                   </p>
                 </div>
                 <p id="dashboard-overview-last-refreshed" class="text-xs text-base-content/70">
@@ -1222,7 +1231,8 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_pane_title(:next_steps), do: "Suggested next actions"
 
   defp dashboard_pane_summary(:overview),
-    do: "Dashboard Work owns the primary managed-repository inventory here while Workbench remains the denser specialist mode."
+    do:
+      "Dashboard Work owns the primary managed-repository inventory here while Workbench remains the denser specialist mode."
 
   defp dashboard_pane_summary(:runs),
     do: "Review bounded governed-run status here without leaving the authenticated landing route."

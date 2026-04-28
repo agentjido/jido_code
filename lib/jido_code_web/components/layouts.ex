@@ -32,22 +32,60 @@ defmodule JidoCodeWeb.Layouts do
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
   )
 
+  attr(:operator_navigation, :map,
+    default: nil,
+    doc: "shared signed-in operator navigation metadata"
+  )
+
   slot(:inner_block, required: true)
 
   def app(assigns) do
     ~H"""
     <header class="sticky top-0 z-40 border-b border-base-300/70 bg-base-100/90 backdrop-blur">
-      <div class="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <.link navigate={~p"/"} class="text-sm font-bold tracking-[0.12em] uppercase hover:text-primary">
-          Jido Code
-        </.link>
+      <div class="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center gap-3">
+              <.link
+                navigate={~p"/"}
+                class="text-sm font-bold tracking-[0.12em] uppercase hover:text-primary"
+              >
+                Jido Code
+              </.link>
 
-        <%!-- covers: baseline.surface.nav_trimmed --%>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-medium uppercase tracking-[0.2em] text-base-content/45">
-            Landing + Auth Only
-          </span>
-          <.theme_toggle />
+              <div
+                :if={@operator_navigation}
+                id="operator-route-identity"
+                class="flex flex-wrap items-center gap-2 text-xs"
+              >
+                <span
+                  id="operator-route-badge"
+                  class="rounded-full border border-base-300/80 bg-base-200/70 px-2.5 py-1 font-semibold uppercase tracking-[0.16em] text-base-content/70"
+                >
+                  {@operator_navigation.route_badge}
+                </span>
+                <span id="operator-route-label" class="font-medium text-base-content/70">
+                  {@operator_navigation.route_label}
+                </span>
+              </div>
+            </div>
+
+            <%!-- covers: baseline.surface.nav_trimmed --%>
+            <p
+              :if={!@operator_navigation}
+              class="text-xs font-medium uppercase tracking-[0.2em] text-base-content/45"
+            >
+              Landing + Auth Only
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <.theme_toggle />
+          </div>
+        </div>
+
+        <div :if={@operator_navigation} class="mt-4 space-y-3">
+          <.operator_navigation navigation={@operator_navigation} />
         </div>
       </div>
     </header>
@@ -64,6 +102,79 @@ defmodule JidoCodeWeb.Layouts do
       corner={:top_right}
       toasts_sync={assigns[:toasts_sync] || []}
     />
+    """
+  end
+
+  attr(:navigation, :map, required: true)
+
+  defp operator_navigation(assigns) do
+    ~H"""
+    <nav
+      id={@navigation.id}
+      aria-label={@navigation.label}
+      class="rounded-2xl border border-base-300/80 bg-base-200/45 p-2"
+    >
+      <div class="flex flex-wrap gap-2">
+        <.link
+          :for={destination <- @navigation.major_destinations}
+          id={destination.dom_id}
+          navigate={destination.navigate}
+          aria-current={if destination.selected?, do: "page", else: nil}
+          class={[
+            "group min-w-[10rem] flex-1 rounded-xl border px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+            destination.selected? &&
+              "border-primary/60 bg-primary text-primary-content shadow-sm",
+            !destination.selected? &&
+              "border-base-300/70 bg-base-100/90 text-base-content hover:border-primary/40 hover:bg-base-100"
+          ]}
+        >
+          <span class="block text-sm font-semibold">{destination.label}</span>
+          <span class={[
+            "mt-1 block text-xs",
+            destination.selected? && "text-primary-content/80",
+            !destination.selected? && "text-base-content/65 group-hover:text-base-content/80"
+          ]}>
+            {destination.summary}
+          </span>
+        </.link>
+      </div>
+
+      <div
+        :if={@navigation.context_links != []}
+        id="operator-context-nav"
+        class="mt-3 flex flex-wrap items-center gap-2 border-t border-base-300/70 pt-3"
+      >
+        <span class="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-base-content/50">
+          Current Context
+        </span>
+
+        <%= for context_link <- @navigation.context_links do %>
+          <%= if context_link[:navigate] do %>
+            <.link
+              id={context_link.id}
+              navigate={context_link.navigate}
+              class="rounded-full border border-base-300 bg-base-100 px-3 py-1 text-xs font-medium text-base-content/75 transition-colors hover:border-primary/40 hover:text-base-content"
+            >
+              {context_link.label}
+            </.link>
+          <% else %>
+            <span
+              id={context_link.id}
+              aria-current={if context_link[:current?], do: "page", else: nil}
+              class={[
+                "rounded-full border px-3 py-1 text-xs font-medium",
+                context_link[:current?] &&
+                  "border-primary/50 bg-primary/10 text-base-content",
+                !context_link[:current?] &&
+                  "border-base-300 bg-base-100 text-base-content/75"
+              ]}
+            >
+              {context_link.label}
+            </span>
+          <% end %>
+        <% end %>
+      </div>
+    </nav>
     """
   end
 

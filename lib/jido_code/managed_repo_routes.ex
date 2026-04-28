@@ -135,6 +135,20 @@ defmodule JidoCode.ManagedRepoRoutes do
     end
   end
 
+  @spec return_to_label(term()) :: String.t()
+  def return_to_label(path) do
+    case path |> normalize_optional_string() |> then(&if(is_binary(&1), do: URI.parse(&1), else: nil)) do
+      %URI{path: "/dashboard"} -> "Dashboard"
+      %URI{path: "/workbench"} -> "Workbench"
+      %URI{path: "/repos"} -> "Repositories"
+      %URI{path: <<"/repos/", _::binary>>} -> "Repo detail"
+      %URI{path: "/settings"} -> "Settings"
+      %URI{path: "/workflows"} -> "Workflows"
+      %URI{path: "/agents"} -> "Agents"
+      _other -> "Back"
+    end
+  end
+
   defp repo_detail_return_to(path) do
     uri = URI.parse(path)
     uri_path = normalize_path(uri.path)

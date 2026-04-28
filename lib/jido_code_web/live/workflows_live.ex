@@ -76,7 +76,11 @@ defmodule JidoCodeWeb.WorkflowsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <section class="space-y-2">
         <h1 class="text-2xl font-bold">Workflows</h1>
         <p class="text-base-content/70">

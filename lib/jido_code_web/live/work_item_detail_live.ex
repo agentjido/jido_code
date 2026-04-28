@@ -215,7 +215,11 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <section class="mx-auto max-w-5xl space-y-6 py-8">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-1">
@@ -497,7 +501,8 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
         <% else %>
           <section class="rounded-xl border border-warning/40 bg-warning/10 p-6">
             <p id="work-item-detail-missing-detail" class="text-sm text-base-content/80">
-              No governed work item with id <span class="font-mono">{@work_item_id}</span> is available on this managed-repository route.
+              No governed work item with id <span class="font-mono">{@work_item_id}</span>
+              is available on this managed-repository route.
             </p>
           </section>
         <% end %>
@@ -546,8 +551,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
          related_runs: load_related_runs(managed_repo_id, work_item.id),
          decisions: load_related_decisions(managed_repo_id, work_item.id),
          memory_context: memory_context,
-         memory_follow_up_preview:
-           load_memory_follow_up_preview(memory_context, route_repo_id, work_item)
+         memory_follow_up_preview: load_memory_follow_up_preview(memory_context, route_repo_id, work_item)
        }}
     else
       _other -> {:error, :not_found}

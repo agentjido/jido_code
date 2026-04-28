@@ -385,7 +385,11 @@ defmodule JidoCodeWeb.RunDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <section id="run-detail-page" class="space-y-4">
         <%= if @run do %>
           <section id="run-detail-header" class="space-y-1">
@@ -1956,11 +1960,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     end
   end
 
-  defp return_to_label("/dashboard" <> _suffix), do: "Dashboard"
-  defp return_to_label("/repos" <> _suffix), do: "Repo detail"
-  defp return_to_label("/workbench" <> _suffix), do: "Workbench"
-  defp return_to_label("/settings" <> _suffix), do: "Settings"
-  defp return_to_label(path) when is_binary(path), do: "Back"
+  defp return_to_label(path), do: ManagedRepoRoutes.return_to_label(path)
 
   defp normalize_return_to_path(return_to, project_id) do
     ManagedRepoRoutes.normalize_return_to_path(

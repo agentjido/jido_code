@@ -21,6 +21,8 @@ affects:
 <!-- covers: architecture.operator_surface_information_architecture.responsive_fallback_preserves_subject_tree_semantics -->
 <!-- covers: architecture.operator_surface_information_architecture.dashboard_work_subject_hosts_primary_repo_inventory -->
 <!-- covers: architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode -->
+<!-- covers: architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding -->
+<!-- covers: architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers -->
 <!-- covers: architecture.frontend_stack.liveview_remains_product_host_shell -->
 <!-- covers: package.jido_code.spec_led_workspace -->
 
@@ -43,6 +45,12 @@ Today:
   pass an explicit parent return target
 - verbose explanatory copy still needs continued tightening so the newer
   top-level subject chrome stays terse and subject-like across routes
+- the signed-in product still lacks one easy cross-route navigation model, so
+  operators often depend on contextual back links, breadcrumbs, or browser
+  history when moving among dashboard, repo detail, run detail, settings, and
+  Workbench
+- contributors still have to reason about route-by-route navigation seams
+  instead of composing one reusable product-owned wayfinding layer
 
 That makes the product harder to scan as a desktop working environment. The UI
 needs a stronger subject hierarchy, clearer navigation ownership, and more
@@ -92,6 +100,13 @@ The shell rules are:
 12. When `/workbench` remains available, it behaves as a denser specialist mode
     or alias for that same repository-inventory domain rather than competing
     with dashboard for ready-state landing or first-level subject ownership.
+13. Signed-in routes shall also share a product-wide navigation layer for major
+    destinations such as dashboard, settings, specialist inventory mode,
+    managed-repository detail, and governed-run follow-up so operators can move
+    across the product without depending only on back links or browser history.
+14. That product-wide wayfinding should be composed through shared
+    LiveView-owned helpers and route metadata rather than each route inventing
+    a separate top-level navigation chrome.
 
 ## Consequences
 
@@ -111,6 +126,10 @@ The shell rules are:
   and product context without turning the tab chrome verbose again
 - the header, middle, footer structure makes subject panes easier to parse and
   act on quickly
+- shared cross-route wayfinding makes the signed-in product easier to navigate
+  during long developer workflows
+- reusable navigation helpers reduce route-by-route shell drift and make future
+  signed-in route composition easier for contributors
 
 ### Constraints
 
@@ -119,6 +138,8 @@ The shell rules are:
   than becoming owners of shell navigation
 - breadcrumbs should remain route-owned orientation chrome instead of becoming
   a second tab system
+- product-wide wayfinding should complement breadcrumbs and return links rather
+  than replacing route-local context cues
 - child subject trees must remain legible and keyboard-accessible
 - subject-footer actions should stay related to the visible middle region
   instead of becoming a global action dump
@@ -162,6 +183,9 @@ Remaining convergence work is now narrower:
   of a specialist mode or alias for dashboard `Work`
 - repo-detail return context still needs cleanup so dashboard-originated flows
   do not implicitly fall back to Workbench semantics
+- the signed-in product still needs one reusable global navigation layer so
+  operators can move across routes without relying only on context-local back
+  paths
 
 Current-truth UI specs and planning docs should now treat the shared shell as
 landed on the main signed-in routes while assigning dashboard/workbench content

@@ -261,7 +261,11 @@ defmodule JidoCodeWeb.WorkbenchLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={%{}}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={%{}}
+      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+    >
       <section class="space-y-3">
         <nav id="workbench-breadcrumbs" aria-label="Workbench breadcrumbs" class="breadcrumbs text-sm">
           <ol>
@@ -304,7 +308,11 @@ defmodule JidoCodeWeb.WorkbenchLive do
         </div>
 
         <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
-          Use <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">Dashboard Work</.link> for the lighter signed-in home when you do not need full filter and inventory controls.
+          Use
+          <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">
+            Dashboard Work
+          </.link>
+          for the lighter signed-in home when you do not need full filter and inventory controls.
         </p>
       </section>
 

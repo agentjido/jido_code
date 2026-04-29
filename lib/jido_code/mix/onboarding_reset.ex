@@ -59,17 +59,19 @@ defmodule JidoCode.Mix.OnboardingReset do
   defp summary(%{
          mode: :full,
          cleared_owner_count: cleared_owner_count,
+         cleared_managed_repo_count: cleared_managed_repo_count,
          cleared_onboarding_pat?: cleared_onboarding_pat?
        }) do
-    "Onboarding reset to first-run bootstrap. Cleared #{cleared_owner_count} local user(s).#{pat_suffix(cleared_onboarding_pat?)}"
+    "Onboarding reset to first-run bootstrap. Cleared #{cleared_owner_count} local user(s) and #{cleared_managed_repo_count} managed repo(s).#{pat_suffix(cleared_onboarding_pat?)}"
   end
 
   defp summary(%{
          mode: :keep_owner,
          owner_email: owner_email,
+         cleared_managed_repo_count: cleared_managed_repo_count,
          cleared_onboarding_pat?: cleared_onboarding_pat?
        }) do
-    "Onboarding rewound to the signed-in setup surface for #{owner_email}.#{pat_suffix(cleared_onboarding_pat?)}"
+    "Onboarding rewound to the signed-in setup surface for #{owner_email}. Cleared #{cleared_managed_repo_count} managed repo(s).#{pat_suffix(cleared_onboarding_pat?)}"
   end
 
   defp pat_suffix(true), do: " Cleared onboarding-managed GitHub PAT fallback."

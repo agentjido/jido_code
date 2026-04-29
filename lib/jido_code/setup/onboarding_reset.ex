@@ -21,6 +21,7 @@ defmodule JidoCode.Setup.OnboardingReset do
           config: SystemConfig.t(),
           owner_email: String.t() | nil,
           cleared_owner_count: non_neg_integer(),
+          cleared_managed_repo_count: non_neg_integer(),
           cleared_onboarding_pat?: boolean()
         }
 
@@ -43,6 +44,7 @@ defmodule JidoCode.Setup.OnboardingReset do
     with {:ok, owner} <- owner_for_mode(mode),
          {:ok, cleared_onboarding_pat?} <- clear_onboarding_github_pat_secret(),
          {:ok, cleared_owner_count} <- maybe_clear_users(mode),
+         {:ok, cleared_managed_repo_count} <- clear_managed_repo_inventory(),
          {:ok, config} <- persist_reset_config(mode, owner) do
       {:ok,
        %{
@@ -50,6 +52,7 @@ defmodule JidoCode.Setup.OnboardingReset do
          config: config,
          owner_email: owner_email(owner),
          cleared_owner_count: cleared_owner_count,
+         cleared_managed_repo_count: cleared_managed_repo_count,
          cleared_onboarding_pat?: cleared_onboarding_pat?
        }}
     end
@@ -107,6 +110,18 @@ defmodule JidoCode.Setup.OnboardingReset do
     })
   end
 
+  defp clear_managed_repo_inventory do
+    with {:ok, cleared_managed_repo_count} <- managed_repo_count(),
+         {:ok, _result} <-
+           Ecto.Adapters.SQL.query(
+             Repo,
+             "TRUNCATE TABLE source_repos, agent_os_kernel_snapshots RESTART IDENTITY CASCADE",
+             []
+           ) do
+      {:ok, cleared_managed_repo_count}
+    end
+  end
+
   defp clear_onboarding_github_pat_secret do
     with {:ok, secret_ref} <- onboarding_github_pat_secret_ref() do
       case secret_ref do
@@ -134,6 +149,14 @@ defmodule JidoCode.Setup.OnboardingReset do
       {:ok, [%SecretRef{source: :onboarding} = secret_ref]} -> {:ok, secret_ref}
       {:ok, [_other_secret_ref]} -> {:ok, nil}
       {:ok, []} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp managed_repo_count do
+    case Ecto.Adapters.SQL.query(Repo, "SELECT COUNT(*) FROM managed_repos", []) do
+      {:ok, %{rows: [[count]]}} when is_integer(count) and count >= 0 -> {:ok, count}
+      {:ok, _result} -> {:error, :invalid_managed_repo_count_result}
       {:error, reason} -> {:error, reason}
     end
   end

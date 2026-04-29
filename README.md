@@ -163,8 +163,8 @@ mix memory.verify       # verify the ontology pair, typed governed links, and re
 mix semantic.verify     # run the full product-facing semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
-mix onboarding.reset --keep-owner # keep the bootstrap owner and rewind to signed-in /setup
-mix onboarding.reset --full       # clear bootstrap users and return to first-run bootstrap
+mix onboarding.reset --keep-owner # keep the bootstrap owner, clear managed repos, and rewind to signed-in /setup
+mix onboarding.reset --full       # clear bootstrap users plus managed repos and return to first-run bootstrap
 mix test                # create/migrate the test DB and run tests
 mix q                   # fast merge-safe quality gate
 mix quality             # fast gate plus frontend verification, doctor, and dialyzer debt surfacing

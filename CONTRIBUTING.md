@@ -46,8 +46,8 @@ For day-to-day development:
 - `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
-- `mix onboarding.reset --keep-owner` rewinds onboarding to signed-in `/setup` while preserving the bootstrap owner
-- `mix onboarding.reset --full` returns the install to first-run bootstrap and clears local bootstrap users
+- `mix onboarding.reset --keep-owner` rewinds onboarding to signed-in `/setup` while preserving the bootstrap owner and clearing imported managed repos
+- `mix onboarding.reset --full` returns the install to first-run bootstrap and clears local bootstrap users plus imported managed repos
 - `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 

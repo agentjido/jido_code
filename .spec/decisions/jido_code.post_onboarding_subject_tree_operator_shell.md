@@ -47,9 +47,8 @@ Today:
 - verbose explanatory copy still needs continued tightening so the newer
   top-level subject chrome stays terse and subject-like across routes
 - the signed-in product now has one reusable cross-route navigation model, but
-  adjacent routes such as Workbench, repository inventory, workflows, agents,
-  settings, and governed-run detail still compose their local pane chrome
-  differently enough to feel like separate route islands
+  it still needs consistent adoption across adjacent routes so contributors do
+  not drift back toward route-specific chrome
 - contributors still have to reason about which routes genuinely need a
   subject tree and which should adopt the shared shell proportionately without
   inventing fake local taxonomies
@@ -176,16 +175,18 @@ older dashboard-only sidebar shell is no longer the target UI architecture.
 This decision is partially landed in product code.
 
 Current implementation already reflects the shared shell on dashboard and
-managed-repository detail, plus proportional single-pane adoption on the
-specialist and inventory routes:
+managed-repository detail, plus proportional or parentless-shell adoption on
+the adjacent signed-in routes:
 
 - both routes use the subject-tree ordering of route header, breadcrumb lane,
   top-level subject rail, child-subject sidebar, and selected pane framing
 - selected subject panes now follow the shared header, middle, footer contract
 - dashboard owns the durable ready-state landing route after onboarding
-- `/workbench`, `/repos`, `/workflows`, and `/agents` now reuse the shared
-  breadcrumb lane and selected-pane framing without inventing fake subject
-  rails
+- `/workbench`, `/repos`, `/workflows`, `/agents`, and governed run detail now
+  reuse the shared breadcrumb lane plus selected-pane framing without
+  inventing fake subject rails
+- settings now reuses the same shell primitives through route-owned child
+  subject navigation without a separate bespoke tab chrome
 
 Remaining convergence work is now narrower:
 
@@ -193,15 +194,14 @@ Remaining convergence work is now narrower:
   denser inventory and triage model on `/workbench`
 - repo-detail return context still needs cleanup so dashboard-originated flows
   do not implicitly fall back to Workbench semantics
-- settings and governed-run detail still render route-specific local bodies
-  around the newer shared navigation layer instead of reusing one proportional
-  shell contract
-- settings still carries bespoke local tab chrome that should either become a
-  child-subject rendering inside the shared shell or otherwise align with the
-  same route-owned shell primitives
+- route-level and browser coverage still need to prove those adjacent routes
+  feel like one workspace rather than isolated signed-in pages
+- wording and shell helpers should continue to tighten so contributors do not
+  reintroduce bespoke local chrome on future adjacent routes
 
 Current-truth UI specs and planning docs should now treat the shared shell as
 landed on the main signed-in routes, the global signed-in navigation layer as
 landed across the wider product, the proportional shell as landed on the
-specialist and inventory routes, and settings plus governed-run shell adoption
-as the remaining convergence step.
+specialist, governed-run, and inventory routes, settings navigation as aligned
+to the same shell primitives, and the remaining adjacent-route work as
+integration proof rather than route-level shell adoption.

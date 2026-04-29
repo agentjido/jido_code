@@ -45,15 +45,16 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
   major authenticated routes.
 - Dashboard and managed-repository detail already use the full subject-tree
   shell and remain the clearest examples of the shared signed-in workspace.
-- Workbench, repository inventory, workflows, agents, settings, and
-  governed-run detail still render route-local bodies around the newer global
-  navigation layer, so they feel more bespoke than the main shell routes.
+- Workbench, repository inventory, workflows, and agents already reuse the
+  proportional shared shell, while settings and governed-run detail are the
+  last structural adoption targets in this phase before the final integration
+  proof.
 - Not every adjacent route should invent top-level subjects or child-sidebar
   tabs; single-concern routes should adopt the shared shell proportionately
   instead of fabricating taxonomy.
-- Settings and governed-run detail may still warrant richer route-local shell
-  structure when they expose multiple real concerns, but that structure should
-  reuse the same LiveView-owned shell primitives rather than bespoke chrome.
+- Settings and governed-run detail should keep only the route-local shell depth
+  they actually need, but any richer structure must still reuse the same
+  LiveView-owned shell primitives rather than bespoke chrome.
 
 [ ] 73 Phase 73 - Adjacent Signed-In Route Shell Adoption
   Converge the remaining signed-in routes on the shared operator-shell language
@@ -61,97 +62,97 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
   governed-run detail stop reading like isolated pages under the new global
   navigation.
 
-  [ ] 73.1 Section - Route Taxonomy And Shared Shell Composition
+  [x] 73.1 Section - Route Taxonomy And Shared Shell Composition
     Define how adjacent routes should adopt the shared shell without forcing one
     fake navigation pattern onto every route.
 
-    [ ] 73.1.1 Task - Classify adjacent routes by shell depth
+    [x] 73.1.1 Task - Classify adjacent routes by shell depth
       Decide which adjacent signed-in routes merit the full subject-tree shell
       and which should keep one real pane with shared outer framing.
 
-      [ ] 73.1.1.1 Subtask - Distinguish multi-concern routes that deserve
+      [x] 73.1.1.1 Subtask - Distinguish multi-concern routes that deserve
         parent or child subject navigation from single-concern routes such as
         repository inventory, workflows, or agents that should not invent extra
         taxonomy.
-      [ ] 73.1.1.2 Subtask - Keep product-wide signed-in navigation outside the
+      [x] 73.1.1.2 Subtask - Keep product-wide signed-in navigation outside the
         route-local shell so major-destination movement and route-local pane
         structure remain separate concerns.
-      [ ] 73.1.1.3 Subtask - Preserve route-owned, patchable state for any real
+      [x] 73.1.1.3 Subtask - Preserve route-owned, patchable state for any real
         local subject selection instead of adding client-only shell memory.
 
-    [ ] 73.1.2 Task - Define reusable proportional shell helpers
+    [x] 73.1.2 Task - Define reusable proportional shell helpers
       Make the adjacent-route adoption path contributor-friendly rather than a
       route-by-route copy-paste exercise.
 
-      [ ] 73.1.2.1 Subtask - Standardize a shared breadcrumb plus
+      [x] 73.1.2.1 Subtask - Standardize a shared breadcrumb plus
         `header` / `middle` / `footer` wrapper for single-pane signed-in
         routes.
-      [ ] 73.1.2.2 Subtask - Reuse the existing subject-tree helpers on routes
+      [x] 73.1.2.2 Subtask - Reuse the existing subject-tree helpers on routes
         that genuinely need local multi-concern navigation instead of creating a
         second shell implementation.
-      [ ] 73.1.2.3 Subtask - Keep richer widgets, filters, tables, and forms
+      [x] 73.1.2.3 Subtask - Keep richer widgets, filters, tables, and forms
         bounded inside the selected pane contract rather than turning them into
         alternate shell owners.
 
-  [ ] 73.2 Section - Specialist And Inventory Route Adoption
+  [x] 73.2 Section - Specialist And Inventory Route Adoption
     Apply the shared shell language to the adjacent routes that currently feel
     like standalone utility pages.
 
-    [ ] 73.2.1 Task - Converge Workbench, Repositories, Workflows, and Agents
+    [x] 73.2.1 Task - Converge Workbench, Repositories, Workflows, and Agents
       Bring the specialist and inventory routes under one shared shell grammar
       without flattening their real differences in density and workflow.
 
-      [ ] 73.2.1.1 Subtask - Reuse the shared breadcrumb lane, route header,
+      [x] 73.2.1.1 Subtask - Reuse the shared breadcrumb lane, route header,
         and pane framing on Workbench, repository inventory, workflows, and
         agents instead of maintaining route-specific top matter.
-      [ ] 73.2.1.2 Subtask - Keep Workbench explicitly bounded as the dense
+      [x] 73.2.1.2 Subtask - Keep Workbench explicitly bounded as the dense
         specialist mode while repository inventory, workflow kickoff, and agent
         configuration remain clearly named adjacent product surfaces.
-      [ ] 73.2.1.3 Subtask - Keep route-local filters, tables, forms, and
+      [x] 73.2.1.3 Subtask - Keep route-local filters, tables, forms, and
         operator actions in the middle and footer regions rather than inventing
         fake subject rails for those single-concern routes.
 
-    [ ] 73.2.2 Task - Align route-local actions and wording
+    [x] 73.2.2 Task - Align route-local actions and wording
       Make the newly aligned routes feel like one signed-in workspace at the
       copy and action-placement level.
 
-      [ ] 73.2.2.1 Subtask - Normalize where adjacent routes place their
+      [x] 73.2.2.1 Subtask - Normalize where adjacent routes place their
         primary actions so pane-local actions consistently live in shell-owned
         header or footer regions.
-      [ ] 73.2.2.2 Subtask - Align role labels, route descriptions, and return
+      [x] 73.2.2.2 Subtask - Align role labels, route descriptions, and return
         cues with the newer dashboard-first signed-in workspace model.
-      [ ] 73.2.2.3 Subtask - Retire duplicated route-local breadcrumb or
+      [x] 73.2.2.3 Subtask - Retire duplicated route-local breadcrumb or
         top-level navigation fragments once the shared shell fully owns them.
 
-  [ ] 73.3 Section - Settings And Governed-Run Shell Adoption
+  [x] 73.3 Section - Settings And Governed-Run Shell Adoption
     Bring the more structurally complex adjacent routes into the same shell
     model without erasing their real local concerns.
 
-    [ ] 73.3.1 Task - Converge settings local navigation
+    [x] 73.3.1 Task - Converge settings local navigation
       Decide whether the current settings tab model should become child-subject
       navigation or another equivalent shared-shell rendering.
 
-      [ ] 73.3.1.1 Subtask - Convert settings navigation to shared shell
+      [x] 73.3.1.1 Subtask - Convert settings navigation to shared shell
         primitives so GitHub, agents, account, auth, and security concerns no
         longer live behind bespoke route-local chrome.
-      [ ] 73.3.1.2 Subtask - Keep the bounded settings overview widget and the
+      [x] 73.3.1.2 Subtask - Keep the bounded settings overview widget and the
         server-owned forms or modals inside the selected pane regions rather
         than outside the shell contract.
-      [ ] 73.3.1.3 Subtask - Preserve patchable tab routing and settings-owned
+      [x] 73.3.1.3 Subtask - Preserve patchable tab routing and settings-owned
         auth/integration semantics while aligning the visual shell with the rest
         of the signed-in workspace.
 
-    [ ] 73.3.2 Task - Converge governed-run detail framing
+    [x] 73.3.2 Task - Converge governed-run detail framing
       Make governed-run detail feel like a true follow-up route inside the same
       signed-in workspace rather than a standalone deep-link page.
 
-      [ ] 73.3.2.1 Subtask - Reuse the shared breadcrumb, header, and pane
+      [x] 73.3.2.1 Subtask - Reuse the shared breadcrumb, header, and pane
         framing on run detail so it visually aligns with the adjacent product
         routes that hand off into it.
-      [ ] 73.3.2.2 Subtask - Preserve repository parent context, governed
+      [x] 73.3.2.2 Subtask - Preserve repository parent context, governed
         follow-up links, and route-owned continuity inside the shared shell
         rather than pushing that context back into ad hoc local chrome.
-      [ ] 73.3.2.3 Subtask - Avoid inventing fake local taxonomies if
+      [x] 73.3.2.3 Subtask - Avoid inventing fake local taxonomies if
         governed-run detail still behaves as one primary concern with bounded
         subsections instead of a full multi-subject route.
 

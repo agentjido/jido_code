@@ -1,6 +1,6 @@
 # Operator Surface Information Architecture
 
-<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeps a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, lands product-wide signed-in wayfinding across major routes, and now lands the proportional shared-shell contract on Workbench, repository inventory, workflows, and agents without inventing fake subject taxonomies, while settings and governed-run detail remain the main adjacent shell-adoption gap. -->
+<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeps a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, lands product-wide signed-in wayfinding across major routes, lands the proportional shared-shell contract on Workbench, repository inventory, workflows, agents, and governed run detail without inventing fake subject taxonomies, and now lets settings reuse the same shell primitives through parentless child-subject navigation instead of bespoke local chrome. -->
 
 This subject defines the durable information architecture for signed-in operator
 routes after onboarding hands work off to the main product shell.
@@ -11,7 +11,7 @@ routes after onboarding hands work off to the main product shell.
 id: architecture.operator_surface_information_architecture
 kind: policy
 status: active
-summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject, landing the proportional shared-shell contract on Workbench plus Repositories plus Workflows plus Agents for single-concern routes, and requiring one coherent signed-in navigation layer across product routes so major destinations stay easy to reach.
+summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject, landing the proportional shared-shell contract on Workbench plus Repositories plus Workflows plus Agents plus governed run detail for single-concern routes, reusing parentless child-subject shell composition on settings, and requiring one coherent signed-in navigation layer across product routes so major destinations stay easy to reach.
 decisions:
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
@@ -23,11 +23,16 @@ surface:
   - lib/jido_code_web/components/layouts.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/settings_live.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - test/e2e/dashboard-tabs.spec.ts
   - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/operator_navigation_live_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
 ```
 

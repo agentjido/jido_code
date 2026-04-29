@@ -802,6 +802,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Blocked")
     assert has_element?(view, "#project-detail-conversation-runtime-notice")
+    assert has_element?(view, "#project-detail-conversation-runtime-notice #project-detail-conversation-runtime-repair")
 
     assert has_element?(
              view,
@@ -814,6 +815,17 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              "#project-detail-conversation-runtime-workspace",
              "No repo-scoped local workspace path saved"
            )
+
+    view
+    |> element("#project-detail-conversation-runtime-repair")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-overview-panel")
+    assert has_element?(view, "#project-detail-workspace-binding-panel")
+
+    view
+    |> element("#project-detail-overview-open-conversations")
+    |> render_click()
 
     view
     |> element("#project-detail-conversation-open")
@@ -876,7 +888,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}?section=conversations", on_error: :warn)
 
     assert has_element?(view, "#project-detail-conversation-runtime-status", "Blocked")
-    assert has_element?(view, "#project-detail-conversation-runtime-repair")
+    assert has_element?(view, "#project-detail-conversation-runtime-notice #project-detail-conversation-runtime-repair")
 
     view
     |> element("#project-detail-conversation-runtime-repair")

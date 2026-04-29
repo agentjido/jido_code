@@ -133,6 +133,13 @@ test("repo detail exposes blocked runtime readiness without pretending execution
   await expect(page.locator("#project-detail-conversation-runtime-workspace")).toHaveText(
     "No repo-scoped local workspace path saved"
   )
+  await expect(page.locator("#project-detail-conversation-runtime-notice")).toContainText(
+    "Repair workspace binding"
+  )
+
+  await page.click("#project-detail-conversation-runtime-repair")
+  await expect(page.locator("#project-detail-overview-panel")).toBeVisible()
+  await expect(page.locator("#project-detail-workspace-binding-panel")).toBeVisible()
 })
 
 test("repo detail falls back to snapshot continuity when live conversation delivery degrades", async ({

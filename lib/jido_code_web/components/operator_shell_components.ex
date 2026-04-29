@@ -22,7 +22,11 @@ defmodule JidoCodeWeb.OperatorShellComponents do
     ~H"""
     <section id={@id} class={["space-y-4 overflow-x-clip", @class]}>
       <.breadcrumb_lane id={"#{@id}-breadcrumbs"} breadcrumbs={@breadcrumbs} />
-      <.parent_subject_rail id={"#{@id}-parent-subjects"} subjects={@parent_subjects} />
+      <.parent_subject_rail
+        :if={@parent_subjects != []}
+        id={"#{@id}-parent-subjects"}
+        subjects={@parent_subjects}
+      />
 
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
         <aside id={@sidebar_id} class="min-w-0 lg:sticky lg:top-24 lg:w-80 lg:flex-none">
@@ -39,6 +43,30 @@ defmodule JidoCodeWeb.OperatorShellComponents do
           {render_slot(@inner_block)}
         </div>
       </div>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :breadcrumbs, :list, default: []
+  attr :pane, :map, required: true
+  attr :class, :any, default: nil
+  attr :pane_class, :any, default: nil
+  slot :inner_block, required: true
+  slot :footer_actions
+
+  def single_pane_shell(assigns) do
+    ~H"""
+    <section id={@id} class={["space-y-4 overflow-x-clip", @class]}>
+      <.breadcrumb_lane id={"#{@id}-breadcrumbs"} breadcrumbs={@breadcrumbs} />
+
+      <.subject_pane pane={@pane} class={@pane_class}>
+        {render_slot(@inner_block)}
+
+        <:footer_actions>
+          {render_slot(@footer_actions)}
+        </:footer_actions>
+      </.subject_pane>
     </section>
     """
   end
@@ -335,6 +363,7 @@ defmodule JidoCodeWeb.OperatorShellComponents do
       </div>
 
       <footer
+        :if={@footer_actions != []}
         id={"#{@pane.id}-footer"}
         class="flex min-h-16 flex-wrap items-center justify-end gap-2 border-t border-base-300/70 px-4 py-4"
       >

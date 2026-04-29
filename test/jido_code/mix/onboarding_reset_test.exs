@@ -33,6 +33,7 @@ defmodule JidoCode.Mix.OnboardingResetTest do
                       %{
                         mode: :full,
                         cleared_owner_count: 2,
+                        cleared_managed_repo_count: 3,
                         cleared_onboarding_pat?: true,
                         owner_email: nil
                       }}
@@ -41,7 +42,8 @@ defmodule JidoCode.Mix.OnboardingResetTest do
       end)
 
     assert output =~ "Onboarding reset to first-run bootstrap."
-    assert output =~ "Cleared 2 local user(s)."
+    assert output =~ "Cleared 2 local user(s) and 3 managed repo(s)."
+    assert output =~ "3 managed repo(s)."
     assert output =~ "Cleared onboarding-managed GitHub PAT fallback."
   end
 
@@ -55,6 +57,7 @@ defmodule JidoCode.Mix.OnboardingResetTest do
                       %{
                         mode: :keep_owner,
                         cleared_owner_count: 0,
+                        cleared_managed_repo_count: 1,
                         cleared_onboarding_pat?: false,
                         owner_email: "owner@example.com"
                       }}
@@ -62,6 +65,9 @@ defmodule JidoCode.Mix.OnboardingResetTest do
                  )
       end)
 
-    assert output =~ "Onboarding rewound to the signed-in setup surface for owner@example.com."
+    assert output =~
+             "Onboarding rewound to the signed-in setup surface for owner@example.com."
+
+    assert output =~ "Cleared 1 managed repo(s)."
   end
 end

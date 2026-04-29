@@ -1,6 +1,6 @@
 # Operator Provider Auth Guide
 
-<!-- current_truth.reconciled_with_branch: repo-facing docs still keep deployment-specific provider setup out of the contributor quickstart even as README and CONTRIBUTING add conversation-host guidance, route-orientation notes for `/welcome`, `/setup`, `/dashboard`, and `/settings/auth`, and the existing generic local secret-bootstrap note. -->
+<!-- current_truth.reconciled_with_branch: repo-facing docs still keep deployment-specific provider setup out of the contributor quickstart even as README and CONTRIBUTING add conversation-host guidance, route-orientation notes for `/welcome`, `/setup`, `/dashboard`, and `/settings/auth`, the existing generic local secret-bootstrap note, and clearer onboarding-reset descriptions for local bootstrap iteration. -->
 
 This subject defines the repo-local boundary around self-hosted provider login and deployment-local GitHub automation guidance in `jido_code`. The full step-by-step operator prose may live outside this repo, but the repo must keep the implementation contract and contributor-facing separation current.
 
@@ -10,7 +10,7 @@ This subject defines the repo-local boundary around self-hosted provider login a
 id: docs.operator_provider_auth_guide
 kind: feature
 status: active
-summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, onboarding-reset paths, routed entry ownership across `/welcome`, `/setup`, `/dashboard`, and `/settings/auth`, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.
+summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server`, `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, onboarding-reset paths that now clarify managed-repository cleanup during local bootstrap iteration, routed entry ownership across `/welcome`, `/setup`, `/dashboard`, and `/settings/auth`, semantic graph lifecycle orientation, product-oriented fallback language, and local runtime secret bootstrap such as `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` without turning the contributor quickstart into an operator provider-auth guide.
 surface:
   - README.md
   - .spec/specs/operator_auth_settings.spec.md

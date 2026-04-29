@@ -1,6 +1,6 @@
 # Operator Auth Settings
 
-<!-- current_truth.reconciled_with_branch: the settings-owned auth-and-integrations destination remains the durable home for provider-login broker trust and GitHub automation readiness, the sibling `/settings/github` add-repository modal now routes later GitHub additions through the canonical managed-repository import boundary instead of treating settings-only rows as product truth, and that settings-owned operator surface now participates in the shared signed-in navigation layer rather than relying on ad hoc header handoff links. -->
+<!-- current_truth.reconciled_with_branch: the settings-owned auth-and-integrations destination remains the durable home for provider-login broker trust and GitHub automation readiness, the sibling `/settings/github` add-repository modal now routes later GitHub additions through the canonical managed-repository import boundary instead of treating settings-only rows as product truth, that settings-owned operator surface now participates in the shared signed-in navigation layer plus the shared settings child-subject shell instead of relying on ad hoc header handoff links, pane footers now appear only on the settings tabs that actually own route-level actions, and shared route/browser coverage now proves that route-owned child-subject navigation stays aligned with the wider signed-in shell. -->
 
 This subject defines the current operator auth-settings console used to configure hosted provider login separately from deployment-local Git provider automation. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
 
@@ -10,7 +10,7 @@ This subject defines the current operator auth-settings console used to configur
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, reach that console through durable settings navigation once bootstrap is complete and ready-state auth has entered dashboard, participate in the shared signed-in operator navigation model, and coexist with a sibling `/settings/github` repository-add flow that imports canonical managed repositories rather than creating a separate auth-settings truth lane, while signed-in `/welcome` stays only a compact handoff into dashboard and `/settings/auth`.
+summary: authenticated operators can manage provider-login broker trust and GitHub automation readiness through a settings-owned authenticated auth-and-integrations surface, keep Git service secrets distinct from provider-login configuration, reach that console through durable shared settings child-subject navigation once bootstrap is complete and ready-state auth has entered dashboard, participate in the shared signed-in operator navigation model, and coexist with a sibling `/settings/github` repository-add flow that imports canonical managed repositories rather than creating a separate auth-settings truth lane, while signed-in `/welcome` stays only a compact handoff into dashboard and `/settings/auth`.
 decisions:
   - jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff
   - jido_code.settings_github_add_repository_uses_managed_repo_import
@@ -21,6 +21,7 @@ surface:
   - lib/jido_code_web/live/settings_live.ex
   - test/support/conn_case.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
+  - test/e2e/operator-navigation.spec.ts
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs

@@ -17,6 +17,7 @@ defmodule JidoCodeWeb.SettingsLive do
   alias JidoCode.Security.SecretRefs
   alias JidoCode.Setup.ProjectImport
   alias JidoCodeWeb.OperatorAuthSettings
+  alias JidoCodeWeb.OperatorShell
   alias JidoCodeWeb.Security.UiRedaction
 
   @secret_scope_options [
@@ -79,77 +80,20 @@ defmodule JidoCodeWeb.SettingsLive do
       current_scope={%{}}
       operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
     >
-      <div class="max-w-6xl mx-auto py-8">
-        <h1 class="text-2xl font-bold mb-6">Settings</h1>
-
-        <div class="flex gap-8">
-          <nav class="w-48 shrink-0">
-            <ul class="space-y-1">
-              <li>
-                <.link
-                  patch={~p"/settings/github"}
-                  class={[
-                    "block px-4 py-2 rounded-lg transition-colors text-base-content",
-                    @active_tab == "github" && "bg-primary text-primary-content font-medium",
-                    @active_tab != "github" && "hover:bg-base-200"
-                  ]}
-                >
-                  <.icon name="hero-code-bracket" class="w-5 h-5 inline-block mr-2" /> GitHub
-                </.link>
-              </li>
-              <li>
-                <.link
-                  patch={~p"/settings/agents"}
-                  class={[
-                    "block px-4 py-2 rounded-lg transition-colors text-base-content",
-                    @active_tab == "agents" && "bg-primary text-primary-content font-medium",
-                    @active_tab != "agents" && "hover:bg-base-200"
-                  ]}
-                >
-                  <.icon name="hero-cpu-chip" class="w-5 h-5 inline-block mr-2" /> Agents
-                </.link>
-              </li>
-              <li>
-                <.link
-                  patch={~p"/settings/account"}
-                  class={[
-                    "block px-4 py-2 rounded-lg transition-colors text-base-content",
-                    @active_tab == "account" && "bg-primary text-primary-content font-medium",
-                    @active_tab != "account" && "hover:bg-base-200"
-                  ]}
-                >
-                  <.icon name="hero-user-circle" class="w-5 h-5 inline-block mr-2" /> Account
-                </.link>
-              </li>
-              <li>
-                <.link
-                  id="settings-nav-auth"
-                  patch={~p"/settings/auth"}
-                  class={[
-                    "block px-4 py-2 rounded-lg transition-colors text-base-content",
-                    @active_tab == "auth" && "bg-primary text-primary-content font-medium",
-                    @active_tab != "auth" && "hover:bg-base-200"
-                  ]}
-                >
-                  <.icon name="hero-key" class="w-5 h-5 inline-block mr-2" /> Auth & Integrations
-                </.link>
-              </li>
-              <li>
-                <.link
-                  patch={~p"/settings/security"}
-                  class={[
-                    "block px-4 py-2 rounded-lg transition-colors text-base-content",
-                    @active_tab == "security" && "bg-primary text-primary-content font-medium",
-                    @active_tab != "security" && "hover:bg-base-200"
-                  ]}
-                >
-                  <.icon name="hero-shield-check" class="w-5 h-5 inline-block mr-2" /> Security
-                </.link>
-              </li>
-            </ul>
-          </nav>
-
-          <div class="flex-1">
+      <.subject_tree_shell
+        id="settings-shell"
+        breadcrumbs={settings_breadcrumbs(assigns)}
+        parent_subjects={[]}
+        child_subjects={settings_nav_items(assigns)}
+        child_nav_id="settings-nav"
+        child_nav_label="Settings sections"
+        child_nav_heading="Settings"
+        child_nav_summary="Choose the operator setting you want to inspect or update."
+        sidebar_id="settings-sidebar"
+        content_id="settings-content"
+      >
+        <.subject_pane pane={settings_selected_pane(assigns)}>
+          <section class="space-y-6">
             <.vue_surface
               id="settings-overview-widget"
               component="SettingsOverviewWidget"
@@ -167,54 +111,64 @@ defmodule JidoCodeWeb.SettingsLive do
 
             <%= case @active_tab do %>
               <% "github" -> %>
-                <div class="mt-6">
-                  <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
-                </div>
+                <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
               <% "agents" -> %>
-                <div class="mt-6">
-                  <.agents_tab />
-                </div>
+                <.agents_tab />
               <% "account" -> %>
-                <div class="mt-6">
-                  <.account_tab />
-                </div>
+                <.account_tab />
               <% "auth" -> %>
-                <div class="mt-6">
-                  <.auth_integrations_tab
-                    provider_login_cards={@provider_login_cards}
-                    github_service_report={@github_service_report}
-                    github_service_secret_refs={@github_service_secret_refs}
-                    operator_auth_allowlist_options={@operator_auth_allowlist_options}
-                  />
-                </div>
+                <.auth_integrations_tab
+                  provider_login_cards={@provider_login_cards}
+                  github_service_report={@github_service_report}
+                  github_service_secret_refs={@github_service_secret_refs}
+                  operator_auth_allowlist_options={@operator_auth_allowlist_options}
+                />
               <% "security" -> %>
-                <div class="mt-6">
-                  <.security_tab
-                    security_tokens={@security_tokens}
-                    security_api_keys={@security_api_keys}
-                    security_audit_events={@security_audit_events}
-                    security_revocation_error={@security_revocation_error}
-                    security_status_error={@security_status_error}
-                    security_secret_refs={@security_secret_refs}
-                    security_secret_error={@security_secret_error}
-                    security_secret_form={@security_secret_form}
-                    security_secret_lifecycle_audits={@security_secret_lifecycle_audits}
-                    security_secret_audit_error={@security_secret_audit_error}
-                    secret_scope_options={@secret_scope_options}
-                    security_provider_rotation_error={@security_provider_rotation_error}
-                    security_provider_rotation_report={@security_provider_rotation_report}
-                    security_provider_rotation_form={@security_provider_rotation_form}
-                    provider_rotation_options={@provider_rotation_options}
-                  />
-                </div>
+                <.security_tab
+                  security_tokens={@security_tokens}
+                  security_api_keys={@security_api_keys}
+                  security_audit_events={@security_audit_events}
+                  security_revocation_error={@security_revocation_error}
+                  security_status_error={@security_status_error}
+                  security_secret_refs={@security_secret_refs}
+                  security_secret_error={@security_secret_error}
+                  security_secret_form={@security_secret_form}
+                  security_secret_lifecycle_audits={@security_secret_lifecycle_audits}
+                  security_secret_audit_error={@security_secret_audit_error}
+                  secret_scope_options={@secret_scope_options}
+                  security_provider_rotation_error={@security_provider_rotation_error}
+                  security_provider_rotation_report={@security_provider_rotation_report}
+                  security_provider_rotation_form={@security_provider_rotation_form}
+                  provider_rotation_options={@provider_rotation_options}
+                />
               <% _ -> %>
-                <div class="mt-6">
-                  <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
-                </div>
+                <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
             <% end %>
-          </div>
-        </div>
-      </div>
+          </section>
+
+          <:footer_actions :if={@active_tab == "github"}>
+            <button
+              id="settings-github-open-add-modal"
+              type="button"
+              phx-click="open_add_modal"
+              class="btn btn-primary"
+            >
+              <.icon name="hero-plus" class="mr-1 size-4" /> Add Repository
+            </button>
+          </:footer_actions>
+
+          <:footer_actions :if={@active_tab == "auth"}>
+            <button
+              id="settings-auth-refresh-github-service-checks"
+              type="button"
+              phx-click="refresh_github_service_checks"
+              class="btn btn-outline btn-sm"
+            >
+              Refresh GitHub Validation
+            </button>
+          </:footer_actions>
+        </.subject_pane>
+      </.subject_tree_shell>
 
       <div
         :if={@show_add_modal}
@@ -270,20 +224,11 @@ defmodule JidoCodeWeb.SettingsLive do
   defp github_tab(assigns) do
     ~H"""
     <div>
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h2 class="text-xl font-semibold">GitHub Repositories</h2>
-          <p class="text-sm text-base-content/70 mt-1">
-            Manage repositories connected to your agent workflows
-          </p>
-        </div>
-        <button
-          type="button"
-          phx-click="open_add_modal"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <.icon name="hero-plus" class="w-4 h-4 mr-1 inline" /> Add Repository
-        </button>
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold">GitHub Repositories</h2>
+        <p class="mt-1 text-sm text-base-content/70">
+          Manage repositories connected to your agent workflows.
+        </p>
       </div>
 
       <div class="space-y-4" id="repos-list" phx-update="stream">
@@ -534,21 +479,13 @@ defmodule JidoCodeWeb.SettingsLive do
         id="settings-auth-git-provider-integrations"
         class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
       >
-        <div class="mb-6 flex items-start justify-between gap-6">
+        <div class="mb-6 flex items-start gap-6">
           <div class="space-y-2">
             <h3 class="text-2xl font-semibold text-base-content">Git Provider Integrations</h3>
             <p class="max-w-3xl text-sm leading-6 text-base-content/70">
               Deployment-local Git automation credentials stay separate from provider-login broker trust. GitHub App is preferred, PAT is fallback, and GitLab or Bitbucket remain placeholders for now.
             </p>
           </div>
-          <button
-            id="settings-auth-refresh-github-service-checks"
-            type="button"
-            phx-click="refresh_github_service_checks"
-            class="btn btn-outline btn-sm"
-          >
-            Refresh GitHub Validation
-          </button>
         </div>
 
         <div class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -1641,6 +1578,46 @@ defmodule JidoCodeWeb.SettingsLive do
   defp provider_rotation_alarm_label(true), do: "Raised"
   defp provider_rotation_alarm_label(false), do: "None"
 
+  defp settings_breadcrumbs(assigns) do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "settings-breadcrumb-settings",
+        label: "Settings",
+        patch: ~p"/settings"
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "settings-breadcrumb-current",
+        label: settings_tab_nav_label(Map.get(assigns, :active_tab)),
+        current?: true
+      })
+    ]
+  end
+
+  defp settings_nav_items(assigns) do
+    active_tab = Map.get(assigns, :active_tab) || "github"
+
+    for tab <- ~w(github agents account auth security) do
+      OperatorShell.child_subject(%{
+        id: tab,
+        label: settings_tab_nav_label(tab),
+        summary: settings_tab_summary(tab, assigns),
+        pane_id: "settings-pane-#{tab}",
+        selected?: active_tab == tab,
+        patch: settings_tab_path(tab)
+      })
+    end
+  end
+
+  defp settings_selected_pane(assigns) do
+    active_tab = Map.get(assigns, :active_tab) || "github"
+
+    OperatorShell.pane(%{
+      id: "settings-pane-#{active_tab}",
+      title: settings_pane_title(active_tab),
+      summary: settings_active_tab_summary(assigns)
+    })
+  end
+
   defp settings_overview_cards(assigns) do
     [
       %{
@@ -1743,6 +1720,39 @@ defmodule JidoCodeWeb.SettingsLive do
       length(Map.get(assigns, :security_api_keys, [])) +
       length(Map.get(assigns, :security_secret_refs, []))
   end
+
+  defp settings_tab_path(tab) when tab in ~w(github agents account auth security), do: ~p"/settings/#{tab}"
+  defp settings_tab_path(_tab), do: ~p"/settings"
+
+  defp settings_tab_nav_label("github"), do: "GitHub"
+  defp settings_tab_nav_label("agents"), do: "Agents"
+  defp settings_tab_nav_label("account"), do: "Account"
+  defp settings_tab_nav_label("auth"), do: "Auth & Integrations"
+  defp settings_tab_nav_label("security"), do: "Security"
+  defp settings_tab_nav_label(_tab), do: "Settings"
+
+  defp settings_pane_title("github"), do: "GitHub repositories"
+  defp settings_pane_title("agents"), do: "Agent settings"
+  defp settings_pane_title("account"), do: "Account settings"
+  defp settings_pane_title("auth"), do: "Auth & integrations"
+  defp settings_pane_title("security"), do: "Security settings"
+  defp settings_pane_title(_tab), do: "Settings"
+
+  defp settings_tab_summary("github", assigns) do
+    "#{Map.get(assigns, :repo_count, 0)} connected repo(s), #{Map.get(assigns, :enabled_repo_count, 0)} enabled for operator workflows."
+  end
+
+  defp settings_tab_summary("agents", _assigns) do
+    "Agent behavior remains server-owned while this route reuses the shared signed-in shell."
+  end
+
+  defp settings_tab_summary("account", _assigns) do
+    "Identity and session preferences stay routed through LiveView on this operator-owned surface."
+  end
+
+  defp settings_tab_summary("auth", assigns), do: auth_overview_detail(assigns)
+  defp settings_tab_summary("security", assigns), do: security_overview_detail(assigns)
+  defp settings_tab_summary(_tab, _assigns), do: nil
 
   defp settings_actor(socket) do
     socket.assigns

@@ -23,6 +23,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{Run, RunPubSub}
   alias JidoCode.Workbench.ProjectConversation
+  alias JidoCodeWeb.OperatorShell
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -390,1063 +391,1137 @@ defmodule JidoCodeWeb.RunDetailLive do
       current_scope={%{}}
       operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
     >
-      <section id="run-detail-page" class="space-y-4">
-        <%= if @run do %>
-          <section id="run-detail-header" class="space-y-1">
-            <.link
-              id="run-detail-return-link"
-              class="btn btn-sm btn-outline"
-              navigate={@return_to_path}
-            >
-              Back to {return_to_label(@return_to_path)}
-            </.link>
-            <h1 id="run-detail-title" class="text-2xl font-bold">Run detail</h1>
-            <p id="run-detail-run-id" class="text-sm">
-              Run: <span class="font-mono">{@run.run_id}</span>
-            </p>
-            <p id="run-detail-status" class="text-sm">
-              Status: {status_label(@run.status)}
-            </p>
-            <p id="run-detail-current-step" class="text-sm">
-              Current step: {current_step_label(@run.current_step)}
-            </p>
-            <p id="run-detail-retry-attempt" class="text-sm">
-              Attempt: {Map.get(@run, :retry_attempt, 1)}
-            </p>
-            <p
-              :if={normalize_optional_string(Map.get(@run, :retry_of_run_id))}
-              id="run-detail-retry-parent-run"
-              class="text-sm"
-            >
-              Retry parent: <span class="font-mono">{Map.get(@run, :retry_of_run_id)}</span>
-            </p>
-            <p
-              :if={normalize_optional_string(Map.get(@run, :current_stage))}
-              id="run-detail-current-stage"
-              class="text-sm text-base-content/80"
-            >
-              Governed stage: {Map.get(@run, :current_stage)}
-            </p>
-            <p
-              :if={normalize_optional_string(Map.get(@run, :managed_repo_id))}
-              id="run-detail-managed-repo-id"
-              class="text-xs text-base-content/70"
-            >
-              Managed repo: {Map.get(@run, :managed_repo_id)}
-            </p>
-          </section>
-
-          <.vue_surface
-            id="run-detail-governance-overview-widget"
-            component="RunGovernanceOverviewWidget"
-            socket={@socket}
-            props={run_governance_widget_props(assigns)}
-          />
-
-          <section
-            id="run-detail-governance-summary"
-            class="space-y-3 rounded border border-base-300 bg-base-100 p-4"
-          >
-            <h2 class="text-lg font-semibold">Governance</h2>
-
-            <section
-              :if={@change_request}
-              id="run-detail-change-request"
-              class="space-y-1 rounded border border-base-300/70 bg-base-200/30 p-3"
-            >
-              <p id="run-detail-change-request-status" class="text-sm">
-                Review request: {Map.get(@change_request, :status) |> status_label()}
+      <.single_pane_shell
+        id="run-detail-shell"
+        breadcrumbs={run_detail_breadcrumbs(assigns)}
+        pane={run_detail_pane(assigns)}
+      >
+        <section id="run-detail-page" class="space-y-4">
+          <%= if @run do %>
+            <section id="run-detail-run-metadata" class="space-y-1">
+              <p id="run-detail-run-id" class="text-sm">
+                Run: <span class="font-mono">{@run.run_id}</span>
               </p>
-              <p id="run-detail-change-request-summary" class="text-sm text-base-content/80">
-                {Map.get(@change_request, :summary) |> normalize_optional_string()}
+              <p id="run-detail-status" class="text-sm">
+                Status: {status_label(@run.status)}
+              </p>
+              <p id="run-detail-current-step" class="text-sm">
+                Current step: {current_step_label(@run.current_step)}
+              </p>
+              <p id="run-detail-retry-attempt" class="text-sm">
+                Attempt: {Map.get(@run, :retry_attempt, 1)}
+              </p>
+              <p
+                :if={normalize_optional_string(Map.get(@run, :retry_of_run_id))}
+                id="run-detail-retry-parent-run"
+                class="text-sm"
+              >
+                Retry parent: <span class="font-mono">{Map.get(@run, :retry_of_run_id)}</span>
+              </p>
+              <p
+                :if={normalize_optional_string(Map.get(@run, :current_stage))}
+                id="run-detail-current-stage"
+                class="text-sm text-base-content/80"
+              >
+                Governed stage: {Map.get(@run, :current_stage)}
+              </p>
+              <p
+                :if={normalize_optional_string(Map.get(@run, :managed_repo_id))}
+                id="run-detail-managed-repo-id"
+                class="text-xs text-base-content/70"
+              >
+                Managed repo: {Map.get(@run, :managed_repo_id)}
               </p>
             </section>
 
-            <section id="run-detail-work-item" class="space-y-2">
-              <p class="text-sm font-medium">Work item</p>
-
-              <%= if @work_item do %>
-                <div
-                  id="run-detail-work-item-entry"
-                  class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
-                >
-                  <p id="run-detail-work-item-summary" class="text-sm font-medium">
-                    {Map.get(@work_item, :summary)}
-                  </p>
-                  <p id="run-detail-work-item-status" class="text-xs text-base-content/80">
-                    Status: {Map.get(@work_item, :status) |> status_label()}
-                  </p>
-                  <p id="run-detail-work-item-category" class="text-xs text-base-content/80">
-                    Category: {Map.get(@work_item, :category)}
-                  </p>
-                </div>
-              <% else %>
-                <p id="run-detail-work-item-empty" class="text-xs text-base-content/70">
-                  No governed work item is linked to this run yet.
-                </p>
-              <% end %>
-            </section>
-
-            <section id="run-detail-conversation-linkage" class="space-y-2">
-              <p class="text-sm font-medium">Conversation lineage</p>
-
-              <%= cond do %>
-                <% @conversation_linkage && @conversation_linkage.conversation -> %>
-                  <div
-                    id="run-detail-conversation-entry"
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
-                  >
-                    <div class="flex flex-wrap items-center gap-2">
-                      <.conversation_role_badge
-                        id="run-detail-conversation-role"
-                        scope={Map.get(@conversation_linkage.conversation, :scope)}
-                        attachment_mode={Map.get(@conversation_linkage.conversation, :attachment_mode)}
-                        work_item_id={Map.get(@conversation_linkage.conversation, :work_item_id)}
-                      />
-                      <.conversation_status_badge
-                        id="run-detail-conversation-status"
-                        status={Map.get(@conversation_linkage.conversation, :status)}
-                      />
-                    </div>
-                    <p id="run-detail-conversation-id" class="text-sm font-medium">
-                      Conversation: {@conversation_linkage.conversation.id}
-                    </p>
-                    <p
-                      :if={conversation_resolution_action(@conversation_linkage.conversation)}
-                      id="run-detail-conversation-resolution"
-                      class="text-xs text-base-content/80"
-                    >
-                      Work resolution: {conversation_resolution_action(@conversation_linkage.conversation)}
-                    </p>
-                    <p
-                      :if={conversation_resolution_detail(@conversation_linkage.conversation)}
-                      id="run-detail-conversation-detail"
-                      class="text-xs text-base-content/70"
-                    >
-                      {conversation_resolution_detail(@conversation_linkage.conversation)}
-                    </p>
-                    <p
-                      :if={@conversation_linkage.origin && @conversation_linkage.origin["workflow"]}
-                      id="run-detail-conversation-origin-workflow"
-                      class="text-xs text-base-content/70"
-                    >
-                      Origin workflow: {@conversation_linkage.origin["workflow"]}
-                    </p>
-                    <p
-                      :if={@conversation_linkage.origin && @conversation_linkage.origin["resolution_reason"]}
-                      id="run-detail-conversation-origin-reason"
-                      class="text-xs text-base-content/70"
-                    >
-                      {@conversation_linkage.origin["resolution_reason"]}
-                    </p>
-                    <p
-                      :if={@conversation_linkage.notice}
-                      id="run-detail-conversation-lineage-note"
-                      class="text-xs text-warning"
-                    >
-                      {@conversation_linkage.notice.detail}
-                    </p>
-                    <p
-                      :if={@conversation_linkage.historical_conversation}
-                      class="flex flex-wrap items-center gap-2"
-                    >
-                      <.conversation_role_badge
-                        id="run-detail-conversation-historical-role"
-                        historical={true}
-                      />
-                      <span id="run-detail-conversation-historical-id" class="text-xs text-base-content/70">
-                        Historical origin: {@conversation_linkage.historical_conversation.id}
-                      </span>
-                    </p>
-                    <.link
-                      id="run-detail-conversation-open-repo"
-                      class="link link-primary text-xs"
-                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
-                    >
-                      {@conversation_linkage.action_label}
-                    </.link>
-                  </div>
-                <% @conversation_linkage && @conversation_linkage.origin -> %>
-                  <div
-                    id="run-detail-conversation-origin-only"
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
-                  >
-                    <.conversation_role_badge id="run-detail-conversation-origin-role" historical={true} />
-                    <p id="run-detail-conversation-origin-label" class="text-sm font-medium">
-                      Historical conversation lineage is preserved on this work item.
-                    </p>
-                    <p
-                      :if={@conversation_linkage.origin["workflow"]}
-                      id="run-detail-conversation-origin-workflow"
-                      class="text-xs text-base-content/80"
-                    >
-                      Origin workflow: {@conversation_linkage.origin["workflow"]}
-                    </p>
-                    <p
-                      :if={@conversation_linkage.origin["resolution_reason"]}
-                      id="run-detail-conversation-origin-reason"
-                      class="text-xs text-base-content/70"
-                    >
-                      {@conversation_linkage.origin["resolution_reason"]}
-                    </p>
-                    <p
-                      :if={@conversation_linkage.notice}
-                      id="run-detail-conversation-origin-note"
-                      class="text-xs text-warning"
-                    >
-                      {@conversation_linkage.notice.detail}
-                    </p>
-                    <.link
-                      id="run-detail-conversation-open-repo"
-                      class="link link-primary text-xs"
-                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
-                    >
-                      {@conversation_linkage.action_label}
-                    </.link>
-                  </div>
-                <% @conversation_linkage && @conversation_linkage.notice -> %>
-                  <div
-                    id="run-detail-conversation-notice"
-                    class="rounded border border-warning/40 bg-warning/10 p-3 space-y-1"
-                  >
-                    <p id="run-detail-conversation-notice-label" class="text-sm font-medium">
-                      Conversation lineage is temporarily unavailable.
-                    </p>
-                    <p id="run-detail-conversation-notice-detail" class="text-xs text-base-content/70">
-                      {@conversation_linkage.notice.detail}
-                    </p>
-                    <.link
-                      id="run-detail-conversation-open-repo"
-                      class="link link-primary text-xs"
-                      navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
-                    >
-                      Open repo detail
-                    </.link>
-                  </div>
-                <% @work_item -> %>
-                  <p id="run-detail-conversation-empty" class="text-xs text-base-content/70">
-                    No productive repository conversation is linked to this governed work item yet.
-                  </p>
-                <% true -> %>
-                  <p id="run-detail-conversation-unavailable" class="text-xs text-base-content/70">
-                    No governed work item is linked to this run yet, so conversation lineage is unavailable.
-                  </p>
-              <% end %>
-            </section>
-
-            <section id="run-detail-evidence-records" class="space-y-2">
-              <p class="text-sm font-medium">Evidence records</p>
-
-              <%= if @evidence_records == [] do %>
-                <p id="run-detail-evidence-empty" class="text-xs text-base-content/70">
-                  No governed evidence records have been captured yet.
-                </p>
-              <% else %>
-                <ol id="run-detail-evidence-list" class="space-y-2">
-                  <li
-                    :for={{evidence, index} <- Enum.with_index(@evidence_records, 1)}
-                    id={
-                      "run-detail-evidence-entry-#{governed_record_dom_token(Map.get(evidence, :id) || index)}"
-                    }
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
-                  >
-                    <p id={"run-detail-evidence-key-#{index}"} class="text-sm font-medium">
-                      {Map.get(evidence, :key)}
-                    </p>
-                    <p id={"run-detail-evidence-summary-#{index}"} class="text-xs text-base-content/80">
-                      {Map.get(evidence, :summary)}
-                    </p>
-                  </li>
-                </ol>
-              <% end %>
-            </section>
-
-            <section id="run-detail-runtime-evidence" class="space-y-2">
-              <p class="text-sm font-medium">Runtime evidence</p>
-
-              <%= if @runtime_evidence_summary do %>
-                <div class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1">
-                  <p id="run-detail-runtime-evidence-status" class="text-sm">
-                    Runtime posture:
-                    <span class={runtime_evidence_badge_class(@runtime_evidence_summary.status)}>
-                      {runtime_evidence_status_label(@runtime_evidence_summary.status)}
-                    </span>
-                  </p>
-                  <p id="run-detail-runtime-evidence-summary" class="text-xs text-base-content/80">
-                    {@runtime_evidence_summary.summary}
-                  </p>
-                  <p
-                    :if={@runtime_evidence_summary.delivery_mode}
-                    id="run-detail-runtime-evidence-delivery-mode"
-                    class="text-xs text-base-content/80"
-                  >
-                    Delivery path: {humanize_runtime_value(@runtime_evidence_summary.delivery_mode)}
-                  </p>
-                  <p
-                    :if={@runtime_evidence_summary.reason_code}
-                    id="run-detail-runtime-evidence-reason"
-                    class="text-xs text-base-content/80"
-                  >
-                    Runtime reason: {humanize_runtime_value(@runtime_evidence_summary.reason_code)}
-                  </p>
-                  <p
-                    :if={@runtime_evidence_summary.integration_summary}
-                    id="run-detail-runtime-evidence-integration"
-                    class="text-xs text-base-content/80"
-                  >
-                    Latest integration signal: {@runtime_evidence_summary.integration_summary}
-                  </p>
-                  <p id="run-detail-runtime-evidence-note" class="text-xs text-base-content/70">
-                    Product governance stores bounded runtime evidence here; runtime transport remains opaque.
-                  </p>
-                </div>
-              <% else %>
-                <p id="run-detail-runtime-evidence-empty" class="text-xs text-base-content/70">
-                  No bounded runtime evidence has been materialized for this run yet.
-                </p>
-              <% end %>
-            </section>
-
-            <section id="run-detail-decisions" class="space-y-2">
-              <p class="text-sm font-medium">Decisions</p>
-
-              <%= if @decisions == [] do %>
-                <p id="run-detail-decisions-empty" class="text-xs text-base-content/70">
-                  No governance decisions have been recorded yet.
-                </p>
-              <% else %>
-                <ol id="run-detail-decision-list" class="space-y-2">
-                  <li
-                    :for={{decision, index} <- Enum.with_index(@decisions, 1)}
-                    id={
-                      "run-detail-decision-entry-#{governed_record_dom_token(Map.get(decision, :id) || index)}"
-                    }
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
-                  >
-                    <p id={"run-detail-decision-value-#{index}"} class="text-sm font-medium">
-                      {Map.get(decision, :decision) |> status_label()}
-                    </p>
-                    <p
-                      :if={normalize_optional_string(Map.get(decision, :rationale))}
-                      id={"run-detail-decision-rationale-#{index}"}
-                      class="text-xs text-base-content/80"
-                    >
-                      {Map.get(decision, :rationale)}
-                    </p>
-                  </li>
-                </ol>
-              <% end %>
-            </section>
+            <.vue_surface
+              id="run-detail-governance-overview-widget"
+              component="RunGovernanceOverviewWidget"
+              socket={@socket}
+              props={run_governance_widget_props(assigns)}
+            />
 
             <section
-              :if={@memory_context}
-              id="run-detail-memory-context"
-              class="space-y-3 rounded border border-base-300/70 bg-base-200/20 p-3"
+              id="run-detail-governance-summary"
+              class="space-y-3 rounded border border-base-300 bg-base-100 p-4"
             >
-              <div class="space-y-1">
-                <p class="text-sm font-medium">Repository memory context</p>
-                <p id="run-detail-memory-context-state" class="text-xs text-base-content/70">
-                  Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
-                </p>
-                <.operator_state_notice
-                  :if={@memory_action_feedback}
-                  id="run-detail-memory-action-feedback"
-                  title="Run memory update"
-                  state={@memory_action_feedback}
-                  kind={memory_feedback_kind(@memory_action_feedback)}
-                  compact={true}
-                />
-                <.memory_status_notice
-                  :if={@memory_context.notice}
-                  id="run-detail-memory-context-notice"
-                  title="Run memory status"
-                  state={@memory_context.notice}
-                  kind={Map.get(@memory_context, :notice_kind, :warning)}
-                  recovery={Map.get(@memory_context, :recovery)}
-                  recover_event="recover_memory_graph"
-                  recover_id="run-detail-memory-recover"
-                />
-              </div>
+              <h2 class="text-lg font-semibold">Governance</h2>
 
-              <div
-                :if={
-                  (@memory_context.governed_history.work_item != nil ||
-                     @memory_context.governed_history.evidence != []) or
-                    @memory_context.governed_history.decisions != []
-                }
-                id="run-detail-memory-history"
-                class="grid gap-3 md:grid-cols-2"
+              <section
+                :if={@change_request}
+                id="run-detail-change-request"
+                class="space-y-1 rounded border border-base-300/70 bg-base-200/30 p-3"
               >
-                <section :if={@memory_context.governed_history.work_item} class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                    Work item history
-                  </p>
+                <p id="run-detail-change-request-status" class="text-sm">
+                  Review request: {Map.get(@change_request, :status) |> status_label()}
+                </p>
+                <p id="run-detail-change-request-summary" class="text-sm text-base-content/80">
+                  {Map.get(@change_request, :summary) |> normalize_optional_string()}
+                </p>
+              </section>
+
+              <section id="run-detail-work-item" class="space-y-2">
+                <p class="text-sm font-medium">Work item</p>
+
+                <%= if @work_item do %>
                   <div
-                    id="run-detail-memory-work-item-history"
-                    class="rounded border border-base-300/50 bg-base-100 p-2"
+                    id="run-detail-work-item-entry"
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
                   >
-                    <p class="text-xs font-medium">{@memory_context.governed_history.work_item.label}</p>
-                    <p class="text-xs text-base-content/70">
-                      Memory: {@memory_context.governed_history.work_item.memory_count} | Provenance: {@memory_context.governed_history.work_item.provenance_count}
+                    <p id="run-detail-work-item-summary" class="text-sm font-medium">
+                      {Map.get(@work_item, :summary)}
+                    </p>
+                    <p id="run-detail-work-item-status" class="text-xs text-base-content/80">
+                      Status: {Map.get(@work_item, :status) |> status_label()}
+                    </p>
+                    <p id="run-detail-work-item-category" class="text-xs text-base-content/80">
+                      Category: {Map.get(@work_item, :category)}
                     </p>
                   </div>
-                </section>
-
-                <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                    Evidence history
+                <% else %>
+                  <p id="run-detail-work-item-empty" class="text-xs text-base-content/70">
+                    No governed work item is linked to this run yet.
                   </p>
-                  <ol id="run-detail-memory-evidence-history" class="space-y-2">
-                    <li
-                      :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.evidence, 1)}
-                      id={"run-detail-memory-evidence-history-#{index}"}
-                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                <% end %>
+              </section>
+
+              <section id="run-detail-conversation-linkage" class="space-y-2">
+                <p class="text-sm font-medium">Conversation lineage</p>
+
+                <%= cond do %>
+                  <% @conversation_linkage && @conversation_linkage.conversation -> %>
+                    <div
+                      id="run-detail-conversation-entry"
+                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
                     >
-                      <p class="text-xs font-medium">{entry.label}</p>
-                      <p class="text-xs text-base-content/70">
-                        Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                      <div class="flex flex-wrap items-center gap-2">
+                        <.conversation_role_badge
+                          id="run-detail-conversation-role"
+                          scope={Map.get(@conversation_linkage.conversation, :scope)}
+                          attachment_mode={Map.get(@conversation_linkage.conversation, :attachment_mode)}
+                          work_item_id={Map.get(@conversation_linkage.conversation, :work_item_id)}
+                        />
+                        <.conversation_status_badge
+                          id="run-detail-conversation-status"
+                          status={Map.get(@conversation_linkage.conversation, :status)}
+                        />
+                      </div>
+                      <p id="run-detail-conversation-id" class="text-sm font-medium">
+                        Conversation: {@conversation_linkage.conversation.id}
                       </p>
-                    </li>
-                  </ol>
-                </section>
-
-                <section :if={@memory_context.governed_history.decisions != []} class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                    Decision history
-                  </p>
-                  <ol id="run-detail-memory-decision-history" class="space-y-2">
-                    <li
-                      :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.decisions, 1)}
-                      id={"run-detail-memory-decision-history-#{index}"}
-                      class="rounded border border-base-300/50 bg-base-100 p-2"
-                    >
-                      <p class="text-xs font-medium">{entry.label}</p>
-                      <p class="text-xs text-base-content/70">
-                        Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
-                      </p>
-                    </li>
-                  </ol>
-                </section>
-              </div>
-
-              <div
-                :if={
-                  (@memory_context.governed_surfaces.work_item != nil ||
-                     @memory_context.governed_surfaces.evidence != []) or
-                    @memory_context.governed_surfaces.decisions != []
-                }
-                id="run-detail-governed-memory-contexts"
-                class="space-y-3"
-              >
-                <section
-                  :if={@memory_context.governed_surfaces.work_item}
-                  id="run-detail-work-item-memory"
-                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
-                >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                    Work item memory context
-                  </p>
-                  <.governed_memory_surface
-                    dom_prefix="run-detail-work-item-memory"
-                    context={@memory_context.governed_surfaces.work_item}
-                  />
-                </section>
-
-                <section
-                  :if={@memory_context.governed_surfaces.evidence != []}
-                  id="run-detail-evidence-memory-contexts"
-                  class="space-y-2"
-                >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                    Evidence memory context
-                  </p>
-                  <ol class="space-y-2">
-                    <li
-                      :for={context <- @memory_context.governed_surfaces.evidence}
-                      id={"run-detail-evidence-memory-context-#{governed_record_dom_token(context.id)}"}
-                      class="rounded border border-base-300/50 bg-base-100 p-2"
-                    >
-                      <.governed_memory_surface
-                        dom_prefix={"run-detail-evidence-memory-#{governed_record_dom_token(context.id)}"}
-                        context={context}
-                      />
-                    </li>
-                  </ol>
-                </section>
-
-                <section
-                  :if={@memory_context.governed_surfaces.decisions != []}
-                  id="run-detail-decision-memory-contexts"
-                  class="space-y-2"
-                >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                    Decision memory context
-                  </p>
-                  <ol class="space-y-2">
-                    <li
-                      :for={context <- @memory_context.governed_surfaces.decisions}
-                      id={"run-detail-decision-memory-context-#{governed_record_dom_token(context.id)}"}
-                      class="rounded border border-base-300/50 bg-base-100 p-2"
-                    >
-                      <.governed_memory_surface
-                        dom_prefix={"run-detail-decision-memory-#{governed_record_dom_token(context.id)}"}
-                        context={context}
-                      />
-                      <button
-                        :if={decision_memory_iri(@memory_context.memories.items)}
-                        type="button"
-                        id={"run-detail-decision-memory-supersede-#{governed_record_dom_token(context.id)}"}
-                        phx-click="supersede_memory"
-                        phx-value-memory_iri={decision_memory_iri(@memory_context.memories.items)}
-                        phx-value-decision_id={context.id}
-                        class="btn btn-xs btn-outline"
+                      <p
+                        :if={conversation_resolution_action(@conversation_linkage.conversation)}
+                        id="run-detail-conversation-resolution"
+                        class="text-xs text-base-content/80"
                       >
-                        Supersede with decision
-                      </button>
-                    </li>
-                  </ol>
-                </section>
-              </div>
+                        Work resolution: {conversation_resolution_action(@conversation_linkage.conversation)}
+                      </p>
+                      <p
+                        :if={conversation_resolution_detail(@conversation_linkage.conversation)}
+                        id="run-detail-conversation-detail"
+                        class="text-xs text-base-content/70"
+                      >
+                        {conversation_resolution_detail(@conversation_linkage.conversation)}
+                      </p>
+                      <p
+                        :if={@conversation_linkage.origin && @conversation_linkage.origin["workflow"]}
+                        id="run-detail-conversation-origin-workflow"
+                        class="text-xs text-base-content/70"
+                      >
+                        Origin workflow: {@conversation_linkage.origin["workflow"]}
+                      </p>
+                      <p
+                        :if={@conversation_linkage.origin && @conversation_linkage.origin["resolution_reason"]}
+                        id="run-detail-conversation-origin-reason"
+                        class="text-xs text-base-content/70"
+                      >
+                        {@conversation_linkage.origin["resolution_reason"]}
+                      </p>
+                      <p
+                        :if={@conversation_linkage.notice}
+                        id="run-detail-conversation-lineage-note"
+                        class="text-xs text-warning"
+                      >
+                        {@conversation_linkage.notice.detail}
+                      </p>
+                      <p
+                        :if={@conversation_linkage.historical_conversation}
+                        class="flex flex-wrap items-center gap-2"
+                      >
+                        <.conversation_role_badge
+                          id="run-detail-conversation-historical-role"
+                          historical={true}
+                        />
+                        <span
+                          id="run-detail-conversation-historical-id"
+                          class="text-xs text-base-content/70"
+                        >
+                          Historical origin: {@conversation_linkage.historical_conversation.id}
+                        </span>
+                      </p>
+                      <.link
+                        id="run-detail-conversation-open-repo"
+                        class="link link-primary text-xs"
+                        navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
+                      >
+                        {@conversation_linkage.action_label}
+                      </.link>
+                    </div>
+                  <% @conversation_linkage && @conversation_linkage.origin -> %>
+                    <div
+                      id="run-detail-conversation-origin-only"
+                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
+                    >
+                      <.conversation_role_badge id="run-detail-conversation-origin-role" historical={true} />
+                      <p id="run-detail-conversation-origin-label" class="text-sm font-medium">
+                        Historical conversation lineage is preserved on this work item.
+                      </p>
+                      <p
+                        :if={@conversation_linkage.origin["workflow"]}
+                        id="run-detail-conversation-origin-workflow"
+                        class="text-xs text-base-content/80"
+                      >
+                        Origin workflow: {@conversation_linkage.origin["workflow"]}
+                      </p>
+                      <p
+                        :if={@conversation_linkage.origin["resolution_reason"]}
+                        id="run-detail-conversation-origin-reason"
+                        class="text-xs text-base-content/70"
+                      >
+                        {@conversation_linkage.origin["resolution_reason"]}
+                      </p>
+                      <p
+                        :if={@conversation_linkage.notice}
+                        id="run-detail-conversation-origin-note"
+                        class="text-xs text-warning"
+                      >
+                        {@conversation_linkage.notice.detail}
+                      </p>
+                      <.link
+                        id="run-detail-conversation-open-repo"
+                        class="link link-primary text-xs"
+                        navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
+                      >
+                        {@conversation_linkage.action_label}
+                      </.link>
+                    </div>
+                  <% @conversation_linkage && @conversation_linkage.notice -> %>
+                    <div
+                      id="run-detail-conversation-notice"
+                      class="rounded border border-warning/40 bg-warning/10 p-3 space-y-1"
+                    >
+                      <p id="run-detail-conversation-notice-label" class="text-sm font-medium">
+                        Conversation lineage is temporarily unavailable.
+                      </p>
+                      <p id="run-detail-conversation-notice-detail" class="text-xs text-base-content/70">
+                        {@conversation_linkage.notice.detail}
+                      </p>
+                      <.link
+                        id="run-detail-conversation-open-repo"
+                        class="link link-primary text-xs"
+                        navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
+                      >
+                        Open repo detail
+                      </.link>
+                    </div>
+                  <% @work_item -> %>
+                    <p id="run-detail-conversation-empty" class="text-xs text-base-content/70">
+                      No productive repository conversation is linked to this governed work item yet.
+                    </p>
+                  <% true -> %>
+                    <p id="run-detail-conversation-unavailable" class="text-xs text-base-content/70">
+                      No governed work item is linked to this run yet, so conversation lineage is unavailable.
+                    </p>
+                <% end %>
+              </section>
 
-              <section id="run-detail-memory-items" class="space-y-2">
-                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                  Durable memories
-                </p>
+              <section id="run-detail-evidence-records" class="space-y-2">
+                <p class="text-sm font-medium">Evidence records</p>
 
-                <%= if @memory_context.memories.items == [] do %>
-                  <p id="run-detail-memory-empty" class="text-xs text-base-content/70">
-                    No durable memories currently point at this governed history.
+                <%= if @evidence_records == [] do %>
+                  <p id="run-detail-evidence-empty" class="text-xs text-base-content/70">
+                    No governed evidence records have been captured yet.
                   </p>
                 <% else %>
-                  <ol id="run-detail-memory-list" class="space-y-2">
+                  <ol id="run-detail-evidence-list" class="space-y-2">
                     <li
-                      :for={{item, index} <- Enum.with_index(@memory_context.memories.items, 1)}
-                      id={"run-detail-memory-item-#{index}"}
-                      class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                      :for={{evidence, index} <- Enum.with_index(@evidence_records, 1)}
+                      id={
+                        "run-detail-evidence-entry-#{governed_record_dom_token(Map.get(evidence, :id) || index)}"
+                      }
+                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
                     >
-                      <p class="text-sm font-medium">
-                        {memory_item_kind(item)}: {memory_item_content(item)}
+                      <p id={"run-detail-evidence-key-#{index}"} class="text-sm font-medium">
+                        {Map.get(evidence, :key)}
                       </p>
-                      <p class="text-xs text-base-content/70">
-                        Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
+                      <p id={"run-detail-evidence-summary-#{index}"} class="text-xs text-base-content/80">
+                        {Map.get(evidence, :summary)}
                       </p>
-                      <div class="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          id={"run-detail-memory-validate-#{index}"}
-                          phx-click="validate_memory"
-                          phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                          class="btn btn-xs btn-outline"
-                        >
-                          Validate
-                        </button>
-                        <button
-                          type="button"
-                          id={"run-detail-memory-invalidate-#{index}"}
-                          phx-click="invalidate_memory"
-                          phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                          class="btn btn-xs btn-outline btn-warning"
-                        >
-                          Invalidate
-                        </button>
-                        <button
-                          type="button"
-                          id={"run-detail-memory-promote-#{index}"}
-                          phx-click="promote_memory_follow_up"
-                          phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                          class="btn btn-xs btn-primary"
-                        >
-                          Create follow-up
-                        </button>
-                      </div>
-                      <.memory_link_groups dom_prefix={"run-detail-memory-#{index}"} item={item} />
+                    </li>
+                  </ol>
+                <% end %>
+              </section>
+
+              <section id="run-detail-runtime-evidence" class="space-y-2">
+                <p class="text-sm font-medium">Runtime evidence</p>
+
+                <%= if @runtime_evidence_summary do %>
+                  <div class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1">
+                    <p id="run-detail-runtime-evidence-status" class="text-sm">
+                      Runtime posture:
+                      <span class={runtime_evidence_badge_class(@runtime_evidence_summary.status)}>
+                        {runtime_evidence_status_label(@runtime_evidence_summary.status)}
+                      </span>
+                    </p>
+                    <p id="run-detail-runtime-evidence-summary" class="text-xs text-base-content/80">
+                      {@runtime_evidence_summary.summary}
+                    </p>
+                    <p
+                      :if={@runtime_evidence_summary.delivery_mode}
+                      id="run-detail-runtime-evidence-delivery-mode"
+                      class="text-xs text-base-content/80"
+                    >
+                      Delivery path: {humanize_runtime_value(@runtime_evidence_summary.delivery_mode)}
+                    </p>
+                    <p
+                      :if={@runtime_evidence_summary.reason_code}
+                      id="run-detail-runtime-evidence-reason"
+                      class="text-xs text-base-content/80"
+                    >
+                      Runtime reason: {humanize_runtime_value(@runtime_evidence_summary.reason_code)}
+                    </p>
+                    <p
+                      :if={@runtime_evidence_summary.integration_summary}
+                      id="run-detail-runtime-evidence-integration"
+                      class="text-xs text-base-content/80"
+                    >
+                      Latest integration signal: {@runtime_evidence_summary.integration_summary}
+                    </p>
+                    <p id="run-detail-runtime-evidence-note" class="text-xs text-base-content/70">
+                      Product governance stores bounded runtime evidence here; runtime transport remains opaque.
+                    </p>
+                  </div>
+                <% else %>
+                  <p id="run-detail-runtime-evidence-empty" class="text-xs text-base-content/70">
+                    No bounded runtime evidence has been materialized for this run yet.
+                  </p>
+                <% end %>
+              </section>
+
+              <section id="run-detail-decisions" class="space-y-2">
+                <p class="text-sm font-medium">Decisions</p>
+
+                <%= if @decisions == [] do %>
+                  <p id="run-detail-decisions-empty" class="text-xs text-base-content/70">
+                    No governance decisions have been recorded yet.
+                  </p>
+                <% else %>
+                  <ol id="run-detail-decision-list" class="space-y-2">
+                    <li
+                      :for={{decision, index} <- Enum.with_index(@decisions, 1)}
+                      id={
+                        "run-detail-decision-entry-#{governed_record_dom_token(Map.get(decision, :id) || index)}"
+                      }
+                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                    >
+                      <p id={"run-detail-decision-value-#{index}"} class="text-sm font-medium">
+                        {Map.get(decision, :decision) |> status_label()}
+                      </p>
+                      <p
+                        :if={normalize_optional_string(Map.get(decision, :rationale))}
+                        id={"run-detail-decision-rationale-#{index}"}
+                        class="text-xs text-base-content/80"
+                      >
+                        {Map.get(decision, :rationale)}
+                      </p>
                     </li>
                   </ol>
                 <% end %>
               </section>
 
               <section
-                :if={@memory_follow_up_preview && @memory_follow_up_preview.available?}
-                id="run-detail-memory-follow-up-preview"
-                class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                :if={@memory_context}
+                id="run-detail-memory-context"
+                class="space-y-3 rounded border border-base-300/70 bg-base-200/20 p-3"
               >
-                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                  Memory-aware follow-up
-                </p>
-                <p id="run-detail-memory-follow-up-preview-summary" class="text-sm font-medium">
-                  {@memory_follow_up_preview.summary}
-                </p>
-                <p id="run-detail-memory-follow-up-preview-metadata" class="text-xs text-base-content/70">
-                  Recommended action: {@memory_follow_up_preview.recommended_action_label} | Priority: {@memory_follow_up_preview.priority} | Urgency: {@memory_follow_up_preview.urgency}
-                </p>
-                <p id="run-detail-memory-follow-up-preview-kinds" class="text-xs text-base-content/70">
-                  Selected memory kinds: {Enum.join(@memory_follow_up_preview.memory_kinds, ", ")}
-                </p>
-                <.link
-                  :if={@memory_follow_up_preview.route}
-                  id="run-detail-memory-follow-up-preview-route"
-                  class="link link-primary text-xs"
-                  navigate={@memory_follow_up_preview.route}
+                <div class="space-y-1">
+                  <p class="text-sm font-medium">Repository memory context</p>
+                  <p id="run-detail-memory-context-state" class="text-xs text-base-content/70">
+                    Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
+                  </p>
+                  <.operator_state_notice
+                    :if={@memory_action_feedback}
+                    id="run-detail-memory-action-feedback"
+                    title="Run memory update"
+                    state={@memory_action_feedback}
+                    kind={memory_feedback_kind(@memory_action_feedback)}
+                    compact={true}
+                  />
+                  <.memory_status_notice
+                    :if={@memory_context.notice}
+                    id="run-detail-memory-context-notice"
+                    title="Run memory status"
+                    state={@memory_context.notice}
+                    kind={Map.get(@memory_context, :notice_kind, :warning)}
+                    recovery={Map.get(@memory_context, :recovery)}
+                    recover_event="recover_memory_graph"
+                    recover_id="run-detail-memory-recover"
+                  />
+                </div>
+
+                <div
+                  :if={
+                    (@memory_context.governed_history.work_item != nil ||
+                       @memory_context.governed_history.evidence != []) or
+                      @memory_context.governed_history.decisions != []
+                  }
+                  id="run-detail-memory-history"
+                  class="grid gap-3 md:grid-cols-2"
                 >
-                  {@memory_follow_up_preview.route_label}
-                </.link>
-              </section>
+                  <section :if={@memory_context.governed_history.work_item} class="space-y-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                      Work item history
+                    </p>
+                    <div
+                      id="run-detail-memory-work-item-history"
+                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                    >
+                      <p class="text-xs font-medium">{@memory_context.governed_history.work_item.label}</p>
+                      <p class="text-xs text-base-content/70">
+                        Memory: {@memory_context.governed_history.work_item.memory_count} | Provenance: {@memory_context.governed_history.work_item.provenance_count}
+                      </p>
+                    </div>
+                  </section>
 
-              <section id="run-detail-memory-provenance" class="space-y-2">
-                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
-                  Workflow provenance
+                  <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                      Evidence history
+                    </p>
+                    <ol id="run-detail-memory-evidence-history" class="space-y-2">
+                      <li
+                        :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.evidence, 1)}
+                        id={"run-detail-memory-evidence-history-#{index}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                      >
+                        <p class="text-xs font-medium">{entry.label}</p>
+                        <p class="text-xs text-base-content/70">
+                          Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                        </p>
+                      </li>
+                    </ol>
+                  </section>
+
+                  <section :if={@memory_context.governed_history.decisions != []} class="space-y-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                      Decision history
+                    </p>
+                    <ol id="run-detail-memory-decision-history" class="space-y-2">
+                      <li
+                        :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.decisions, 1)}
+                        id={"run-detail-memory-decision-history-#{index}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                      >
+                        <p class="text-xs font-medium">{entry.label}</p>
+                        <p class="text-xs text-base-content/70">
+                          Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
+                        </p>
+                      </li>
+                    </ol>
+                  </section>
+                </div>
+
+                <div
+                  :if={
+                    (@memory_context.governed_surfaces.work_item != nil ||
+                       @memory_context.governed_surfaces.evidence != []) or
+                      @memory_context.governed_surfaces.decisions != []
+                  }
+                  id="run-detail-governed-memory-contexts"
+                  class="space-y-3"
+                >
+                  <section
+                    :if={@memory_context.governed_surfaces.work_item}
+                    id="run-detail-work-item-memory"
+                    class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                  >
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                      Work item memory context
+                    </p>
+                    <.governed_memory_surface
+                      dom_prefix="run-detail-work-item-memory"
+                      context={@memory_context.governed_surfaces.work_item}
+                    />
+                  </section>
+
+                  <section
+                    :if={@memory_context.governed_surfaces.evidence != []}
+                    id="run-detail-evidence-memory-contexts"
+                    class="space-y-2"
+                  >
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                      Evidence memory context
+                    </p>
+                    <ol class="space-y-2">
+                      <li
+                        :for={context <- @memory_context.governed_surfaces.evidence}
+                        id={"run-detail-evidence-memory-context-#{governed_record_dom_token(context.id)}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                      >
+                        <.governed_memory_surface
+                          dom_prefix={"run-detail-evidence-memory-#{governed_record_dom_token(context.id)}"}
+                          context={context}
+                        />
+                      </li>
+                    </ol>
+                  </section>
+
+                  <section
+                    :if={@memory_context.governed_surfaces.decisions != []}
+                    id="run-detail-decision-memory-contexts"
+                    class="space-y-2"
+                  >
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                      Decision memory context
+                    </p>
+                    <ol class="space-y-2">
+                      <li
+                        :for={context <- @memory_context.governed_surfaces.decisions}
+                        id={"run-detail-decision-memory-context-#{governed_record_dom_token(context.id)}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                      >
+                        <.governed_memory_surface
+                          dom_prefix={"run-detail-decision-memory-#{governed_record_dom_token(context.id)}"}
+                          context={context}
+                        />
+                        <button
+                          :if={decision_memory_iri(@memory_context.memories.items)}
+                          type="button"
+                          id={"run-detail-decision-memory-supersede-#{governed_record_dom_token(context.id)}"}
+                          phx-click="supersede_memory"
+                          phx-value-memory_iri={decision_memory_iri(@memory_context.memories.items)}
+                          phx-value-decision_id={context.id}
+                          class="btn btn-xs btn-outline"
+                        >
+                          Supersede with decision
+                        </button>
+                      </li>
+                    </ol>
+                  </section>
+                </div>
+
+                <section id="run-detail-memory-items" class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Durable memories
+                  </p>
+
+                  <%= if @memory_context.memories.items == [] do %>
+                    <p id="run-detail-memory-empty" class="text-xs text-base-content/70">
+                      No durable memories currently point at this governed history.
+                    </p>
+                  <% else %>
+                    <ol id="run-detail-memory-list" class="space-y-2">
+                      <li
+                        :for={{item, index} <- Enum.with_index(@memory_context.memories.items, 1)}
+                        id={"run-detail-memory-item-#{index}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                      >
+                        <p class="text-sm font-medium">
+                          {memory_item_kind(item)}: {memory_item_content(item)}
+                        </p>
+                        <p class="text-xs text-base-content/70">
+                          Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            id={"run-detail-memory-validate-#{index}"}
+                            phx-click="validate_memory"
+                            phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
+                            class="btn btn-xs btn-outline"
+                          >
+                            Validate
+                          </button>
+                          <button
+                            type="button"
+                            id={"run-detail-memory-invalidate-#{index}"}
+                            phx-click="invalidate_memory"
+                            phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
+                            class="btn btn-xs btn-outline btn-warning"
+                          >
+                            Invalidate
+                          </button>
+                          <button
+                            type="button"
+                            id={"run-detail-memory-promote-#{index}"}
+                            phx-click="promote_memory_follow_up"
+                            phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
+                            class="btn btn-xs btn-primary"
+                          >
+                            Create follow-up
+                          </button>
+                        </div>
+                        <.memory_link_groups dom_prefix={"run-detail-memory-#{index}"} item={item} />
+                      </li>
+                    </ol>
+                  <% end %>
+                </section>
+
+                <section
+                  :if={@memory_follow_up_preview && @memory_follow_up_preview.available?}
+                  id="run-detail-memory-follow-up-preview"
+                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Memory-aware follow-up
+                  </p>
+                  <p id="run-detail-memory-follow-up-preview-summary" class="text-sm font-medium">
+                    {@memory_follow_up_preview.summary}
+                  </p>
+                  <p id="run-detail-memory-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                    Recommended action: {@memory_follow_up_preview.recommended_action_label} | Priority: {@memory_follow_up_preview.priority} | Urgency: {@memory_follow_up_preview.urgency}
+                  </p>
+                  <p id="run-detail-memory-follow-up-preview-kinds" class="text-xs text-base-content/70">
+                    Selected memory kinds: {Enum.join(@memory_follow_up_preview.memory_kinds, ", ")}
+                  </p>
+                  <.link
+                    :if={@memory_follow_up_preview.route}
+                    id="run-detail-memory-follow-up-preview-route"
+                    class="link link-primary text-xs"
+                    navigate={@memory_follow_up_preview.route}
+                  >
+                    {@memory_follow_up_preview.route_label}
+                  </.link>
+                </section>
+
+                <section id="run-detail-memory-provenance" class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Workflow provenance
+                  </p>
+
+                  <%= if @memory_context.provenance.items == [] do %>
+                    <p id="run-detail-memory-provenance-empty" class="text-xs text-base-content/70">
+                      No workflow provenance currently points at this governed history.
+                    </p>
+                  <% else %>
+                    <ol id="run-detail-memory-provenance-list" class="space-y-2">
+                      <li
+                        :for={{item, index} <- Enum.with_index(@memory_context.provenance.items, 1)}
+                        id={"run-detail-memory-provenance-item-#{index}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                      >
+                        <p class="text-sm font-medium">
+                          {provenance_item_kind(item)}: {provenance_item_label(item)}
+                        </p>
+                        <p class="text-xs text-base-content/70">
+                          Revision: {provenance_item_revision(item)}
+                        </p>
+                        <.memory_link_groups dom_prefix={"run-detail-memory-provenance-#{index}"} item={item} />
+                      </li>
+                    </ol>
+                  <% end %>
+                </section>
+              </section>
+            </section>
+
+            <%= if @issue_triage_artifacts do %>
+              <section
+                id="run-detail-issue-triage-artifacts"
+                class="space-y-2 rounded border border-base-300 bg-base-100 p-4"
+              >
+                <h2 class="text-lg font-semibold">Issue triage artifacts</h2>
+                <p id="run-detail-issue-artifact-persistence-status" class="text-sm text-base-content/80">
+                  Persistence status: {@issue_triage_artifacts.persistence_status}
+                </p>
+                <p id="run-detail-issue-triage-classification" class="text-sm">
+                  Classification: {@issue_triage_artifacts.classification}
+                </p>
+                <p id="run-detail-issue-research-summary" class="text-sm text-base-content/80">
+                  {@issue_triage_artifacts.research_summary}
+                </p>
+                <p id="run-detail-issue-response-draft" class="text-sm text-base-content/80">
+                  {@issue_triage_artifacts.proposed_response}
+                </p>
+                <p id="run-detail-issue-response-post-status" class="text-sm text-base-content/80">
+                  Response post status: {@issue_triage_artifacts.response_post_status}
+                </p>
+                <p
+                  :if={@issue_triage_artifacts.posted_comment_url}
+                  id="run-detail-issue-response-post-url"
+                  class="text-sm text-base-content/80"
+                >
+                  Posted comment:
+                  <.link
+                    href={@issue_triage_artifacts.posted_comment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="link link-primary break-all"
+                  >
+                    {@issue_triage_artifacts.posted_comment_url}
+                  </.link>
+                </p>
+                <p
+                  :if={@issue_triage_artifacts.posted_comment_id}
+                  id="run-detail-issue-response-post-comment-id"
+                  class="text-xs text-base-content/70"
+                >
+                  Posted comment ID: {@issue_triage_artifacts.posted_comment_id}
+                </p>
+                <p
+                  :if={@issue_triage_artifacts.response_posted_at}
+                  id="run-detail-issue-response-posted-at"
+                  class="text-xs text-base-content/70"
+                >
+                  Posted at: {@issue_triage_artifacts.response_posted_at}
+                </p>
+                <p
+                  :if={@issue_triage_artifacts.issue_reference}
+                  id="run-detail-issue-artifact-issue-reference"
+                  class="text-xs text-base-content/70"
+                >
+                  Issue reference: {@issue_triage_artifacts.issue_reference}
+                </p>
+                <p
+                  :if={@issue_triage_artifacts.source_issue_number}
+                  id="run-detail-issue-artifact-source-issue-number"
+                  class="text-xs text-base-content/70"
+                >
+                  Source issue number: {@issue_triage_artifacts.source_issue_number}
+                </p>
+                <p
+                  :if={@issue_triage_artifacts.linked_run_id}
+                  id="run-detail-issue-artifact-run-id"
+                  class="text-xs text-base-content/70"
+                >
+                  Linked run: <span class="font-mono">{@issue_triage_artifacts.linked_run_id}</span>
                 </p>
 
-                <%= if @memory_context.provenance.items == [] do %>
-                  <p id="run-detail-memory-provenance-empty" class="text-xs text-base-content/70">
-                    No workflow provenance currently points at this governed history.
+                <%= if @issue_triage_artifacts.typed_failure do %>
+                  <section
+                    id="run-detail-issue-artifact-persistence-error"
+                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                  >
+                    <p id="run-detail-issue-artifact-persistence-error-type" class="text-sm font-semibold text-error">
+                      Typed persistence failure: {@issue_triage_artifacts.typed_failure.error_type}
+                    </p>
+                    <p id="run-detail-issue-artifact-persistence-error-detail" class="text-sm text-base-content/80">
+                      {@issue_triage_artifacts.typed_failure.detail}
+                    </p>
+                    <p id="run-detail-issue-artifact-persistence-error-remediation" class="text-sm text-base-content/80">
+                      {@issue_triage_artifacts.typed_failure.remediation}
+                    </p>
+                  </section>
+                <% end %>
+
+                <%= if @issue_triage_artifacts.response_post_failure do %>
+                  <section
+                    id="run-detail-issue-response-post-error"
+                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                  >
+                    <p id="run-detail-issue-response-post-error-type" class="text-sm font-semibold text-error">
+                      Typed post failure: {@issue_triage_artifacts.response_post_failure.error_type}
+                    </p>
+                    <p id="run-detail-issue-response-post-error-detail" class="text-sm text-base-content/80">
+                      {@issue_triage_artifacts.response_post_failure.detail}
+                    </p>
+                    <p id="run-detail-issue-response-post-error-remediation" class="text-sm text-base-content/80">
+                      {@issue_triage_artifacts.response_post_failure.remediation}
+                    </p>
+                  </section>
+                <% end %>
+              </section>
+            <% end %>
+
+            <section id="run-detail-artifact-browser" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
+              <h2 class="text-lg font-semibold">Run artifacts</h2>
+              <p id="run-detail-artifact-browser-note" class="text-sm text-base-content/80">
+                Browse persisted artifact records grouped by category.
+              </p>
+
+              <section
+                :for={category <- @artifact_categories}
+                id={"run-detail-artifact-category-#{category.id}"}
+                class="space-y-2 rounded border border-base-300/70 bg-base-200/30 p-3"
+              >
+                <h3 id={"run-detail-artifact-category-title-#{category.id}"} class="text-sm font-semibold">
+                  {category.label}
+                </h3>
+
+                <%= if category.entries == [] do %>
+                  <p id={"run-detail-artifact-category-missing-#{category.id}"} class="text-xs text-warning">
+                    Missing artifact records for this category.
                   </p>
                 <% else %>
-                  <ol id="run-detail-memory-provenance-list" class="space-y-2">
+                  <ol id={"run-detail-artifact-category-list-#{category.id}"} class="space-y-2">
                     <li
-                      :for={{item, index} <- Enum.with_index(@memory_context.provenance.items, 1)}
-                      id={"run-detail-memory-provenance-item-#{index}"}
-                      class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                      :for={entry <- category.entries}
+                      id={"run-detail-artifact-entry-#{entry.identifier}"}
+                      class="space-y-1 rounded border border-base-300 bg-base-100 p-2"
                     >
-                      <p class="text-sm font-medium">
-                        {provenance_item_kind(item)}: {provenance_item_label(item)}
+                      <p id={"run-detail-artifact-identifier-#{entry.identifier}"} class="text-xs">
+                        Identifier: <span class="font-mono">{entry.identifier}</span>
                       </p>
-                      <p class="text-xs text-base-content/70">
-                        Revision: {provenance_item_revision(item)}
+                      <p id={"run-detail-artifact-source-#{entry.identifier}"} class="text-xs text-base-content/80">
+                        Source: <span class="font-mono">{entry.source}</span>
                       </p>
-                      <.memory_link_groups dom_prefix={"run-detail-memory-provenance-#{index}"} item={item} />
+                      <.link
+                        id={"run-detail-artifact-view-#{entry.identifier}"}
+                        href={"#run-detail-artifact-payload-#{entry.identifier}"}
+                        class="link link-primary text-xs"
+                      >
+                        View artifact
+                      </.link>
+                      <article
+                        id={"run-detail-artifact-payload-#{entry.identifier}"}
+                        class="rounded border border-base-300/70 bg-base-200/40 p-2"
+                      >
+                        <p class="text-xs font-medium">{entry.summary}</p>
+                        <pre
+                          id={"run-detail-artifact-payload-content-#{entry.identifier}"}
+                          class="mt-1 overflow-x-auto whitespace-pre-wrap text-xs leading-5"
+                        >{entry.payload}</pre>
+                      </article>
                     </li>
                   </ol>
                 <% end %>
               </section>
             </section>
-          </section>
 
-          <%= if @issue_triage_artifacts do %>
-            <section
-              id="run-detail-issue-triage-artifacts"
-              class="space-y-2 rounded border border-base-300 bg-base-100 p-4"
-            >
-              <h2 class="text-lg font-semibold">Issue triage artifacts</h2>
-              <p id="run-detail-issue-artifact-persistence-status" class="text-sm text-base-content/80">
-                Persistence status: {@issue_triage_artifacts.persistence_status}
-              </p>
-              <p id="run-detail-issue-triage-classification" class="text-sm">
-                Classification: {@issue_triage_artifacts.classification}
-              </p>
-              <p id="run-detail-issue-research-summary" class="text-sm text-base-content/80">
-                {@issue_triage_artifacts.research_summary}
-              </p>
-              <p id="run-detail-issue-response-draft" class="text-sm text-base-content/80">
-                {@issue_triage_artifacts.proposed_response}
-              </p>
-              <p id="run-detail-issue-response-post-status" class="text-sm text-base-content/80">
-                Response post status: {@issue_triage_artifacts.response_post_status}
-              </p>
-              <p
-                :if={@issue_triage_artifacts.posted_comment_url}
-                id="run-detail-issue-response-post-url"
-                class="text-sm text-base-content/80"
-              >
-                Posted comment:
-                <.link
-                  href={@issue_triage_artifacts.posted_comment_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="link link-primary break-all"
+            <%= if @failure_context do %>
+              <section id="run-detail-failure-context" class="space-y-2 rounded border border-error/40 bg-error/5 p-4">
+                <h2 class="text-lg font-semibold text-error">Failure context</h2>
+                <p id="run-detail-failure-error-type" class="text-sm">
+                  Error type: <span class="font-mono">{@failure_context.error_type}</span>
+                </p>
+                <p id="run-detail-failure-reason-type" class="text-sm">
+                  Typed reason: <span class="font-mono">{@failure_context.reason_type}</span>
+                </p>
+                <p id="run-detail-failure-last-successful-step" class="text-sm">
+                  Last successful step: <span class="font-mono">{@failure_context.last_successful_step}</span>
+                </p>
+                <p id="run-detail-failure-failed-step" class="text-sm">
+                  Failed step: <span class="font-mono">{@failure_context.failed_step}</span>
+                </p>
+                <p id="run-detail-failure-detail" class="text-sm text-base-content/80">
+                  {@failure_context.detail}
+                </p>
+                <p id="run-detail-failure-remediation" class="text-sm text-base-content/80">
+                  {@failure_context.remediation}
+                </p>
+
+                <%= if @failure_context.missing_fields != [] do %>
+                  <p id="run-detail-failure-missing-fields" class="text-sm text-base-content/80">
+                    Missing failure context fields: {Enum.join(@failure_context.missing_fields, ", ")}
+                  </p>
+                <% end %>
+              </section>
+            <% end %>
+
+            <%= if awaiting_approval?(@run.status) do %>
+              <section id="run-detail-approval-panel" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
+                <h2 class="text-lg font-semibold">Approval request payload</h2>
+                <p id="run-detail-approval-panel-note" class="text-sm text-base-content/80">
+                  Review this context before approving.
+                </p>
+
+                <%= if @approval_context do %>
+                  <div id="run-detail-approval-context" class="space-y-2 rounded border border-base-300 p-3">
+                    <p id="run-detail-approval-diff-summary" class="text-sm">
+                      Diff summary: {@approval_context.diff_summary}
+                    </p>
+                    <p id="run-detail-approval-test-summary" class="text-sm">
+                      Test summary: {@approval_context.test_summary}
+                    </p>
+                    <div class="space-y-1">
+                      <p class="text-sm font-medium">Risk notes</p>
+                      <ul id="run-detail-approval-risk-notes" class="list-disc pl-5 text-sm text-base-content/80">
+                        <li
+                          :for={{risk_note, index} <- Enum.with_index(@approval_context.risk_notes, 1)}
+                          id={"run-detail-approval-risk-note-#{index}"}
+                        >
+                          {risk_note}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                <% else %>
+                  <p id="run-detail-approval-context-missing" class="text-sm text-warning">
+                    Approval context is unavailable.
+                  </p>
+                <% end %>
+
+                <%= if @approval_context_blocker do %>
+                  <section
+                    id="run-detail-approval-context-error"
+                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                  >
+                    <p id="run-detail-approval-context-error-message" class="text-sm font-semibold text-error">
+                      {@approval_context_blocker.message}
+                    </p>
+                    <p id="run-detail-approval-context-error-detail" class="text-sm text-base-content/80">
+                      {@approval_context_blocker.detail}
+                    </p>
+                    <p id="run-detail-approval-context-remediation" class="text-sm text-base-content/80">
+                      {@approval_context_blocker.remediation}
+                    </p>
+                  </section>
+                <% end %>
+
+                <div id="run-detail-approval-actions" class="space-y-3">
+                  <button
+                    id="run-detail-approve-button"
+                    type="button"
+                    class="btn btn-primary"
+                    phx-click="approve_run"
+                  >
+                    Approve
+                  </button>
+
+                  <form id="run-detail-reject-form" phx-submit="reject_run" class="space-y-2">
+                    <.input
+                      id="run-detail-reject-rationale"
+                      type="textarea"
+                      name="rationale"
+                      label="Rejection rationale (optional)"
+                      value=""
+                    />
+                    <button id="run-detail-reject-button" type="submit" class="btn btn-outline">
+                      Reject
+                    </button>
+                  </form>
+                </div>
+
+                <%= if @approval_action_error do %>
+                  <section
+                    id="run-detail-approval-action-error"
+                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                  >
+                    <p id="run-detail-approval-action-error-type" class="text-sm font-semibold text-error">
+                      Typed action failure: {@approval_action_error.error_type}
+                    </p>
+                    <p id="run-detail-approval-action-error-detail" class="text-sm text-base-content/80">
+                      {@approval_action_error.detail}
+                    </p>
+                    <p id="run-detail-approval-action-error-remediation" class="text-sm text-base-content/80">
+                      {@approval_action_error.remediation}
+                    </p>
+                  </section>
+                <% end %>
+              </section>
+            <% end %>
+
+            <%= if full_run_retry_available?(@run.status) do %>
+              <section id="run-detail-retry-panel" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
+                <h2 class="text-lg font-semibold">Retry run</h2>
+                <p id="run-detail-retry-note" class="text-sm text-base-content/80">
+                  Starts a full-run retry attempt and preserves failure lineage for artifact and reason lookup.
+                </p>
+                <button
+                  id="run-detail-retry-button"
+                  type="button"
+                  class="btn btn-outline"
+                  phx-click="retry_run"
                 >
-                  {@issue_triage_artifacts.posted_comment_url}
-                </.link>
-              </p>
-              <p
-                :if={@issue_triage_artifacts.posted_comment_id}
-                id="run-detail-issue-response-post-comment-id"
-                class="text-xs text-base-content/70"
-              >
-                Posted comment ID: {@issue_triage_artifacts.posted_comment_id}
-              </p>
-              <p
-                :if={@issue_triage_artifacts.response_posted_at}
-                id="run-detail-issue-response-posted-at"
-                class="text-xs text-base-content/70"
-              >
-                Posted at: {@issue_triage_artifacts.response_posted_at}
-              </p>
-              <p
-                :if={@issue_triage_artifacts.issue_reference}
-                id="run-detail-issue-artifact-issue-reference"
-                class="text-xs text-base-content/70"
-              >
-                Issue reference: {@issue_triage_artifacts.issue_reference}
-              </p>
-              <p
-                :if={@issue_triage_artifacts.source_issue_number}
-                id="run-detail-issue-artifact-source-issue-number"
-                class="text-xs text-base-content/70"
-              >
-                Source issue number: {@issue_triage_artifacts.source_issue_number}
-              </p>
-              <p
-                :if={@issue_triage_artifacts.linked_run_id}
-                id="run-detail-issue-artifact-run-id"
-                class="text-xs text-base-content/70"
-              >
-                Linked run: <span class="font-mono">{@issue_triage_artifacts.linked_run_id}</span>
-              </p>
+                  Retry full run
+                </button>
 
-              <%= if @issue_triage_artifacts.typed_failure do %>
-                <section
-                  id="run-detail-issue-artifact-persistence-error"
-                  class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
-                >
-                  <p id="run-detail-issue-artifact-persistence-error-type" class="text-sm font-semibold text-error">
-                    Typed persistence failure: {@issue_triage_artifacts.typed_failure.error_type}
-                  </p>
-                  <p id="run-detail-issue-artifact-persistence-error-detail" class="text-sm text-base-content/80">
-                    {@issue_triage_artifacts.typed_failure.detail}
-                  </p>
-                  <p id="run-detail-issue-artifact-persistence-error-remediation" class="text-sm text-base-content/80">
-                    {@issue_triage_artifacts.typed_failure.remediation}
-                  </p>
-                </section>
-              <% end %>
+                <%= if @step_retry_state.available do %>
+                  <section id="run-detail-step-retry-panel" class="space-y-2 rounded border border-base-300 p-3">
+                    <p id="run-detail-step-retry-note" class="text-sm text-base-content/80">
+                      Restarts retry at contract step <span class="font-mono">{@step_retry_state.retry_step}</span>
+                      while preserving prior failure lineage.
+                    </p>
+                    <button
+                      id="run-detail-step-retry-button"
+                      type="button"
+                      class="btn btn-outline"
+                      phx-click="retry_step"
+                    >
+                      Retry from contract step
+                    </button>
+                  </section>
+                <% else %>
+                  <section
+                    :if={@step_retry_state.guidance}
+                    id="run-detail-step-retry-guidance"
+                    class="space-y-1 rounded border border-base-300/70 bg-base-200/40 p-3"
+                  >
+                    <p id="run-detail-step-retry-guidance-detail" class="text-sm text-base-content/80">
+                      {@step_retry_state.guidance.detail}
+                    </p>
+                    <p id="run-detail-step-retry-guidance-remediation" class="text-sm text-base-content/80">
+                      {@step_retry_state.guidance.remediation}
+                    </p>
+                  </section>
+                <% end %>
 
-              <%= if @issue_triage_artifacts.response_post_failure do %>
-                <section
-                  id="run-detail-issue-response-post-error"
-                  class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
-                >
-                  <p id="run-detail-issue-response-post-error-type" class="text-sm font-semibold text-error">
-                    Typed post failure: {@issue_triage_artifacts.response_post_failure.error_type}
-                  </p>
-                  <p id="run-detail-issue-response-post-error-detail" class="text-sm text-base-content/80">
-                    {@issue_triage_artifacts.response_post_failure.detail}
-                  </p>
-                  <p id="run-detail-issue-response-post-error-remediation" class="text-sm text-base-content/80">
-                    {@issue_triage_artifacts.response_post_failure.remediation}
-                  </p>
-                </section>
-              <% end %>
-            </section>
-          <% end %>
+                <%= if @retry_action_error do %>
+                  <section
+                    id="run-detail-retry-action-error"
+                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                  >
+                    <p id="run-detail-retry-action-error-type" class="text-sm font-semibold text-error">
+                      Typed action failure: {@retry_action_error.error_type}
+                    </p>
+                    <p id="run-detail-retry-action-error-detail" class="text-sm text-base-content/80">
+                      {@retry_action_error.detail}
+                    </p>
+                    <p id="run-detail-retry-action-error-remediation" class="text-sm text-base-content/80">
+                      {@retry_action_error.remediation}
+                    </p>
+                  </section>
+                <% end %>
+              </section>
+            <% end %>
 
-          <section id="run-detail-artifact-browser" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
-            <h2 class="text-lg font-semibold">Run artifacts</h2>
-            <p id="run-detail-artifact-browser-note" class="text-sm text-base-content/80">
-              Browse persisted artifact records grouped by category.
-            </p>
+            <%= if @retry_lineage_entries != [] do %>
+              <section id="run-detail-retry-lineage" class="space-y-2">
+                <h2 class="text-lg font-semibold">Retry lineage</h2>
+                <ol id="run-detail-retry-lineage-list" class="space-y-2">
+                  <li
+                    :for={{entry, index} <- Enum.with_index(@retry_lineage_entries, 1)}
+                    id={"run-detail-retry-lineage-entry-#{index}"}
+                    class="rounded border border-base-300 bg-base-100 p-3 space-y-1"
+                  >
+                    <p id={"run-detail-retry-lineage-run-id-#{index}"} class="text-sm">
+                      Prior run: <span class="font-mono">{entry.run_id}</span>
+                    </p>
+                    <p id={"run-detail-retry-lineage-status-#{index}"} class="text-xs text-base-content/80">
+                      Status: {entry.status} (attempt {entry.retry_attempt})
+                    </p>
+                    <p id={"run-detail-retry-lineage-reason-type-#{index}"} class="text-xs text-base-content/80">
+                      Typed reason: {entry.reason_type}
+                    </p>
+                    <p id={"run-detail-retry-lineage-detail-#{index}"} class="text-xs text-base-content/80">
+                      {entry.detail}
+                    </p>
+                    <p id={"run-detail-retry-lineage-artifact-count-#{index}"} class="text-xs text-base-content/80">
+                      Preserved artifact keys: {entry.artifact_count}
+                    </p>
+                  </li>
+                </ol>
+              </section>
+            <% end %>
 
-            <section
-              :for={category <- @artifact_categories}
-              id={"run-detail-artifact-category-#{category.id}"}
-              class="space-y-2 rounded border border-base-300/70 bg-base-200/30 p-3"
-            >
-              <h3 id={"run-detail-artifact-category-title-#{category.id}"} class="text-sm font-semibold">
-                {category.label}
-              </h3>
+            <section id="run-detail-timeline" class="space-y-2">
+              <h2 class="text-lg font-semibold">Status timeline</h2>
 
-              <%= if category.entries == [] do %>
-                <p id={"run-detail-artifact-category-missing-#{category.id}"} class="text-xs text-warning">
-                  Missing artifact records for this category.
+              <%= if @timeline_entries == [] do %>
+                <p id="run-detail-timeline-empty" class="text-sm text-base-content/70">
+                  No status transitions recorded.
                 </p>
               <% else %>
-                <ol id={"run-detail-artifact-category-list-#{category.id}"} class="space-y-2">
+                <ol id="run-detail-timeline-list" class="space-y-2">
                   <li
-                    :for={entry <- category.entries}
-                    id={"run-detail-artifact-entry-#{entry.identifier}"}
-                    class="space-y-1 rounded border border-base-300 bg-base-100 p-2"
+                    :for={{entry, index} <- Enum.with_index(@timeline_entries, 1)}
+                    id={"run-detail-timeline-entry-#{index}"}
+                    class="rounded border border-base-300 bg-base-100 p-3 space-y-1"
                   >
-                    <p id={"run-detail-artifact-identifier-#{entry.identifier}"} class="text-xs">
-                      Identifier: <span class="font-mono">{entry.identifier}</span>
+                    <p id={"run-detail-timeline-transition-#{index}"} class="text-sm font-medium">
+                      {entry.to_status}
                     </p>
-                    <p id={"run-detail-artifact-source-#{entry.identifier}"} class="text-xs text-base-content/80">
-                      Source: <span class="font-mono">{entry.source}</span>
+                    <p id={"run-detail-timeline-step-#{index}"} class="text-xs text-base-content/80">
+                      Step: {entry.current_step}
                     </p>
-                    <.link
-                      id={"run-detail-artifact-view-#{entry.identifier}"}
-                      href={"#run-detail-artifact-payload-#{entry.identifier}"}
-                      class="link link-primary text-xs"
-                    >
-                      View artifact
-                    </.link>
-                    <article
-                      id={"run-detail-artifact-payload-#{entry.identifier}"}
-                      class="rounded border border-base-300/70 bg-base-200/40 p-2"
-                    >
-                      <p class="text-xs font-medium">{entry.summary}</p>
-                      <pre
-                        id={"run-detail-artifact-payload-content-#{entry.identifier}"}
-                        class="mt-1 overflow-x-auto whitespace-pre-wrap text-xs leading-5"
-                      >{entry.payload}</pre>
-                    </article>
+                    <p id={"run-detail-timeline-duration-#{index}"} class="text-xs text-base-content/70">
+                      Duration: {entry.duration}
+                    </p>
+                    <p id={"run-detail-timeline-at-#{index}"} class="text-xs text-base-content/70">
+                      Recorded at: {entry.transitioned_at}
+                    </p>
+                    <%= if entry.approval_audit do %>
+                      <p id={"run-detail-timeline-approval-audit-#{index}"} class="text-xs text-base-content/80">
+                        Approval audit: {entry.approval_audit}
+                      </p>
+                    <% end %>
                   </li>
                 </ol>
               <% end %>
             </section>
-          </section>
-
-          <%= if @failure_context do %>
-            <section id="run-detail-failure-context" class="space-y-2 rounded border border-error/40 bg-error/5 p-4">
-              <h2 class="text-lg font-semibold text-error">Failure context</h2>
-              <p id="run-detail-failure-error-type" class="text-sm">
-                Error type: <span class="font-mono">{@failure_context.error_type}</span>
+          <% else %>
+            <section id="run-detail-missing" class="rounded border border-error/40 bg-error/5 p-4 space-y-2">
+              <h2 id="run-detail-missing-title" class="text-lg font-semibold">Run not found</h2>
+              <p id="run-detail-missing-detail" class="text-sm text-base-content/80">
+                Could not find run <span class="font-mono">{@run_id}</span> for this project.
               </p>
-              <p id="run-detail-failure-reason-type" class="text-sm">
-                Typed reason: <span class="font-mono">{@failure_context.reason_type}</span>
-              </p>
-              <p id="run-detail-failure-last-successful-step" class="text-sm">
-                Last successful step: <span class="font-mono">{@failure_context.last_successful_step}</span>
-              </p>
-              <p id="run-detail-failure-failed-step" class="text-sm">
-                Failed step: <span class="font-mono">{@failure_context.failed_step}</span>
-              </p>
-              <p id="run-detail-failure-detail" class="text-sm text-base-content/80">
-                {@failure_context.detail}
-              </p>
-              <p id="run-detail-failure-remediation" class="text-sm text-base-content/80">
-                {@failure_context.remediation}
-              </p>
-
-              <%= if @failure_context.missing_fields != [] do %>
-                <p id="run-detail-failure-missing-fields" class="text-sm text-base-content/80">
-                  Missing failure context fields: {Enum.join(@failure_context.missing_fields, ", ")}
-                </p>
-              <% end %>
             </section>
           <% end %>
+        </section>
 
-          <%= if awaiting_approval?(@run.status) do %>
-            <section id="run-detail-approval-panel" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
-              <h2 class="text-lg font-semibold">Approval request payload</h2>
-              <p id="run-detail-approval-panel-note" class="text-sm text-base-content/80">
-                Review this context before approving.
-              </p>
-
-              <%= if @approval_context do %>
-                <div id="run-detail-approval-context" class="space-y-2 rounded border border-base-300 p-3">
-                  <p id="run-detail-approval-diff-summary" class="text-sm">
-                    Diff summary: {@approval_context.diff_summary}
-                  </p>
-                  <p id="run-detail-approval-test-summary" class="text-sm">
-                    Test summary: {@approval_context.test_summary}
-                  </p>
-                  <div class="space-y-1">
-                    <p class="text-sm font-medium">Risk notes</p>
-                    <ul id="run-detail-approval-risk-notes" class="list-disc pl-5 text-sm text-base-content/80">
-                      <li
-                        :for={{risk_note, index} <- Enum.with_index(@approval_context.risk_notes, 1)}
-                        id={"run-detail-approval-risk-note-#{index}"}
-                      >
-                        {risk_note}
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              <% else %>
-                <p id="run-detail-approval-context-missing" class="text-sm text-warning">
-                  Approval context is unavailable.
-                </p>
-              <% end %>
-
-              <%= if @approval_context_blocker do %>
-                <section
-                  id="run-detail-approval-context-error"
-                  class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
-                >
-                  <p id="run-detail-approval-context-error-message" class="text-sm font-semibold text-error">
-                    {@approval_context_blocker.message}
-                  </p>
-                  <p id="run-detail-approval-context-error-detail" class="text-sm text-base-content/80">
-                    {@approval_context_blocker.detail}
-                  </p>
-                  <p id="run-detail-approval-context-remediation" class="text-sm text-base-content/80">
-                    {@approval_context_blocker.remediation}
-                  </p>
-                </section>
-              <% end %>
-
-              <div id="run-detail-approval-actions" class="space-y-3">
-                <button
-                  id="run-detail-approve-button"
-                  type="button"
-                  class="btn btn-primary"
-                  phx-click="approve_run"
-                >
-                  Approve
-                </button>
-
-                <form id="run-detail-reject-form" phx-submit="reject_run" class="space-y-2">
-                  <.input
-                    id="run-detail-reject-rationale"
-                    type="textarea"
-                    name="rationale"
-                    label="Rejection rationale (optional)"
-                    value=""
-                  />
-                  <button id="run-detail-reject-button" type="submit" class="btn btn-outline">
-                    Reject
-                  </button>
-                </form>
-              </div>
-
-              <%= if @approval_action_error do %>
-                <section
-                  id="run-detail-approval-action-error"
-                  class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
-                >
-                  <p id="run-detail-approval-action-error-type" class="text-sm font-semibold text-error">
-                    Typed action failure: {@approval_action_error.error_type}
-                  </p>
-                  <p id="run-detail-approval-action-error-detail" class="text-sm text-base-content/80">
-                    {@approval_action_error.detail}
-                  </p>
-                  <p id="run-detail-approval-action-error-remediation" class="text-sm text-base-content/80">
-                    {@approval_action_error.remediation}
-                  </p>
-                </section>
-              <% end %>
-            </section>
-          <% end %>
-
-          <%= if full_run_retry_available?(@run.status) do %>
-            <section id="run-detail-retry-panel" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
-              <h2 class="text-lg font-semibold">Retry run</h2>
-              <p id="run-detail-retry-note" class="text-sm text-base-content/80">
-                Starts a full-run retry attempt and preserves failure lineage for artifact and reason lookup.
-              </p>
-              <button
-                id="run-detail-retry-button"
-                type="button"
-                class="btn btn-outline"
-                phx-click="retry_run"
-              >
-                Retry full run
-              </button>
-
-              <%= if @step_retry_state.available do %>
-                <section id="run-detail-step-retry-panel" class="space-y-2 rounded border border-base-300 p-3">
-                  <p id="run-detail-step-retry-note" class="text-sm text-base-content/80">
-                    Restarts retry at contract step <span class="font-mono">{@step_retry_state.retry_step}</span>
-                    while preserving prior failure lineage.
-                  </p>
-                  <button
-                    id="run-detail-step-retry-button"
-                    type="button"
-                    class="btn btn-outline"
-                    phx-click="retry_step"
-                  >
-                    Retry from contract step
-                  </button>
-                </section>
-              <% else %>
-                <section
-                  :if={@step_retry_state.guidance}
-                  id="run-detail-step-retry-guidance"
-                  class="space-y-1 rounded border border-base-300/70 bg-base-200/40 p-3"
-                >
-                  <p id="run-detail-step-retry-guidance-detail" class="text-sm text-base-content/80">
-                    {@step_retry_state.guidance.detail}
-                  </p>
-                  <p id="run-detail-step-retry-guidance-remediation" class="text-sm text-base-content/80">
-                    {@step_retry_state.guidance.remediation}
-                  </p>
-                </section>
-              <% end %>
-
-              <%= if @retry_action_error do %>
-                <section
-                  id="run-detail-retry-action-error"
-                  class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
-                >
-                  <p id="run-detail-retry-action-error-type" class="text-sm font-semibold text-error">
-                    Typed action failure: {@retry_action_error.error_type}
-                  </p>
-                  <p id="run-detail-retry-action-error-detail" class="text-sm text-base-content/80">
-                    {@retry_action_error.detail}
-                  </p>
-                  <p id="run-detail-retry-action-error-remediation" class="text-sm text-base-content/80">
-                    {@retry_action_error.remediation}
-                  </p>
-                </section>
-              <% end %>
-            </section>
-          <% end %>
-
-          <%= if @retry_lineage_entries != [] do %>
-            <section id="run-detail-retry-lineage" class="space-y-2">
-              <h2 class="text-lg font-semibold">Retry lineage</h2>
-              <ol id="run-detail-retry-lineage-list" class="space-y-2">
-                <li
-                  :for={{entry, index} <- Enum.with_index(@retry_lineage_entries, 1)}
-                  id={"run-detail-retry-lineage-entry-#{index}"}
-                  class="rounded border border-base-300 bg-base-100 p-3 space-y-1"
-                >
-                  <p id={"run-detail-retry-lineage-run-id-#{index}"} class="text-sm">
-                    Prior run: <span class="font-mono">{entry.run_id}</span>
-                  </p>
-                  <p id={"run-detail-retry-lineage-status-#{index}"} class="text-xs text-base-content/80">
-                    Status: {entry.status} (attempt {entry.retry_attempt})
-                  </p>
-                  <p id={"run-detail-retry-lineage-reason-type-#{index}"} class="text-xs text-base-content/80">
-                    Typed reason: {entry.reason_type}
-                  </p>
-                  <p id={"run-detail-retry-lineage-detail-#{index}"} class="text-xs text-base-content/80">
-                    {entry.detail}
-                  </p>
-                  <p id={"run-detail-retry-lineage-artifact-count-#{index}"} class="text-xs text-base-content/80">
-                    Preserved artifact keys: {entry.artifact_count}
-                  </p>
-                </li>
-              </ol>
-            </section>
-          <% end %>
-
-          <section id="run-detail-timeline" class="space-y-2">
-            <h2 class="text-lg font-semibold">Status timeline</h2>
-
-            <%= if @timeline_entries == [] do %>
-              <p id="run-detail-timeline-empty" class="text-sm text-base-content/70">
-                No status transitions recorded.
-              </p>
-            <% else %>
-              <ol id="run-detail-timeline-list" class="space-y-2">
-                <li
-                  :for={{entry, index} <- Enum.with_index(@timeline_entries, 1)}
-                  id={"run-detail-timeline-entry-#{index}"}
-                  class="rounded border border-base-300 bg-base-100 p-3 space-y-1"
-                >
-                  <p id={"run-detail-timeline-transition-#{index}"} class="text-sm font-medium">
-                    {entry.to_status}
-                  </p>
-                  <p id={"run-detail-timeline-step-#{index}"} class="text-xs text-base-content/80">
-                    Step: {entry.current_step}
-                  </p>
-                  <p id={"run-detail-timeline-duration-#{index}"} class="text-xs text-base-content/70">
-                    Duration: {entry.duration}
-                  </p>
-                  <p id={"run-detail-timeline-at-#{index}"} class="text-xs text-base-content/70">
-                    Recorded at: {entry.transitioned_at}
-                  </p>
-                  <%= if entry.approval_audit do %>
-                    <p id={"run-detail-timeline-approval-audit-#{index}"} class="text-xs text-base-content/80">
-                      Approval audit: {entry.approval_audit}
-                    </p>
-                  <% end %>
-                </li>
-              </ol>
-            <% end %>
-          </section>
-        <% else %>
-          <section id="run-detail-missing" class="rounded border border-error/40 bg-error/5 p-4 space-y-2">
-            <h1 id="run-detail-missing-title" class="text-lg font-semibold">Run not found</h1>
-            <p id="run-detail-missing-detail" class="text-sm text-base-content/80">
-              Could not find run <span class="font-mono">{@run_id}</span> for this project.
-            </p>
-          </section>
-        <% end %>
-      </section>
+        <:footer_actions>
+          <.link
+            id="run-detail-return-link"
+            class="btn btn-sm btn-outline"
+            navigate={@return_to_path}
+          >
+            Back to {return_to_label(@return_to_path)}
+          </.link>
+        </:footer_actions>
+      </.single_pane_shell>
     </Layouts.app>
     """
+  end
+
+  defp run_detail_breadcrumbs(assigns) do
+    broad_parent_path =
+      ManagedRepoRoutes.repo_detail_parent_return_to(Map.get(assigns, :return_to_path), "/repos")
+
+    [
+      OperatorShell.breadcrumb(%{
+        id: "run-detail-breadcrumb-parent",
+        label: return_to_label(broad_parent_path),
+        navigate: broad_parent_path
+      }),
+      run_detail_repo_breadcrumb(assigns, broad_parent_path),
+      OperatorShell.breadcrumb(%{
+        id: "run-detail-breadcrumb-current",
+        label: run_detail_breadcrumb_label(assigns),
+        current?: true
+      })
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp run_detail_pane(assigns) do
+    OperatorShell.pane(%{
+      id: "run-detail",
+      title: "Run detail",
+      summary: run_detail_pane_summary(assigns)
+    })
+  end
+
+  defp run_detail_repo_breadcrumb(assigns, broad_parent_path) do
+    case normalize_optional_string(Map.get(assigns, :project_id)) do
+      nil ->
+        nil
+
+      project_id ->
+        OperatorShell.breadcrumb(%{
+          id: "run-detail-breadcrumb-repo",
+          label: "Repo detail",
+          navigate: ManagedRepoRoutes.project_detail_path(project_id, return_to: broad_parent_path)
+        })
+    end
+  end
+
+  defp run_detail_breadcrumb_label(assigns) do
+    run_id =
+      assigns
+      |> Map.get(:run)
+      |> case do
+        %Run{} = run -> map_get(run, :run_id, "run_id")
+        _other -> Map.get(assigns, :run_id)
+      end
+      |> normalize_optional_string()
+
+    if is_binary(run_id), do: "Run #{run_id}", else: "Run detail"
+  end
+
+  defp run_detail_pane_summary(%{run: %Run{} = run}) do
+    "Run #{run.run_id} is #{status_label(run.status)} at #{current_step_label(run.current_step)}. Governed evidence, approval context, artifacts, and retry lineage stay grouped on this route."
+  end
+
+  defp run_detail_pane_summary(_assigns) do
+    "The requested run could not be found for this project. Use the parent surface or repo detail to continue."
   end
 
   defp assign_missing_run(socket, project_id, run_id, return_to_path) do

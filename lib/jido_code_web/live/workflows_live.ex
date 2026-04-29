@@ -2,6 +2,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.WorkflowRuntime.ManualRunKickoff
+  alias JidoCodeWeb.OperatorShell
 
   @impl true
   def mount(_params, _session, socket) do
@@ -81,184 +82,209 @@ defmodule JidoCodeWeb.WorkflowsLive do
       current_scope={%{}}
       operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
     >
-      <section class="space-y-2">
-        <h1 class="text-2xl font-bold">Workflows</h1>
-        <p class="text-base-content/70">
-          Start manual workflow runs with explicit repo scope and required input metadata.
-        </p>
-      </section>
-
-      <section
-        id="workflows-manual-run-form-panel"
-        class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
-      >
-        <.form
-          for={@run_form}
-          id="workflows-manual-run-form"
-          phx-change="change_run_form"
-          phx-submit="start_workflow"
-          class="space-y-3"
+      <.single_pane_shell id="workflows-shell" breadcrumbs={workflows_breadcrumbs()} pane={workflows_pane()}>
+        <section
+          id="workflows-manual-run-form-panel"
+          class="space-y-3 rounded-lg border border-base-300 bg-base-100 p-4"
         >
-          <div class="grid gap-3 md:grid-cols-2">
-            <.input
-              id="workflows-project-id"
-              field={@run_form[:repo_id]}
-              type="select"
-              label="Repo scope"
-              options={@repository_options}
-            />
-            <.input
-              id="workflows-workflow-name"
-              field={@run_form[:workflow_name]}
-              type="select"
-              label="Workflow template"
-              options={workflow_select_options(@workflows)}
-            />
-          </div>
-
-          <% selected_workflow = selected_workflow(@workflows, @run_form_values) %>
-          <%= if selected_workflow do %>
-            <section
-              id="workflows-selected-template"
-              class="rounded-lg border border-base-300 bg-base-200/40 p-3 space-y-2"
-            >
-              <p id="workflows-selected-template-label" class="text-sm font-semibold">
-                Required inputs for {selected_workflow.label}
-              </p>
-              <p id="workflows-selected-template-description" class="text-sm text-base-content/70">
-                {selected_workflow.description}
-              </p>
-
+          <.form
+            for={@run_form}
+            id="workflows-manual-run-form"
+            phx-change="change_run_form"
+            phx-submit="start_workflow"
+            class="space-y-3"
+          >
+            <div class="grid gap-3 md:grid-cols-2">
               <.input
-                :for={input <- selected_workflow.required_inputs}
-                id={"workflows-input-#{workflow_input_dom_id(input.name)}"}
-                field={workflow_input_form_field(@run_form, input.name)}
-                type="textarea"
-                label={input.label}
-                placeholder={input.placeholder}
+                id="workflows-project-id"
+                field={@run_form[:repo_id]}
+                type="select"
+                label="Repo scope"
+                options={@repository_options}
               />
-            </section>
-          <% end %>
+              <.input
+                id="workflows-workflow-name"
+                field={@run_form[:workflow_name]}
+                type="select"
+                label="Workflow template"
+                options={workflow_select_options(@workflows)}
+              />
+            </div>
 
-          <div class="flex flex-wrap items-center gap-3">
-            <%= if @repository_count > 0 do %>
-              <button id="workflows-start-run" type="submit" class="btn btn-primary">
-                Start workflow run
-              </button>
-            <% else %>
-              <span
-                id="workflows-start-run-disabled"
-                class="btn btn-disabled cursor-not-allowed"
-                aria-disabled="true"
+            <% selected_workflow = selected_workflow(@workflows, @run_form_values) %>
+            <%= if selected_workflow do %>
+              <section
+                id="workflows-selected-template"
+                class="space-y-2 rounded-lg border border-base-300 bg-base-200/40 p-3"
               >
-                Start workflow run
-              </span>
-              <p id="workflows-start-run-disabled-reason" class="text-sm text-warning">
-                Import at least one repository before starting manual workflow runs.
-              </p>
+                <p id="workflows-selected-template-label" class="text-sm font-semibold">
+                  Required inputs for {selected_workflow.label}
+                </p>
+                <p id="workflows-selected-template-description" class="text-sm text-base-content/70">
+                  {selected_workflow.description}
+                </p>
+
+                <.input
+                  :for={input <- selected_workflow.required_inputs}
+                  id={"workflows-input-#{workflow_input_dom_id(input.name)}"}
+                  field={workflow_input_form_field(@run_form, input.name)}
+                  type="textarea"
+                  label={input.label}
+                  placeholder={input.placeholder}
+                />
+              </section>
             <% end %>
-          </div>
-        </.form>
 
-        <section :if={@run_feedback} id="workflows-run-feedback" class="space-y-1">
-          <%= case @run_feedback.status do %>
-            <% :ok -> %>
-              <p id="workflows-run-feedback-status" class="text-sm text-success">
-                Run creation succeeded.
-              </p>
-              <p id="workflows-run-feedback-run-id" class="text-sm text-success">
-                Run: <span class="font-mono">{@run_feedback.run.run_id}</span>
-              </p>
-              <p id="workflows-run-feedback-workflow-version" class="text-sm text-success">
-                Workflow version: {run_workflow_version_summary(@run_feedback.run.workflow_version)}
-              </p>
-              <.link
-                id="workflows-run-feedback-run-link"
-                class="link link-primary text-sm"
-                href={@run_feedback.run.detail_path}
-              >
-                Open run detail
-              </.link>
-            <% :error -> %>
-              <p id="workflows-run-feedback-status" class="text-sm text-error">
-                Run creation failed.
-              </p>
-              <p id="workflows-run-feedback-error-type" class="text-sm text-error">
-                Typed validation error: {@run_feedback.error.error_type}
-              </p>
-              <p id="workflows-run-feedback-error-detail" class="text-sm text-error">
-                {@run_feedback.error.detail}
-              </p>
-              <p id="workflows-run-feedback-error-remediation" class="text-sm text-base-content/70">
-                {@run_feedback.error.remediation}
-              </p>
-              <ul
-                :if={@run_feedback.error.field_errors != []}
-                id="workflows-run-feedback-field-errors"
-                class="list-disc pl-5 text-xs text-error space-y-1"
-              >
-                <li
-                  :for={{field_error, index} <- Enum.with_index(@run_feedback.error.field_errors, 1)}
-                  id={"workflows-run-feedback-field-error-#{index}"}
-                >
-                  <span class="font-medium">{field_error.field}</span>: {field_error.detail}
-                </li>
-              </ul>
-          <% end %>
-        </section>
-      </section>
+            <p
+              :if={@repository_count == 0}
+              id="workflows-start-run-disabled-reason"
+              class="text-sm text-warning"
+            >
+              Import at least one repository before starting manual workflow runs.
+            </p>
+          </.form>
 
-      <section id="workflows-runs-panel" class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-        <table id="workflows-runs-table" class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Run ID</th>
-              <th>Workflow</th>
-              <th>Version</th>
-              <th>Repository</th>
-              <th>Trigger</th>
-              <th>Inputs</th>
-              <th>Route</th>
-            </tr>
-          </thead>
-          <tbody :if={@run_count == 0} id="workflows-runs-empty-body">
-            <tr id="workflows-runs-empty-state">
-              <td colspan="7" class="py-8 text-center text-sm text-base-content/70">
-                No workflow runs started from this page yet.
-              </td>
-            </tr>
-          </tbody>
-          <tbody id="workflows-runs-rows" phx-update="stream">
-            <tr :for={{dom_id, run} <- @streams.runs} id={dom_id}>
-              <td id={"workflows-run-id-#{run_dom_token(run.run_id)}"} class="font-mono text-xs">
-                {run.run_id}
-              </td>
-              <td id={"workflows-run-workflow-#{run_dom_token(run.run_id)}"}>{run.workflow_name}</td>
-              <td id={"workflows-run-workflow-version-#{run_dom_token(run.run_id)}"} class="text-xs">
-                {run_workflow_version_summary(run.workflow_version)}
-              </td>
-              <td id={"workflows-run-project-#{run_dom_token(run.run_id)}"}>{run.repository_name}</td>
-              <td id={"workflows-run-trigger-#{run_dom_token(run.run_id)}"} class="text-xs">
-                {run_trigger_summary(run.trigger)}
-              </td>
-              <td id={"workflows-run-inputs-#{run_dom_token(run.run_id)}"} class="text-xs">
-                {run_input_summary(run.inputs)}
-              </td>
-              <td id={"workflows-run-route-#{run_dom_token(run.run_id)}"}>
+          <section :if={@run_feedback} id="workflows-run-feedback" class="space-y-1">
+            <%= case @run_feedback.status do %>
+              <% :ok -> %>
+                <p id="workflows-run-feedback-status" class="text-sm text-success">
+                  Run creation succeeded.
+                </p>
+                <p id="workflows-run-feedback-run-id" class="text-sm text-success">
+                  Run: <span class="font-mono">{@run_feedback.run.run_id}</span>
+                </p>
+                <p id="workflows-run-feedback-workflow-version" class="text-sm text-success">
+                  Workflow version: {run_workflow_version_summary(@run_feedback.run.workflow_version)}
+                </p>
                 <.link
-                  id={"workflows-run-detail-link-#{run_dom_token(run.run_id)}"}
-                  class="link link-primary"
-                  href={run.detail_path}
+                  id="workflows-run-feedback-run-link"
+                  class="link link-primary text-sm"
+                  href={@run_feedback.run.detail_path}
                 >
                   Open run detail
                 </.link>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+              <% :error -> %>
+                <p id="workflows-run-feedback-status" class="text-sm text-error">
+                  Run creation failed.
+                </p>
+                <p id="workflows-run-feedback-error-type" class="text-sm text-error">
+                  Typed validation error: {@run_feedback.error.error_type}
+                </p>
+                <p id="workflows-run-feedback-error-detail" class="text-sm text-error">
+                  {@run_feedback.error.detail}
+                </p>
+                <p id="workflows-run-feedback-error-remediation" class="text-sm text-base-content/70">
+                  {@run_feedback.error.remediation}
+                </p>
+                <ul
+                  :if={@run_feedback.error.field_errors != []}
+                  id="workflows-run-feedback-field-errors"
+                  class="list-disc space-y-1 pl-5 text-xs text-error"
+                >
+                  <li
+                    :for={{field_error, index} <- Enum.with_index(@run_feedback.error.field_errors, 1)}
+                    id={"workflows-run-feedback-field-error-#{index}"}
+                  >
+                    <span class="font-medium">{field_error.field}</span>: {field_error.detail}
+                  </li>
+                </ul>
+            <% end %>
+          </section>
+        </section>
+
+        <section id="workflows-runs-panel" class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
+          <table id="workflows-runs-table" class="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Workflow</th>
+                <th>Version</th>
+                <th>Repository</th>
+                <th>Trigger</th>
+                <th>Inputs</th>
+                <th>Route</th>
+              </tr>
+            </thead>
+            <tbody :if={@run_count == 0} id="workflows-runs-empty-body">
+              <tr id="workflows-runs-empty-state">
+                <td colspan="7" class="py-8 text-center text-sm text-base-content/70">
+                  No workflow runs started from this page yet.
+                </td>
+              </tr>
+            </tbody>
+            <tbody id="workflows-runs-rows" phx-update="stream">
+              <tr :for={{dom_id, run} <- @streams.runs} id={dom_id}>
+                <td id={"workflows-run-id-#{run_dom_token(run.run_id)}"} class="font-mono text-xs">
+                  {run.run_id}
+                </td>
+                <td id={"workflows-run-workflow-#{run_dom_token(run.run_id)}"}>
+                  {run.workflow_name}
+                </td>
+                <td
+                  id={"workflows-run-workflow-version-#{run_dom_token(run.run_id)}"}
+                  class="text-xs"
+                >
+                  {run_workflow_version_summary(run.workflow_version)}
+                </td>
+                <td id={"workflows-run-project-#{run_dom_token(run.run_id)}"}>
+                  {run.repository_name}
+                </td>
+                <td id={"workflows-run-trigger-#{run_dom_token(run.run_id)}"} class="text-xs">
+                  {run_trigger_summary(run.trigger)}
+                </td>
+                <td id={"workflows-run-inputs-#{run_dom_token(run.run_id)}"} class="text-xs">
+                  {run_input_summary(run.inputs)}
+                </td>
+                <td id={"workflows-run-route-#{run_dom_token(run.run_id)}"}>
+                  <.link
+                    id={"workflows-run-detail-link-#{run_dom_token(run.run_id)}"}
+                    class="link link-primary"
+                    href={run.detail_path}
+                  >
+                    Open run detail
+                  </.link>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <:footer_actions>
+          <%= if @repository_count > 0 do %>
+            <button id="workflows-start-run" type="submit" form="workflows-manual-run-form" class="btn btn-primary">
+              Start workflow run
+            </button>
+          <% else %>
+            <span
+              id="workflows-start-run-disabled"
+              class="btn btn-disabled cursor-not-allowed"
+              aria-disabled="true"
+            >
+              Start workflow run
+            </span>
+          <% end %>
+        </:footer_actions>
+      </.single_pane_shell>
     </Layouts.app>
     """
+  end
+
+  defp workflows_breadcrumbs do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "workflows-breadcrumb-current",
+        label: "Workflows",
+        current?: true
+      })
+    ]
+  end
+
+  defp workflows_pane do
+    OperatorShell.pane(%{
+      id: "workflows-pane",
+      title: "Governed workflow kickoff",
+      summary: "Start manual workflow runs with explicit repo scope and required input metadata."
+    })
   end
 
   defp default_run_form_values(workflows, repositories) do

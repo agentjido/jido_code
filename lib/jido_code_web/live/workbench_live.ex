@@ -13,6 +13,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   alias JidoCode.Orchestration.RunPubSub
   alias JidoCode.ManagedRepoRoutes
+  alias JidoCodeWeb.OperatorShell
 
   alias JidoCode.Workbench.{
     FixWorkflowKickoff,
@@ -266,38 +267,215 @@ defmodule JidoCodeWeb.WorkbenchLive do
       current_scope={%{}}
       operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
     >
-      <section class="space-y-3">
-        <nav id="workbench-breadcrumbs" aria-label="Workbench breadcrumbs" class="breadcrumbs text-sm">
-          <ol>
-            <li>
-              <.link
-                id="workbench-breadcrumb-dashboard-work"
-                navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
-                class="link link-hover"
-              >
-                Dashboard Work
-              </.link>
-            </li>
-            <li>
-              <span id="workbench-breadcrumb-current" aria-current="page">Workbench</span>
-            </li>
-          </ol>
-        </nav>
-
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div class="space-y-1">
+      <.single_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
+        <section class="space-y-4">
+          <div class="space-y-2">
             <p
               id="workbench-route-role-label"
               class="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
             >
               Dense specialist mode
             </p>
-            <h1 class="text-2xl font-bold">Workbench</h1>
-            <p class="text-base-content/70">
-              Workbench shares Dashboard Work's managed-repository inventory and governed triage model, with denser filters and scanning controls for specialist use.
+
+            <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
+              Use
+              <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">
+                Dashboard Work
+              </.link>
+              for the lighter signed-in home when you do not need full filter and inventory controls.
             </p>
           </div>
 
+          <.operator_state_notice
+            :if={@stale_warning}
+            id="workbench-stale-warning"
+            title="Workbench data may be stale"
+            state={@stale_warning}
+          >
+            <:actions>
+              <button
+                id="workbench-retry-fetch"
+                type="button"
+                class="btn btn-sm btn-warning"
+                phx-click="retry_fetch"
+              >
+                Retry workbench fetch
+              </button>
+              <.link
+                id="workbench-open-setup-recovery"
+                class="btn btn-sm btn-outline"
+                navigate={~p"/setup?step=7&reason=workbench_data_stale"}
+              >
+                Review setup diagnostics
+              </.link>
+            </:actions>
+          </.operator_state_notice>
+
+          <.operator_state_notice
+            :if={@filter_validation_notice}
+            id="workbench-filter-validation-notice"
+            dom_prefix="workbench-filter-validation"
+            title="Workbench filters were reset to defaults"
+            state={@filter_validation_notice}
+            kind={:notice}
+          />
+
+          <.operator_state_notice
+            :if={@sort_validation_notice}
+            id="workbench-sort-validation-notice"
+            dom_prefix="workbench-sort-validation"
+            title="Workbench sort fell back to default order"
+            state={@sort_validation_notice}
+            kind={:notice}
+          />
+
+          <.vue_surface
+            id="workbench-summary-widget"
+            component="WorkbenchSummaryWidget"
+            socket={@socket}
+            props={workbench_summary_widget_props(assigns)}
+            events={%{"resetFilters" => "reset_filters"}}
+          />
+
+          <section id="workbench-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
+            <.form
+              for={@filter_form}
+              id="workbench-filters-form"
+              phx-change="apply_filters"
+              phx-submit="apply_filters"
+              class="grid gap-3 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(14rem,1fr)]"
+            >
+              <.input
+                id="workbench-filter-project"
+                field={@filter_form[:project_id]}
+                type="select"
+                label="Managed repo"
+                options={@project_filter_options}
+              />
+              <.input
+                id="workbench-filter-work-state"
+                field={@filter_form[:work_state]}
+                type="select"
+                label="Issue/PR state"
+                options={work_state_filter_options()}
+              />
+              <.input
+                id="workbench-filter-freshness-window"
+                field={@filter_form[:freshness_window]}
+                type="select"
+                label="Freshness window"
+                options={freshness_filter_options()}
+              />
+              <.input
+                id="workbench-filter-sort-order"
+                field={@filter_form[:sort_order]}
+                type="select"
+                label="Sort rows by"
+                options={sort_order_options()}
+              />
+            </.form>
+
+            <div id="workbench-filter-chips" class="flex flex-wrap gap-2 pt-2">
+              <span id="workbench-filter-chip-project" class="badge badge-outline">
+                Managed repo: {@filter_chips.project}
+              </span>
+              <span id="workbench-filter-chip-work-state" class="badge badge-outline">
+                State: {@filter_chips.work_state}
+              </span>
+              <span id="workbench-filter-chip-freshness-window" class="badge badge-outline">
+                Freshness: {@filter_chips.freshness_window}
+              </span>
+              <span id="workbench-filter-chip-sort-order" class="badge badge-outline">
+                Sort: {@filter_chips.sort_order}
+              </span>
+            </div>
+
+            <p id="workbench-filter-results-count" class="pt-2 text-xs text-base-content/70">
+              Showing {@inventory_count} of {@inventory_total_count} managed repositories.
+            </p>
+          </section>
+
+          <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
+            <table id="workbench-project-table" class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  <th>Managed repo</th>
+                  <th>Open issues</th>
+                  <th>Open PRs</th>
+                  <th>Recent activity</th>
+                  <th>Links</th>
+                </tr>
+              </thead>
+              <tbody id="workbench-project-rows" phx-update="stream">
+                <tr :if={@inventory_count == 0} id="workbench-empty-state">
+                  <td colspan="5" class="py-8 text-center text-sm text-base-content/70">
+                    {empty_state_message(@inventory_total_count)}
+                  </td>
+                </tr>
+                <tr :for={{dom_id, project} <- @streams.inventory_rows} id={dom_id}>
+                  <td>
+                    <p id={"workbench-project-name-#{project.id}"} class="font-medium">
+                      {project.github_full_name}
+                    </p>
+                    <p class="text-xs text-base-content/60">{project.name}</p>
+                    <.managed_repo_hint_stack
+                      row={project}
+                      dom_prefix="workbench-project"
+                      detail_path={project_detail_path(project, @filter_values)}
+                    />
+                  </td>
+                  <td id={"workbench-project-open-issues-#{project.id}"}>
+                    {project.open_issue_count}
+                  </td>
+                  <td id={"workbench-project-open-prs-#{project.id}"}>{project.open_pr_count}</td>
+                  <td id={"workbench-project-recent-activity-#{project.id}"} class="text-sm">
+                    {project.recent_activity_summary}
+                  </td>
+                  <td id={"workbench-project-links-#{project.id}"} class="space-y-2 text-xs">
+                    <.managed_repo_action_cluster
+                      row={project}
+                      dom_prefix="workbench-project-issues"
+                      detail_path={project_detail_path(project, @filter_values)}
+                      kind={:issue}
+                      recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, project.id)}
+                      triage_policy_state={InventorySurface.issue_triage_policy_state(project)}
+                      issue_triage_feedback={
+                        InventoryActionState.issue_triage_feedback(
+                          @issue_triage_workflow_kickoff_states,
+                          project.id,
+                          :issue
+                        )
+                      }
+                      fix_feedback={
+                        InventoryActionState.fix_feedback(
+                          @fix_workflow_kickoff_states,
+                          project.id,
+                          :issue
+                        )
+                      }
+                    />
+                    <.managed_repo_action_cluster
+                      row={project}
+                      dom_prefix="workbench-project-prs"
+                      detail_path={project_detail_path(project, @filter_values)}
+                      kind={:pull_request}
+                      recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, project.id)}
+                      fix_feedback={
+                        InventoryActionState.fix_feedback(
+                          @fix_workflow_kickoff_states,
+                          project.id,
+                          :pull_request
+                        )
+                      }
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </section>
+
+        <:footer_actions>
           <.link
             id="workbench-return-dashboard"
             navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
@@ -305,207 +483,45 @@ defmodule JidoCodeWeb.WorkbenchLive do
           >
             Return to Dashboard Work
           </.link>
-        </div>
-
-        <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
-          Use
-          <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">
-            Dashboard Work
-          </.link>
-          for the lighter signed-in home when you do not need full filter and inventory controls.
-        </p>
-      </section>
-
-      <.operator_state_notice
-        :if={@stale_warning}
-        id="workbench-stale-warning"
-        title="Workbench data may be stale"
-        state={@stale_warning}
-      >
-        <:actions>
           <button
-            id="workbench-retry-fetch"
+            id="workbench-reset-filters"
             type="button"
-            class="btn btn-sm btn-warning"
-            phx-click="retry_fetch"
-          >
-            Retry workbench fetch
-          </button>
-          <.link
-            id="workbench-open-setup-recovery"
             class="btn btn-sm btn-outline"
-            navigate={~p"/setup?step=7&reason=workbench_data_stale"}
+            phx-click="reset_filters"
           >
-            Review setup diagnostics
-          </.link>
-        </:actions>
-      </.operator_state_notice>
-
-      <.operator_state_notice
-        :if={@filter_validation_notice}
-        id="workbench-filter-validation-notice"
-        dom_prefix="workbench-filter-validation"
-        title="Workbench filters were reset to defaults"
-        state={@filter_validation_notice}
-        kind={:notice}
-      />
-
-      <.operator_state_notice
-        :if={@sort_validation_notice}
-        id="workbench-sort-validation-notice"
-        dom_prefix="workbench-sort-validation"
-        title="Workbench sort fell back to default order"
-        state={@sort_validation_notice}
-        kind={:notice}
-      />
-
-      <.vue_surface
-        id="workbench-summary-widget"
-        component="WorkbenchSummaryWidget"
-        socket={@socket}
-        props={workbench_summary_widget_props(assigns)}
-        events={%{"resetFilters" => "reset_filters"}}
-      />
-
-      <section id="workbench-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
-        <.form
-          for={@filter_form}
-          id="workbench-filters-form"
-          phx-change="apply_filters"
-          phx-submit="apply_filters"
-          class="grid gap-3 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(14rem,1fr)_auto]"
-        >
-          <.input
-            id="workbench-filter-project"
-            field={@filter_form[:project_id]}
-            type="select"
-            label="Managed repo"
-            options={@project_filter_options}
-          />
-          <.input
-            id="workbench-filter-work-state"
-            field={@filter_form[:work_state]}
-            type="select"
-            label="Issue/PR state"
-            options={work_state_filter_options()}
-          />
-          <.input
-            id="workbench-filter-freshness-window"
-            field={@filter_form[:freshness_window]}
-            type="select"
-            label="Freshness window"
-            options={freshness_filter_options()}
-          />
-          <.input
-            id="workbench-filter-sort-order"
-            field={@filter_form[:sort_order]}
-            type="select"
-            label="Sort rows by"
-            options={sort_order_options()}
-          />
-          <button id="workbench-apply-filters" type="submit" class="btn btn-primary btn-sm lg:self-end">
+            Reset filters
+          </button>
+          <button id="workbench-apply-filters" type="submit" form="workbench-filters-form" class="btn btn-sm btn-primary">
             Apply filters
           </button>
-        </.form>
-
-        <div id="workbench-filter-chips" class="flex flex-wrap gap-2 pt-2">
-          <span id="workbench-filter-chip-project" class="badge badge-outline">
-            Managed repo: {@filter_chips.project}
-          </span>
-          <span id="workbench-filter-chip-work-state" class="badge badge-outline">
-            State: {@filter_chips.work_state}
-          </span>
-          <span id="workbench-filter-chip-freshness-window" class="badge badge-outline">
-            Freshness: {@filter_chips.freshness_window}
-          </span>
-          <span id="workbench-filter-chip-sort-order" class="badge badge-outline">
-            Sort: {@filter_chips.sort_order}
-          </span>
-        </div>
-
-        <p id="workbench-filter-results-count" class="pt-2 text-xs text-base-content/70">
-          Showing {@inventory_count} of {@inventory_total_count} managed repositories.
-        </p>
-      </section>
-
-      <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-        <table id="workbench-project-table" class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Managed repo</th>
-              <th>Open issues</th>
-              <th>Open PRs</th>
-              <th>Recent activity</th>
-              <th>Links</th>
-            </tr>
-          </thead>
-          <tbody id="workbench-project-rows" phx-update="stream">
-            <tr :if={@inventory_count == 0} id="workbench-empty-state">
-              <td colspan="5" class="text-center text-sm text-base-content/70 py-8">
-                {empty_state_message(@inventory_total_count)}
-              </td>
-            </tr>
-            <tr :for={{dom_id, project} <- @streams.inventory_rows} id={dom_id}>
-              <td>
-                <p id={"workbench-project-name-#{project.id}"} class="font-medium">
-                  {project.github_full_name}
-                </p>
-                <p class="text-xs text-base-content/60">{project.name}</p>
-                <.managed_repo_hint_stack
-                  row={project}
-                  dom_prefix="workbench-project"
-                  detail_path={project_detail_path(project, @filter_values)}
-                />
-              </td>
-              <td id={"workbench-project-open-issues-#{project.id}"}>{project.open_issue_count}</td>
-              <td id={"workbench-project-open-prs-#{project.id}"}>{project.open_pr_count}</td>
-              <td id={"workbench-project-recent-activity-#{project.id}"} class="text-sm">
-                {project.recent_activity_summary}
-              </td>
-              <td id={"workbench-project-links-#{project.id}"} class="space-y-2 text-xs">
-                <.managed_repo_action_cluster
-                  row={project}
-                  dom_prefix="workbench-project-issues"
-                  detail_path={project_detail_path(project, @filter_values)}
-                  kind={:issue}
-                  recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, project.id)}
-                  triage_policy_state={InventorySurface.issue_triage_policy_state(project)}
-                  issue_triage_feedback={
-                    InventoryActionState.issue_triage_feedback(
-                      @issue_triage_workflow_kickoff_states,
-                      project.id,
-                      :issue
-                    )
-                  }
-                  fix_feedback={
-                    InventoryActionState.fix_feedback(
-                      @fix_workflow_kickoff_states,
-                      project.id,
-                      :issue
-                    )
-                  }
-                />
-                <.managed_repo_action_cluster
-                  row={project}
-                  dom_prefix="workbench-project-prs"
-                  detail_path={project_detail_path(project, @filter_values)}
-                  kind={:pull_request}
-                  recent_run_outcome={InventorySurface.recent_run_outcome(@recent_run_outcomes, project.id)}
-                  fix_feedback={
-                    InventoryActionState.fix_feedback(
-                      @fix_workflow_kickoff_states,
-                      project.id,
-                      :pull_request
-                    )
-                  }
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+        </:footer_actions>
+      </.single_pane_shell>
     </Layouts.app>
     """
+  end
+
+  defp workbench_breadcrumbs do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "workbench-breadcrumb-dashboard-work",
+        label: "Dashboard Work",
+        navigate: ManagedRepoRoutes.dashboard_work_overview_path()
+      }),
+      OperatorShell.breadcrumb(%{
+        id: "workbench-breadcrumb-current",
+        label: "Workbench",
+        current?: true
+      })
+    ]
+  end
+
+  defp workbench_pane do
+    OperatorShell.pane(%{
+      id: "workbench-pane",
+      title: "Managed repo specialist inventory",
+      summary:
+        "Workbench shares Dashboard Work's managed-repository inventory and governed triage model, with denser filters and scanning controls for specialist use."
+    })
   end
 
   defp load_inventory(socket) do

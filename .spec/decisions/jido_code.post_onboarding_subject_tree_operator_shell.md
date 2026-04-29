@@ -23,6 +23,7 @@ affects:
 <!-- covers: architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode -->
 <!-- covers: architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding -->
 <!-- covers: architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers -->
+<!-- covers: architecture.operator_surface_information_architecture.single_concern_routes_reuse_shell_without_fake_subjects -->
 <!-- covers: architecture.frontend_stack.liveview_remains_product_host_shell -->
 <!-- covers: package.jido_code.spec_led_workspace -->
 
@@ -45,12 +46,12 @@ Today:
   pass an explicit parent return target
 - verbose explanatory copy still needs continued tightening so the newer
   top-level subject chrome stays terse and subject-like across routes
-- the signed-in product still lacks one easy cross-route navigation model, so
-  operators often depend on contextual back links, breadcrumbs, or browser
-  history when moving among dashboard, repo detail, run detail, settings, and
-  Workbench
-- contributors still have to reason about route-by-route navigation seams
-  instead of composing one reusable product-owned wayfinding layer
+- the signed-in product now has one reusable cross-route navigation model, but
+  it still needs consistent adoption across adjacent routes so contributors do
+  not drift back toward route-specific chrome
+- contributors still have to reason about which routes genuinely need a
+  subject tree and which should adopt the shared shell proportionately without
+  inventing fake local taxonomies
 
 That makes the product harder to scan as a desktop working environment. The UI
 needs a stronger subject hierarchy, clearer navigation ownership, and more
@@ -107,6 +108,10 @@ The shell rules are:
 14. That product-wide wayfinding should be composed through shared
     LiveView-owned helpers and route metadata rather than each route inventing
     a separate top-level navigation chrome.
+15. Routes without multiple real subject families should still reuse the shared
+    breadcrumb, pane-framing, and product-wide wayfinding contracts, but they
+    should not invent artificial top-rail or child-sidebar subjects simply to
+    resemble dashboard or managed-repository detail.
 
 ## Consequences
 
@@ -130,6 +135,8 @@ The shell rules are:
   during long developer workflows
 - reusable navigation helpers reduce route-by-route shell drift and make future
   signed-in route composition easier for contributors
+- proportional shell adoption lets adjacent routes converge on one workspace
+  language without forcing fake subject trees onto single-concern surfaces
 
 ### Constraints
 
@@ -168,25 +175,32 @@ older dashboard-only sidebar shell is no longer the target UI architecture.
 This decision is partially landed in product code.
 
 Current implementation already reflects the shared shell on dashboard and
-managed-repository detail:
+managed-repository detail, plus proportional or parentless-shell adoption on
+the adjacent signed-in routes:
 
 - both routes use the subject-tree ordering of route header, breadcrumb lane,
   top-level subject rail, child-subject sidebar, and selected pane framing
 - selected subject panes now follow the shared header, middle, footer contract
 - dashboard owns the durable ready-state landing route after onboarding
+- `/workbench`, `/repos`, `/workflows`, `/agents`, and governed run detail now
+  reuse the shared breadcrumb lane plus selected-pane framing without
+  inventing fake subject rails
+- settings now reuses the same shell primitives through route-owned child
+  subject navigation without a separate bespoke tab chrome
 
 Remaining convergence work is now narrower:
 
 - dashboard `Work` still uses a lighter repository-monitoring view than the
   denser inventory and triage model on `/workbench`
-- `/workbench` still reads like a separate route-level product surface instead
-  of a specialist mode or alias for dashboard `Work`
 - repo-detail return context still needs cleanup so dashboard-originated flows
   do not implicitly fall back to Workbench semantics
-- the signed-in product still needs one reusable global navigation layer so
-  operators can move across routes without relying only on context-local back
-  paths
+- wording and shell helpers should continue to tighten so contributors do not
+  reintroduce bespoke local chrome on future adjacent routes
 
 Current-truth UI specs and planning docs should now treat the shared shell as
-landed on the main signed-in routes while assigning dashboard/workbench content
-convergence and return-path cleanup to the next implementation phases.
+landed on the main signed-in routes, the global signed-in navigation layer as
+landed across the wider product, the proportional shell as landed on the
+specialist, governed-run, and inventory routes, settings navigation as aligned
+to the same shell primitives, and the remaining adjacent-route work as
+future wording or route-expansion hardening rather than route-level shell
+adoption or first-pass integration proof.

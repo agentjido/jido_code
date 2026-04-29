@@ -1,6 +1,6 @@
 # Operator Surface Information Architecture
 
-<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeping a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, while current truth now also distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, and now requires product-wide signed-in wayfinding so operators can move among major routes without relying only on contextual back links. -->
+<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeps a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, lands product-wide signed-in wayfinding across major routes, lands the proportional shared-shell contract on Workbench, repository inventory, workflows, agents, and governed run detail without inventing fake subject taxonomies, lets settings reuse the same shell primitives through parentless child-subject navigation instead of bespoke local chrome, and now proves adjacent-route shell consistency through shared LiveView and browser coverage. -->
 
 This subject defines the durable information architecture for signed-in operator
 routes after onboarding hands work off to the main product shell.
@@ -11,7 +11,7 @@ routes after onboarding hands work off to the main product shell.
 id: architecture.operator_surface_information_architecture
 kind: policy
 status: active
-summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject, and requiring one coherent signed-in navigation layer across product routes so major destinations stay easy to reach.
+summary: Jido.Code standardizes post-onboarding operator routes on a LiveView-owned subject-tree shell that keeps a route-owned breadcrumb lane between the main header and subject navigation, terse top-level subject tabs in a top rail, route-local child subject tabs as rounded buttons in a left sidebar, accessible focus-bubble descriptions for verbose tab copy, and a desktop-application-like content pane split into header, middle, and footer regions with square footer actions, while preserving route-owned navigation state and responsive fallback semantics across dashboard, managed-repository detail, and adjacent signed-in routes, keeping dashboard `Work` as the primary home for managed-repository inventory and triage content while `/workbench` remains a denser specialist mode or alias instead of becoming a peer top-level subject, landing the proportional shared-shell contract on Workbench plus Repositories plus Workflows plus Agents plus governed run detail for single-concern routes, reusing parentless child-subject shell composition on settings, and requiring one coherent signed-in navigation layer across product routes so major destinations stay easy to reach.
 decisions:
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
@@ -23,11 +23,17 @@ surface:
   - lib/jido_code_web/components/layouts.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/settings_live.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - test/e2e/dashboard-tabs.spec.ts
+  - test/e2e/operator-navigation.spec.ts
   - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/operator_navigation_live_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/workbench_live_test.exs
 ```
 
@@ -96,6 +102,11 @@ surface:
 
 - id: architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers
   statement: Product-wide signed-in navigation shall be composed from shared LiveView-owned helpers, metadata, and route contracts rather than each route hand-rolling bespoke top-level wayfinding chrome.
+  priority: should
+  stability: evolving
+
+- id: architecture.operator_surface_information_architecture.single_concern_routes_reuse_shell_without_fake_subjects
+  statement: Signed-in routes that do not expose multiple real subject families should still reuse the shared breadcrumb, pane framing, and global wayfinding contracts, but they shall not invent artificial top-rail or child-sidebar subjects only to mimic multi-concern routes.
   priority: should
   stability: evolving
 ```
@@ -183,6 +194,20 @@ surface:
     - The signed-in product exposes a consistent navigation layer for those major destinations.
     - Route-local breadcrumbs and return links remain available, but they are not the only practical way to move around the product.
     - The navigation chrome is built from shared LiveView-owned helpers so contributors do not maintain a separate bespoke top-level navigation pattern on each route.
+
+- id: architecture.operator_surface_information_architecture.scenario_single_concern_route_adopts_proportional_shell
+  covers:
+    - architecture.operator_surface_information_architecture.single_concern_routes_reuse_shell_without_fake_subjects
+    - architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding
+    - architecture.operator_surface_information_architecture.subject_content_uses_header_middle_footer_regions
+  given:
+    - A signed-in route such as repository inventory, workflows, agents, or another adjacent operator surface has one primary concern rather than multiple real subject families.
+  when:
+    - The route adopts the shared signed-in shell language.
+  then:
+    - The route reuses the shared global wayfinding, breadcrumb lane, and pane framing.
+    - The route does not invent artificial parent or child subject rails just to resemble dashboard or managed-repository detail.
+    - Any route-local filters, forms, tables, or operator actions remain inside the route's real pane contract.
 ```
 
 ## Verification
@@ -204,4 +229,5 @@ surface:
     - architecture.operator_surface_information_architecture.workbench_route_is_specialist_dense_mode
     - architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding
     - architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers
+    - architecture.operator_surface_information_architecture.single_concern_routes_reuse_shell_without_fake_subjects
 ```

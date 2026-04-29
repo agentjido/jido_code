@@ -1,6 +1,6 @@
 # Operator Surface Information Architecture
 
-<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeps a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, lands product-wide signed-in wayfinding across major routes, lands the proportional shared-shell contract on Workbench, repository inventory, workflows, agents, and governed run detail without inventing fake subject taxonomies, and now lets settings reuse the same shell primitives through parentless child-subject navigation instead of bespoke local chrome. -->
+<!-- current_truth.reconciled_with_branch: post-onboarding UI architecture now records the landed shared subject-tree shell for dashboard and managed-repository detail, keeps a route-owned breadcrumb lane between the main LiveView header and the subject-tree navigation, distinguishes dashboard `Work` as the primary home for managed-repository inventory and triage content, treats `/workbench` as a denser specialist mode rather than a peer top-level subject, lands product-wide signed-in wayfinding across major routes, lands the proportional shared-shell contract on Workbench, repository inventory, workflows, agents, and governed run detail without inventing fake subject taxonomies, lets settings reuse the same shell primitives through parentless child-subject navigation instead of bespoke local chrome, and now proves adjacent-route shell consistency through shared LiveView and browser coverage. -->
 
 This subject defines the durable information architecture for signed-in operator
 routes after onboarding hands work off to the main product shell.
@@ -28,6 +28,7 @@ surface:
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - test/e2e/dashboard-tabs.spec.ts
+  - test/e2e/operator-navigation.spec.ts
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/operator_navigation_live_test.exs
   - test/jido_code_web/live/project_detail_live_test.exs

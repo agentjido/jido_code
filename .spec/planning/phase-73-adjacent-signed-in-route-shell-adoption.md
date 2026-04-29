@@ -156,21 +156,21 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.sp
         governed-run detail still behaves as one primary concern with bounded
         subsections instead of a full multi-subject route.
 
-  [ ] 73.4 Section - Phase Integration Tests
+  [x] 73.4 Section - Phase Integration Tests
     Prove that adjacent signed-in routes now read like one workspace rather than
     a collection of unrelated authenticated pages.
 
-    [ ] 73.4.1 Task - Add route and browser coverage for adjacent shell adoption
+    [x] 73.4.1 Task - Add route and browser coverage for adjacent shell adoption
       Verify the shared shell at the same fidelity as the earlier shell and
       navigation phases.
 
-      [ ] 73.4.1.1 Subtask - Add route coverage proving Workbench,
+      [x] 73.4.1.1 Subtask - Add route coverage proving Workbench,
         repository inventory, workflows, agents, settings, and governed-run
         detail all render the shared global navigation plus proportional shell
         framing consistently.
-      [ ] 73.4.1.2 Subtask - Add coverage proving routes that keep one primary
+      [x] 73.4.1.2 Subtask - Add coverage proving routes that keep one primary
         pane do not invent fake subject rails, while routes with real local
         concerns preserve patchable route-owned selection.
-      [ ] 73.4.1.3 Subtask - Add browser coverage proving wide and narrow
+      [x] 73.4.1.3 Subtask - Add browser coverage proving wide and narrow
         layouts remain legible across those adjacent routes without regressing
         breadcrumb context, parent-surface continuity, or route-local actions.

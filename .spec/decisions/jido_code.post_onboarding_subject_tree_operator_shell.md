@@ -194,8 +194,6 @@ Remaining convergence work is now narrower:
   denser inventory and triage model on `/workbench`
 - repo-detail return context still needs cleanup so dashboard-originated flows
   do not implicitly fall back to Workbench semantics
-- route-level and browser coverage still need to prove those adjacent routes
-  feel like one workspace rather than isolated signed-in pages
 - wording and shell helpers should continue to tighten so contributors do not
   reintroduce bespoke local chrome on future adjacent routes
 
@@ -204,4 +202,5 @@ landed on the main signed-in routes, the global signed-in navigation layer as
 landed across the wider product, the proportional shell as landed on the
 specialist, governed-run, and inventory routes, settings navigation as aligned
 to the same shell primitives, and the remaining adjacent-route work as
-integration proof rather than route-level shell adoption.
+future wording or route-expansion hardening rather than route-level shell
+adoption or first-pass integration proof.

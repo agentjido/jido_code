@@ -136,3 +136,60 @@ test("repositories-origin and narrow-screen operator nav stay legible on direct 
   await expect(page.locator("#project-detail-breadcrumb-return")).toHaveAttribute("href", "/repos")
   await expect(page.locator("#project-detail-breadcrumb-return")).toContainText("Repositories")
 })
+
+test("adjacent signed-in routes keep proportional shells and route-owned navigation on narrow screens", async ({
+  page,
+  request,
+}) => {
+  await prepareScenario(request, "conversation_ready")
+  await page.setViewportSize({ width: 430, height: 1000 })
+  await signIn(page, "/workbench")
+
+  await expect(page.locator("#operator-global-nav")).toBeVisible()
+  await expectNoHorizontalOverflow(page, "#operator-global-nav")
+
+  await expect(page.locator("#workbench-shell")).toBeVisible()
+  await expect(page.locator("#workbench-shell-parent-subjects")).toHaveCount(0)
+  await expect(page.locator("#workbench-pane-footer")).toBeVisible()
+  await expect(page.locator("#workbench-return-dashboard")).toBeVisible()
+  await expect(page.locator("#workbench-apply-filters")).toBeVisible()
+
+  await page.locator("#operator-global-nav-repositories").click()
+  await page.waitForURL(url => url.pathname === "/repos")
+  await waitForLiveViewConnection(page)
+  await expect(page.locator("#project-inventory-shell")).toBeVisible()
+  await expect(page.locator("#project-inventory-shell-parent-subjects")).toHaveCount(0)
+  await expect(page.locator("#project-inventory-pane-footer")).toBeVisible()
+  await expect(page.locator("#project-inventory-reset-filters")).toBeVisible()
+  await expect(page.locator("#project-inventory-apply-filters")).toBeVisible()
+
+  await page.locator("#operator-global-nav-workflows").click()
+  await page.waitForURL(url => url.pathname === "/workflows")
+  await waitForLiveViewConnection(page)
+  await expect(page.locator("#workflows-shell")).toBeVisible()
+  await expect(page.locator("#workflows-shell-parent-subjects")).toHaveCount(0)
+  await expect(page.locator("#workflows-start-run")).toBeVisible()
+
+  await page.locator("#operator-global-nav-agents").click()
+  await page.waitForURL(url => url.pathname === "/agents")
+  await waitForLiveViewConnection(page)
+  await expect(page.locator("#agents-shell")).toBeVisible()
+  await expect(page.locator("#agents-shell-parent-subjects")).toHaveCount(0)
+  await expect(page.locator("#agents-project-table")).toBeVisible()
+
+  await page.locator("#operator-global-nav-settings").click()
+  await page.waitForURL(url => url.pathname === "/settings")
+  await waitForLiveViewConnection(page)
+  await expect(page.locator("#settings-shell")).toBeVisible()
+  await expect(page.locator("#settings-shell-parent-subjects")).toHaveCount(0)
+  await expect(page.locator("#settings-nav-github")).toHaveAttribute("aria-current", "page")
+  await expect(page.locator("#settings-github-open-add-modal")).toBeVisible()
+
+  await page.locator("#settings-nav-security").click()
+  await page.waitForURL(url => url.pathname === "/settings/security")
+  await waitForLiveViewConnection(page)
+  await expect(page.locator("#settings-nav-security")).toHaveAttribute("aria-current", "page")
+  await expect(page.locator("#settings-pane-security")).toBeVisible()
+  await expect(page.locator("#settings-pane-security-footer")).toHaveCount(0)
+  await expect(page.locator("#operator-context-settings-tab")).toContainText("Security settings")
+})

@@ -146,9 +146,8 @@ defmodule JidoCodeWeb.SettingsLive do
             <% end %>
           </section>
 
-          <:footer_actions>
+          <:footer_actions :if={@active_tab == "github"}>
             <button
-              :if={@active_tab == "github"}
               id="settings-github-open-add-modal"
               type="button"
               phx-click="open_add_modal"
@@ -156,8 +155,10 @@ defmodule JidoCodeWeb.SettingsLive do
             >
               <.icon name="hero-plus" class="mr-1 size-4" /> Add Repository
             </button>
+          </:footer_actions>
+
+          <:footer_actions :if={@active_tab == "auth"}>
             <button
-              :if={@active_tab == "auth"}
               id="settings-auth-refresh-github-service-checks"
               type="button"
               phx-click="refresh_github_service_checks"

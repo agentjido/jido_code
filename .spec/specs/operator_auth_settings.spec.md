@@ -1,6 +1,6 @@
 # Operator Auth Settings
 
-<!-- current_truth.reconciled_with_branch: the settings-owned auth-and-integrations destination remains the durable home for provider-login broker trust and GitHub automation readiness, the sibling `/settings/github` add-repository modal now routes later GitHub additions through the canonical managed-repository import boundary instead of treating settings-only rows as product truth, and that settings-owned operator surface now participates in the shared signed-in navigation layer plus the shared settings child-subject shell instead of relying on ad hoc header handoff links. -->
+<!-- current_truth.reconciled_with_branch: the settings-owned auth-and-integrations destination remains the durable home for provider-login broker trust and GitHub automation readiness, the sibling `/settings/github` add-repository modal now routes later GitHub additions through the canonical managed-repository import boundary instead of treating settings-only rows as product truth, that settings-owned operator surface now participates in the shared signed-in navigation layer plus the shared settings child-subject shell instead of relying on ad hoc header handoff links, pane footers now appear only on the settings tabs that actually own route-level actions, and shared route/browser coverage now proves that route-owned child-subject navigation stays aligned with the wider signed-in shell. -->
 
 This subject defines the current operator auth-settings console used to configure hosted provider login separately from deployment-local Git provider automation. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
 
@@ -21,6 +21,7 @@ surface:
   - lib/jido_code_web/live/settings_live.ex
   - test/support/conn_case.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
+  - test/e2e/operator-navigation.spec.ts
   - test/jido_code_web/live/phase_fifty_nine_integration_test.exs
   - test/jido_code_web/live/settings_operator_auth_live_test.exs
   - test/jido_code_web/live/phase_fifty_eight_integration_test.exs

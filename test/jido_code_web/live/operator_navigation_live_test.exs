@@ -161,4 +161,114 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
              "#operator-context-repo[href='/repos/#{project.id}?return_to=#{encoded_workbench_return_to}']"
            )
   end
+
+  test "adjacent signed-in routes reuse proportional shells and keep route-owned local navigation",
+       %{conn: _conn} do
+    register_owner("operator-nav-adjacent-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("operator-nav-adjacent-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-operator-adjacent",
+        github_full_name: "owner/repo-operator-adjacent",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    run_id = "run-operator-adjacent-#{System.unique_integer([:positive])}"
+
+    {:ok, _run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 1,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Verify adjacent route shell contracts"},
+        input_metadata: %{"task_summary" => %{required: true, source: "test"}},
+        initiating_actor: %{id: "owner-1", email: "operator-nav-adjacent-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-28 13:00:00Z]
+      })
+
+    {:ok, workbench_view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert_single_pane_shell(workbench_view, "workbench-shell", "workbench-pane")
+    assert has_element?(workbench_view, "#workbench-return-dashboard")
+    assert has_element?(workbench_view, "#workbench-apply-filters[form='workbench-filters-form']")
+    refute has_element?(workbench_view, "#workbench-nav")
+
+    {:ok, inventory_view, _html} = live(recycle(authed_conn), ~p"/repos", on_error: :warn)
+
+    assert_single_pane_shell(inventory_view, "project-inventory-shell", "project-inventory-pane")
+    assert has_element?(inventory_view, "#project-inventory-reset-filters[href='/repos']")
+
+    assert has_element?(
+             inventory_view,
+             "#project-inventory-apply-filters[form='project-inventory-filters-form']"
+           )
+
+    refute has_element?(inventory_view, "#project-inventory-nav")
+
+    {:ok, workflows_view, _html} = live(recycle(authed_conn), ~p"/workflows", on_error: :warn)
+
+    assert_single_pane_shell(workflows_view, "workflows-shell", "workflows-pane")
+    assert has_element?(workflows_view, "#workflows-start-run")
+    refute has_element?(workflows_view, "#workflows-nav")
+
+    {:ok, agents_view, _html} = live(recycle(authed_conn), ~p"/agents", on_error: :warn)
+
+    assert_single_pane_shell(agents_view, "agents-shell", "agents-pane")
+    assert has_element?(agents_view, "#agents-project-table")
+    refute has_element?(agents_view, "#agents-nav")
+
+    {:ok, settings_view, _html} = live(recycle(authed_conn), ~p"/settings/auth", on_error: :warn)
+
+    assert has_element?(settings_view, "#settings-shell")
+    assert has_element?(settings_view, "#settings-shell-breadcrumbs")
+    refute has_element?(settings_view, "#settings-shell-parent-subjects")
+    assert has_element?(settings_view, "#settings-nav-auth[aria-current='page']", "Auth & Integrations")
+    assert has_element?(settings_view, "#settings-pane-auth")
+    assert has_element?(settings_view, "#settings-pane-auth-middle")
+    assert has_element?(settings_view, "#settings-pane-auth-footer")
+    assert has_element?(settings_view, "#settings-auth-refresh-github-service-checks")
+    assert has_element?(settings_view, "#operator-context-settings-tab[aria-current='page']", "Auth & Integrations")
+
+    settings_view
+    |> element("#settings-nav-security")
+    |> render_click()
+
+    assert_patch(settings_view, "/settings/security")
+    assert has_element?(settings_view, "#settings-nav-security[aria-current='page']", "Security")
+    assert has_element?(settings_view, "#settings-pane-security")
+    assert has_element?(settings_view, "#settings-pane-security-middle")
+    refute has_element?(settings_view, "#settings-pane-security-footer")
+    refute has_element?(settings_view, "#settings-auth-refresh-github-service-checks")
+    assert has_element?(settings_view, "#operator-context-settings-tab[aria-current='page']", "Security settings")
+
+    {:ok, run_view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert_single_pane_shell(run_view, "run-detail-shell", "run-detail")
+    assert has_element?(run_view, "#run-detail-breadcrumb-parent[href='/repos']", "Repositories")
+
+    assert has_element?(
+             run_view,
+             "#run-detail-breadcrumb-repo[href='/repos/#{project.id}?return_to=#{URI.encode_www_form("/repos")}']"
+           )
+
+    assert has_element?(run_view, "#run-detail-breadcrumb-current", "Run #{run_id}")
+    assert has_element?(run_view, "#run-detail-return-link[href='/repos/#{project.id}']", "Back to Repo detail")
+  end
+
+  defp assert_single_pane_shell(view, shell_id, pane_id) do
+    assert has_element?(view, "##{shell_id}")
+    assert has_element?(view, "##{shell_id}-breadcrumbs")
+    refute has_element?(view, "##{shell_id}-parent-subjects")
+    assert has_element?(view, "##{pane_id}")
+    assert has_element?(view, "##{pane_id}-header")
+    assert has_element?(view, "##{pane_id}-middle")
+  end
 end

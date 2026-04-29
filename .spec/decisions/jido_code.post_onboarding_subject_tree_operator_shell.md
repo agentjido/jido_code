@@ -112,6 +112,9 @@ The shell rules are:
     breadcrumb, pane-framing, and product-wide wayfinding contracts, but they
     should not invent artificial top-rail or child-sidebar subjects simply to
     resemble dashboard or managed-repository detail.
+16. When a selected pane is blocked on one primary repair action, that repair
+    affordance should appear inline with the blocking notice rather than only
+    in distant pane-footer chrome.
 
 ## Consequences
 
@@ -150,6 +153,8 @@ The shell rules are:
 - child subject trees must remain legible and keyboard-accessible
 - subject-footer actions should stay related to the visible middle region
   instead of becoming a global action dump
+- blocked panes should surface their main repair jump at the point of failure,
+  not only after the operator scrolls to pane-footer actions
 
 ## Relationship To Earlier Dashboard ADRs
 
@@ -187,6 +192,8 @@ the adjacent signed-in routes:
   inventing fake subject rails
 - settings now reuses the same shell primitives through route-owned child
   subject navigation without a separate bespoke tab chrome
+- blocked repo-detail conversation runtime now surfaces its workspace-repair
+  jump inline in the readiness notice instead of only in pane-footer chrome
 
 Remaining convergence work is now narrower:
 

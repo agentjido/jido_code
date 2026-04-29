@@ -1062,6 +1062,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         kind={:error}
                         compact={true}
                       >
+                        <:actions>
+                          <.link
+                            :if={workspace_binding_repair_visible?(@conversation_runtime.notice)}
+                            id="project-detail-conversation-runtime-repair"
+                            patch={
+                              project_detail_section_path(
+                                @project_detail,
+                                @return_to_path,
+                                section: :overview,
+                                work_item_id: @selected_work_item_id,
+                                anchor: "project-detail-workspace-binding-panel"
+                              )
+                            }
+                            class="btn btn-sm btn-outline"
+                          >
+                            Repair workspace binding
+                          </.link>
+                        </:actions>
+
                         <p
                           :if={conversation_runtime_preserves_state?(@conversation_runtime, @conversation_surface)}
                           id="project-detail-conversation-runtime-preserved"
@@ -1835,26 +1854,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 }
               >
                 Open workflows
-              </.link>
-
-              <.link
-                :if={
-                  @selected_detail_section == :conversations and
-                    workspace_binding_repair_visible?(@conversation_runtime.notice)
-                }
-                id="project-detail-conversation-runtime-repair"
-                patch={
-                  project_detail_section_path(
-                    @project_detail,
-                    @return_to_path,
-                    section: :overview,
-                    work_item_id: @selected_work_item_id,
-                    anchor: "project-detail-workspace-binding-panel"
-                  )
-                }
-                class="btn btn-sm btn-outline"
-              >
-                Repair workspace binding
               </.link>
 
               <.link

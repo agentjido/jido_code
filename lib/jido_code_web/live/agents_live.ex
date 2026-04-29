@@ -2,6 +2,7 @@ defmodule JidoCodeWeb.AgentsLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Agents.SupportAgentConfigs
+  alias JidoCodeWeb.OperatorShell
 
   @impl true
   def mount(_params, _session, socket) do
@@ -114,157 +115,170 @@ defmodule JidoCodeWeb.AgentsLive do
       current_scope={%{}}
       operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
     >
-      <section class="space-y-2">
-        <h1 class="text-2xl font-bold">Support Agents</h1>
-        <p class="text-base-content/70">
-          Configure per-project Issue Bot automation controls.
-        </p>
-      </section>
+      <.single_pane_shell id="agents-shell" breadcrumbs={agents_breadcrumbs()} pane={agents_pane()}>
+        <.operator_state_notice
+          :if={@issue_bot_error}
+          id="agents-issue-bot-error"
+          title="Issue Bot configuration update failed"
+          state={@issue_bot_error}
+          kind={:error}
+        />
 
-      <.operator_state_notice
-        :if={@issue_bot_error}
-        id="agents-issue-bot-error"
-        title="Issue Bot configuration update failed"
-        state={@issue_bot_error}
-        kind={:error}
-      />
+        <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
+          <table id="agents-project-table" class="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Issue Bot status</th>
+                <th>Webhook events</th>
+                <th>Approval policy</th>
+                <th>Controls</th>
+              </tr>
+            </thead>
+            <tbody id="agents-project-rows" phx-update="stream">
+              <tr :if={@project_count == 0} id="agents-project-empty">
+                <td colspan="5" class="py-8 text-center text-sm text-base-content/70">
+                  No repositories are available for Issue Bot configuration.
+                </td>
+              </tr>
 
-      <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-        <table id="agents-project-table" class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Repository</th>
-              <th>Issue Bot status</th>
-              <th>Webhook events</th>
-              <th>Approval policy</th>
-              <th>Controls</th>
-            </tr>
-          </thead>
-          <tbody id="agents-project-rows" phx-update="stream">
-            <tr :if={@project_count == 0} id="agents-project-empty">
-              <td colspan="5" class="text-center text-sm text-base-content/70 py-8">
-                No repositories are available for Issue Bot configuration.
-              </td>
-            </tr>
-
-            <tr :for={{dom_id, project_config} <- @streams.project_configs} id={dom_id}>
-              <td>
-                <p id={"agents-project-github-full-name-#{project_config.id}"} class="font-medium">
-                  {project_config.github_full_name}
-                </p>
-                <p id={"agents-project-name-#{project_config.id}"} class="text-xs text-base-content/60">
-                  {project_config.name}
-                </p>
-              </td>
-              <td id={"agents-issue-bot-status-#{project_config.id}"}>
-                <span class={issue_bot_status_class(project_config.enabled)}>
-                  {issue_bot_status_label(project_config.enabled)}
-                </span>
-              </td>
-              <td>
-                <form
-                  id={"agents-issue-bot-events-form-#{project_config.id}"}
-                  phx-submit="set_issue_bot_webhook_events"
-                  class="space-y-2"
-                >
-                  <input type="hidden" name="project_id" value={project_config.id} />
-                  <div class="grid gap-1">
-                    <label
-                      :for={event <- @issue_bot_supported_webhook_events}
-                      id={
-                        "agents-issue-bot-event-option-#{project_config.id}-#{issue_bot_webhook_event_dom_id(event)}"
-                      }
-                      class="label cursor-pointer justify-start gap-2 py-0"
-                    >
-                      <input
+              <tr :for={{dom_id, project_config} <- @streams.project_configs} id={dom_id}>
+                <td>
+                  <p id={"agents-project-github-full-name-#{project_config.id}"} class="font-medium">
+                    {project_config.github_full_name}
+                  </p>
+                  <p id={"agents-project-name-#{project_config.id}"} class="text-xs text-base-content/60">
+                    {project_config.name}
+                  </p>
+                </td>
+                <td id={"agents-issue-bot-status-#{project_config.id}"}>
+                  <span class={issue_bot_status_class(project_config.enabled)}>
+                    {issue_bot_status_label(project_config.enabled)}
+                  </span>
+                </td>
+                <td>
+                  <form
+                    id={"agents-issue-bot-events-form-#{project_config.id}"}
+                    phx-submit="set_issue_bot_webhook_events"
+                    class="space-y-2"
+                  >
+                    <input type="hidden" name="project_id" value={project_config.id} />
+                    <div class="grid gap-1">
+                      <label
+                        :for={event <- @issue_bot_supported_webhook_events}
                         id={
-                          "agents-issue-bot-event-checkbox-#{project_config.id}-#{issue_bot_webhook_event_dom_id(event)}"
+                          "agents-issue-bot-event-option-#{project_config.id}-#{issue_bot_webhook_event_dom_id(event)}"
                         }
-                        type="checkbox"
-                        name="webhook_events[]"
-                        value={event}
-                        checked={issue_bot_webhook_event_selected?(project_config.webhook_events, event)}
-                        class="checkbox checkbox-xs"
-                      />
-                      <span class="text-xs">{event}</span>
-                    </label>
-                  </div>
-                  <button
-                    id={"agents-issue-bot-events-save-#{project_config.id}"}
-                    type="submit"
-                    class="btn btn-xs btn-outline"
-                  >
-                    Save events
-                  </button>
-                </form>
-              </td>
-              <td>
-                <p id={"agents-issue-bot-approval-mode-#{project_config.id}"} class="text-xs text-base-content/70">
-                  {issue_bot_approval_mode_label(project_config.approval_policy)}
-                </p>
-                <form
-                  id={"agents-issue-bot-approval-form-#{project_config.id}"}
-                  phx-submit="set_issue_bot_approval_mode"
-                  class="space-y-2 mt-2"
-                >
-                  <input type="hidden" name="project_id" value={project_config.id} />
-                  <select
-                    id={"agents-issue-bot-approval-select-#{project_config.id}"}
-                    name="approval_mode"
-                    class="select select-xs select-bordered w-full max-w-[14rem]"
-                  >
-                    <option
-                      :for={approval_mode <- @issue_bot_supported_approval_modes}
-                      value={approval_mode}
-                      selected={issue_bot_approval_mode_selected?(project_config.approval_policy, approval_mode)}
+                        class="label cursor-pointer justify-start gap-2 py-0"
+                      >
+                        <input
+                          id={
+                            "agents-issue-bot-event-checkbox-#{project_config.id}-#{issue_bot_webhook_event_dom_id(event)}"
+                          }
+                          type="checkbox"
+                          name="webhook_events[]"
+                          value={event}
+                          checked={issue_bot_webhook_event_selected?(project_config.webhook_events, event)}
+                          class="checkbox checkbox-xs"
+                        />
+                        <span class="text-xs">{event}</span>
+                      </label>
+                    </div>
+                    <button
+                      id={"agents-issue-bot-events-save-#{project_config.id}"}
+                      type="submit"
+                      class="btn btn-xs btn-outline"
                     >
-                      {issue_bot_approval_mode_option_label(approval_mode)}
-                    </option>
-                  </select>
-                  <button
-                    id={"agents-issue-bot-approval-save-#{project_config.id}"}
-                    type="submit"
-                    class="btn btn-xs btn-outline"
+                      Save events
+                    </button>
+                  </form>
+                </td>
+                <td>
+                  <p id={"agents-issue-bot-approval-mode-#{project_config.id}"} class="text-xs text-base-content/70">
+                    {issue_bot_approval_mode_label(project_config.approval_policy)}
+                  </p>
+                  <form
+                    id={"agents-issue-bot-approval-form-#{project_config.id}"}
+                    phx-submit="set_issue_bot_approval_mode"
+                    class="mt-2 space-y-2"
                   >
-                    Save policy
-                  </button>
-                </form>
-                <p id={"agents-issue-bot-last-updated-#{project_config.id}"} class="text-[11px] text-base-content/60">
-                  Last updated: {issue_bot_last_updated_label(project_config.last_updated)}
-                </p>
-              </td>
-              <td>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    id={"agents-issue-bot-enable-#{project_config.id}"}
-                    type="button"
-                    class="btn btn-xs btn-success"
-                    phx-click="set_issue_bot_enabled"
-                    phx-value-project_id={project_config.id}
-                    phx-value-enabled="true"
-                    disabled={project_config.enabled}
-                  >
-                    Enable
-                  </button>
-                  <button
-                    id={"agents-issue-bot-disable-#{project_config.id}"}
-                    type="button"
-                    class="btn btn-xs btn-outline btn-warning"
-                    phx-click="set_issue_bot_enabled"
-                    phx-value-project_id={project_config.id}
-                    phx-value-enabled="false"
-                    disabled={!project_config.enabled}
-                  >
-                    Disable
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+                    <input type="hidden" name="project_id" value={project_config.id} />
+                    <select
+                      id={"agents-issue-bot-approval-select-#{project_config.id}"}
+                      name="approval_mode"
+                      class="select select-xs select-bordered w-full max-w-[14rem]"
+                    >
+                      <option
+                        :for={approval_mode <- @issue_bot_supported_approval_modes}
+                        value={approval_mode}
+                        selected={issue_bot_approval_mode_selected?(project_config.approval_policy, approval_mode)}
+                      >
+                        {issue_bot_approval_mode_option_label(approval_mode)}
+                      </option>
+                    </select>
+                    <button
+                      id={"agents-issue-bot-approval-save-#{project_config.id}"}
+                      type="submit"
+                      class="btn btn-xs btn-outline"
+                    >
+                      Save policy
+                    </button>
+                  </form>
+                  <p id={"agents-issue-bot-last-updated-#{project_config.id}"} class="text-[11px] text-base-content/60">
+                    Last updated: {issue_bot_last_updated_label(project_config.last_updated)}
+                  </p>
+                </td>
+                <td>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      id={"agents-issue-bot-enable-#{project_config.id}"}
+                      type="button"
+                      class="btn btn-xs btn-success"
+                      phx-click="set_issue_bot_enabled"
+                      phx-value-project_id={project_config.id}
+                      phx-value-enabled="true"
+                      disabled={project_config.enabled}
+                    >
+                      Enable
+                    </button>
+                    <button
+                      id={"agents-issue-bot-disable-#{project_config.id}"}
+                      type="button"
+                      class="btn btn-xs btn-outline btn-warning"
+                      phx-click="set_issue_bot_enabled"
+                      phx-value-project_id={project_config.id}
+                      phx-value-enabled="false"
+                      disabled={!project_config.enabled}
+                    >
+                      Disable
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </.single_pane_shell>
     </Layouts.app>
     """
+  end
+
+  defp agents_breadcrumbs do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "agents-breadcrumb-current",
+        label: "Agents",
+        current?: true
+      })
+    ]
+  end
+
+  defp agents_pane do
+    OperatorShell.pane(%{
+      id: "agents-pane",
+      title: "Support agent controls",
+      summary: "Configure per-project Issue Bot automation controls."
+    })
   end
 
   defp load_project_configs(socket) do

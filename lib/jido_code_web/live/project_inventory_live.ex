@@ -4,6 +4,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Workbench.Inventory
+  alias JidoCodeWeb.OperatorShell
 
   @default_branch_filter_value "all"
   @default_filter_values %{
@@ -60,93 +61,123 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
       current_scope={%{}}
       operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
     >
-      <section class="space-y-2">
-        <h1 class="text-2xl font-bold">Repositories</h1>
-        <p class="text-base-content/70">
-          Search and filter imported repositories, then open repo detail.
-        </p>
-      </section>
+      <.single_pane_shell
+        id="project-inventory-shell"
+        breadcrumbs={project_inventory_breadcrumbs()}
+        pane={project_inventory_pane()}
+      >
+        <section id="project-inventory-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
+          <.form
+            for={@filter_form}
+            id="project-inventory-filters-form"
+            phx-change="apply_filters"
+            phx-submit="apply_filters"
+            class="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_minmax(14rem,1fr)]"
+          >
+            <.input
+              id="project-inventory-filter-search"
+              field={@filter_form[:search]}
+              type="text"
+              label="Search"
+              placeholder="Repository, name, branch, or repository ID"
+            />
+            <.input
+              id="project-inventory-filter-default-branch"
+              field={@filter_form[:default_branch]}
+              type="select"
+              label="Default branch"
+              options={@default_branch_filter_options}
+            />
+          </.form>
 
-      <section id="project-inventory-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
-        <.form
-          for={@filter_form}
-          id="project-inventory-filters-form"
-          phx-change="apply_filters"
-          phx-submit="apply_filters"
-          class="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_minmax(14rem,1fr)_auto]"
-        >
-          <.input
-            id="project-inventory-filter-search"
-            field={@filter_form[:search]}
-            type="text"
-            label="Search"
-            placeholder="Repository, name, branch, or repository ID"
-          />
-          <.input
-            id="project-inventory-filter-default-branch"
-            field={@filter_form[:default_branch]}
-            type="select"
-            label="Default branch"
-            options={@default_branch_filter_options}
-          />
-          <button id="project-inventory-apply-filters" type="submit" class="btn btn-primary btn-sm lg:self-end">
+          <div id="project-inventory-filter-chips" class="flex flex-wrap gap-2 pt-2">
+            <span id="project-inventory-filter-chip-search" class="badge badge-outline">
+              Search: {search_chip_label(@filter_values)}
+            </span>
+            <span id="project-inventory-filter-chip-default-branch" class="badge badge-outline">
+              Default branch: {default_branch_chip_label(@filter_values)}
+            </span>
+          </div>
+
+          <p id="project-inventory-results-count" class="pt-2 text-xs text-base-content/70">
+            Showing {@project_count} of {@project_total_count} repositories.
+          </p>
+        </section>
+
+        <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
+          <table id="project-inventory-table" class="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Display name</th>
+                <th>Default branch</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="project-inventory-rows" phx-update="stream">
+              <tr :if={@project_count == 0} id="project-inventory-empty-state">
+                <td colspan="4" class="py-8 text-center text-sm text-base-content/70">
+                  No repositories match the active search and filters.
+                </td>
+              </tr>
+              <tr :for={{dom_id, project} <- @streams.projects} id={dom_id}>
+                <td id={"project-inventory-github-full-name-#{project.id}"} class="font-medium">
+                  {project.github_full_name}
+                </td>
+                <td id={"project-inventory-name-#{project.id}"}>{project.name}</td>
+                <td id={"project-inventory-default-branch-#{project.id}"}>
+                  {project.default_branch}
+                </td>
+                <td id={"project-inventory-actions-#{project.id}"}>
+                  <%= if detail_path = project_detail_path(project, @filter_values) do %>
+                    <.link id={"project-inventory-open-#{project.id}"} class="link link-primary" href={detail_path}>
+                      Open repo
+                    </.link>
+                  <% else %>
+                    <span id={"project-inventory-open-disabled-#{project.id}"} class="text-base-content/50">
+                      Repo detail unavailable
+                    </span>
+                  <% end %>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <:footer_actions>
+          <.link id="project-inventory-reset-filters" patch={~p"/repos"} class="btn btn-sm btn-outline">
+            Clear filters
+          </.link>
+          <button
+            id="project-inventory-apply-filters"
+            type="submit"
+            form="project-inventory-filters-form"
+            class="btn btn-sm btn-primary"
+          >
             Apply filters
           </button>
-        </.form>
-
-        <div id="project-inventory-filter-chips" class="flex flex-wrap gap-2 pt-2">
-          <span id="project-inventory-filter-chip-search" class="badge badge-outline">
-            Search: {search_chip_label(@filter_values)}
-          </span>
-          <span id="project-inventory-filter-chip-default-branch" class="badge badge-outline">
-            Default branch: {default_branch_chip_label(@filter_values)}
-          </span>
-        </div>
-
-        <p id="project-inventory-results-count" class="pt-2 text-xs text-base-content/70">
-          Showing {@project_count} of {@project_total_count} repositories.
-        </p>
-      </section>
-
-      <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-        <table id="project-inventory-table" class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Repository</th>
-              <th>Display name</th>
-              <th>Default branch</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="project-inventory-rows" phx-update="stream">
-            <tr :if={@project_count == 0} id="project-inventory-empty-state">
-              <td colspan="4" class="py-8 text-center text-sm text-base-content/70">
-                No repositories match the active search and filters.
-              </td>
-            </tr>
-            <tr :for={{dom_id, project} <- @streams.projects} id={dom_id}>
-              <td id={"project-inventory-github-full-name-#{project.id}"} class="font-medium">
-                {project.github_full_name}
-              </td>
-              <td id={"project-inventory-name-#{project.id}"}>{project.name}</td>
-              <td id={"project-inventory-default-branch-#{project.id}"}>{project.default_branch}</td>
-              <td id={"project-inventory-actions-#{project.id}"}>
-                <%= if detail_path = project_detail_path(project, @filter_values) do %>
-                  <.link id={"project-inventory-open-#{project.id}"} class="link link-primary" href={detail_path}>
-                    Open repo
-                  </.link>
-                <% else %>
-                  <span id={"project-inventory-open-disabled-#{project.id}"} class="text-base-content/50">
-                    Repo detail unavailable
-                  </span>
-                <% end %>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+        </:footer_actions>
+      </.single_pane_shell>
     </Layouts.app>
     """
+  end
+
+  defp project_inventory_breadcrumbs do
+    [
+      OperatorShell.breadcrumb(%{
+        id: "project-inventory-breadcrumb-current",
+        label: "Repositories",
+        current?: true
+      })
+    ]
+  end
+
+  defp project_inventory_pane do
+    OperatorShell.pane(%{
+      id: "project-inventory-pane",
+      title: "Managed repository inventory",
+      summary: "Search and filter imported repositories, then open repo detail."
+    })
   end
 
   defp load_projects do

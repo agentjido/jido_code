@@ -176,31 +176,32 @@ older dashboard-only sidebar shell is no longer the target UI architecture.
 This decision is partially landed in product code.
 
 Current implementation already reflects the shared shell on dashboard and
-managed-repository detail:
+managed-repository detail, plus proportional single-pane adoption on the
+specialist and inventory routes:
 
 - both routes use the subject-tree ordering of route header, breadcrumb lane,
   top-level subject rail, child-subject sidebar, and selected pane framing
 - selected subject panes now follow the shared header, middle, footer contract
 - dashboard owns the durable ready-state landing route after onboarding
+- `/workbench`, `/repos`, `/workflows`, and `/agents` now reuse the shared
+  breadcrumb lane and selected-pane framing without inventing fake subject
+  rails
 
 Remaining convergence work is now narrower:
 
 - dashboard `Work` still uses a lighter repository-monitoring view than the
   denser inventory and triage model on `/workbench`
-- `/workbench` still reads like a separate route-level product surface instead
-  of a specialist mode or alias for dashboard `Work`
 - repo-detail return context still needs cleanup so dashboard-originated flows
   do not implicitly fall back to Workbench semantics
-- Workbench, repository inventory, workflows, agents, settings, and
-  governed-run detail still render route-specific local bodies around the newer
-  shared navigation layer instead of reusing one proportional shell contract
-- adjacent routes still need a clear rule for when to adopt the full
-  subject-tree shell versus when to keep one real pane and shared chrome
+- settings and governed-run detail still render route-specific local bodies
+  around the newer shared navigation layer instead of reusing one proportional
+  shell contract
 - settings still carries bespoke local tab chrome that should either become a
   child-subject rendering inside the shared shell or otherwise align with the
   same route-owned shell primitives
 
 Current-truth UI specs and planning docs should now treat the shared shell as
 landed on the main signed-in routes, the global signed-in navigation layer as
-landed across the wider product, and adjacent signed-in route shell adoption as
-the next implementation phase.
+landed across the wider product, the proportional shell as landed on the
+specialist and inventory routes, and settings plus governed-run shell adoption
+as the remaining convergence step.

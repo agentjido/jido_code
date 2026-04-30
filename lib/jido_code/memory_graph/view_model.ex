@@ -268,6 +268,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
 
     module_iri = first_present_value(rows, "module")
     function_iri = first_present_value(rows, "function")
+    conversation_context = conversation_context(rows)
 
     %{
       resource_iri: first_present_value(rows, "resource"),
@@ -284,6 +285,8 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       function_name: compact_name(function_iri),
       subject_iri: first_present_value(rows, "subject"),
       revision_iri: first_present_value(rows, "revision"),
+      conversation_origin?: is_map(conversation_context),
+      conversation_context: conversation_context,
       governed_context: governed_context(rows, managed_repo_id)
     }
   end
@@ -332,6 +335,24 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     |> Enum.find(&(not is_nil(&1)))
   end
 
+  defp conversation_context(rows) when is_list(rows) do
+    context =
+      %{}
+      |> maybe_put_context_value(:conversation_id, first_present_value(rows, "conversationId"))
+      |> maybe_put_context_value(:turn_id, first_present_value(rows, "turnId"))
+      |> maybe_put_context_value(:command_id, first_present_value(rows, "commandId"))
+      |> maybe_put_context_value(:conversation_event, first_present_value(rows, "conversationEvent"))
+      |> maybe_put_context_value(:clarification_state, first_present_value(rows, "clarificationState"))
+      |> maybe_put_context_value(:scope, first_present_value(rows, "conversationScope"))
+      |> maybe_put_context_value(:attachment_mode, first_present_value(rows, "conversationAttachmentMode"))
+      |> maybe_put_context_value(:status, first_present_value(rows, "conversationStatus"))
+      |> maybe_put_context_value(:source, first_present_value(rows, "conversationSource"))
+
+    if context == %{}, do: nil, else: context
+  end
+
+  defp conversation_context(_rows), do: nil
+
   defp known_memory_kind?(value), do: known_kind_suffix?(value, @known_memory_kind_suffixes)
   defp known_provenance_kind?(value), do: known_kind_suffix?(value, @known_provenance_kind_suffixes)
 
@@ -376,4 +397,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     |> String.split(["#", "/"])
     |> List.last()
   end
+
+  defp maybe_put_context_value(context, _key, nil), do: context
+  defp maybe_put_context_value(context, key, value), do: Map.put(context, key, value)
 end

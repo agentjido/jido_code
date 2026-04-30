@@ -60,6 +60,20 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
   @spec prompt_turn(keyword() | map()) :: map()
   def prompt_turn(attrs), do: build(:prompt_turn, attrs)
 
+  @spec conversation_turn(keyword() | map()) :: map()
+  def conversation_turn(attrs) when is_list(attrs), do: conversation_turn(Map.new(attrs))
+
+  def conversation_turn(attrs) when is_map(attrs) do
+    metadata =
+      Map.get(attrs, :metadata) ||
+        Map.get(attrs, "metadata") ||
+        %{}
+
+    attrs
+    |> Map.put(:kind, :prompt_turn)
+    |> Map.put(:metadata, Map.put(normalize_map(metadata), "capture_shape", "conversation_turn"))
+  end
+
   @spec plan(keyword() | map()) :: map()
   def plan(attrs), do: build(:plan, attrs)
 
@@ -100,7 +114,8 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
       toolchain_name = normalize_optional_string(Map.get(capture, :toolchain) || Map.get(capture, "toolchain"))
       source_code_anchors = source_code_anchors(capture, managed_repo_id)
 
-      with {:ok, governed_references} <- governed_references(capture, managed_repo_id) do
+      with {:ok, governed_references} <- governed_references(capture, managed_repo_id),
+           {:ok, conversation_context} <- conversation_context(kind, capture) do
         governed_artifacts = governed_artifacts(governed_references)
         related_resources = related_resources(capture)
 
@@ -147,7 +162,8 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
            source_code_anchors: source_code_anchors,
            governed_references: governed_references,
            governed_artifacts: governed_artifacts,
-           related_resources: related_resources
+           related_resources: related_resources,
+           conversation_context: conversation_context
          }}
       end
     end
@@ -332,6 +348,72 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
     resource_iri(kind, graph_context, resource_id)
   end
 
+  defp conversation_context(kind, _capture) when kind != :prompt_turn, do: {:ok, nil}
+
+  defp conversation_context(:prompt_turn, capture) do
+    context =
+      %{}
+      |> maybe_put_context_value(
+        :conversation_id,
+        Map.get(capture, :conversation_id) || Map.get(capture, "conversation_id")
+      )
+      |> maybe_put_context_value(:turn_id, Map.get(capture, :turn_id) || Map.get(capture, "turn_id"))
+      |> maybe_put_context_value(:command_id, Map.get(capture, :command_id) || Map.get(capture, "command_id"))
+      |> maybe_put_context_value(
+        :conversation_event,
+        Map.get(capture, :conversation_event) || Map.get(capture, "conversation_event")
+      )
+      |> maybe_put_context_value(
+        :clarification_state,
+        Map.get(capture, :clarification_state) || Map.get(capture, "clarification_state")
+      )
+      |> maybe_put_context_value(
+        :scope,
+        Map.get(capture, :conversation_scope) ||
+          Map.get(capture, "conversation_scope") ||
+          Map.get(capture, :scope) ||
+          Map.get(capture, "scope")
+      )
+      |> maybe_put_context_value(
+        :attachment_mode,
+        Map.get(capture, :conversation_attachment_mode) ||
+          Map.get(capture, "conversation_attachment_mode") ||
+          Map.get(capture, :attachment_mode) ||
+          Map.get(capture, "attachment_mode")
+      )
+      |> maybe_put_context_value(
+        :status,
+        Map.get(capture, :conversation_status) ||
+          Map.get(capture, "conversation_status") ||
+          Map.get(capture, :status) ||
+          Map.get(capture, "status")
+      )
+      |> maybe_put_context_value(
+        :source,
+        Map.get(capture, :conversation_source) ||
+          Map.get(capture, "conversation_source") ||
+          Map.get(capture, :source) ||
+          Map.get(capture, "source")
+      )
+
+    metadata = normalize_map(Map.get(capture, :metadata) || Map.get(capture, "metadata") || %{})
+    capture_shape = normalize_optional_string(Map.get(metadata, "capture_shape"))
+
+    cond do
+      context == %{} and capture_shape != "conversation_turn" ->
+        {:ok, nil}
+
+      true ->
+        with {:ok, conversation_id} <- required_string(Map.get(context, :conversation_id), :conversation_id),
+             {:ok, conversation_event} <- required_string(Map.get(context, :conversation_event), :conversation_event) do
+          {:ok,
+           context
+           |> Map.put(:conversation_id, conversation_id)
+           |> Map.put(:conversation_event, conversation_event)}
+        end
+    end
+  end
+
   defp resource_iri(kind, graph_context, resource_id) do
     RDF.iri(
       "#{MemoryGraph.workflow_provenance_base_iri(graph_context.managed_repo_id)}#{Map.fetch!(@kind_paths, kind)}/#{uri_encode(resource_id)}"
@@ -408,4 +490,13 @@ defmodule JidoCode.MemoryGraph.CaptureEnvelope do
   end
 
   defp normalize_map(_value), do: %{}
+
+  defp maybe_put_context_value(context, _key, value) when value in [nil, ""], do: context
+
+  defp maybe_put_context_value(context, key, value) do
+    case normalize_optional_string(value) do
+      nil -> context
+      normalized -> Map.put(context, key, normalized)
+    end
+  end
 end

@@ -169,7 +169,7 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
       refute Enum.any?(projection.navigation.governed_records, &(&1.kind == :artifact))
     end
 
-    test "returns typed governed labels when no canonical route exists yet" do
+    test "returns typed governed labels with canonical governed routes when available" do
       managed_repo_id = "repo-#{System.unique_integer([:positive])}"
       workspace_path = create_workspace_path!()
       revision = "phase-37-cross-links"
@@ -187,7 +187,8 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
 
       assert Enum.any?(projection.navigation.governed_records, fn link ->
                link.kind == :evidence and link.id == "evidence-32" and
-                 link.label == "Evidence evidence-32" and is_nil(link.route)
+                 link.label == "Evidence evidence-32" and
+                 link.route == "/repos/#{managed_repo_id}/evidence/evidence-32"
              end)
     end
 

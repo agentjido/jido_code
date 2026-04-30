@@ -106,6 +106,62 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert provenance_query.row_count >= 1
   end
 
+  test "workflows receive bounded conversation recall only when explicitly requested", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+    revision = "rev-75-conversation-workflow"
+
+    %{conversation_resource_iri: conversation_resource_iri} =
+      seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+    assert {:ok, without_recall} =
+             WorkflowService.explain(
+               managed_repo_id,
+               work_item_id,
+               "Explain without conversation recall",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision,
+                 memories: [content_contains: "Repository decisions should keep ExampleMemoryWorkflow.greet/1 stable."]
+               ]
+             )
+
+    assert get_in(without_recall.memory_input, [:results, :conversation_recall]) == nil
+    assert get_in(without_recall.follow_up_context, ["conversation_recall"]) == []
+
+    assert {:ok, with_recall} =
+             WorkflowService.explain(
+               managed_repo_id,
+               work_item_id,
+               "Explain with bounded conversation recall",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision,
+                 conversation_recall: [
+                   conversation_event: "clarification_requested",
+                   limit: 5
+                 ]
+               ]
+             )
+
+    assert with_recall.memory_input.results.conversation_recall.kind == :conversation_recall
+    assert with_recall.memory_input.selection.conversation_count >= 1
+    assert conversation_resource_iri in with_recall.memory_input.selection.conversation_resources
+    refute Map.has_key?(with_recall.memory_input.results.conversation_recall, :bindings)
+    refute Map.has_key?(with_recall.memory_input.results.conversation_recall, :compiled_sparql)
+
+    assert Enum.any?(with_recall.follow_up_context["conversation_recall"], fn item ->
+             item["latest_event"] == "clarification_requested" and
+               conversation_resource_iri in item["resource_iris"]
+           end)
+  end
+
   test "execute returns bounded memory workflow inputs with implementation-focused defaults", %{
     workspace_path: workspace_path
   } do
@@ -477,9 +533,36 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
                revision: revision
              )
 
+    assert {:ok, conversation_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.conversation_turn(
+                 session_id: session_id,
+                 actor_id: "system:memory-graph-workflow-service",
+                 workflow: :explain,
+                 work_item_id: "work-32",
+                 content: "Which file or module should I inspect first?",
+                 revision: revision,
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
+                 conversation_id: "conversation-32",
+                 turn_id: "turn-32",
+                 command_id: "command-32",
+                 conversation_event: "clarification_requested",
+                 clarification_state: "awaiting_input",
+                 scope: "work_item_scoped",
+                 attachment_mode: "synthesized_work_item",
+                 status: "awaiting_input",
+                 source: "repo_detail"
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
     %{
       memory_resource_iri: memory_result.capture.resource_iri,
       plan_resource_iri: plan_result.capture.resource_iri,
+      conversation_resource_iri: conversation_result.capture.resource_iri,
       session_id: session_id
     }
   end

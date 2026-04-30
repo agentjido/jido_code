@@ -490,6 +490,8 @@ defmodule JidoCode.MemoryGraph.ViewModel do
 
   defp sortable_timestamp(nil), do: 0
 
+  defp sortable_timestamp(%DateTime{} = value), do: DateTime.to_unix(value, :microsecond)
+
   defp sortable_timestamp(value) when is_binary(value) do
     case DateTime.from_iso8601(value) do
       {:ok, datetime, _offset} -> DateTime.to_unix(datetime, :microsecond)

@@ -221,6 +221,13 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       |> maybe_add_projection(:provenance, Keyword.get(memory_opts, :provenance), fn request_opts ->
         ProductService.provenance(managed_repo_id, workspace_path, merge_lookup_opts(memory_opts, request_opts))
       end)
+      |> maybe_add_projection(:conversation_recall, Keyword.get(memory_opts, :conversation_recall), fn request_opts ->
+        ProductService.conversation_recall(
+          managed_repo_id,
+          workspace_path,
+          merge_lookup_opts(memory_opts, request_opts)
+        )
+      end)
       |> maybe_add_projection(:cross_links, Keyword.get(memory_opts, :cross_links), fn request_opts ->
         with {:ok, resource_iri} <- required_resource_iri(request_opts) do
           ProductService.cross_links(
@@ -437,6 +444,15 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
         values -> values
       end
 
+    conversation_resources =
+      get_in(memory_input, [:selection, :conversation_resources]) || []
+
+    bounded_conversation_recall =
+      memory_input
+      |> get_in([:selection, :selected_items, :conversation_recall])
+      |> List.wrap()
+      |> Enum.map(&bounded_conversation_recall_item/1)
+
     normalize_map(%{
       workflow: workflow,
       session_id: workflow_provenance && workflow_provenance.session_id,
@@ -448,9 +464,27 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       governed_references: memory_governed_references(memory_input),
       memory_resources: memory_resources,
       provenance_resources: provenance_resources,
+      conversation_resources: conversation_resources,
+      conversation_recall: bounded_conversation_recall,
       related_resources: related_resources
     })
   end
+
+  defp bounded_conversation_recall_item(item) when is_map(item) do
+    %{
+      conversation_id: Map.get(item, :conversation_id),
+      turn_id: Map.get(item, :turn_id),
+      command_id: Map.get(item, :command_id),
+      latest_event: Map.get(item, :latest_event),
+      origin_summary: Map.get(item, :origin_summary),
+      content_preview: Map.get(item, :content_preview),
+      conversation_context: Map.get(item, :conversation_context),
+      governed_context: Map.get(item, :governed_context),
+      resource_iris: Map.get(item, :resource_iris, [])
+    }
+  end
+
+  defp bounded_conversation_recall_item(_item), do: %{}
 
   defp workflow_provenance_context(_workflow, _managed_repo_id, _work_item_id, _instruction, _opts, nil),
     do: {:ok, nil}

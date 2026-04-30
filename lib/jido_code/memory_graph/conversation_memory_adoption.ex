@@ -22,7 +22,7 @@ defmodule JidoCode.MemoryGraph.ConversationMemoryAdoption do
   @spec adopt(map(), keyword()) :: {:ok, map()} | {:error, term()}
   def adopt(projection_or_item, opts \\ [])
 
-  def adopt(projection_or_item, opts \\ []) when is_map(projection_or_item) and is_list(opts) do
+  def adopt(projection_or_item, opts) when is_map(projection_or_item) and is_list(opts) do
     with {:ok, item} <- selected_item(projection_or_item, opts),
          {:ok, managed_repo_id} <- required_string(Map.get(item, :managed_repo_id), :managed_repo_id),
          {:ok, workspace_path} <- MemoryGraph.normalize_workspace_path(Keyword.get(opts, :workspace_path)),

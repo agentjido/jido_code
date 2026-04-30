@@ -78,6 +78,57 @@ defmodule JidoCode.MemoryGraph.FollowUpSurface do
     end
   end
 
+  def preview(%{kind: :conversation_recall} = projection, opts) do
+    selected_items =
+      projection
+      |> Map.get(:items, [])
+      |> Enum.take(Keyword.get(opts, :item_limit, 2))
+
+    if selected_items == [] do
+      unavailable_preview()
+    else
+      case Finding.from_projection(
+             projection,
+             selected_items: selected_items,
+             category: Keyword.get(opts, :category, "conversation_recall_follow_up_preview"),
+             recommended_action: "promote_conversation_follow_up",
+             summary: Keyword.get(opts, :summary)
+           ) do
+        {:ok, finding} ->
+          route = normalize_optional_string(Keyword.get(opts, :route))
+
+          %{
+            available?: true,
+            summary: Map.get(finding, :summary),
+            recommended_action: Map.get(finding, :recommended_action),
+            recommended_action_label: recommended_action_label(Map.get(finding, :recommended_action)),
+            priority: Map.get(finding, :priority),
+            urgency: Map.get(finding, :urgency),
+            selected_count: length(selected_items),
+            memory_kinds: [],
+            route: route,
+            route_label: route_label(route),
+            workflow_context: %{
+              "category" => Keyword.get(opts, :category, "conversation_recall_follow_up_preview"),
+              "conversation_resources" =>
+                selected_items
+                |> Enum.flat_map(&(Map.get(&1, :resource_iris, []) |> List.wrap()))
+                |> Enum.reject(&is_nil/1)
+                |> Enum.uniq(),
+              "conversation_ids" =>
+                selected_items
+                |> Enum.map(&Map.get(&1, :conversation_id))
+                |> Enum.reject(&is_nil/1)
+                |> Enum.uniq()
+            }
+          }
+
+        {:error, _reason} ->
+          unavailable_preview()
+      end
+    end
+  end
+
   def preview(_projection, _opts), do: unavailable_preview()
 
   defp unavailable_preview do
@@ -141,6 +192,7 @@ defmodule JidoCode.MemoryGraph.FollowUpSurface do
   defp route_label(_route), do: "Review bounded follow-up context"
 
   defp recommended_action_label("promote_memory_follow_up"), do: "Promote governed follow-up"
+  defp recommended_action_label("promote_conversation_follow_up"), do: "Promote conversation follow-up"
 
   defp recommended_action_label(action) when is_binary(action) do
     action

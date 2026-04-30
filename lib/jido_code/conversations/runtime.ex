@@ -12,6 +12,7 @@ defmodule JidoCode.Conversations.Runtime do
   """
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Conversations.LongTermProvenance
   alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.Conversations.RuntimeReadiness
   alias JidoCode.LLMSelection
@@ -24,11 +25,15 @@ defmodule JidoCode.Conversations.Runtime do
           work_item_id: String.t(),
           child_work_id: String.t(),
           turn_id: String.t(),
+          command_id: String.t() | nil,
           instruction: String.t(),
           command_type: String.t() | nil,
           actor: map() | nil,
           objective: String.t() | nil,
           source: String.t() | nil,
+          scope: atom() | String.t() | nil,
+          attachment_mode: atom() | String.t() | nil,
+          status: atom() | String.t() | nil,
           source_metadata: map() | nil,
           conversation_metadata: map() | nil,
           shared_context: map() | nil,
@@ -53,16 +58,27 @@ defmodule JidoCode.Conversations.Runtime do
              conversation_metadata: normalize_map(map_get(runtime_spec, :conversation_metadata))
            ),
          {:ok, request} <- build_request(runtime_spec, readiness) do
+      _ = LongTermProvenance.capture_turn_started(runtime_spec, request, readiness)
+
       emit.(runtime_progress_event(request))
 
       case maybe_request_clarification(request) do
         {:awaiting_input, payload} ->
+          _ =
+            LongTermProvenance.capture_clarification_request(
+              runtime_spec,
+              request,
+              readiness,
+              Map.get(payload, "prompt")
+            )
+
           {:awaiting_input, payload}
 
         :ok ->
           case invoke(request, runtime_spec, readiness) do
             {:ok, result} ->
               summary = result_summary(result, request.workflow)
+              _ = LongTermProvenance.capture_turn_completed(runtime_spec, request, readiness, summary)
 
               emit.(%{
                 "kind" => "delta",
@@ -84,12 +100,29 @@ defmodule JidoCode.Conversations.Runtime do
                }}
 
             {:error, %{} = typed_error} ->
+              _ =
+                LongTermProvenance.capture_turn_failed(
+                  runtime_spec,
+                  request,
+                  readiness,
+                  Map.get(typed_error, "detail") || Map.get(typed_error, :detail)
+                )
+
               {:failed, %{"kind" => "failed", "error" => normalize_error(typed_error)}}
 
             {:error, reason, %{} = detail} ->
+              _ =
+                LongTermProvenance.capture_turn_failed(
+                  runtime_spec,
+                  request,
+                  readiness,
+                  Map.get(detail, :detail) || Map.get(detail, "detail") || inspect(reason)
+                )
+
               {:failed, %{"kind" => "failed", "error" => normalize_error(Map.put_new(detail, :reason, reason))}}
 
             {:error, reason} ->
+              _ = LongTermProvenance.capture_turn_failed(runtime_spec, request, readiness, inspect(reason))
               {:failed, %{"kind" => "failed", "error" => runtime_error(reason)}}
           end
       end

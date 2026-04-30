@@ -139,6 +139,99 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
              end)
     end
 
+    test "returns bounded conversation-derived recall with freshness and governed linkage metadata" do
+      managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+      workspace_path = create_workspace_path!()
+      revision = "phase-75-conversation-recall"
+
+      %{conversation_resource_iri: conversation_resource_iri} =
+        seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+      assert {:ok, projection} =
+               ProductService.conversation_recall(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: revision,
+                 conversation_event: "clarification_requested"
+               )
+
+      assert projection.kind == :conversation_recall
+      assert projection.graph.state == :ready
+      refute Map.has_key?(projection, :bindings)
+      refute Map.has_key?(projection, :compiled_sparql)
+
+      assert Enum.any?(projection.items, fn item ->
+               conversation_resource_iri in item.resource_iris and
+                 item.latest_event == "clarification_requested" and
+                 item.conversation_context.scope == "work_item_scoped"
+             end)
+
+      recall_item = Enum.find(projection.items, &(conversation_resource_iri in &1.resource_iris))
+
+      assert Enum.any?(recall_item.governed_context, fn link ->
+               link.kind == :work_item and link.id == "work-32"
+             end)
+
+      assert Enum.any?(recall_item.governed_context, fn link ->
+               link.kind == :run and link.id == "run-32"
+             end)
+    end
+
+    test "conversation-derived takeaways become durable memory only through explicit adoption paths" do
+      managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+      workspace_path = create_workspace_path!()
+      revision = "phase-75-conversation-adoption"
+
+      seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+      assert {:ok, projection} =
+               ProductService.conversation_recall(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: revision,
+                 conversation_event: "clarification_requested"
+               )
+
+      assert {:ok, before_adoption} =
+               ProductService.memories(
+                 managed_repo_id,
+                 workspace_path,
+                 content_contains: "Conversation-derived open question about repository scope.",
+                 revision: revision
+               )
+
+      assert before_adoption.items == []
+
+      assert {:ok, adoption} =
+               ProductService.adopt_conversation_memory(
+                 projection,
+                 workspace_path: workspace_path,
+                 revision: revision,
+                 memory_kind: :open_question,
+                 content: "Conversation-derived open question about repository scope.",
+                 classification_source: "memory_graph_product_service_test",
+                 classification_reason: "Explicit operator-style adoption turned bounded conversation recall into durable memory."
+               )
+
+      assert adoption.status == :conversation_memory_adopted
+      assert adoption.memory_kind == :open_question
+
+      assert {:ok, adopted_memories} =
+               ProductService.memories(
+                 managed_repo_id,
+                 workspace_path,
+                 content_contains: "Conversation-derived open question about repository scope.",
+                 revision: revision
+               )
+
+      assert Enum.any?(adopted_memories.items, fn item ->
+               item.memory_kind == "OpenQuestion" and
+                 item.conversation_origin? == true and
+                 item.conversation_context.conversation_event == "clarification_requested" and
+                 item.conversation_context.conversation_id == adoption.origin.conversation_id
+             end)
+    end
+
     test "returns bounded cross-graph navigation for memory resources" do
       managed_repo_id = "repo-#{System.unique_integer([:positive])}"
       workspace_path = create_workspace_path!()
@@ -169,7 +262,7 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
       refute Enum.any?(projection.navigation.governed_records, &(&1.kind == :artifact))
     end
 
-    test "returns typed governed labels when no canonical route exists yet" do
+    test "returns typed governed labels with canonical governed routes when available" do
       managed_repo_id = "repo-#{System.unique_integer([:positive])}"
       workspace_path = create_workspace_path!()
       revision = "phase-37-cross-links"
@@ -187,7 +280,8 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
 
       assert Enum.any?(projection.navigation.governed_records, fn link ->
                link.kind == :evidence and link.id == "evidence-32" and
-                 link.label == "Evidence evidence-32" and is_nil(link.route)
+                 link.label == "Evidence evidence-32" and
+                 link.route == "/repos/#{managed_repo_id}/evidence/evidence-32"
              end)
     end
 
@@ -314,9 +408,36 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
                revision: revision
              )
 
+    assert {:ok, conversation_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.conversation_turn(
+                 session_id: session_id,
+                 actor_id: "system:memory-graph-product-service",
+                 workflow: :explain,
+                 work_item_id: "work-32",
+                 content: "Which file or module should I inspect first?",
+                 revision: revision,
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
+                 conversation_id: "conversation-32",
+                 turn_id: "turn-32",
+                 command_id: "command-32",
+                 conversation_event: "clarification_requested",
+                 clarification_state: "awaiting_input",
+                 scope: "work_item_scoped",
+                 attachment_mode: "synthesized_work_item",
+                 status: "awaiting_input",
+                 source: "repo_detail"
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
     %{
       memory_resource_iri: memory_result.capture.resource_iri,
       plan_resource_iri: plan_result.capture.resource_iri,
+      conversation_resource_iri: conversation_result.capture.resource_iri,
       session_id: session_id
     }
   end

@@ -1359,6 +1359,60 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-memory-feedback-type", "memory_graph_recovered")
   end
 
+  test "repo detail memory keeps bounded conversation-origin recall cross-linked to canonical conversation routes",
+       %{conn: _conn} do
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    bootstrap_owner!("memory-recall-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-recall-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("ProjectDetailMemory.Recall")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-recall",
+        github_full_name: "owner/repo-memory-recall",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+    seed_memory_graph!(managed_repo_id, workspace_path, "phase-76-repo-detail-recall")
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}?section=memory", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-conversation-recall-list")
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-recall-item-1-summary",
+             "Conversation requested clarification"
+           )
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-recall-item-1-preview",
+             "Which file or module should I inspect first?"
+           )
+
+    assert has_element?(
+             view,
+             "#project-detail-conversation-recall-item-1-conversation-link-1[href*='section=conversations'][href$='#project-detail-conversation-panel']",
+             "Open governed conversation"
+           )
+  end
+
   defp create_workspace_path! do
     workspace_path =
       Path.join(
@@ -1456,6 +1510,33 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                  work_item_id: "work-32",
                  content: "Generated a bounded plan artifact for the repository.",
                  anchors: %{module_name: module_name}
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
+    assert {:ok, _conversation_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.conversation_turn(
+                 session_id: session_id,
+                 actor_id: "system:project-detail-memory",
+                 workflow: :explain,
+                 work_item_id: "work-32",
+                 content: "Which file or module should I inspect first?",
+                 revision: revision,
+                 anchors: %{module_name: module_name},
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
+                 conversation_id: "conversation-32",
+                 turn_id: "turn-32",
+                 command_id: "command-32",
+                 conversation_event: "clarification_requested",
+                 clarification_state: "awaiting_input",
+                 scope: "work_item_scoped",
+                 attachment_mode: "synthesized_work_item",
+                 status: "awaiting_input",
+                 source: "repo_detail"
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision

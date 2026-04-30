@@ -11,7 +11,7 @@ defmodule JidoCode.Conversations do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations.{Conversation, EventRecord, SnapshotRecord}
-  alias JidoCode.Conversations.{Driver, Persistence, Snapshot}
+  alias JidoCode.Conversations.{Driver, LongTermProvenance, Persistence, Snapshot}
   alias JidoCode.Operations.{Ingress, WorkItem}
 
   admin do
@@ -543,27 +543,34 @@ defmodule JidoCode.Conversations do
          actor,
          now
        ) do
-    Conversation.update(
-      conversation,
-      %{
-        work_item_id: optional_id(work_item),
-        attachment_mode: attachment_mode,
-        scope: scope,
-        conversation_metadata:
-          steering_conversation_metadata(
-            conversation,
-            payload,
-            shared_context,
-            work_item,
-            work_action,
-            attachment_mode,
-            scope,
-            now
-          ),
-        last_activity_at: now
-      },
-      actor: actor
-    )
+    case Conversation.update(
+           conversation,
+           %{
+             work_item_id: optional_id(work_item),
+             attachment_mode: attachment_mode,
+             scope: scope,
+             conversation_metadata:
+               steering_conversation_metadata(
+                 conversation,
+                 payload,
+                 shared_context,
+                 work_item,
+                 work_action,
+                 attachment_mode,
+                 scope,
+                 now
+               ),
+             last_activity_at: now
+           },
+           actor: actor
+         ) do
+      {:ok, updated_conversation} ->
+        _ = LongTermProvenance.capture_work_attachment(updated_conversation, actor: actor)
+        {:ok, updated_conversation}
+
+      other ->
+        other
+    end
   end
 
   defp steering_conversation_metadata(

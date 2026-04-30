@@ -2,7 +2,7 @@
 
 # Run Governance
 
-<!-- current_truth.reconciled_with_branch: run-detail memory-aware verification remains attached to canonical governed run surfaces described here, and governed run detail now participates in the shared signed-in operator navigation layer plus the shared breadcrumb-and-pane shell so deep follow-up routes do not strand operators behind one return link. -->
+<!-- current_truth.reconciled_with_branch: run-detail memory-aware verification remains attached to canonical governed run surfaces described here, governed run detail now participates in the shared signed-in operator navigation layer plus the shared breadcrumb-and-pane shell so deep follow-up routes do not strand operators behind one return link, and bounded conversation-origin recall now appears on that run-detail memory context with stable cross-links back to the canonical repository conversation route instead of rehosting transcripts on the run surface. -->
 
 This subject defines the governed run projection model for `Jido.Code`.
 
@@ -10,7 +10,7 @@ This subject defines the governed run projection model for `Jido.Code`.
 id: architecture.run_governance
 kind: policy
 status: active
-summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, allows bounded memory and provenance context plus canonical memory follow-up staging to appear on canonical run-detail surfaces without displacing governed execution truth, lets those records inform posture without replacing the run-governance model itself, and keeps governed run detail inside the shared signed-in operator navigation and breadcrumb-plus-pane shell model so route-level follow-up remains product-coherent.
+summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, allows bounded memory and provenance context plus canonical memory follow-up staging to appear on canonical run-detail surfaces without displacing governed execution truth, now also allows bounded conversation-origin recall there when operators need governed origin context but still routes full transcript continuity back through canonical repository conversation surfaces, lets those records inform posture without replacing the run-governance model itself, and keeps governed run detail inside the shared signed-in operator navigation and breadcrumb-plus-pane shell model so route-level follow-up remains product-coherent.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization

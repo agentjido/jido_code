@@ -255,6 +255,42 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
     assert provenance_query.row_count == 1
   end
 
+  test "conversation recall projections can materialize governed follow-up without reopening transcripts", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo = create_managed_repo!()
+    revision = "rev-75-conversation-governed"
+
+    %{conversation_resource_iri: conversation_resource_iri} =
+      seed_memory_graph!(managed_repo.id, workspace_path, revision)
+
+    assert {:ok, projection} =
+             ProductService.conversation_recall(
+               managed_repo.id,
+               workspace_path,
+               revision: revision,
+               conversation_event: "clarification_requested"
+             )
+
+    assert {:ok, adoption} =
+             GovernedAdoption.adopt_work_item(
+               projection,
+               query: %{resource_iri: conversation_resource_iri},
+               selected_items: Enum.filter(projection.items, &(conversation_resource_iri in &1.resource_iris)),
+               workspace_path: workspace_path
+             )
+
+    assert adoption.action == :created
+    assert adoption.finding.provenance[:projection_kind] == :conversation_recall
+
+    assert Enum.any?(adoption.finding.provenance[:conversation_origin], fn origin ->
+             origin["conversation_id"] == "conversation-32" and
+               origin["conversation_event"] == "clarification_requested"
+           end)
+
+    assert adoption.work_item.work_metadata["memory_finding"]["provenance"]["projection_kind"] == "conversation_recall"
+  end
+
   defp governed_session_id(:plan, digest, work_item_id), do: "memory-governed-plan-#{digest}-#{work_item_id}"
   defp governed_session_id(:review, digest, work_item_id), do: "memory-governed-review-#{digest}-#{work_item_id}"
 
@@ -338,9 +374,36 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
                revision: revision
              )
 
+    assert {:ok, conversation_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.conversation_turn(
+                 session_id: session_id,
+                 actor_id: "system:memory-graph-governed-adoption",
+                 workflow: :explain,
+                 work_item_id: "work-32",
+                 content: "Which file or module should I inspect first?",
+                 revision: revision,
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
+                 conversation_id: "conversation-32",
+                 turn_id: "turn-32",
+                 command_id: "command-32",
+                 conversation_event: "clarification_requested",
+                 clarification_state: "awaiting_input",
+                 scope: "work_item_scoped",
+                 attachment_mode: "synthesized_work_item",
+                 status: "awaiting_input",
+                 source: "repo_detail"
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
     %{
       memory_resource_iri: memory_result.capture.resource_iri,
       provenance_resource_iri: provenance_result.capture.resource_iri,
+      conversation_resource_iri: conversation_result.capture.resource_iri,
       session_id: session_id
     }
   end

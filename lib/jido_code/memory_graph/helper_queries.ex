@@ -85,7 +85,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       )
 
     """
-    SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject ?governedRecord ?governedKind ?governedLabel
+    SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject ?governedRecord ?governedKind ?governedLabel ?conversationId ?turnId ?commandId ?conversationEvent ?clarificationState ?conversationScope ?conversationAttachmentMode ?conversationStatus ?conversationSource ?supportedArtifact ?supportedArtifactLabel ?supportedArtifactComment
     WHERE {
     #{kind_filter}
       ?memory a ?kind ;
@@ -99,6 +99,20 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?memory jido:aboutModule ?module . }
       OPTIONAL { ?memory jido:aboutFunction ?function . }
       OPTIONAL { ?memory jido:affectsSymbol ?subject . }
+      OPTIONAL { ?memory jido:conversationId ?conversationId . }
+      OPTIONAL { ?memory jido:conversationTurnId ?turnId . }
+      OPTIONAL { ?memory jido:conversationCommandId ?commandId . }
+      OPTIONAL { ?memory jido:conversationEvent ?conversationEvent . }
+      OPTIONAL { ?memory jido:clarificationState ?clarificationState . }
+      OPTIONAL { ?memory jido:conversationScope ?conversationScope . }
+      OPTIONAL { ?memory jido:conversationAttachmentMode ?conversationAttachmentMode . }
+      OPTIONAL { ?memory jido:conversationStatus ?conversationStatus . }
+      OPTIONAL { ?memory jido:conversationSource ?conversationSource . }
+      OPTIONAL {
+        ?memory jido:supportedBy ?supportedArtifact .
+        OPTIONAL { ?supportedArtifact rdfs:label ?supportedArtifactLabel . }
+        OPTIONAL { ?supportedArtifact rdfs:comment ?supportedArtifactComment . }
+      }
       OPTIONAL {
         VALUES (?governedPredicate ?governedKind) {
           (jido:aboutManagedRepo "managed_repo")
@@ -168,8 +182,50 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
         "resource"
       )
 
+    conversation_filter =
+      case normalized_string(params[:conversation_id]) do
+        nil ->
+          ""
+
+        conversation_id ->
+          """
+            FILTER(BOUND(?conversationId) && STR(?conversationId) = "#{escape_string(conversation_id)}")
+          """
+      end
+
+    turn_filter =
+      case normalized_string(params[:turn_id]) do
+        nil ->
+          ""
+
+        turn_id ->
+          """
+            FILTER(BOUND(?turnId) && STR(?turnId) = "#{escape_string(turn_id)}")
+          """
+      end
+
+    conversation_event_filter =
+      case normalized_string(params[:conversation_event]) do
+        nil ->
+          ""
+
+        conversation_event ->
+          """
+            FILTER(BOUND(?conversationEvent) && STR(?conversationEvent) = "#{escape_string(conversation_event)}")
+          """
+      end
+
+    conversation_origin_filter =
+      if Map.get(params, :conversation_origin?, false) do
+        """
+          FILTER(BOUND(?conversationId))
+        """
+      else
+        ""
+      end
+
     """
-    SELECT ?resource ?kind ?label ?content ?startedAt ?endedAt ?session ?module ?function ?subject ?revision ?governedRecord ?governedKind ?governedLabel
+    SELECT ?resource ?kind ?label ?content ?startedAt ?endedAt ?session ?module ?function ?subject ?revision ?governedRecord ?governedKind ?governedLabel ?conversationId ?turnId ?commandId ?conversationEvent ?clarificationState ?conversationScope ?conversationAttachmentMode ?conversationStatus ?conversationSource
     WHERE {
     #{kind_filter}
       ?resource a ?kind .
@@ -182,6 +238,15 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?resource jido:aboutFunction ?function . }
       OPTIONAL { ?resource jido:affectsSymbol ?subject . }
       OPTIONAL { ?resource jido:validForRevision ?revision . }
+      OPTIONAL { ?resource jido:conversationId ?conversationId . }
+      OPTIONAL { ?resource jido:conversationTurnId ?turnId . }
+      OPTIONAL { ?resource jido:conversationCommandId ?commandId . }
+      OPTIONAL { ?resource jido:conversationEvent ?conversationEvent . }
+      OPTIONAL { ?resource jido:clarificationState ?clarificationState . }
+      OPTIONAL { ?resource jido:conversationScope ?conversationScope . }
+      OPTIONAL { ?resource jido:conversationAttachmentMode ?conversationAttachmentMode . }
+      OPTIONAL { ?resource jido:conversationStatus ?conversationStatus . }
+      OPTIONAL { ?resource jido:conversationSource ?conversationSource . }
       OPTIONAL {
         VALUES (?governedPredicate ?governedKind) {
           (jido:aboutManagedRepo "managed_repo")
@@ -201,6 +266,10 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
     #{governed_filter}
       FILTER(STRSTARTS(STR(?resource), "#{base_iri}"))
     #{label_filter}
+    #{conversation_filter}
+    #{turn_filter}
+    #{conversation_event_filter}
+    #{conversation_origin_filter}
     }
     ORDER BY DESC(?startedAt) ?resource
     LIMIT #{limit}

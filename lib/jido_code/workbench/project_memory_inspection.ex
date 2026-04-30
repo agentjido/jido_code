@@ -12,6 +12,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   internals behind bounded memory and provenance projections.
   """
 
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph.{ProductFeedback, ProductService, SurfaceFeedback}
   alias JidoCode.Workbench.{ProjectDetail, ProjectWorkspaceBindingNotice}
 
@@ -51,6 +52,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
           summary: map(),
           memories: map(),
           provenance: map(),
+          conversation_recall: map(),
           notice: notice() | nil,
           notice_kind: atom(),
           recovery: recovery()
@@ -64,8 +66,10 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
         graph = Map.get(status, :graph, @default_graph)
 
         lookup_opts = Keyword.put_new(opts, :allow_stale?, true)
+        route_project_id = project_like |> map_get(:id, "id") |> normalize_optional_string()
+        route_opts = Keyword.put(lookup_opts, :route_project_id, route_project_id)
 
-        {summary, memories, provenance} =
+        {summary, memories, provenance, conversation_recall} =
           if queryable_graph?(graph) do
             {
               projection_for(ProductService.summary(managed_repo_id, workspace_path, lookup_opts)),
@@ -73,20 +77,31 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
                 ProductService.memories(managed_repo_id, workspace_path, Keyword.put_new(lookup_opts, :limit, 6)),
                 managed_repo_id,
                 workspace_path,
-                lookup_opts
+                route_opts
               ),
               navigation_projection(
                 ProductService.provenance(managed_repo_id, workspace_path, Keyword.put_new(lookup_opts, :limit, 6)),
                 managed_repo_id,
                 workspace_path,
-                lookup_opts
+                route_opts
+              ),
+              navigation_projection(
+                ProductService.conversation_recall(
+                  managed_repo_id,
+                  workspace_path,
+                  Keyword.put_new(lookup_opts, :limit, 6)
+                ),
+                managed_repo_id,
+                workspace_path,
+                route_opts
               )
             }
           else
             {
               empty_summary(managed_repo_id, graph),
               empty_lookup(:memories, managed_repo_id, graph),
-              empty_lookup(:provenance, managed_repo_id, graph)
+              empty_lookup(:provenance, managed_repo_id, graph),
+              empty_lookup(:conversation_recall, managed_repo_id, graph)
             }
           end
 
@@ -98,6 +113,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
           summary: summary,
           memories: memories,
           provenance: provenance,
+          conversation_recall: conversation_recall,
           notice: memory_notice(status),
           notice_kind: ProductFeedback.notice_kind(graph),
           recovery: ProductFeedback.recovery(graph)
@@ -221,6 +237,9 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
   end
 
   defp attach_navigation(items, managed_repo_id, workspace_path, opts) when is_list(items) do
+    route_project_id = Keyword.get(opts, :route_project_id) |> normalize_optional_string()
+    return_to_path = Keyword.get(opts, :return_to_path) |> normalize_optional_string()
+
     Enum.map(items, fn item ->
       resource_iri = Map.get(item, :memory_iri) || Map.get(item, :resource_iri)
 
@@ -236,9 +255,65 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
             %{source_code: [], governed_records: [], related_memories: []}
         end
 
-      Map.put(item, :navigation, navigation)
+      item
+      |> Map.put(:navigation, navigation)
+      |> attach_conversation_route(route_project_id, return_to_path)
     end)
   end
+
+  defp attach_conversation_route(item, route_project_id, return_to_path)
+       when is_map(item) and is_binary(route_project_id) do
+    case conversation_route(item, route_project_id, return_to_path) do
+      {route, label} ->
+        item
+        |> Map.put(:conversation_route, route)
+        |> Map.put(:conversation_route_label, label)
+
+      nil ->
+        item
+    end
+  end
+
+  defp attach_conversation_route(item, _route_project_id, _return_to_path), do: item
+
+  defp conversation_route(item, route_project_id, return_to_path) when is_map(item) and is_binary(route_project_id) do
+    if is_map(Map.get(item, :conversation_context)) do
+      work_item_id = governed_reference_id(item, :work_item)
+
+      route =
+        ManagedRepoRoutes.project_detail_path(
+          route_project_id,
+          return_to: return_to_path,
+          section: "conversations",
+          work_item_id: work_item_id,
+          anchor: "project-detail-conversation-panel"
+        )
+
+      label =
+        if is_binary(work_item_id) do
+          "Open governed conversation"
+        else
+          "Open repo conversation"
+        end
+
+      {route, label}
+    else
+      nil
+    end
+  end
+
+  defp conversation_route(_item, _route_project_id, _return_to_path), do: nil
+
+  defp governed_reference_id(item, kind) when is_map(item) and is_atom(kind) do
+    item
+    |> Map.get(:governed_context, [])
+    |> Enum.find_value(fn
+      %{kind: ^kind, id: id} -> normalize_optional_string(id)
+      _other -> nil
+    end)
+  end
+
+  defp governed_reference_id(_item, _kind), do: nil
 
   defp empty_summary(managed_repo_id, graph) do
     %{
@@ -285,6 +360,7 @@ defmodule JidoCode.Workbench.ProjectMemoryInspection do
       summary: empty_summary("unavailable", @default_graph),
       memories: empty_lookup(:memories, "unavailable", @default_graph),
       provenance: empty_lookup(:provenance, "unavailable", @default_graph),
+      conversation_recall: empty_lookup(:conversation_recall, "unavailable", @default_graph),
       notice: notice,
       notice_kind: @default_notice_kind,
       recovery: ProductFeedback.recovery(@default_graph)

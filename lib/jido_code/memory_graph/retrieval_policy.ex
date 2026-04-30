@@ -162,31 +162,46 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
       |> Map.get(:items, [])
       |> Enum.filter(&selected_provenance?(&1, policy))
 
+    conversation_items =
+      result_projections
+      |> Map.get(:conversation_recall, %{})
+      |> Map.get(:items, [])
+      |> Enum.take(policy.limit)
+
     governed_references =
-      [memory_items, provenance_items]
+      [memory_items, provenance_items, conversation_items]
       |> List.flatten()
       |> Enum.flat_map(&item_governed_references/1)
       |> Enum.uniq_by(fn reference -> {reference.kind, reference.id} end)
 
+    conversation_resources =
+      conversation_items
+      |> Enum.flat_map(&(Map.get(&1, :resource_iris, []) |> List.wrap()))
+      |> compact_strings()
+
     %{
-      state: selection_state(result_projections, memory_items, provenance_items),
+      state: selection_state(result_projections, memory_items, provenance_items, conversation_items),
       retrieval_policy: summary(policy),
       memory_count: length(memory_items),
       provenance_count: length(provenance_items),
+      conversation_count: length(conversation_items),
       governed_reference_count: length(governed_references),
       governed_references: governed_references,
       memory_resources: Enum.map(memory_items, &Map.get(&1, :memory_iri)) |> compact_strings(),
       provenance_resources: Enum.map(provenance_items, &Map.get(&1, :resource_iri)) |> compact_strings(),
+      conversation_resources: conversation_resources,
       related_resources:
         [
           Enum.map(memory_items, &Map.get(&1, :memory_iri)),
-          Enum.map(provenance_items, &Map.get(&1, :resource_iri))
+          Enum.map(provenance_items, &Map.get(&1, :resource_iri)),
+          conversation_resources
         ]
         |> List.flatten()
         |> compact_strings(),
       selected_items: %{
         memories: Enum.take(memory_items, policy.limit),
-        provenance: Enum.take(provenance_items, policy.limit)
+        provenance: Enum.take(provenance_items, policy.limit),
+        conversation_recall: conversation_items
       }
     }
   end
@@ -260,18 +275,19 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
 
   defp kind_selected?(_kind_name, _allowed_kinds), do: false
 
-  defp selection_state(result_projections, memory_items, provenance_items) do
+  defp selection_state(result_projections, memory_items, provenance_items, conversation_items) do
     had_items? =
       Enum.any?(
         [
           get_in(result_projections, [:memories, :items]) || [],
-          get_in(result_projections, [:provenance, :items]) || []
+          get_in(result_projections, [:provenance, :items]) || [],
+          get_in(result_projections, [:conversation_recall, :items]) || []
         ],
         &(&1 != [])
       )
 
     cond do
-      memory_items != [] or provenance_items != [] -> :selected
+      memory_items != [] or provenance_items != [] or conversation_items != [] -> :selected
       had_items? -> :filtered
       true -> :empty
     end

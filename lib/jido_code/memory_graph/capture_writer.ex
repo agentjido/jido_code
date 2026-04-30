@@ -184,6 +184,7 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
       |> add_anchors(resource, envelope.source_code_anchors)
       |> add_governed_references(resource, envelope.managed_repo_id, envelope.governed_references)
       |> add_related_resources(resource, related_resource_targets(envelope))
+      |> add_conversation_context(resource, envelope.conversation_context)
 
     (common_actor_and_revision ++ session_stub ++ resource_triples)
     |> List.flatten()
@@ -296,6 +297,59 @@ defmodule JidoCode.MemoryGraph.CaptureWriter do
 
   defp add_related_resources(triples, subject, related_resources) do
     triples ++ Enum.map(related_resources, &{subject, jido("relatedTo"), &1})
+  end
+
+  defp add_conversation_context(triples, _subject, nil), do: triples
+
+  defp add_conversation_context(triples, subject, conversation_context) when is_map(conversation_context) do
+    triples ++
+      [
+        maybe_triple(
+          subject,
+          jido("conversationId"),
+          literal_or_nil(Map.get(conversation_context, :conversation_id))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationTurnId"),
+          literal_or_nil(Map.get(conversation_context, :turn_id))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationCommandId"),
+          literal_or_nil(Map.get(conversation_context, :command_id))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationEvent"),
+          literal_or_nil(Map.get(conversation_context, :conversation_event))
+        ),
+        maybe_triple(
+          subject,
+          jido("clarificationState"),
+          literal_or_nil(Map.get(conversation_context, :clarification_state))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationScope"),
+          literal_or_nil(Map.get(conversation_context, :scope))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationAttachmentMode"),
+          literal_or_nil(Map.get(conversation_context, :attachment_mode))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationStatus"),
+          literal_or_nil(Map.get(conversation_context, :status))
+        ),
+        maybe_triple(
+          subject,
+          jido("conversationSource"),
+          literal_or_nil(Map.get(conversation_context, :source))
+        )
+      ]
   end
 
   defp related_session_resources(%{kind: :work_session, related_resources: resources}), do: resources

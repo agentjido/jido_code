@@ -5,7 +5,7 @@ defmodule JidoCode.MemoryGraph.Finding do
   Builds bounded product findings from memory and workflow-provenance projections.
   """
 
-  @supported_projection_kinds [:memories, :provenance]
+  @supported_projection_kinds [:memories, :provenance, :conversation_recall]
 
   @spec from_projection(map(), keyword()) :: {:ok, map()} | {:error, atom()}
   def from_projection(projection, opts \\ [])
@@ -85,12 +85,23 @@ defmodule JidoCode.MemoryGraph.Finding do
     "Review workflow provenance #{provenance_kind} for the managed repository."
   end
 
+  defp default_summary(%{kind: :conversation_recall}, [%{origin_summary: origin_summary} | _rest])
+       when is_binary(origin_summary) do
+    origin_summary
+  end
+
+  defp default_summary(%{kind: :conversation_recall}, [%{latest_event: latest_event} | _rest])
+       when is_binary(latest_event) do
+    "Review conversation-derived origin context for #{String.replace(latest_event, "_", " ")}."
+  end
+
   defp default_summary(%{kind: kind}, selected_items) do
     "Review #{length(selected_items)} #{kind} findings for the managed repository."
   end
 
   defp default_category(:memories), do: "memory_graph_memory_finding"
   defp default_category(:provenance), do: "memory_graph_provenance_finding"
+  defp default_category(:conversation_recall), do: "memory_graph_conversation_recall_finding"
 
   defp default_priority(_kind, %{state: state}, _items) when state in [:failed, :invalidated], do: :high
   defp default_priority(_kind, %{state: :stale}, _items), do: :medium
@@ -101,6 +112,10 @@ defmodule JidoCode.MemoryGraph.Finding do
 
   defp default_priority(:provenance, _graph, _items), do: :medium
 
+  defp default_priority(:conversation_recall, _graph, items) do
+    if Enum.any?(items, &high_priority_conversation_recall?/1), do: :high, else: :medium
+  end
+
   defp default_urgency(_kind, %{state: state}, _items) when state in [:failed, :invalidated], do: :high
   defp default_urgency(_kind, %{state: :stale}, _items), do: :medium
 
@@ -110,8 +125,13 @@ defmodule JidoCode.MemoryGraph.Finding do
 
   defp default_urgency(:provenance, _graph, _items), do: :medium
 
+  defp default_urgency(:conversation_recall, _graph, items) do
+    if Enum.any?(items, &high_priority_conversation_recall?/1), do: :high, else: :medium
+  end
+
   defp default_recommended_action(:memories), do: "review_memory_finding"
   defp default_recommended_action(:provenance), do: "review_provenance_finding"
+  defp default_recommended_action(:conversation_recall), do: "review_conversation_follow_up"
 
   defp high_priority_memory?(%{memory_kind: memory_kind}) when is_binary(memory_kind) do
     memory_kind in ["KnownIssue", "AntiPattern", "OpenQuestion"]
@@ -119,12 +139,19 @@ defmodule JidoCode.MemoryGraph.Finding do
 
   defp high_priority_memory?(_item), do: false
 
+  defp high_priority_conversation_recall?(%{latest_event: latest_event}) when is_binary(latest_event) do
+    latest_event in ["turn_failed", "clarification_requested"]
+  end
+
+  defp high_priority_conversation_recall?(_item), do: false
+
   defp provenance(projection, opts, selected_items) do
     %{
       projection_kind: Map.get(projection, :kind),
       result_count: get_in(projection, [:result_group, :count]) || length(Map.get(projection, :items, [])),
       selected_count: length(selected_items),
       governed_references: selected_governed_references(selected_items),
+      conversation_origin: selected_conversation_origin(selected_items),
       query: normalize_map(Keyword.get(opts, :query, %{})),
       requested_by: normalize_map(Keyword.get(opts, :requested_by, %{})),
       feedback: normalize_map(Map.get(projection, :feedback, %{}))
@@ -143,6 +170,37 @@ defmodule JidoCode.MemoryGraph.Finding do
       {Map.get(reference, "kind"), Map.get(reference, "id")}
     end)
   end
+
+  defp selected_conversation_origin(selected_items) when is_list(selected_items) do
+    selected_items
+    |> Enum.flat_map(fn item ->
+      case normalize_map(Map.get(item, :conversation_context, %{})) do
+        %{} = context when map_size(context) > 0 ->
+          [
+            %{
+              "conversation_id" => context["conversation_id"],
+              "turn_id" => context["turn_id"],
+              "command_id" => context["command_id"],
+              "conversation_event" => context["conversation_event"],
+              "scope" => context["scope"],
+              "attachment_mode" => context["attachment_mode"],
+              "status" => context["status"],
+              "source" => context["source"],
+              "resource_iris" => normalize_list(Map.get(item, :resource_iris, []))
+            }
+          ]
+
+        _other ->
+          []
+      end
+    end)
+    |> Enum.uniq_by(fn origin ->
+      {origin["conversation_id"], origin["turn_id"], origin["command_id"]}
+    end)
+  end
+
+  defp normalize_list(values) when is_list(values), do: Enum.map(values, &normalize_nested_value/1)
+  defp normalize_list(_values), do: []
 
   defp normalize_graph(graph) when is_map(graph) do
     %{

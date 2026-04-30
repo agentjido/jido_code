@@ -12,8 +12,9 @@ workflow entrypoints.
 id: architecture.memory_graph_product_adoption
 kind: feature
 status: active
-summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes, dashboard summaries, governed run detail, and workbench memory hints while broader governed-surface expansion remains phase-scoped, exposing freshness, validation, invalidation, stale, and recovery state in operator surfaces, allowing planning, coding, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring repo-detail memory readiness to resolve from the managed repository's own workspace binding rather than setup-wide defaults, including when that binding originated from an explicit repo-scoped local import path outside one shared install root and when a later repo-scoped repair flow rebinds only the selected managed repository from the same route, requiring blocked memory states to reuse the same repo-scoped workspace-binding vocabulary and repair path as adjacent runtime surfaces, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, dashboard `Work > Overview`, managed-repository detail, governed run detail, and `/workbench` memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract rather than leaving overview empty, with `/workbench` and governed run detail now using the proportional shared shell, reusing shared breadcrumb and pane helpers for adjacent signed-in route adoption instead of memory-specific shell chrome, and keeping repo detail memory/provenance inside a dedicated route-owned `Memory` family that can cross-link back to the corresponding semantic family.
+summary: Jido.Code adopts the repository-scoped memory and workflow-provenance graphs as bounded product capabilities by adding product-owned memory service, view-model, cross-graph navigation, and surface-feedback boundaries over AgentWorkspace, hosting memory and provenance inspection inside canonical managed-repository routes, dashboard summaries, governed run detail, and workbench memory hints while broader governed-surface expansion remains phase-scoped, exposing freshness, validation, invalidation, stale, recovery, and bounded conversation-derived origin context in operator surfaces, allowing planning, coding, review, and explanation workflows to request memory context explicitly through product-owned options instead of ambient graph assumptions, preserving repository-scoped recovery and bounded memory-capture rules when operator or governed paths record or evolve durable memories, requiring repo-detail memory readiness to resolve from the managed repository's own workspace binding rather than setup-wide defaults, including when that binding originated from an explicit repo-scoped local import path outside one shared install root and when a later repo-scoped repair flow rebinds only the selected managed repository from the same route, requiring blocked memory states to reuse the same repo-scoped workspace-binding vocabulary and repair path as adjacent runtime surfaces, requiring memory findings to rejoin governed product records instead of exposing raw SPARQL, pod topology, or TripleStore internals to product callers, grounding those governed cross-links in the companion control-plane ontology plus the `governed_references` capture-envelope contract while keeping dashboard summaries, dashboard `Work > Overview`, managed-repository detail, governed run detail, and `/workbench` memory hints on the same bounded navigation, typed governed-link, and follow-up-preview contract rather than leaving overview empty, with `/workbench` and governed run detail now using the proportional shared shell, reusing shared breadcrumb and pane helpers for adjacent signed-in route adoption instead of memory-specific shell chrome, and keeping repo detail memory/provenance inside a dedicated route-owned `Memory` family that can cross-link back to the corresponding semantic family.
 decisions:
+  - jido_code.conversation_history_long_term_capture
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_product_adoption
@@ -93,6 +94,11 @@ surface:
   statement: Product-facing memory and provenance views may navigate to stable repository-scoped code entities and related source-code graph projections through bounded cross-graph links, but those links shall remain product-owned projections rather than raw graph joins exposed directly to UI code.
   priority: should
   stability: proposed
+
+- id: architecture.memory_graph_product_adoption.conversation_derived_context_uses_bounded_projections
+  statement: Product workflows and operator surfaces may request bounded conversation-derived provenance and adopted memory context through product-owned projections, but they shall not expose raw transcript history or treat conversation persistence itself as the durable memory UI.
+  priority: should
+  stability: proposed
 ```
 
 ## Scenarios
@@ -141,6 +147,20 @@ surface:
     - Memory context is absent when the workflow does not request it.
     - Workflow logic remains independent of direct pod topology or raw SPARQL calls.
 
+- id: architecture.memory_graph_product_adoption.scenario_conversation_derived_origin_is_projected_safely
+  covers:
+    - architecture.memory_graph_product_adoption.conversation_derived_context_uses_bounded_projections
+    - architecture.memory_graph_product_adoption.product_owned_memory_service_boundary
+    - architecture.memory_graph_product_adoption.operator_surfaces_do_not_expose_raw_memory_graph_internals
+  given:
+    - Governed work or a durable memory originated from productive conversation history.
+  when:
+    - A workflow or operator requests that origin context later.
+  then:
+    - The product returns bounded provenance or adopted-memory projections instead of raw graph or transcript internals.
+    - Raw transcript browsing remains owned by conversation surfaces.
+    - Only explicitly adopted takeaways appear as durable memory classes.
+
 - id: architecture.memory_graph_product_adoption.scenario_memory_findings_become_governed_follow_up
   covers:
     - architecture.memory_graph_product_adoption.memory_findings_rejoin_governed_product_records
@@ -169,6 +189,11 @@ surface:
 ## Verification
 
 ```spec-verification
+- kind: source_file
+  target: .spec/decisions/jido_code.conversation_history_long_term_capture.md
+  covers:
+    - architecture.memory_graph_product_adoption.conversation_derived_context_uses_bounded_projections
+
 - kind: source_file
   target: .spec/decisions/jido_code.memory_graph_product_adoption.md
   covers:

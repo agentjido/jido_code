@@ -34,6 +34,7 @@ The plan aligns to:
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md`
 - `../decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md`
+- `../decisions/jido_code.conversation_history_long_term_capture.md`
 - `../decisions/jido_code.post_onboarding_subject_tree_operator_shell.md`
 - `../decisions/jido_code.welcome_bootstrap_entry_with_dashboard_and_settings_handoff.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
@@ -121,6 +122,9 @@ The plan aligns to:
 65. [Phase 71 - Workbench Route Role And Return-Path Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-71-workbench-route-role-and-return-path-convergence.md): clean up route semantics once dashboard owns primary repo inventory so repo detail preserves real parent context and `/workbench` settles into a dense specialist mode, alias, or redirect.
 66. [Phase 72 - Global Operator Navigation Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-72-global-operator-navigation-convergence.md): add one coherent signed-in navigation layer across dashboard, Workbench, settings, repo detail, and run detail so major destinations stay easy to reach and future route composition stays reusable.
 67. [Phase 73 - Adjacent Signed-In Route Shell Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-73-adjacent-signed-in-route-shell-adoption.md): converge Workbench, repository inventory, workflows, agents, settings, and governed-run detail on the shared signed-in shell language so adjacent routes stop feeling like bespoke pages under the new global navigation.
+68. [Phase 74 - Conversation Provenance Long-Term Capture Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-74-conversation-provenance-long-term-capture-foundation.md): add the provenance-first long-term capture path for productive conversations so later workflows and governed records can explain conversation-driven work without turning the memory graph into a transcript dump.
+69. [Phase 75 - Conversation-Derived Memory And Workflow Recall Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-75-conversation-derived-memory-and-workflow-recall-adoption.md): expose bounded conversation-derived provenance through product-owned retrieval, explicit adoption, and workflow recall so later work can reuse origin context without raw transcript loading.
+70. [Phase 76 - Operator Conversation Recall Surface And Governance Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-76-operator-conversation-recall-surface-and-governance-adoption.md): roll bounded conversation-derived recall into canonical operator and governed surfaces while keeping transcript continuity on conversation routes and control-plane truth on governed records.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -135,6 +139,14 @@ the forward breadcrumb plus top-rail and child-sidebar rollout, Phases 70 and
 the shared shell is in place, Phase 72 lands the missing product-wide signed-in
 wayfinding layer across those routes, and Phase 73 owns the remaining adjacent
 signed-in route shell adoption work.
+
+Conversation-memory chronology note: Phase 74 introduces provenance-first
+long-term conversation capture on top of the existing conversation and
+workflow-provenance foundations, Phase 75 adds bounded product retrieval plus
+explicit durable-memory adoption for conversation-derived context, and Phase 76
+rolls that recall into canonical operator and governed follow-up surfaces
+without turning the memory graph into a transcript browser or alternate control
+plane.
 
 ## Shared Conventions
 - Numbering:

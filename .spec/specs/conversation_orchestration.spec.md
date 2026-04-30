@@ -9,8 +9,9 @@ durable work scope, interruptible execution, and event-driven UI delivery.
 id: architecture.conversation_orchestration
 kind: feature
 status: active
-summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, dashboard conversation supervision now bounded inside a dedicated authenticated sidebar-selected dashboard conversation concern while dashboard `Work > Overview` plus `/workbench` reuse the shared managed-repository inventory surface to preview the same bounded conversation follow-up instead of keeping overview empty, route-local workspace-readiness repair from blocked runtime panels using the same repo-scoped binding language as adjacent runtime surfaces with inline repair actions on blocked repo-detail notices, `/workbench` and governed run detail now adopting the shared proportional breadcrumb-and-pane shell for those follow-up route bodies, and one shared signed-in operator navigation layer over those routes through LiveView-owned helpers rather than bespoke route headers, while clarification on ambiguous workflow intent replaces snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
+summary: Jido.Code treats productive coding conversations as managed-repository hosted, canonically work-item-scoped mixed-initiative sessions coordinated through explicit control and work commands, deterministic product-owned workflow routing, append-only sequenced event streams, durable snapshots, bounded shared context, optional provenance-first long-term semantic recall, cancellable tool jobs, real LLM-backed turn execution through product-owned runtime boundaries with explicit repo and conversation LLM provider/model selection, and event-driven LiveView plus PubSub delivery with reconnectable degraded fallbacks, including repo-detail as the canonical conversation host surface through a dedicated route-owned `Conversations` family, repo-scoped pre-work intake, multiple active work-item conversations per repository, bounded Workbench plus run-detail plus dashboard projection, dashboard conversation supervision now bounded inside a dedicated authenticated sidebar-selected dashboard conversation concern while dashboard `Work > Overview` plus `/workbench` reuse the shared managed-repository inventory surface to preview the same bounded conversation follow-up instead of keeping overview empty, route-local workspace-readiness repair from blocked runtime panels using the same repo-scoped binding language as adjacent runtime surfaces with inline repair actions on blocked repo-detail notices, `/workbench` and governed run detail now adopting the shared proportional breadcrumb-and-pane shell for those follow-up route bodies, and one shared signed-in operator navigation layer over those routes through LiveView-owned helpers rather than bespoke route headers, while clarification on ambiguous workflow intent replaces snapshot polling, fake timer-driven turn simulation, ad hoc FIFO chat handling, AI-decided specialist self-selection, abstract model-tier routing, or one repo-global productive thread.
 decisions:
+  - jido_code.conversation_history_long_term_capture
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_agent_os_integration
   - jido_code.llm_provider_and_model_selection
@@ -152,6 +153,11 @@ surface:
 
 - id: architecture.conversation_orchestration.steering_preserves_short_term_context
   statement: Steering or superseding a turn shall preserve bounded shared short-term context such as the active work item, referenced files, accepted tool results, and pending clarification state so users can redirect work without restating the whole task.
+  priority: should
+  stability: proposed
+
+- id: architecture.conversation_orchestration.long_term_conversation_recall_is_provenance_first
+  statement: When productive conversation history is preserved for long-term recall beyond route snapshots and event history, the product shall capture bounded turn and lineage context as workflow provenance and shall promote only explicitly adopted takeaways into durable memory instead of flattening full transcript state into repository memory.
   priority: should
   stability: proposed
 
@@ -313,6 +319,19 @@ surface:
   then:
     - The conversation stays attached to the same managed repository and work context unless the user explicitly changes scope.
     - Bounded short-term context remains available to the next turn.
+
+- id: architecture.conversation_orchestration.scenario_conversation_origin_survives_beyond_active_transcript
+  covers:
+    - architecture.conversation_orchestration.long_term_conversation_recall_is_provenance_first
+    - architecture.conversation_orchestration.productive_turns_attach_to_canonical_work_items
+  given:
+    - A productive repository conversation has already created, attached, or steered governed work.
+  when:
+    - A later workflow or operator needs that work's origin context without reopening the active transcript.
+  then:
+    - The product can retrieve bounded conversation-turn lineage through workflow provenance.
+    - Full transcript continuity still remains owned by the conversation system.
+    - Only explicitly adopted takeaways become durable repository memory.
 
 - id: architecture.conversation_orchestration.scenario_steering_rejoins_canonical_work
   covers:
@@ -539,6 +558,11 @@ surface:
 ## Verification
 
 ```spec-verification
+- kind: source_file
+  target: .spec/decisions/jido_code.conversation_history_long_term_capture.md
+  covers:
+    - architecture.conversation_orchestration.long_term_conversation_recall_is_provenance_first
+
 - kind: source_file
   target: .spec/decisions/jido_code.interruptible_conversation_orchestration.md
   covers:

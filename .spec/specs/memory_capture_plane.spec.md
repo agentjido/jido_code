@@ -11,8 +11,9 @@ durable coding memories into the repository semantic store over time.
 id: architecture.memory_capture_plane
 kind: feature
 status: active
-summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, now emits typed governed relations from those writers while leaving artifact-style compatibility data internal to the cutover, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to current operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and now defines a canonical typed governed-reference contract that callers emit as `governed_references` while any artifact-style compatibility data stays internal to the cutover.
+summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, routes any long-term productive conversation-history capture into that same provenance lane before memory adoption, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, now emits typed governed relations from those writers while leaving artifact-style compatibility data internal to the cutover, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, extends that same seam to current operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces, and now defines a canonical typed governed-reference contract that callers emit as `governed_references` while any artifact-style compatibility data stays internal to the cutover.
 decisions:
+  - jido_code.conversation_history_long_term_capture
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.source_code_graph_product_adoption
@@ -87,6 +88,11 @@ surface:
   priority: must
   stability: proposed
 
+- id: architecture.memory_capture_plane.conversation_history_is_captured_as_workflow_provenance
+  statement: When productive conversation history is preserved for long-term semantic recall, bounded conversation-turn, steering, clarification, and repo or work-item linkage shall be captured in `workflow_provenance`, while transcript text or model output shall enter `memory` only through explicit adoption or classification.
+  priority: must
+  stability: proposed
+
 - id: architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
   statement: Transient model text, intermediate reasoning artifacts, or unadopted helper output shall not be inserted as durable memory unless a bounded product or governed boundary explicitly classifies and adopts them.
   priority: must
@@ -122,6 +128,20 @@ surface:
   then:
     - The activity is inserted as workflow provenance in `workflow_provenance`.
     - It does not become a durable memory class merely because it happened.
+
+- id: architecture.memory_capture_plane.scenario_conversation_history_stays_provenance_first
+  covers:
+    - architecture.memory_capture_plane.conversation_history_is_captured_as_workflow_provenance
+    - architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
+    - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
+  given:
+    - A productive conversation later needs long-term searchable origin or follow-up context.
+  when:
+    - The product captures that context beyond the active conversation snapshot.
+  then:
+    - Bounded conversation-turn lineage is written to `workflow_provenance`.
+    - Transcript continuity still remains owned by conversation persistence.
+    - Only explicitly adopted takeaways are written into `memory`.
 
 - id: architecture.memory_capture_plane.scenario_classified_semantic_finding_becomes_memory
   covers:
@@ -179,6 +199,11 @@ surface:
 ## Verification
 
 ```spec-verification
+- kind: source_file
+  target: .spec/decisions/jido_code.conversation_history_long_term_capture.md
+  covers:
+    - architecture.memory_capture_plane.conversation_history_is_captured_as_workflow_provenance
+
 - kind: source_file
   target: .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   covers:

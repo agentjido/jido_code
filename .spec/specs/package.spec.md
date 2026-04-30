@@ -12,6 +12,7 @@ summary: jido_code is the primary implementation repo, maintains a package-local
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
+  - jido_code.conversation_history_long_term_capture
   - jido_code.dashboard_concern_tabs_and_overview_handoff
   - jido_code.dashboard_developer_centric_monitoring_sidebar
   - jido_code.post_onboarding_subject_tree_operator_shell

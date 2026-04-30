@@ -142,6 +142,20 @@ These are important non-goals:
 - conversation state is not durable memory by default
 - graph-local facts are not product truth on their own
 
+## Conversation Recall Rule
+
+When a later surface needs conversation history, choose the boundary on purpose:
+
+- Reopen the canonical repo-detail conversation route when you need transcript
+  continuity, active supervision, or turn-by-turn detail.
+- Use bounded conversation-origin recall when you need provenance-shaped origin
+  context on memory or governed surfaces.
+- Adopt durable memory only when a classified takeaway should persist beyond the
+  transcript and provenance layers.
+
+This keeps memory and governed surfaces explainable without turning them into
+alternate chat browsers.
+
 ## Contributor Rule Of Thumb
 
 Ask two questions:

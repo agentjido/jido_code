@@ -43,6 +43,7 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
   attr :dom_prefix, :string, required: true
   attr :item, :map, required: true
   attr :include_governed, :boolean, default: true
+  attr :conversation_label, :string, default: "Canonical conversation"
   attr :governed_label, :string, default: "Governed context"
   attr :source_label, :string, default: "Source code"
   attr :related_label, :string, default: "Related memory"
@@ -50,6 +51,12 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
   def memory_link_groups(assigns) do
     ~H"""
     <div class="space-y-1">
+      <.memory_link_group
+        :if={conversation_links(@item) != []}
+        dom_prefix={"#{@dom_prefix}-conversation"}
+        label={@conversation_label}
+        links={conversation_links(@item)}
+      />
       <.memory_link_group
         :if={@include_governed and navigation_links(@item, :governed_records) != []}
         dom_prefix={"#{@dom_prefix}-governed"}
@@ -68,6 +75,44 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
         label={@related_label}
         links={navigation_links(@item, :related_memories)}
       />
+    </div>
+    """
+  end
+
+  attr :dom_prefix, :string, required: true
+  attr :item, :map, required: true
+
+  def conversation_origin_card(assigns) do
+    ~H"""
+    <div class="space-y-2">
+      <div class="space-y-1">
+        <p id={"#{@dom_prefix}-summary"} class="font-medium">
+          {conversation_origin_summary(@item)}
+        </p>
+        <p
+          :if={conversation_origin_preview(@item)}
+          id={"#{@dom_prefix}-preview"}
+          class="text-sm text-base-content/80"
+        >
+          {conversation_origin_preview(@item)}
+        </p>
+        <p
+          :if={conversation_origin_metadata(@item) != []}
+          id={"#{@dom_prefix}-metadata"}
+          class="text-xs text-base-content/60"
+        >
+          {Enum.join(conversation_origin_metadata(@item), " | ")}
+        </p>
+        <p
+          :if={conversation_anchor(@item)}
+          id={"#{@dom_prefix}-anchor"}
+          class="text-xs text-base-content/60"
+        >
+          Code anchor: {conversation_anchor(@item)}
+        </p>
+      </div>
+
+      <.memory_link_groups dom_prefix={@dom_prefix} item={@item} />
     </div>
     """
   end
@@ -116,6 +161,33 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
 
   defp navigation_links(_item, _key), do: []
 
+  defp conversation_links(item) when is_map(item) do
+    route =
+      item
+      |> map_get(:conversation_route, "conversation_route")
+      |> normalize_optional_string()
+
+    label =
+      item
+      |> map_get(:conversation_route_label, "conversation_route_label")
+      |> normalize_optional_string()
+
+    if is_binary(route) do
+      [
+        %{
+          kind: :conversation,
+          id: nil,
+          label: label || "Open canonical conversation",
+          route: route
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp conversation_links(_item), do: []
+
   defp normalize_link(link) when is_map(link) do
     %{
       kind: map_get(link, :kind, "kind"),
@@ -143,6 +215,103 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
       {kind, nil} -> kind
       {nil, id} -> id
       {kind, id} -> "#{kind} #{id}"
+    end
+  end
+
+  defp conversation_origin_summary(item) when is_map(item) do
+    item
+    |> map_get(:origin_summary, "origin_summary")
+    |> normalize_optional_string() ||
+      item
+      |> map_get(:label, "label")
+      |> normalize_optional_string() ||
+      "Conversation origin remains available as bounded recall."
+  end
+
+  defp conversation_origin_summary(_item), do: "Conversation origin remains available as bounded recall."
+
+  defp conversation_origin_preview(item) when is_map(item) do
+    item
+    |> map_get(:content_preview, "content_preview")
+    |> normalize_optional_string() ||
+      item
+      |> map_get(:content, "content")
+      |> normalize_optional_string()
+  end
+
+  defp conversation_origin_preview(_item), do: nil
+
+  defp conversation_origin_metadata(item) when is_map(item) do
+    []
+    |> maybe_append_segment(latest_event_segment(item))
+    |> maybe_append_segment(conversation_id_segment(item))
+    |> maybe_append_segment(scope_segment(item))
+    |> maybe_append_segment(status_segment(item))
+  end
+
+  defp conversation_origin_metadata(_item), do: []
+
+  defp latest_event_segment(item) do
+    item
+    |> map_get(:latest_event, "latest_event")
+    |> humanize_segment("Latest event")
+  end
+
+  defp conversation_id_segment(item) do
+    item
+    |> conversation_context_value(:conversation_id, "conversation_id")
+    |> then(fn
+      nil -> nil
+      conversation_id -> "Conversation: #{conversation_id}"
+    end)
+  end
+
+  defp scope_segment(item) do
+    item
+    |> conversation_context_value(:scope, "scope")
+    |> humanize_segment("Scope")
+  end
+
+  defp status_segment(item) do
+    item
+    |> conversation_context_value(:status, "status")
+    |> humanize_segment("Status")
+  end
+
+  defp conversation_anchor(item) when is_map(item) do
+    item
+    |> map_get(:module_name, "module_name")
+    |> normalize_optional_string() ||
+      item
+      |> map_get(:function_name, "function_name")
+      |> normalize_optional_string()
+  end
+
+  defp conversation_anchor(_item), do: nil
+
+  defp conversation_context_value(item, atom_key, string_key) when is_map(item) do
+    item
+    |> map_get(:conversation_context, "conversation_context", %{})
+    |> map_get(atom_key, string_key)
+    |> normalize_optional_string()
+  end
+
+  defp maybe_append_segment(segments, nil), do: segments
+  defp maybe_append_segment(segments, segment), do: segments ++ [segment]
+
+  defp humanize_segment(value, label) when is_binary(label) do
+    case normalize_optional_string(value) do
+      nil ->
+        nil
+
+      normalized ->
+        humanized =
+          normalized
+          |> String.replace("_", " ")
+          |> String.replace("-", " ")
+          |> String.capitalize()
+
+        "#{label}: #{humanized}"
     end
   end
 

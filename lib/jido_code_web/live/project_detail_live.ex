@@ -95,7 +95,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               |> assign(:project_load_error, nil)
               |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
               |> assign(:semantic_action_feedback, nil)
-              |> assign(:memory_inspection, ProjectMemoryInspection.load_repo_detail(project_detail))
+              |> assign(:memory_inspection, load_memory_inspection(project_detail, return_to_path))
               |> assign(:memory_action_feedback, nil)
               |> assign(:conversation_action_feedback, nil)
               |> assign(:conversation_action_feedback_kind, :info)
@@ -1608,11 +1608,17 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 recover_id="project-detail-memory-recover"
               />
 
-              <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
+              <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
                   <p class="text-xs uppercase text-base-content/60">Durable memories</p>
                   <p id="project-detail-memory-summary-memories" class="mt-1 text-xl font-semibold">
                     {memory_group_count(@memory_inspection.summary, :memories)}
+                  </p>
+                </article>
+                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Conversation recall</p>
+                  <p id="project-detail-memory-summary-conversation-recall" class="mt-1 text-xl font-semibold">
+                    {memory_projection_count(@memory_inspection.conversation_recall)}
                   </p>
                 </article>
                 <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
@@ -1635,7 +1641,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 </article>
               </div>
 
-              <div class="grid gap-3 lg:grid-cols-2">
+              <div class="grid gap-3 xl:grid-cols-3">
                 <section id="project-detail-memory-list" class="space-y-2">
                   <h3 class="font-medium">Durable memory</h3>
                   <p :if={Enum.empty?(memory_items(@memory_inspection.memories))} class="text-sm text-base-content/70">
@@ -1656,6 +1662,34 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       </p>
                       <.memory_link_groups
                         dom_prefix={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
+                        item={item}
+                      />
+                    </li>
+                  </ul>
+                </section>
+
+                <section id="project-detail-conversation-recall-list" class="space-y-2">
+                  <h3 class="font-medium">Conversation-origin recall</h3>
+                  <p class="text-sm text-base-content/70">
+                    Bounded origin summaries stay explorable here without turning repository memory into a transcript browser.
+                  </p>
+                  <p
+                    :if={Enum.empty?(memory_items(@memory_inspection.conversation_recall))}
+                    class="text-sm text-base-content/70"
+                  >
+                    No bounded conversation-origin recall is currently available for this repository.
+                  </p>
+                  <ul
+                    :if={!Enum.empty?(memory_items(@memory_inspection.conversation_recall))}
+                    class="space-y-2 text-sm"
+                  >
+                    <li
+                      :for={item <- memory_items(@memory_inspection.conversation_recall)}
+                      id={"project-detail-conversation-recall-item-#{memory_item_dom_id(item)}"}
+                      class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                    >
+                      <.conversation_origin_card
+                        dom_prefix={"project-detail-conversation-recall-item-#{memory_item_dom_id(item)}"}
                         item={item}
                       />
                     </li>
@@ -2154,7 +2188,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     do: "Source-code graph freshness, recovery, and bounded structural inspection."
 
   defp detail_section_summary(:memory, _assigns),
-    do: "Durable coding memory, workflow provenance, and freshness validation."
+    do: "Durable coding memory, bounded conversation-origin recall, workflow provenance, and freshness validation."
 
   defp detail_section_summary(:workflows, assigns) do
     if project_ready_for_launch?(Map.get(assigns, :project_detail)) do
@@ -2184,7 +2218,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp project_detail_pane_summary(:memory),
     do:
-      "Durable coding memory, workflow provenance, and validation remain product-owned here before memory influences operator decisions."
+      "Durable coding memory, bounded conversation-origin recall, workflow provenance, and validation remain product-owned here before memory influences operator decisions."
 
   defp project_detail_pane_summary(:workflows),
     do:
@@ -2452,7 +2486,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             |> assign(:project_detail, project_detail)
             |> assign(:project_load_error, nil)
             |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
-            |> assign(:memory_inspection, ProjectMemoryInspection.load_repo_detail(project_detail))
+            |> assign(:memory_inspection, load_memory_inspection(project_detail, socket.assigns.return_to_path))
             |> assign_workspace_binding_form(project_detail)
             |> assign_project_conversation(project_detail, socket.assigns.selected_work_item_id)
 
@@ -3823,6 +3857,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp memory_items(%{items: items}) when is_list(items), do: items
   defp memory_items(_projection), do: []
 
+  defp memory_projection_count(%{result_group: %{count: count}}) when is_integer(count), do: count
+  defp memory_projection_count(_projection), do: 0
+
   defp memory_item_dom_id(item) when is_map(item) do
     Map.get(item, :memory_iri) ||
       Map.get(item, :resource_iri) ||
@@ -3848,6 +3885,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     workflow_name
     |> normalize_workflow_name()
     |> String.replace("_", "-")
+  end
+
+  defp load_memory_inspection(project_detail, return_to_path) do
+    ProjectMemoryInspection.load_repo_detail(
+      project_detail,
+      return_to_path: return_to_path
+    )
   end
 
   defp normalize_workflow_name(workflow_name) do

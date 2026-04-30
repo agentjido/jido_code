@@ -8,6 +8,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   bounded memory and workflow-provenance context for the records already in view.
   """
 
+  alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph.ProductFeedback
   alias JidoCode.MemoryGraph.{GovernedReference, ProductService}
   alias JidoCode.Orchestration.Run
@@ -35,9 +36,11 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
         lookup_opts = Keyword.put_new(opts, :allow_stale?, true)
         work_item = Keyword.get(opts, :work_item)
         governed_references = run_governed_references(run, work_item, evidence_records, decisions)
-        run_route = "/repos/#{managed_repo_id}/runs/#{run.run_id}"
+        route_project_id = route_project_id(scope, managed_repo_id, opts)
+        repo_detail_return_to = repo_detail_return_to(opts, route_project_id)
+        run_route = run_detail_route(route_project_id || managed_repo_id, run.run_id, opts)
 
-        {memories, provenance} =
+        {memories, provenance, conversation_recall} =
           if queryable_graph?(graph) and governed_references != [] do
             {
               navigation_projection(
@@ -50,6 +53,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
                 managed_repo_id,
                 workspace_path,
                 run_route,
+                route_project_id,
+                repo_detail_return_to,
                 lookup_opts
               ),
               navigation_projection(
@@ -62,13 +67,30 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
                 managed_repo_id,
                 workspace_path,
                 run_route,
+                route_project_id,
+                repo_detail_return_to,
+                lookup_opts
+              ),
+              navigation_projection(
+                ProductService.conversation_recall_for_governed_references(
+                  managed_repo_id,
+                  workspace_path,
+                  governed_references,
+                  Keyword.put_new(lookup_opts, :limit, 8)
+                ),
+                managed_repo_id,
+                workspace_path,
+                run_route,
+                route_project_id,
+                repo_detail_return_to,
                 lookup_opts
               )
             }
           else
             {
               empty_lookup(:memories, managed_repo_id, graph),
-              empty_lookup(:provenance, managed_repo_id, graph)
+              empty_lookup(:provenance, managed_repo_id, graph),
+              empty_lookup(:conversation_recall, managed_repo_id, graph)
             }
           end
 
@@ -79,6 +101,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
           graph: graph,
           memories: memories,
           provenance: provenance,
+          conversation_recall: conversation_recall,
           governed_history: %{
             work_item: history_summary(work_item, memories.items, provenance.items, :work_item),
             evidence: history_summary(evidence_records, memories.items, provenance.items, :evidence),
@@ -93,6 +116,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
               evidence_records,
               decisions,
               run_route,
+              route_project_id,
+              repo_detail_return_to,
               lookup_opts
             ),
           notice: governed_notice(status),
@@ -112,6 +137,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
         status = projection_for(ProductService.status(managed_repo_id, workspace_path, opts))
         graph = Map.get(status, :graph, @default_graph)
         lookup_opts = Keyword.put_new(opts, :allow_stale?, true)
+        route_project_id = route_project_id(scope, managed_repo_id, opts)
+        repo_detail_return_to = repo_detail_return_to(opts, route_project_id)
         fallback_route = detail_route(kind, managed_repo_id, record, opts)
 
         %{
@@ -127,6 +154,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
               workspace_path,
               graph,
               fallback_route,
+              route_project_id,
+              repo_detail_return_to,
               lookup_opts
             ),
           notice: governed_notice(status),
@@ -226,23 +255,56 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     end)
   end
 
-  defp navigation_projection({:ok, projection}, managed_repo_id, workspace_path, run_route, opts) do
+  defp navigation_projection(
+         {:ok, projection},
+         managed_repo_id,
+         workspace_path,
+         run_route,
+         route_project_id,
+         repo_detail_return_to,
+         opts
+       ) do
     Map.put(
       projection,
       :items,
-      attach_navigation(Map.get(projection, :items, []), managed_repo_id, workspace_path, run_route, opts)
+      attach_navigation(
+        Map.get(projection, :items, []),
+        managed_repo_id,
+        workspace_path,
+        run_route,
+        route_project_id,
+        repo_detail_return_to,
+        opts
+      )
     )
   end
 
-  defp navigation_projection({:error, _reason, projection}, managed_repo_id, workspace_path, run_route, opts) do
+  defp navigation_projection(
+         {:error, _reason, projection},
+         managed_repo_id,
+         workspace_path,
+         run_route,
+         route_project_id,
+         repo_detail_return_to,
+         opts
+       ) do
     Map.put(
       projection,
       :items,
-      attach_navigation(Map.get(projection, :items, []), managed_repo_id, workspace_path, run_route, opts)
+      attach_navigation(
+        Map.get(projection, :items, []),
+        managed_repo_id,
+        workspace_path,
+        run_route,
+        route_project_id,
+        repo_detail_return_to,
+        opts
+      )
     )
   end
 
-  defp attach_navigation(items, managed_repo_id, workspace_path, run_route, opts) when is_list(items) do
+  defp attach_navigation(items, managed_repo_id, workspace_path, run_route, route_project_id, repo_detail_return_to, opts)
+       when is_list(items) do
     Enum.map(items, fn item ->
       resource_iri = Map.get(item, :memory_iri) || Map.get(item, :resource_iri)
 
@@ -261,7 +323,9 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
             %{source_code: [], governed_records: [], related_memories: []}
         end
 
-      Map.put(item, :navigation, navigation)
+      item
+      |> Map.put(:navigation, navigation)
+      |> attach_conversation_route(route_project_id, repo_detail_return_to)
     end)
   end
 
@@ -325,23 +389,81 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
          evidence_records,
          decisions,
          run_route,
+         route_project_id,
+         repo_detail_return_to,
          opts
        ) do
     %{
-      work_item: governed_surface(work_item, :work_item, managed_repo_id, workspace_path, graph, run_route, opts),
+      work_item:
+        governed_surface(
+          work_item,
+          :work_item,
+          managed_repo_id,
+          workspace_path,
+          graph,
+          run_route,
+          route_project_id,
+          repo_detail_return_to,
+          opts
+        ),
       evidence:
         Enum.map(
           evidence_records,
-          &governed_surface(&1, :evidence, managed_repo_id, workspace_path, graph, run_route, opts)
+          &governed_surface(
+            &1,
+            :evidence,
+            managed_repo_id,
+            workspace_path,
+            graph,
+            run_route,
+            route_project_id,
+            repo_detail_return_to,
+            opts
+          )
         ),
       decisions:
-        Enum.map(decisions, &governed_surface(&1, :decision, managed_repo_id, workspace_path, graph, run_route, opts))
+        Enum.map(
+          decisions,
+          &governed_surface(
+            &1,
+            :decision,
+            managed_repo_id,
+            workspace_path,
+            graph,
+            run_route,
+            route_project_id,
+            repo_detail_return_to,
+            opts
+          )
+        )
     }
   end
 
-  defp governed_surface(nil, _kind, _managed_repo_id, _workspace_path, _graph, _run_route, _opts), do: nil
+  defp governed_surface(
+         nil,
+         _kind,
+         _managed_repo_id,
+         _workspace_path,
+         _graph,
+         _run_route,
+         _route_project_id,
+         _repo_detail_return_to,
+         _opts
+       ),
+       do: nil
 
-  defp governed_surface(record, kind, managed_repo_id, workspace_path, graph, run_route, opts) when is_map(record) do
+  defp governed_surface(
+         record,
+         kind,
+         managed_repo_id,
+         workspace_path,
+         graph,
+         run_route,
+         route_project_id,
+         repo_detail_return_to,
+         opts
+       )
+       when is_map(record) do
     record_id = record_id(record)
     governed_references = [%{kind: kind, id: record_id}]
     route = record_id && governed_route(kind, record_id, managed_repo_id, run_route)
@@ -359,6 +481,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
             managed_repo_id,
             workspace_path,
             run_route,
+            route_project_id,
+            repo_detail_return_to,
             opts
           ),
           navigation_projection(
@@ -371,6 +495,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
             managed_repo_id,
             workspace_path,
             run_route,
+            route_project_id,
+            repo_detail_return_to,
             opts
           )
         }
@@ -485,6 +611,7 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
       graph: @default_graph,
       memories: empty_lookup(:memories, "unavailable", @default_graph),
       provenance: empty_lookup(:provenance, "unavailable", @default_graph),
+      conversation_recall: empty_lookup(:conversation_recall, "unavailable", @default_graph),
       governed_history: %{work_item: nil, evidence: [], decisions: []},
       governed_surfaces: %{work_item: nil, evidence: [], decisions: []},
       notice: notice,
@@ -518,6 +645,83 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
           nil
       end ||
       "/repos/#{managed_repo_id}"
+  end
+
+  defp attach_conversation_route(item, route_project_id, repo_detail_return_to)
+       when is_map(item) and is_binary(route_project_id) do
+    case conversation_route(item, route_project_id, repo_detail_return_to) do
+      {route, label} ->
+        item
+        |> Map.put(:conversation_route, route)
+        |> Map.put(:conversation_route_label, label)
+
+      nil ->
+        item
+    end
+  end
+
+  defp attach_conversation_route(item, _route_project_id, _repo_detail_return_to), do: item
+
+  defp conversation_route(item, route_project_id, repo_detail_return_to)
+       when is_map(item) and is_binary(route_project_id) do
+    if is_map(Map.get(item, :conversation_context)) do
+      work_item_id = governed_reference_id(item, :work_item)
+
+      route =
+        ManagedRepoRoutes.project_detail_path(
+          route_project_id,
+          return_to: repo_detail_return_to,
+          section: "conversations",
+          work_item_id: work_item_id,
+          anchor: "project-detail-conversation-panel"
+        )
+
+      label =
+        if is_binary(work_item_id) do
+          "Open governed conversation"
+        else
+          "Open repo conversation"
+        end
+
+      {route, label}
+    else
+      nil
+    end
+  end
+
+  defp conversation_route(_item, _route_project_id, _repo_detail_return_to), do: nil
+
+  defp governed_reference_id(item, kind) when is_map(item) and is_atom(kind) do
+    item
+    |> Map.get(:governed_context, [])
+    |> Enum.find_value(fn
+      %{kind: ^kind, id: id} -> normalize_optional_string(id)
+      _other -> nil
+    end)
+  end
+
+  defp governed_reference_id(_item, _kind), do: nil
+
+  defp route_project_id(scope, managed_repo_id, opts) do
+    normalize_optional_string(Keyword.get(opts, :project_id)) ||
+      normalize_optional_string(Keyword.get(opts, :route_project_id)) ||
+      normalize_optional_string(map_get(scope, :route_id, "route_id")) ||
+      managed_repo_id
+  end
+
+  defp repo_detail_return_to(opts, route_project_id) do
+    ManagedRepoRoutes.repo_detail_parent_return_to(
+      Keyword.get(opts, :return_to_path),
+      ManagedRepoRoutes.project_detail_path(route_project_id)
+    )
+  end
+
+  defp run_detail_route(project_or_id, run_id, opts) when is_binary(project_or_id) and is_binary(run_id) do
+    ManagedRepoRoutes.run_detail_path(
+      project_or_id,
+      run_id,
+      return_to: normalize_optional_string(Keyword.get(opts, :return_to_path))
+    )
   end
 
   defp governed_notice(%{graph: %{state: :ready}}), do: nil

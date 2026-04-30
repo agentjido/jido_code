@@ -830,6 +830,31 @@ defmodule JidoCodeWeb.RunDetailLive do
                   </section>
                 </div>
 
+                <section id="run-detail-conversation-recall" class="space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Conversation-origin recall
+                  </p>
+
+                  <%= if @memory_context.conversation_recall.items == [] do %>
+                    <p id="run-detail-conversation-recall-empty" class="text-xs text-base-content/70">
+                      No bounded conversation-origin recall currently points at this governed history.
+                    </p>
+                  <% else %>
+                    <ol id="run-detail-conversation-recall-list" class="space-y-2">
+                      <li
+                        :for={{item, index} <- Enum.with_index(@memory_context.conversation_recall.items, 1)}
+                        id={"run-detail-conversation-recall-item-#{index}"}
+                        class="rounded border border-base-300/50 bg-base-100 p-3"
+                      >
+                        <.conversation_origin_card
+                          dom_prefix={"run-detail-conversation-recall-#{index}"}
+                          item={item}
+                        />
+                      </li>
+                    </ol>
+                  <% end %>
+                </section>
+
                 <div
                   :if={
                     (@memory_context.governed_surfaces.work_item != nil ||
@@ -990,6 +1015,33 @@ defmodule JidoCodeWeb.RunDetailLive do
                     navigate={@memory_follow_up_preview.route}
                   >
                     {@memory_follow_up_preview.route_label}
+                  </.link>
+                </section>
+
+                <section
+                  :if={@conversation_follow_up_preview && @conversation_follow_up_preview.available?}
+                  id="run-detail-conversation-follow-up-preview"
+                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                >
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    Conversation-aware follow-up
+                  </p>
+                  <p id="run-detail-conversation-follow-up-preview-summary" class="text-sm font-medium">
+                    {@conversation_follow_up_preview.summary}
+                  </p>
+                  <p id="run-detail-conversation-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                    Recommended action: {@conversation_follow_up_preview.recommended_action_label} | Priority: {@conversation_follow_up_preview.priority} | Urgency: {@conversation_follow_up_preview.urgency}
+                  </p>
+                  <p id="run-detail-conversation-follow-up-preview-count" class="text-xs text-base-content/70">
+                    Selected bounded recalls: {@conversation_follow_up_preview.selected_count}
+                  </p>
+                  <.link
+                    :if={@conversation_follow_up_preview.route}
+                    id="run-detail-conversation-follow-up-preview-route"
+                    class="link link-primary text-xs"
+                    navigate={@conversation_follow_up_preview.route}
+                  >
+                    {@conversation_follow_up_preview.route_label}
                   </.link>
                 </section>
 
@@ -1544,6 +1596,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:approval_context_blocker, nil)
     |> assign(:runtime_evidence_summary, nil)
     |> assign(:memory_context, nil)
+    |> assign(:conversation_follow_up_preview, nil)
     |> assign(:memory_follow_up_preview, nil)
     |> assign(:step_retry_state, step_retry_state(nil))
     |> assign(:memory_action_feedback, nil)
@@ -1570,6 +1623,7 @@ defmodule JidoCodeWeb.RunDetailLive do
            decisions: decisions,
            repo_posture: repo_posture,
            memory_context: memory_context,
+           conversation_follow_up_preview: conversation_follow_up_preview,
            memory_follow_up_preview: memory_follow_up_preview
          }
        ) do
@@ -1582,6 +1636,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:decisions, decisions)
     |> assign(:runtime_evidence_summary, runtime_evidence_summary(run, evidence_records, repo_posture))
     |> assign(:memory_context, memory_context)
+    |> assign(:conversation_follow_up_preview, conversation_follow_up_preview)
     |> assign(:memory_follow_up_preview, memory_follow_up_preview)
     |> assign(:timeline_entries, timeline_entries(run))
     |> assign(:retry_lineage_entries, retry_lineage_entries(run))
@@ -1635,8 +1690,10 @@ defmodule JidoCodeWeb.RunDetailLive do
           evidence_records,
           decisions,
           work_item: work_item,
+          project_id: project_id,
           managed_repo_id: managed_repo_id,
-          workspace_path: workspace_path
+          workspace_path: workspace_path,
+          return_to_path: return_to_path
         )
 
       {:ok,
@@ -1649,6 +1706,13 @@ defmodule JidoCodeWeb.RunDetailLive do
          decisions: decisions,
          repo_posture: load_repo_posture(run),
          memory_context: memory_context,
+         conversation_follow_up_preview:
+           load_conversation_follow_up_preview(
+             memory_context,
+             project_id,
+             work_item,
+             return_to_path
+           ),
          memory_follow_up_preview:
            load_memory_follow_up_preview(
              memory_context,
@@ -1987,6 +2051,19 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp load_memory_follow_up_preview(_memory_context, _run, _managed_repo_id, _return_to_path), do: nil
 
+  defp load_conversation_follow_up_preview(memory_context, project_id, work_item, return_to_path)
+       when is_map(memory_context) do
+    route = conversation_follow_up_route(project_id, work_item, return_to_path)
+
+    FollowUpSurface.preview(
+      Map.get(memory_context, :conversation_recall),
+      route: route,
+      category: "governed_conversation_follow_up"
+    )
+  end
+
+  defp load_conversation_follow_up_preview(_memory_context, _project_id, _work_item, _return_to_path), do: nil
+
   defp follow_up_preview_route(%Run{} = run, managed_repo_id, return_to_path) do
     managed_repo_id = present_string(managed_repo_id)
     run_id = present_string(run.run_id)
@@ -1997,6 +2074,23 @@ defmodule JidoCodeWeb.RunDetailLive do
         run_id,
         return_to: return_to_path
       ) <> "#run-detail-memory-context"
+    else
+      nil
+    end
+  end
+
+  defp conversation_follow_up_route(project_id, work_item, return_to_path) do
+    repo_detail_return_to = ManagedRepoRoutes.repo_detail_parent_return_to(return_to_path)
+    work_item_id = work_item |> map_get(:id, "id") |> present_string()
+
+    if is_binary(project_id) do
+      ManagedRepoRoutes.project_detail_path(
+        project_id,
+        return_to: repo_detail_return_to,
+        section: "conversations",
+        work_item_id: work_item_id,
+        anchor: "project-detail-conversation-panel"
+      )
     else
       nil
     end

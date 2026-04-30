@@ -85,7 +85,7 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       )
 
     """
-    SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject ?governedRecord ?governedKind ?governedLabel
+    SELECT ?memory ?kind ?content ?timestamp ?confidence ?decisionStatus ?freshnessScore ?lastValidatedAt ?staleReason ?module ?function ?subject ?governedRecord ?governedKind ?governedLabel ?conversationId ?turnId ?commandId ?conversationEvent ?clarificationState ?conversationScope ?conversationAttachmentMode ?conversationStatus ?conversationSource ?supportedArtifact ?supportedArtifactLabel ?supportedArtifactComment
     WHERE {
     #{kind_filter}
       ?memory a ?kind ;
@@ -99,6 +99,20 @@ defmodule JidoCode.MemoryGraph.HelperQueries do
       OPTIONAL { ?memory jido:aboutModule ?module . }
       OPTIONAL { ?memory jido:aboutFunction ?function . }
       OPTIONAL { ?memory jido:affectsSymbol ?subject . }
+      OPTIONAL { ?memory jido:conversationId ?conversationId . }
+      OPTIONAL { ?memory jido:conversationTurnId ?turnId . }
+      OPTIONAL { ?memory jido:conversationCommandId ?commandId . }
+      OPTIONAL { ?memory jido:conversationEvent ?conversationEvent . }
+      OPTIONAL { ?memory jido:clarificationState ?clarificationState . }
+      OPTIONAL { ?memory jido:conversationScope ?conversationScope . }
+      OPTIONAL { ?memory jido:conversationAttachmentMode ?conversationAttachmentMode . }
+      OPTIONAL { ?memory jido:conversationStatus ?conversationStatus . }
+      OPTIONAL { ?memory jido:conversationSource ?conversationSource . }
+      OPTIONAL {
+        ?memory jido:supportedBy ?supportedArtifact .
+        OPTIONAL { ?supportedArtifact rdfs:label ?supportedArtifactLabel . }
+        OPTIONAL { ?supportedArtifact rdfs:comment ?supportedArtifactComment . }
+      }
       OPTIONAL {
         VALUES (?governedPredicate ?governedKind) {
           (jido:aboutManagedRepo "managed_repo")

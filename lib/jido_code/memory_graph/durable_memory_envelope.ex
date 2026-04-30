@@ -112,7 +112,8 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
       work_item_id = normalize_optional_string(Map.get(capture, :work_item_id) || Map.get(capture, "work_item_id"))
       source_code_anchors = source_code_anchors(capture, managed_repo_id)
 
-      with {:ok, governed_references} <- governed_references(capture, managed_repo_id) do
+      with {:ok, governed_references} <- governed_references(capture, managed_repo_id),
+           {:ok, conversation_context} <- conversation_context(capture) do
         governed_artifacts = governed_artifacts(governed_references)
         supported_by_artifacts = supported_by_artifacts(capture, managed_repo_id)
         confidence_source = confidence_source_artifact(capture, managed_repo_id)
@@ -155,7 +156,8 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
            governed_artifacts: governed_artifacts,
            supported_by_artifacts: supported_by_artifacts,
            confidence_source: confidence_source,
-           evidence_artifacts: evidence_artifacts
+           evidence_artifacts: evidence_artifacts,
+           conversation_context: conversation_context
          }}
       end
     end
@@ -357,6 +359,50 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
     |> normalize_artifact_list(managed_repo_id, "evidence")
   end
 
+  defp conversation_context(capture) do
+    context =
+      %{}
+      |> maybe_put_context_value(
+        :conversation_id,
+        Map.get(capture, :conversation_id) || Map.get(capture, "conversation_id")
+      )
+      |> maybe_put_context_value(:turn_id, Map.get(capture, :turn_id) || Map.get(capture, "turn_id"))
+      |> maybe_put_context_value(
+        :command_id,
+        Map.get(capture, :command_id) || Map.get(capture, "command_id")
+      )
+      |> maybe_put_context_value(
+        :conversation_event,
+        Map.get(capture, :conversation_event) || Map.get(capture, "conversation_event")
+      )
+      |> maybe_put_context_value(
+        :clarification_state,
+        Map.get(capture, :clarification_state) || Map.get(capture, "clarification_state")
+      )
+      |> maybe_put_context_value(:scope, Map.get(capture, :scope) || Map.get(capture, "scope"))
+      |> maybe_put_context_value(
+        :attachment_mode,
+        Map.get(capture, :attachment_mode) || Map.get(capture, "attachment_mode")
+      )
+      |> maybe_put_context_value(:status, Map.get(capture, :status) || Map.get(capture, "status"))
+      |> maybe_put_context_value(:source, Map.get(capture, :source) || Map.get(capture, "source"))
+
+    case context do
+      %{conversation_id: conversation_id, conversation_event: conversation_event}
+      when is_binary(conversation_id) and is_binary(conversation_event) ->
+        {:ok, context}
+
+      %{conversation_id: _conversation_id} ->
+        {:error, :invalid_memory_capture, %{field: :conversation_context, reason: :missing_event}}
+
+      %{} = context when map_size(context) == 0 ->
+        {:ok, nil}
+
+      _other ->
+        {:error, :invalid_memory_capture, %{field: :conversation_context, reason: :missing_conversation_id}}
+    end
+  end
+
   defp confidence_source_artifact(capture, managed_repo_id) do
     capture
     |> Map.get(:confidence_source, Map.get(capture, "confidence_source"))
@@ -483,6 +529,9 @@ defmodule JidoCode.MemoryGraph.DurableMemoryEnvelope do
 
   defp normalize_optional_string(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp maybe_put_context_value(context, _key, nil), do: context
+  defp maybe_put_context_value(context, key, value), do: Map.put(context, key, normalize_optional_string(value))
 
   defp normalize_string_list(values) when is_list(values) do
     values

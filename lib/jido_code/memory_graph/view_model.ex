@@ -131,6 +131,21 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     )
   end
 
+  @spec conversation_recall(String.t(), map(), map()) :: projection()
+  def conversation_recall(managed_repo_id, status_result, raw_result)
+      when is_binary(managed_repo_id) and is_map(status_result) and is_map(raw_result) do
+    helper_projection(
+      :conversation_recall,
+      managed_repo_id,
+      status_result,
+      raw_result,
+      raw_result
+      |> Map.get(:bindings, [])
+      |> group_conversation_bindings()
+      |> Enum.map(&conversation_recall_item(&1, managed_repo_id))
+    )
+  end
+
   @spec cross_links(String.t(), map(), String.t(), map()) :: projection()
   def cross_links(managed_repo_id, status_result, resource_iri, navigation)
       when is_binary(managed_repo_id) and is_map(status_result) and is_binary(resource_iri) and is_map(navigation) do
@@ -231,6 +246,14 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     |> Enum.map(fn {_group_key, rows} -> rows end)
   end
 
+  defp group_conversation_bindings(bindings) when is_list(bindings) do
+    bindings
+    |> Enum.group_by(&conversation_group_key/1)
+    |> Enum.reject(fn {group_key, _rows} -> is_nil(group_key) end)
+    |> Enum.map(fn {_group_key, rows} -> sort_rows_by_latest_event(rows) end)
+    |> Enum.sort_by(fn rows -> rows |> first_present_value("startedAt") |> sortable_timestamp() end, :desc)
+  end
+
   defp memory_item(rows, managed_repo_id) when is_list(rows) and is_binary(managed_repo_id) do
     kind_iri =
       rows
@@ -239,6 +262,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
 
     module_iri = first_present_value(rows, "module")
     function_iri = first_present_value(rows, "function")
+    conversation_context = conversation_context(rows)
 
     %{
       memory_iri: first_present_value(rows, "memory"),
@@ -256,6 +280,9 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       function_iri: function_iri,
       function_name: compact_name(function_iri),
       subject_iri: first_present_value(rows, "subject"),
+      conversation_origin?: is_map(conversation_context),
+      conversation_context: conversation_context,
+      supporting_artifacts: supporting_artifacts(rows),
       governed_context: governed_context(rows, managed_repo_id)
     }
   end
@@ -287,6 +314,39 @@ defmodule JidoCode.MemoryGraph.ViewModel do
       revision_iri: first_present_value(rows, "revision"),
       conversation_origin?: is_map(conversation_context),
       conversation_context: conversation_context,
+      governed_context: governed_context(rows, managed_repo_id)
+    }
+  end
+
+  defp conversation_recall_item(rows, managed_repo_id) when is_list(rows) and is_binary(managed_repo_id) do
+    module_iri = first_present_value(rows, "module")
+    function_iri = first_present_value(rows, "function")
+    conversation_context = conversation_context(rows)
+    events = unique_present_values(rows, "conversationEvent")
+    latest_event = List.first(events)
+
+    %{
+      managed_repo_id: managed_repo_id,
+      conversation_id: get_in(conversation_context, [:conversation_id]),
+      turn_id: get_in(conversation_context, [:turn_id]),
+      command_id: get_in(conversation_context, [:command_id]),
+      latest_event: latest_event,
+      conversation_events: events,
+      origin_summary: conversation_origin_summary(latest_event, conversation_context, rows),
+      content_preview: bounded_content_preview(rows),
+      started_at: first_present_value(rows, "startedAt"),
+      ended_at: first_present_value(rows, "endedAt"),
+      module_iri: module_iri,
+      module_name: compact_name(module_iri),
+      function_iri: function_iri,
+      function_name: compact_name(function_iri),
+      subject_iri: first_present_value(rows, "subject"),
+      conversation_origin?: true,
+      conversation_context: conversation_context,
+      resource_iris: unique_present_values(rows, "resource"),
+      latest_resource_iri: first_present_value(rows, "resource"),
+      provenance_kind: compact_name(first_present_value(rows, "kind")),
+      supporting_artifacts: supporting_artifacts(rows),
       governed_context: governed_context(rows, managed_repo_id)
     }
   end
@@ -335,6 +395,13 @@ defmodule JidoCode.MemoryGraph.ViewModel do
     |> Enum.find(&(not is_nil(&1)))
   end
 
+  defp unique_present_values(rows, key) do
+    rows
+    |> Enum.map(&value(&1, key))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
   defp conversation_context(rows) when is_list(rows) do
     context =
       %{}
@@ -352,6 +419,83 @@ defmodule JidoCode.MemoryGraph.ViewModel do
   end
 
   defp conversation_context(_rows), do: nil
+
+  defp supporting_artifacts(rows) when is_list(rows) do
+    rows
+    |> Enum.flat_map(fn row ->
+      case value(row, "supportedArtifact") do
+        artifact_iri when is_binary(artifact_iri) ->
+          [
+            %{
+              iri: artifact_iri,
+              label: value(row, "supportedArtifactLabel"),
+              comment: value(row, "supportedArtifactComment")
+            }
+          ]
+
+        _other ->
+          []
+      end
+    end)
+    |> Enum.uniq_by(& &1.iri)
+  end
+
+  defp supporting_artifacts(_rows), do: []
+
+  defp conversation_group_key(binding) when is_map(binding) do
+    value(binding, "turnId") || value(binding, "commandId") || value(binding, "conversationId") || value(binding, "resource")
+  end
+
+  defp sort_rows_by_latest_event(rows) when is_list(rows) do
+    Enum.sort_by(rows, fn row -> sortable_timestamp(value(row, "startedAt")) end, :desc)
+  end
+
+  defp conversation_origin_summary(latest_event, conversation_context, rows) do
+    scope = get_in(conversation_context || %{}, [:scope])
+    content_preview = bounded_content_preview(rows)
+
+    base =
+      case latest_event do
+        "clarification_requested" -> "Conversation requested clarification"
+        "work_attached" -> "Conversation attached governed follow-up"
+        "turn_completed" -> "Conversation turn completed"
+        "turn_failed" -> "Conversation turn failed"
+        "turn_resumed" -> "Conversation turn resumed"
+        "turn_started" -> "Conversation turn started"
+        event when is_binary(event) -> "Conversation event #{String.replace(event, "_", " ")}"
+        _other -> "Conversation-derived origin context"
+      end
+
+    scoped =
+      if is_binary(scope) do
+        "#{base} in #{String.replace(scope, "_", " ")} scope."
+      else
+        "#{base}."
+      end
+
+    case content_preview do
+      nil -> scoped
+      preview -> "#{scoped} #{preview}"
+    end
+  end
+
+  defp bounded_content_preview(rows) when is_list(rows) do
+    rows
+    |> first_present_value("content")
+    |> case do
+      nil -> nil
+      content when is_binary(content) -> String.slice(content, 0, 220)
+    end
+  end
+
+  defp sortable_timestamp(nil), do: 0
+
+  defp sortable_timestamp(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> DateTime.to_unix(datetime, :microsecond)
+      _other -> 0
+    end
+  end
 
   defp known_memory_kind?(value), do: known_kind_suffix?(value, @known_memory_kind_suffixes)
   defp known_provenance_kind?(value), do: known_kind_suffix?(value, @known_provenance_kind_suffixes)

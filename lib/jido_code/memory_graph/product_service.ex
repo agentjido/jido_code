@@ -13,7 +13,14 @@ defmodule JidoCode.MemoryGraph.ProductService do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CrossGraphNavigation, GovernedReference, Health, HelperQueries, ViewModel}
+  alias JidoCode.MemoryGraph.{
+    ConversationMemoryAdoption,
+    CrossGraphNavigation,
+    GovernedReference,
+    Health,
+    HelperQueries,
+    ViewModel
+  }
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -145,6 +152,60 @@ defmodule JidoCode.MemoryGraph.ProductService do
     )
   end
 
+  @spec conversation_recall(managed_repo_id(), workspace_path(), keyword()) :: {:ok, map()} | {:error, atom(), map()}
+  def conversation_recall(managed_repo_id, workspace_path, opts \\ []) do
+    recall_opts = Keyword.put_new(opts, :conversation_origin?, true)
+
+    memory_lookup(
+      managed_repo_id,
+      workspace_path,
+      recall_opts,
+      :conversation_recall,
+      MemoryGraph.workflow_provenance_graph_name(),
+      fn ->
+        HelperQueries.provenance(managed_repo_id, Map.new(recall_opts))
+      end
+    )
+  end
+
+  @spec conversation_recall_for_governed_references(managed_repo_id(), workspace_path(), [map()], keyword()) ::
+          {:ok, map()} | {:error, atom(), map()}
+  def conversation_recall_for_governed_references(managed_repo_id, workspace_path, governed_references, opts \\ [])
+      when is_list(governed_references) do
+    lookup_opts =
+      opts
+      |> Keyword.put(:governed_references, governed_references)
+      |> Keyword.put_new(:conversation_origin?, true)
+
+    memory_lookup(
+      managed_repo_id,
+      workspace_path,
+      lookup_opts,
+      :conversation_recall,
+      MemoryGraph.workflow_provenance_graph_name(),
+      fn ->
+        HelperQueries.provenance(managed_repo_id, Map.new(lookup_opts))
+      end
+    )
+  end
+
+  @spec conversation_recall_for_governed_artifacts(managed_repo_id(), workspace_path(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, atom(), map()}
+  def conversation_recall_for_governed_artifacts(managed_repo_id, workspace_path, artifact_paths, opts \\ [])
+      when is_list(artifact_paths) do
+    conversation_recall_for_governed_references(
+      managed_repo_id,
+      workspace_path,
+      governed_references_from_artifact_paths(managed_repo_id, artifact_paths),
+      opts
+    )
+  end
+
+  @spec adopt_conversation_memory(map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def adopt_conversation_memory(projection_or_item, opts \\ []) do
+    ConversationMemoryAdoption.adopt(projection_or_item, opts)
+  end
+
   @spec provenance_for_governed_references(managed_repo_id(), workspace_path(), [map()], keyword()) ::
           {:ok, map()} | {:error, atom(), map()}
   def provenance_for_governed_references(managed_repo_id, workspace_path, governed_references, opts \\ [])
@@ -242,6 +303,9 @@ defmodule JidoCode.MemoryGraph.ProductService do
 
   defp shape_result(:provenance, managed_repo_id, status_result, raw_result),
     do: ViewModel.provenance(managed_repo_id, status_result, raw_result)
+
+  defp shape_result(:conversation_recall, managed_repo_id, status_result, raw_result),
+    do: ViewModel.conversation_recall(managed_repo_id, status_result, raw_result)
 
   defp preview_available?(status_result, opts) do
     allow_stale? = Keyword.get(opts, :allow_stale?, false)

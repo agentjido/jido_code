@@ -104,6 +104,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
       |> add_governed_references(memory, envelope.managed_repo_id, envelope.governed_references)
       |> add_tags(memory, envelope)
       |> add_artifact_links(memory, envelope)
+      |> add_conversation_context(memory, envelope.conversation_context)
 
     (classification_triples(envelope) ++ memory_triples)
     |> Enum.reject(&is_nil/1)
@@ -129,6 +130,23 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
     |> add_artifacts(subject, envelope.supported_by_artifacts, jido("supportedBy"))
     |> add_artifacts(subject, envelope.evidence_artifacts, jido("evidenceArtifact"))
     |> maybe_add_confidence_source(subject, envelope.confidence_source)
+  end
+
+  defp add_conversation_context(triples, _subject, nil), do: triples
+
+  defp add_conversation_context(triples, subject, context) when is_map(context) do
+    triples ++
+      [
+        maybe_triple(subject, jido("conversationId"), literal_or_nil(Map.get(context, :conversation_id))),
+        maybe_triple(subject, jido("conversationTurnId"), literal_or_nil(Map.get(context, :turn_id))),
+        maybe_triple(subject, jido("conversationCommandId"), literal_or_nil(Map.get(context, :command_id))),
+        maybe_triple(subject, jido("conversationEvent"), literal_or_nil(Map.get(context, :conversation_event))),
+        maybe_triple(subject, jido("clarificationState"), literal_or_nil(Map.get(context, :clarification_state))),
+        maybe_triple(subject, jido("conversationScope"), literal_or_nil(Map.get(context, :scope))),
+        maybe_triple(subject, jido("conversationAttachmentMode"), literal_or_nil(Map.get(context, :attachment_mode))),
+        maybe_triple(subject, jido("conversationStatus"), literal_or_nil(Map.get(context, :status))),
+        maybe_triple(subject, jido("conversationSource"), literal_or_nil(Map.get(context, :source)))
+      ]
   end
 
   defp add_artifacts(triples, _subject, [], _predicate), do: triples

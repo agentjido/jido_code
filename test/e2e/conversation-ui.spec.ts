@@ -279,3 +279,36 @@ test("workbench-origin repo detail links preserve the specialist parent route", 
   await waitForLiveViewConnection(page)
   await expect(page.locator("#workbench-route-role-label")).toContainText("Dense specialist mode")
 })
+
+test("repo detail memory recall links back to the canonical conversation route", async ({
+  page,
+  request
+}) => {
+  await prepareScenario(request, "conversation_ready")
+  await signIn(page, "/workbench")
+  await openRepoDetailFromWorkbench(page, "owner/browser-conversation-ready")
+
+  const repoUrl = new URL(page.url())
+
+  await page.goto(
+    `${repoUrl.pathname}?return_to=${encodeURIComponent("/workbench")}&subject=knowledge&section=memory`
+  )
+  await waitForLiveViewConnection(page)
+  await expectRepoDetailRoute(page, "knowledge", "memory")
+
+  await expect(page.locator("#project-detail-conversation-recall-list")).toBeVisible()
+  await expect(page.locator("#project-detail-conversation-recall-item-1-summary")).toContainText(
+    "Conversation requested clarification"
+  )
+
+  await page.locator("#project-detail-conversation-recall-item-1-conversation-link-1").click()
+
+  await page.waitForURL(url => {
+    if (!url.pathname.startsWith("/repos/")) {
+      return false
+    }
+
+    return url.searchParams.get("section") === "conversations"
+  })
+  await expect(page.locator("#project-detail-conversation-panel")).toBeVisible()
+})

@@ -1,6 +1,6 @@
 # Work Synthesis
 
-<!-- current_truth.reconciled_with_branch: conversation-driven work handoff into canonical work items remains part of this synthesis subject. -->
+<!-- current_truth.reconciled_with_branch: conversation-driven work handoff into canonical work items remains part of this synthesis subject, and bounded long-term conversation provenance now preserves enough origin linkage for later work-item recall without making transcript history the work record itself. -->
 
 This subject defines how durable assessments become canonical operational work
 records before execution begins.
@@ -11,7 +11,7 @@ records before execution begins.
 id: architecture.work_synthesis
 kind: feature
 status: active
-summary: Jido.Code turns durable assessments and productive conversation demand into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, and make `WorkItem` the canonical anchor for active productive conversation identity when governed work is conversationally supervised, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.
+summary: Jido.Code turns durable assessments and productive conversation demand into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths, make `WorkItem` the canonical anchor for active productive conversation identity when governed work is conversationally supervised, and preserve bounded conversation-provenance linkage for later origin recall without turning transcript history into the work record itself, even when those assessments were informed by repo-native state signals upstream or admitted through canonical repo-import scope.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay

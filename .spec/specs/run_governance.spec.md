@@ -2,7 +2,7 @@
 
 # Run Governance
 
-<!-- current_truth.reconciled_with_branch: run-detail memory-aware verification remains attached to canonical governed run surfaces described here, governed run detail now participates in the shared signed-in operator navigation layer plus the shared breadcrumb-and-pane shell so deep follow-up routes do not strand operators behind one return link, and bounded conversation-origin recall now appears on that run-detail memory context with cross-links back to the canonical repository conversation route instead of rehosting transcripts on the run surface. -->
+<!-- current_truth.reconciled_with_branch: run-detail memory-aware verification remains attached to canonical governed run surfaces described here, governed run detail now participates in the shared signed-in operator navigation layer plus the shared breadcrumb-and-pane shell so deep follow-up routes do not strand operators behind one return link, and bounded conversation-origin recall now appears on that run-detail memory context with stable cross-links back to the canonical repository conversation route instead of rehosting transcripts on the run surface. -->
 
 This subject defines the governed run projection model for `Jido.Code`.
 

@@ -1107,6 +1107,187 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert length(work_items) >= 1
   end
 
+  test "run detail memory keeps bounded conversation-origin recall cross-linked to canonical repo conversations",
+       %{conn: _conn} do
+    previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    on_exit(fn ->
+      Application.put_env(:jido_code, :memory_graph_enabled, previous)
+    end)
+
+    register_owner("memory-run-recall@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-run-recall@example.com", "owner-password-123")
+
+    workspace_path = create_memory_workspace_path!("run_detail_conversation_recall")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-run-recall",
+        github_full_name: "owner/repo-memory-run-recall",
+        default_branch: "main",
+        settings: %{workspace: %{workspace_path: workspace_path}}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, event} =
+      Event.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          category: "conversation_origin_context",
+          summary: "Conversation-origin recall should route back through canonical conversations.",
+          correlation_key: "run-memory-recall-event-#{System.unique_integer([:positive])}",
+          payload: %{},
+          source_metadata: %{"source" => "run_detail_live_test"},
+          occurred_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, assessment} =
+      Assessment.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          event_id: event.id,
+          category: "memory_recall",
+          summary: "Review bounded conversation-origin recall for this run.",
+          priority: :medium,
+          urgency: :medium,
+          recommended_action: "review_conversation_recall",
+          rationale: "Run detail should keep origin context bounded and routed back to canonical conversations.",
+          inputs: %{},
+          assessment_metadata: %{},
+          assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, work_item} =
+      WorkItem.create(
+        %{
+          managed_repo_id: managed_repo.id,
+          assessment_id: assessment.id,
+          event_id: event.id,
+          summary: "Review conversation-derived origin context",
+          status: :open,
+          category: "review_follow_up",
+          priority: :medium,
+          recommended_action: "review_conversation_recall",
+          dedup_key: "run-memory-recall-work-item-#{System.unique_integer([:positive])}",
+          initiating_actor: %{"id" => "owner-4"},
+          work_metadata: %{},
+          audit_log: [],
+          opened_at: DateTime.utc_now() |> DateTime.truncate(:microsecond),
+          last_assessed_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        },
+        actor: Actor.operator_actor()
+      )
+
+    run_id = "run-memory-recall-#{System.unique_integer([:positive])}"
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Render bounded conversation recall"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-4", email: "memory-run-recall@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-12 20:00:00Z]
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "review_memory",
+        transitioned_at: ~U[2026-04-12 20:01:00Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-04-12 20:02:00Z]
+      })
+
+    {:ok, run} =
+      JidoCode.Orchestration.Run.get_by_managed_repo_and_run_id(
+        managed_repo.id,
+        run_id,
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, evidence} =
+      Evidence.create(
+        %{
+          run_id: run.id,
+          managed_repo_id: managed_repo.id,
+          work_item_id: work_item.id,
+          key: "conversation_origin_context",
+          evidence_type: "memory_graph_finding",
+          summary: "Bounded conversation-origin recall should stay routed through canonical conversations.",
+          evidence_details: %{"source" => "run_detail_live_test"},
+          source: "memory_graph",
+          recorded_at: DateTime.utc_now()
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, decision} =
+      Decision.create(
+        %{
+          decision_key: "memory-recall-run-#{run.id}",
+          run_id: run.id,
+          managed_repo_id: managed_repo.id,
+          work_item_id: work_item.id,
+          decision: :approve,
+          actor: %{"id" => "owner-4", "email" => "memory-run-recall@example.com"},
+          rationale: "Use bounded conversation-origin recall here and reopen the canonical conversation route for full continuity.",
+          decision_metadata: %{"source" => "run_detail_live_test"},
+          decided_at: DateTime.utc_now()
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, revision_metadata} = MemoryGraph.current_revision_metadata(workspace_path)
+    revision = revision_metadata.current_revision
+
+    seed_run_memory_context!(
+      managed_repo.id,
+      workspace_path,
+      revision,
+      run.run_id,
+      evidence.id,
+      decision.id,
+      work_item_id: work_item.id
+    )
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-conversation-recall-list")
+    assert has_element?(view, "#run-detail-conversation-recall-1-summary", "Conversation requested clarification")
+    assert has_element?(view, "#run-detail-conversation-follow-up-preview")
+
+    assert has_element?(
+             view,
+             "#run-detail-conversation-recall-1-conversation-link-1[href*='section=conversations'][href$='#project-detail-conversation-panel']",
+             "Open governed conversation"
+           )
+
+    assert has_element?(
+             view,
+             "#run-detail-conversation-follow-up-preview-route[href*='section=conversations'][href$='#project-detail-conversation-panel']"
+           )
+  end
+
   test "renders bounded runtime evidence using product-oriented posture language", %{conn: _conn} do
     register_owner("runtime-run-owner@example.com", "owner-password-123")
 
@@ -2696,6 +2877,38 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                  content: "Review artifact captured for governed run memory context.",
                  anchors: %{module_name: "ExampleRunDetailMemory"},
                  governed_context: %{run_id: run_id, work_item_id: work_item_id, decision_id: decision_id}
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
+    assert {:ok, _conversation_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.conversation_turn(
+                 session_id: session_id,
+                 actor_id: "system:run-detail-memory",
+                 workflow: :review,
+                 work_item_id: work_item_id,
+                 content: "Which governed thread should I reopen before promoting follow-up?",
+                 revision: revision,
+                 anchors: %{module_name: "ExampleRunDetailMemory"},
+                 governed_context: %{
+                   run_id: run_id,
+                   work_item_id: work_item_id,
+                   evidence_id: evidence_id,
+                   decision_id: decision_id
+                 },
+                 conversation_id: "run-conversation-32",
+                 turn_id: "run-turn-32",
+                 command_id: "run-command-32",
+                 conversation_event: "clarification_requested",
+                 clarification_state: "awaiting_input",
+                 scope: "work_item_scoped",
+                 attachment_mode: "synthesized_work_item",
+                 status: "awaiting_input",
+                 source: "run_detail"
                ),
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision

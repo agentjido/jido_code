@@ -8,6 +8,10 @@ affects:
   - architecture.memory_capture_plane
   - architecture.memory_graph_product_adoption
   - architecture.factory_control_plane
+  - architecture.memory_graph_surface_rollout_and_governance_actions
+  - architecture.memory_graph_workflow_and_operator_expansion
+  - architecture.operator_surface_information_architecture
+  - architecture.run_governance
 related:
   - jido_code.interruptible_conversation_orchestration
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -77,6 +81,9 @@ The product shall therefore prefer:
   and work item produced later governed work
 - bounded projections that let workflows and operator surfaces inspect
   conversation-derived origin context without reading raw graph internals
+- route-owned recall cards on repo-detail memory and governed-run follow-up
+  surfaces that reopen the canonical repository conversation when an operator
+  needs full transcript continuity
 - explicit adoption paths when a conversation outcome should become a durable
   `Fact`, `Decision`, `Convention`, `KnownIssue`, `LessonLearned`,
   `OpenQuestion`, `Pattern`, or similar memory class

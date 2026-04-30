@@ -1684,12 +1684,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     class="space-y-2 text-sm"
                   >
                     <li
-                      :for={item <- memory_items(@memory_inspection.conversation_recall)}
-                      id={"project-detail-conversation-recall-item-#{memory_item_dom_id(item)}"}
+                      :for={{item, index} <- Enum.with_index(memory_items(@memory_inspection.conversation_recall), 1)}
+                      id={"project-detail-conversation-recall-item-#{index}"}
                       class="rounded-md border border-base-300/60 bg-base-100 p-3"
                     >
                       <.conversation_origin_card
-                        dom_prefix={"project-detail-conversation-recall-item-#{memory_item_dom_id(item)}"}
+                        dom_prefix={"project-detail-conversation-recall-item-#{index}"}
                         item={item}
                       />
                     </li>

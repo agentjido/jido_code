@@ -7,7 +7,10 @@ defmodule JidoCodeWeb.BrowserSetup do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
   alias JidoCode.Repo
-  alias JidoCode.Control.Actor
+  alias JidoCode.AgentWorkspace
+  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.CaptureEnvelope
   alias JidoCode.Projects.Project
 
   @checked_at ~U[2026-02-13 12:34:56Z]
@@ -52,6 +55,7 @@ defmodule JidoCodeWeb.BrowserSetup do
     Application.delete_env(:jido_code, :frontend_assets_override)
     Application.delete_env(:jido_code, :conversation_pubsub_subscriber)
     Application.delete_env(:jido_code, :system_config)
+    Application.put_env(:jido_code, :memory_graph_enabled, false)
 
     System.delete_env("BURRITO_TARGET")
   end
@@ -153,7 +157,8 @@ defmodule JidoCodeWeb.BrowserSetup do
   defp seed_conversation_project!("conversation_ready") do
     workspace_path = create_browser_workspace!("conversation-ready")
 
-    upsert_conversation_project!(%{
+    project =
+      upsert_conversation_project!(%{
       name: "browser-conversation-ready",
       github_full_name: "owner/browser-conversation-ready",
       default_branch: "main",
@@ -164,6 +169,8 @@ defmodule JidoCodeWeb.BrowserSetup do
         }
       }
     })
+
+    seed_conversation_memory!(project, workspace_path)
   end
 
   defp seed_conversation_project!("conversation_runtime_blocked") do
@@ -280,15 +287,71 @@ defmodule JidoCodeWeb.BrowserSetup do
 
     case Project.get_by_github_full_name(github_full_name, actor: actor) do
       {:ok, project} ->
-        {:ok, _project} = Project.update(project, attrs, actor: actor)
+        {:ok, project} = Project.update(project, attrs, actor: actor)
+        project
 
       {:error, reason} ->
         if project_not_found?(reason) do
-          {:ok, _project} = Project.create(attrs, actor: actor)
+          {:ok, project} = Project.create(attrs, actor: actor)
+          project
         else
           raise "browser scenario project upsert failed: #{inspect(reason)}"
         end
     end
+  end
+
+  defp seed_conversation_memory!(project, workspace_path)
+       when is_map(project) and is_binary(workspace_path) do
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    revision = "browser-conversation-recall"
+    session_id = "browser-conversation-memory"
+
+    {:ok, _refresh_result} =
+      AgentWorkspace.refresh_memory_graph(managed_repo.id, workspace_path, revision: revision)
+
+    {:ok, _session_result} =
+      AgentWorkspace.record_memory_graph(
+        managed_repo.id,
+        workspace_path,
+        CaptureEnvelope.work_session(
+          session_id: session_id,
+          actor_id: "system:browser-setup",
+          workflow: :explain,
+          work_item_id: "browser-work",
+          goal: "Seed bounded conversation-origin recall for browser coverage"
+        ),
+        graph_name: MemoryGraph.workflow_provenance_graph_name(),
+        revision: revision
+      )
+
+    {:ok, _conversation_result} =
+      AgentWorkspace.record_memory_graph(
+        managed_repo.id,
+        workspace_path,
+        CaptureEnvelope.conversation_turn(
+          session_id: session_id,
+          actor_id: "system:browser-setup",
+          workflow: :explain,
+          work_item_id: "browser-work",
+          content: "Which file or module should I inspect first?",
+          revision: revision,
+          conversation_id: "browser-conversation-32",
+          turn_id: "browser-turn-32",
+          command_id: "browser-command-32",
+          conversation_event: "clarification_requested",
+          clarification_state: "awaiting_input",
+          scope: "work_item_scoped",
+          attachment_mode: "synthesized_work_item",
+          status: "awaiting_input",
+          source: "repo_detail"
+        ),
+        graph_name: MemoryGraph.workflow_provenance_graph_name(),
+        revision: revision
+      )
   end
 
   defp project_not_found?(%Ash.Error.Query.NotFound{}), do: true

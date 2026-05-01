@@ -125,6 +125,9 @@ The plan aligns to:
 68. [Phase 74 - Conversation Provenance Long-Term Capture Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-74-conversation-provenance-long-term-capture-foundation.md): add the provenance-first long-term capture path for productive conversations so later workflows and governed records can explain conversation-driven work without turning the memory graph into a transcript dump.
 69. [Phase 75 - Conversation-Derived Memory And Workflow Recall Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-75-conversation-derived-memory-and-workflow-recall-adoption.md): expose bounded conversation-derived provenance through product-owned retrieval, explicit adoption, and workflow recall so later work can reuse origin context without raw transcript loading.
 70. [Phase 76 - Operator Conversation Recall Surface And Governance Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-76-operator-conversation-recall-surface-and-governance-adoption.md): roll bounded conversation-derived recall into canonical operator and governed surfaces while keeping transcript continuity on conversation routes and control-plane truth on governed records.
+71. [Phase 77 - Prompt Context Memory Boundary And Namespace Foundation](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-77-prompt-context-memory-boundary-and-namespace-foundation.md): introduce `jido_memory` as a bounded prompt-context layer with a product-owned adapter, explicit namespace policy, and provider-safe rollout defaults so conversation runtime can gain recall without turning prompt memory into product truth.
+72. [Phase 78 - Conversation Runtime Prompt Recall And Bounded Capture Adoption](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-78-conversation-runtime-prompt-recall-and-bounded-capture-adoption.md): wire prompt-context retrieval and explicit bounded capture into the real conversation runtime so each turn can reuse the right short-term memory without replaying raw transcript history.
+73. [Phase 79 - Prompt Memory Lifecycle Hardening And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-79-prompt-memory-lifecycle-hardening-and-contributor-convergence.md): harden provider behavior, retention and cleanup policy, verification defaults, and contributor guidance so prompt memory remains bounded, explainable, and clearly separate from provenance and durable repository memory.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -147,6 +150,13 @@ explicit durable-memory adoption for conversation-derived context, and Phase 76
 rolls that recall into canonical operator and governed follow-up surfaces
 without turning the memory graph into a transcript browser or alternate control
 plane.
+
+Prompt-memory chronology note: Phase 77 introduces the product-owned
+`jido_memory` prompt-context boundary and namespace rules, Phase 78 wires
+bounded retrieval and explicit capture into the real conversation runtime, and
+Phase 79 hardens lifecycle, provider behavior, and contributor guidance while
+preserving the provenance-first and explicit-adoption split for long-term
+memory.
 
 ## Shared Conventions
 - Numbering:

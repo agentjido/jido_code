@@ -3,10 +3,8 @@
 This guide explains the repository-scoped runtime and the role of
 `AgentWorkspace`.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/agent_os_integration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/agent_os_integration.spec.md)
-- [`../../.spec/topology.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/topology.md)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## What AgentWorkspace Is

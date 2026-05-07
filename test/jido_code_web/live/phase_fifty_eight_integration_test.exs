@@ -142,7 +142,7 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
     refute has_element?(welcome_view, "#provider-login-settings")
 
     refute welcome_html =~
-             "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new spec-led baseline is validated."
+             "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new baseline is validated."
 
     sign_out_response = get(authed_conn, ~p"/sign-out")
 
@@ -160,9 +160,10 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
     refute signed_out_html =~ "Create your admin account"
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "58.3.3 phase 58 plan and current-truth specs remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-58-welcome-bootstrap-and-ready-state-routing-foundation.md")
+      repo_file!(".planning/phase-58-welcome-bootstrap-and-ready-state-routing-foundation.md")
 
     baseline_spec = repo_file!(".spec/specs/baseline_surface.spec.md")
     auth_spec = repo_file!(".spec/specs/authentication_system.spec.md")

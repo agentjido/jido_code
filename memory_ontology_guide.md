@@ -4,8 +4,6 @@ This guide explains the coding-memory ontology used by `jido_code` and how it
 fits into the repository's semantic architecture.
 
 The ontology itself lives in [priv/ontologies/jido-memory.ttl](https://github.com/mikehostetler/jido_code/blob/main/priv/ontologies/jido-memory.ttl).
-Its current-truth architectural contract lives in
-[.spec/specs/memory_ontology.spec.md](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_ontology.spec.md).
 
 ## What The Ontology Is For
 

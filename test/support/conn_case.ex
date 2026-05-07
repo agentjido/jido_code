@@ -30,7 +30,8 @@ defmodule JidoCodeWeb.ConnCase do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Orchestration.Run
+  alias JidoCode.Orchestration.{Run, WorkflowRun}
+  alias JidoCode.Projects.Project
 
   import Phoenix.ConnTest, only: [recycle: 1]
   import Plug.Conn, only: [get_session: 2]
@@ -175,25 +176,34 @@ defmodule JidoCodeWeb.ConnCase do
         |> Map.get(:managed_repo, %{})
         |> Map.get(:id)
 
-      legacy_project_id = Map.get(repo_scope, :route_id) || managed_repo_id
+      with {:ok, project_id} <- governed_run_project_id(repo_scope) do
+        legacy_project_id = Map.get(repo_scope, :route_id) || managed_repo_id
 
-      base_attrs = %{
-        managed_repo_id: managed_repo_id,
-        legacy_project_id: legacy_project_id,
-        run_id: "run-#{System.unique_integer([:positive])}",
-        workflow_name: "implement_task",
-        workflow_version: 1,
-        status: :pending,
-        current_step: "queued",
-        current_stage: "repo_attach",
-        trigger: %{"source" => "test", "mode" => "manual"},
-        inputs: %{},
-        input_metadata: %{},
-        initiating_actor: %{"id" => "test-owner", "email" => "owner@example.com"},
-        started_at: DateTime.utc_now() |> DateTime.truncate(:second)
-      }
+        base_attrs = %{
+          managed_repo_id: managed_repo_id,
+          legacy_project_id: legacy_project_id,
+          run_id: "run-#{System.unique_integer([:positive])}",
+          workflow_name: "implement_task",
+          workflow_version: 1,
+          status: :pending,
+          current_step: "queued",
+          current_stage: "repo_attach",
+          trigger: %{"source" => "test", "mode" => "manual"},
+          inputs: %{},
+          input_metadata: %{},
+          initiating_actor: %{"id" => "test-owner", "email" => "owner@example.com"},
+          started_at: DateTime.utc_now() |> DateTime.truncate(:second)
+        }
 
-      Run.create(Map.merge(base_attrs, attrs), actor: Actor.operator_actor())
+        run_attrs = Map.merge(base_attrs, attrs)
+        workflow_attrs = workflow_run_attrs(run_attrs, project_id)
+
+        with {:ok, workflow_run} <- WorkflowRun.create(workflow_attrs, actor: Actor.operator_actor()),
+             {:ok, final_workflow_run} <- transition_workflow_run(workflow_run, run_attrs),
+             {:ok, run} <- Run.get_by_workflow_run_id(final_workflow_run.id, actor: Actor.operator_actor()) do
+          {:ok, run}
+        end
+      end
     end
   end
 
@@ -211,6 +221,154 @@ defmodule JidoCodeWeb.ConnCase do
   defp auth_result(conn, session_token, _owner, true, false), do: {conn, session_token}
   defp auth_result(conn, _session_token, owner, false, true), do: {conn, owner}
   defp auth_result(conn, session_token, owner, true, true), do: {conn, session_token, owner}
+
+  defp governed_run_project_id(%{project_id: project_id}) when is_binary(project_id), do: {:ok, project_id}
+
+  defp governed_run_project_id(%{source_repo: source_repo, managed_repo: managed_repo}) do
+    full_name =
+      source_repo
+      |> map_get(:full_name, "full_name")
+      |> normalize_optional_string()
+
+    name =
+      managed_repo
+      |> map_get(:display_name, "display_name")
+      |> normalize_optional_string() ||
+        source_repo
+        |> map_get(:name, "name")
+        |> normalize_optional_string() ||
+        "governed-run-fixture"
+
+    default_branch =
+      source_repo
+      |> map_get(:default_branch, "default_branch")
+      |> normalize_optional_string() || "main"
+
+    if is_binary(full_name) do
+      case Project.get_by_github_full_name(full_name, actor: Actor.operator_actor()) do
+        {:ok, %Project{id: project_id}} ->
+          {:ok, project_id}
+
+        _other ->
+          with {:ok, %Project{id: project_id}} <-
+                 Project.create(
+                   %{
+                     name: name,
+                     github_full_name: full_name,
+                     default_branch: default_branch,
+                     settings: project_settings_for_governed_run(managed_repo)
+                   },
+                   actor: Actor.factory_system_actor()
+                 ) do
+            {:ok, project_id}
+          end
+      end
+    else
+      {:error, :governed_run_project_unavailable}
+    end
+  end
+
+  defp governed_run_project_id(_repo_scope), do: {:error, :governed_run_project_unavailable}
+
+  defp project_settings_for_governed_run(managed_repo) do
+    workspace_settings =
+      managed_repo
+      |> map_get(:workspace_settings, "workspace_settings")
+      |> normalize_map()
+
+    case workspace_settings do
+      empty when empty == %{} -> %{}
+      settings -> %{"workspace" => settings}
+    end
+  end
+
+  defp workflow_run_attrs(run_attrs, project_id) do
+    run_attrs
+    |> Map.take([
+      :run_id,
+      :managed_repo_id,
+      :workflow_name,
+      :workflow_version,
+      :trigger,
+      :inputs,
+      :input_metadata,
+      :initiating_actor,
+      :current_step,
+      :started_at,
+      :retry_of_run_id,
+      :retry_attempt,
+      :retry_lineage
+    ])
+    |> Map.put(:project_id, project_id)
+    |> put_work_item_input(Map.get(run_attrs, :work_item_id))
+  end
+
+  defp put_work_item_input(attrs, work_item_id) when is_binary(work_item_id) do
+    inputs =
+      attrs
+      |> Map.get(:inputs, %{})
+      |> normalize_map()
+      |> Map.put_new("work_item_id", work_item_id)
+
+    Map.put(attrs, :inputs, inputs)
+  end
+
+  defp put_work_item_input(attrs, _work_item_id), do: attrs
+
+  defp transition_workflow_run(%WorkflowRun{} = workflow_run, run_attrs) do
+    target_status = Map.get(run_attrs, :status, :pending)
+    current_step = Map.get(run_attrs, :current_step, workflow_run.current_step)
+    transitioned_at = Map.get(run_attrs, :completed_at) || Map.get(run_attrs, :started_at)
+
+    target_status
+    |> workflow_transition_path()
+    |> Enum.reduce_while({:ok, workflow_run}, fn status, {:ok, current_run} ->
+      case WorkflowRun.transition_status(
+             current_run,
+             %{
+               to_status: status,
+               current_step: current_step,
+               transitioned_at: transitioned_at
+             },
+             actor: Actor.operator_actor()
+           ) do
+        {:ok, updated_run} -> {:cont, {:ok, updated_run}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp workflow_transition_path(:pending), do: []
+  defp workflow_transition_path(:running), do: [:running]
+  defp workflow_transition_path(:awaiting_approval), do: [:running, :awaiting_approval]
+  defp workflow_transition_path(status) when status in [:completed, :failed], do: [:running, status]
+  defp workflow_transition_path(:cancelled), do: [:cancelled]
+  defp workflow_transition_path(_status), do: []
+
+  defp map_get(map, atom_key, string_key) when is_map(map) do
+    Map.get(map, atom_key) || Map.get(map, string_key)
+  end
+
+  defp map_get(_map, _atom_key, _string_key), do: nil
+
+  defp normalize_map(%{} = map) do
+    Map.new(map, fn {key, value} -> {to_string(key), value} end)
+  end
+
+  defp normalize_map(_value), do: %{}
+
+  defp normalize_optional_string(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_string()
+
+  defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
+  defp normalize_optional_string(_value), do: nil
 
   defp bootstrap_owner(email, password) do
     case User.bootstrap_admin(

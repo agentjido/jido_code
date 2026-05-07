@@ -42,9 +42,7 @@ defmodule JidoCodeWeb.PhaseSixteenIntegrationTest do
     contributing = repo_file!("CONTRIBUTING.md")
     tauri_readme = repo_file!("tauri/README.md")
     mixfile = repo_file!("mix.exs")
-    workflow_spec = repo_file!(".spec/specs/developer_workflow.spec.md")
-    package_spec = repo_file!(".spec/specs/package_quality_standards.spec.md")
-    phase_plan = repo_file!(".spec/planning/phase-16-internal-cleanup-and-ui-convergence-foundation.md")
+    phase_plan = repo_file!(".planning/phase-16-internal-cleanup-and-ui-convergence-foundation.md")
 
     assert readme =~ "mix server"
     assert contributing =~ "mix server"
@@ -53,8 +51,6 @@ defmodule JidoCodeWeb.PhaseSixteenIntegrationTest do
     refute contributing =~ "mix phx.server"
     refute tauri_readme =~ "mix phx.server"
     assert mixfile =~ "server: [\"frontend.start\", \"phx.server\"]"
-    assert workflow_spec =~ "mix server"
-    assert package_spec =~ "mix server"
     assert phase_plan =~ "[x] 16 Phase 16 - Internal Cleanup and UI Convergence Foundation"
     assert phase_plan =~ "[x] 16.3 Section - Phase 16 Integration Tests"
   end

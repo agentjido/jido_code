@@ -98,9 +98,10 @@ defmodule JidoCodeWeb.PhaseSixtyOneIntegrationTest do
     refute has_element?(view, "#project-detail-memory-inspection")
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "61.6.2 phase 61 plan, specs, and browser coverage remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-61-managed-repo-detail-sidebar-information-architecture.md")
+      repo_file!(".planning/phase-61-managed-repo-detail-sidebar-information-architecture.md")
 
     factory_spec = repo_file!(".spec/specs/factory_control_plane.spec.md")
     conversation_spec = repo_file!(".spec/specs/conversation_orchestration.spec.md")
@@ -133,7 +134,7 @@ defmodule JidoCodeWeb.PhaseSixtyOneIntegrationTest do
     assert source_spec =~ "route-owned `Semantic` family"
     assert source_spec =~ "test/jido_code_web/live/phase_sixty_one_integration_test.exs"
 
-    assert package_spec =~ ".spec/planning/phase-61-managed-repo-detail-sidebar-information-architecture.md"
+    assert package_spec =~ ".planning/phase-61-managed-repo-detail-sidebar-information-architecture.md"
     assert package_spec =~ "test/jido_code_web/live/phase_sixty_one_integration_test.exs"
 
     assert conversation_browser =~

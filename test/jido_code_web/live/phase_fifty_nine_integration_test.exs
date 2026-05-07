@@ -110,9 +110,10 @@ defmodule JidoCodeWeb.PhaseFiftyNineIntegrationTest do
     refute has_element?(welcome_view, "#git-provider-integrations")
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "59.3.2 phase 59 plan and current-truth specs remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-59-operator-auth-settings-settings-surface-adoption.md")
+      repo_file!(".planning/phase-59-operator-auth-settings-settings-surface-adoption.md")
 
     operator_spec = repo_file!(".spec/specs/operator_auth_settings.spec.md")
     baseline_spec = repo_file!(".spec/specs/baseline_surface.spec.md")

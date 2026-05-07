@@ -2,9 +2,8 @@
 
 This guide explains how browser-facing surfaces are structured in `jido_code`.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/frontend_architecture.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/frontend_architecture.spec.md)
 - [`../../lib/jido_code_web/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code_web)
 - [`../../assets/`](https://github.com/mikehostetler/jido_code/tree/main/assets)
 

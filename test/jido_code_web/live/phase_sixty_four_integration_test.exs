@@ -160,6 +160,7 @@ defmodule JidoCodeWeb.PhaseSixtyFourIntegrationTest do
       live(recycle(authed_conn), ~p"/repos/#{ready_one.id}?section=conversations", on_error: :warn)
 
     assert has_element?(ready_one_view, "#project-detail-conversation-runtime-status", "Ready")
+
     assert has_element?(
              ready_one_view,
              "#project-detail-conversation-runtime-workspace",
@@ -170,6 +171,7 @@ defmodule JidoCodeWeb.PhaseSixtyFourIntegrationTest do
       live(recycle(authed_conn), ~p"/repos/#{ready_two.id}?section=conversations", on_error: :warn)
 
     assert has_element?(ready_two_view, "#project-detail-conversation-runtime-status", "Ready")
+
     assert has_element?(
              ready_two_view,
              "#project-detail-conversation-runtime-workspace",
@@ -223,9 +225,10 @@ defmodule JidoCodeWeb.PhaseSixtyFourIntegrationTest do
     assert ProjectDetail.workspace_path(repaired_detail) == repaired_path
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "64.3.3 phase 64 plan, specs, decision, and integration coverage remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-64-runtime-surface-workspace-convergence.md")
+      repo_file!(".planning/phase-64-runtime-surface-workspace-convergence.md")
 
     decision =
       repo_file!(".spec/decisions/jido_code.managed_repo_workspace_binding_is_repo_scoped.md")
@@ -237,6 +240,7 @@ defmodule JidoCodeWeb.PhaseSixtyFourIntegrationTest do
     frontend_spec = repo_file!(".spec/specs/frontend_architecture.spec.md")
     source_spec = repo_file!(".spec/specs/source_code_graph_product_adoption.spec.md")
     memory_spec = repo_file!(".spec/specs/memory_graph_product_adoption.spec.md")
+
     memory_rollout_spec =
       repo_file!(".spec/specs/memory_graph_surface_rollout_and_governance_actions.spec.md")
 
@@ -258,13 +262,19 @@ defmodule JidoCodeWeb.PhaseSixtyFourIntegrationTest do
     assert setup_spec =~ "post-import runtime surfaces now keep blocked repo-scoped workspace remediation"
     assert setup_spec =~ "test/jido_code_web/live/phase_sixty_four_integration_test.exs"
 
-    assert factory_spec =~ "conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story"
+    assert factory_spec =~
+             "conversation plus semantic plus memory plus workflow readiness now sharing one repo-scoped workspace-binding story"
+
     assert factory_spec =~ "test/jido_code_web/live/phase_sixty_four_integration_test.exs"
 
-    assert conversation_spec =~ "same repo-scoped workspace-binding vocabulary as semantic, memory, and workflow surfaces"
+    assert conversation_spec =~
+             "same repo-scoped workspace-binding vocabulary as semantic, memory, and workflow surfaces"
+
     assert conversation_spec =~ "test/jido_code_web/live/phase_sixty_four_integration_test.exs"
 
-    assert frontend_spec =~ "consistent repo-scoped runtime wording across conversations, semantic, memory, and workflows"
+    assert frontend_spec =~
+             "consistent repo-scoped runtime wording across conversations, semantic, memory, and workflows"
+
     assert frontend_spec =~ "test/jido_code_web/live/phase_sixty_four_integration_test.exs"
 
     assert source_spec =~ "blocked semantic states now using the same repo-scoped workspace-binding vocabulary"

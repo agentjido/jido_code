@@ -3,11 +3,11 @@
 This guide explains the canonical product objects and why they matter more than
 runtime internals.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/factory_control_plane.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/factory_control_plane.spec.md)
-- [`../../.spec/specs/work_synthesis.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/work_synthesis.spec.md)
-- [`../../.spec/specs/run_governance.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/run_governance.spec.md)
+- [`../../lib/jido_code/control/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/control)
+- [`../../lib/jido_code/operations/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/operations)
+- [`../../lib/jido_code/governance/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/governance)
 
 ## Why The Product Plane Exists
 
@@ -102,4 +102,3 @@ That framing usually leads to the right boundary.
 
 Continue with
 [`03-agent-workspace-and-runtime-topology.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/03-agent-workspace-and-runtime-topology.md).
-

@@ -6,9 +6,9 @@ This guide covers operational aspects of the source code graph capability, inclu
 
 The source code graph feature extracts semantic information from Elixir codebases using `ElixirOntologies`, storing results in a local TripleStore for semantic-aware planning, review, and explanation workflows.
 
-**Current Truth Sources:**
-- [`../../.spec/planning/phase-20-source-code-graph-pod-foundation.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-20-source-code-graph-pod-foundation.md)
-- [`../../.spec/planning/phase-21-full-ontology-analysis-and-named-graph-load.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/phase-21-full-ontology-analysis-and-named-graph-load.md)
+**Useful Sources:**
+- [`../../.planning/phase-20-source-code-graph-pod-foundation.md`](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-20-source-code-graph-pod-foundation.md)
+- [`../../.planning/phase-21-full-ontology-analysis-and-named-graph-load.md`](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-21-full-ontology-analysis-and-named-graph-load.md)
 - [`../../lib/jido_code/source_code_graph/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/source_code_graph)
 
 ## Configuration

@@ -3,11 +3,10 @@
 This guide explains the per-work-item `CodingPod` and the lifecycle of its
 specialist work.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
 - [`../../lib/jido_code/pods/coding_pod.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/pods/coding_pod.ex)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
-- [`../../.spec/specs/agent_os_integration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/agent_os_integration.spec.md)
 
 ## Scope
 

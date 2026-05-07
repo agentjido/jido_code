@@ -1,0 +1,78 @@
+# Phase 23 - Source Code Graph Hardening and Operational Convergence
+
+<!-- covers: package.jido_code.spec_led_workspace -->
+
+Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.planning/README.md)
+
+## Relevant Shared APIs / Interfaces
+- `../specs/source_code_graph_pod.spec.md`
+- `../specs/agent_os_integration.spec.md`
+- `../specs/package.spec.md`
+- `../specs/product_foundation_docs.spec.md`
+- `../decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md`
+- `lib/jido_code/agent_workspace.ex`
+- `lib/jido_code/pods/`
+- `lib/jido_code/agents/`
+- `lib/jido_code/actions/`
+- `README.md`
+- `CONTRIBUTING.md`
+- `test/jido_code/agent_os/`
+
+## Relevant Assumptions / Defaults
+- Phases 20 through 22 have established the SourceCodeGraphPod contract, full-mode ontology analysis, coherent `source_code` graph ingestion, and SPARQL-backed query entrypoints.
+- The next step is operational hardening: revision coherence, failure visibility, contributor guidance, and end-to-end pod confidence.
+- Semantic source-code graph capability remains repository-scoped and bounded; it is not the product's durable control-plane truth.
+
+[x] 23 Phase 23 - Source Code Graph Hardening and Operational Convergence
+  Harden the repository semantic graph capability so refresh, failure handling, contributor guidance, and end-to-end pod scenarios are durable enough for regular product use.
+
+  [x] 23.1 Section - Revision Coherence and Failure Recovery
+    Strengthen refresh, snapshot identity, and failure behavior so repository semantic graph state remains explainable under change and failure.
+
+    [x] 23.1.1 Task - Harden graph revision tracking
+      Make graph freshness and revision identity explicit enough for operators and dependent workflows to reason about semantic state safely.
+
+      [x] 23.1.1.1 Subtask - Record stable repository revision metadata alongside the latest successful `source_code` load.
+      [x] 23.1.1.2 Subtask - Detect and surface stale graph state when the workspace revision has moved beyond the last loaded graph revision.
+      [x] 23.1.1.3 Subtask - Define safe behavior for callers when semantic graph revision is stale but still queryable.
+
+    [x] 23.1.2 Task - Harden failure and degraded-state behavior
+      Keep semantic capability trustworthy by surfacing analysis, load, and query failures as explicit, recoverable repository-scoped state.
+
+      [x] 23.1.2.1 Subtask - Persist latest failure kind, message, and stage in graph-context state.
+      [x] 23.1.2.2 Subtask - Define retry and recovery entrypoints for failed analysis or load attempts.
+      [x] 23.1.2.3 Subtask - Ensure query callers receive bounded degraded-state outcomes instead of raw store or ontology exceptions.
+
+  [x] 23.2 Section - Contributor and Operational Convergence
+    Align the repo’s docs, start surfaces, and maintenance expectations so the new semantic graph capability is understandable and maintainable by contributors.
+
+    [x] 23.2.1 Task - Update contributor-facing guidance
+      Document the SourceCodeGraphPod capability and its dependency expectations in repo-owned docs and contributor instructions.
+
+      [x] 23.2.1.1 Subtask - Add README and contributor guidance for semantic graph dependencies and local setup assumptions.
+      [x] 23.2.1.2 Subtask - Document the repository-scoped `source_code` graph lifecycle and explicit analyze/load/query workflow.
+      [x] 23.2.1.3 Subtask - Document when higher-level workflows should rely on the semantic graph versus ordinary file/code tools.
+
+    [x] 23.2.2 Task - Align operational verification surfaces
+      Make the new capability visible to repo-owned verification paths without turning it into an opaque local-only convention.
+
+      [x] 23.2.2.1 Subtask - Add repo-owned checks or test groupings for semantic graph analysis, load, and query coverage.
+      [x] 23.2.2.2 Subtask - Ensure contributor guidance references the semantic graph verification path in the current stack.
+      [x] 23.2.2.3 Subtask - Keep graph-store and ontology dependencies version-controlled and explicit in repo-owned setup surfaces.
+
+  [x] 23.3 Section - Phase 23 Integration Tests
+    Verify the hardened semantic graph capability remains repository-scoped, revision-aware, failure-explainable, and contributor-maintainable in end-to-end scenarios.
+
+    [x] 23.3.1 Task - Revision and recovery scenarios
+      Prove the pod can detect stale graph state, refresh coherently, and recover from failed analysis or load attempts without leaving ambiguous repository graph state.
+
+      [x] 23.3.1.1 Subtask - Add coverage proving stale repository revision is surfaced explicitly after source changes.
+      [x] 23.3.1.2 Subtask - Add coverage proving refresh clears stale state and returns the graph to a coherent ready status.
+      [x] 23.3.1.3 Subtask - Add coverage proving failed analysis/load attempts preserve typed recovery information and bounded query behavior.
+
+    [x] 23.3.2 Task - End-to-end repository semantic workflow scenarios
+      Prove the new pod works as a durable repository semantic service from setup through query without reintroducing a global knowledge subsystem.
+
+      [x] 23.3.2.1 Subtask - Add coverage proving one repository can analyze, load, refresh, and query its `source_code` graph end to end.
+      [x] 23.3.2.2 Subtask - Add coverage proving multiple repositories keep isolated local stores and `source_code` named graphs.
+      [x] 23.3.2.3 Subtask - Verify docs, contributor guidance, and repo-owned verification surfaces remain aligned with the final semantic graph architecture.

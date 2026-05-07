@@ -14,10 +14,8 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
 
 1. Run `bw prime`.
 2. Run `bw ready`.
-3. Read `.spec/README.md`.
-4. Read `.spec/AGENTS.md`, `.spec/specs/*.spec.md`, and `.spec/decisions/*.md`.
-5. Read the relevant code, routes, and tests before changing behavior.
-6. For non-trivial work, prefer a branch and pull request instead of changes that would land directly on `main`.
+3. Read the relevant code, routes, and tests before changing behavior.
+4. For non-trivial work, prefer a branch and pull request instead of changes that would land directly on `main`.
 
 ## Work Management
 
@@ -30,29 +28,6 @@ This repo uses `bw` (beadwork) for durable local agent work state.
 - Use `bw create`, `bw ready`, `bw start`, `bw comment`, `bw close`, and `bw sync` to keep local work state durable.
 - Beadwork is local execution state, not the only collaboration record. For shared work, discovered bugs, and meaningful feature changes, prefer GitHub issues and pull requests.
 - Do not land work directly on `main`. Use a branch + PR flow for collaboration.
-
-## Spec Led Development
-
-<!-- covers: package.jido_code.spec_led_workspace -->
-
-`.spec/` is the package-local Spec Led Development workspace for current-truth specs and durable ADRs.
-
-- Keep specs current with code and tests.
-- Keep one subject per file under `.spec/specs/*.spec.md`.
-- Use `.spec/decisions/*.md` only for durable cross-cutting ADRs.
-- Use Git history and pull requests as the time dimension. Keep `.spec` current-state only.
-- Prefer updating specs before or alongside implementation.
-- If spec tooling is blocked by an unrelated compile/runtime failure, report the blocker clearly instead of inventing a passing result.
-
-Useful commands:
-
-```bash
-mix spec.prime --base HEAD
-mix spec.next
-mix spec.check --base origin/main
-mix spec.status
-mix spec.decision.new <slug> --title "Decision title"
-```
 
 ## Engineering Guardrails
 

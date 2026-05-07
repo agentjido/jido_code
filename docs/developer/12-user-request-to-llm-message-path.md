@@ -17,7 +17,7 @@ The current answer is:
 - the user request is transformed later by the conversation runtime and
   `AgentWorkspace` into a bounded specialist instruction
 
-Current truth for this area lives in:
+Useful implementation sources:
 
 - [`../../lib/jido_code/conversations/runtime.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/runtime.ex)
 - [`../../lib/jido_code/conversations/work_resolution.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/work_resolution.ex)

@@ -13,6 +13,7 @@ defmodule JidoCodeWeb.HomeLiveTest do
   setup do
     original_target = System.get_env("BURRITO_TARGET")
     original_prerequisite_checker = Application.get_env(:jido_code, :setup_prerequisite_checker, :__missing__)
+
     original_prerequisite_timeout_ms =
       Application.get_env(:jido_code, :setup_prerequisite_timeout_ms, :__missing__)
 
@@ -111,15 +112,17 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
     assert has_element?(view, "#welcome-open-dashboard", "Open Dashboard")
     assert has_element?(view, "#welcome-open-settings", "Open Auth & Integrations")
+
     assert has_element?(
              view,
              "#welcome-ready-handoff-note",
              "Dashboard is the default authenticated entry"
            )
+
     refute has_element?(view, "#welcome-operator-settings-handoff")
 
     refute html =~
-             "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new spec-led baseline is validated."
+             "Product routes, demos, setup flows, APIs, and workbench surfaces are commented out until the new baseline is validated."
   end
 
   defp enable_provider_login!(provider, provider_host) do

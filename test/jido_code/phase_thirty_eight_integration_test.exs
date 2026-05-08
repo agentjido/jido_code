@@ -2,7 +2,6 @@ defmodule JidoCode.PhaseThirtyEightIntegrationTest do
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
   # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
-  # covers: package.jido_code.spec_led_workspace
   # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: false
 
@@ -133,6 +132,7 @@ defmodule JidoCode.PhaseThirtyEightIntegrationTest do
     assert recovery_result.graph_status.semantic_model.rebuild_required? == false
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "38.3.2.3 legacy governed-artifact recovery guidance and docs stay aligned", %{
     workspace_path: workspace_path
   } do

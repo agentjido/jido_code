@@ -2,7 +2,6 @@ defmodule JidoCode.PhaseThirtyFiveIntegrationTest do
   # covers: architecture.memory_ontology.companion_control_plane_ontology_models_governed_records
   # covers: architecture.memory_ontology.memory_and_provenance_link_to_governed_records_through_typed_relations
   # covers: architecture.memory_capture_plane.typed_governed_reference_contract_is_canonical
-  # covers: package.jido_code.spec_led_workspace
   use ExUnit.Case, async: true
 
   alias JidoCode.{MemoryGraph, SourceCodeGraph}
@@ -79,6 +78,7 @@ defmodule JidoCode.PhaseThirtyFiveIntegrationTest do
            }
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "35.3.2.1 relevant ADRs, specs, and topology stay aligned on the ontology split" do
     assert_file_contains!(
       spec_path("decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md"),
@@ -113,6 +113,7 @@ defmodule JidoCode.PhaseThirtyFiveIntegrationTest do
     )
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "35.3.2.2 topology stays aligned with semantic planes and product route boundaries" do
     assert_file_contains!(
       spec_path("topology.md"),

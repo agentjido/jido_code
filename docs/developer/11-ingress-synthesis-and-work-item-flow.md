@@ -4,12 +4,8 @@ This guide explains how inbound demand becomes canonical governed work in
 `jido_code`, and how that same pipeline is used when a productive conversation
 hands off from repo intake into a work-item-scoped coding loop.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/demand_ingress.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/demand_ingress.spec.md)
-- [`../../.spec/specs/event_assessment_synthesis.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/event_assessment_synthesis.spec.md)
-- [`../../.spec/specs/work_synthesis.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/work_synthesis.spec.md)
-- [`../../.spec/specs/conversation_orchestration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/conversation_orchestration.spec.md)
 - [`../../lib/jido_code/operations/ingress.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/ingress.ex)
 - [`../../lib/jido_code/operations/synthesis.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/synthesis.ex)
 - [`../../lib/jido_code/operations/work_synthesis.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/operations/work_synthesis.ex)

@@ -369,7 +369,7 @@ defmodule JidoCodeWeb.HomeLive do
                 <div class="space-y-3 text-center">
                   <%!-- covers: baseline.surface.welcome_landing_copy --%>
                   <p class="text-xs font-bold uppercase tracking-[0.24em] text-base-content/50">
-                    {if @current_user, do: "Ready", else: "Spec Led Baseline"}
+                    {if @current_user, do: "Ready", else: "Bootstrap Complete"}
                   </p>
                   <h1 class="text-4xl font-bold text-base-content">Welcome to Jido Code</h1>
                   <p class="text-base leading-7 text-base-content/70">

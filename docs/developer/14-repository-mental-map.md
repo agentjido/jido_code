@@ -2,39 +2,31 @@
 
 This guide is a practical "where things live" map for `jido_code`.
 
-It is intentionally explanatory rather than normative. Current truth still
-lives in:
-
-- [`../../.spec/README.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/README.md)
-- [`../../.spec/topology.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/topology.md)
-- [`../../.spec/specs/`](https://github.com/mikehostetler/jido_code/tree/main/.spec/specs)
-- [`../../.spec/decisions/`](https://github.com/mikehostetler/jido_code/tree/main/.spec/decisions)
+It is intentionally explanatory rather than normative. Trust implementation
+code over this guide when they diverge, then update the guide.
 
 ## If You Only Open A Few Files First
 
 These are the fastest orientation points in the repo:
 
-1. [`../../.spec/topology.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/topology.md)  
-   The clearest high-level picture of product plane, runtime plane, and
-   semantic store.
-2. [`../../lib/jido_code_web/router.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code_web/router.ex)  
+1. [`../../lib/jido_code_web/router.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code_web/router.ex)
    The real browser surface and route vocabulary.
-3. [`../../lib/jido_code/application.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/application.ex)  
+2. [`../../lib/jido_code/application.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/application.ex)
    The main supervision tree and long-running process boundaries.
-4. [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)  
+3. [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
    The product-owned seam into AgentOS runtime, conversations, and graph
    behavior.
-5. [`../../lib/jido_code/control/repo_bridge.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/control/repo_bridge.ex)  
+4. [`../../lib/jido_code/control/repo_bridge.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/control/repo_bridge.ex)
    The repo-scope bridge that turns route or setup input into canonical
    `ManagedRepo` and `SourceRepo` context.
-6. [`../../docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md)  
+5. [`../../docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md)
    The rest of the explanatory guide set.
 
 ## Top-Level Layout
 
 | Path | What it is for |
 | --- | --- |
-| `.spec/` | Current-truth specs, ADRs, topology, and rollout planning. Start here when architecture or behavior matters. |
+| `.planning/` | Phased implementation and migration plans. |
 | `docs/developer/` | Explanatory contributor guides that translate the current architecture into a faster mental model. |
 | `lib/jido_code/` | Product plane, runtime boundary, semantic services, setup, security, and supporting modules. |
 | `lib/jido_code_web/` | Phoenix router, LiveViews, components, controllers, and browser-facing boundaries. |
@@ -244,7 +236,7 @@ The `test/` tree is a good second mental map:
 
 There are also phase-oriented integration tests such as `phase_forty_*` or
 `phase_fifty_*`. Those usually reflect architectural rollout slices recorded in
-`.spec/planning/`, and they are often the fastest way to see the intended
+`.planning/`, and they are often the fastest way to see the intended
 behavior of a cross-cutting feature.
 
 ## Follow One Request Through The Repo
@@ -291,9 +283,7 @@ If you need to answer one specific question, start here:
 
 - Use it to decide where to read next.
 - Use the numbered guide set when you need explanation.
-- Use `.spec` when you need the exact architectural contract.
-- If code and this guide diverge, trust the code and `.spec`, then update the
-  guide.
+- If code and this guide diverge, trust the code, then update the guide.
 
 ## Read Next
 

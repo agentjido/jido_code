@@ -3,7 +3,7 @@
 This guide explains how context is handled inside `CodingPod` specialists and
 what actually reaches the LLM.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 - [`../../lib/jido_code/agents/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/agents)

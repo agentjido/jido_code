@@ -3,9 +3,8 @@
 This guide explains how productive coding conversations are coordinated in
 `jido_code`.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/conversation_orchestration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/conversation_orchestration.spec.md)
 - [`../../lib/jido_code/conversations/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/conversations)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 

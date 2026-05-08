@@ -171,10 +171,6 @@ mix quality             # fast gate plus frontend verification, doctor, and dial
 mix precommit           # compile, format, and test
 mix coveralls           # run tests with coverage summary
 mix coveralls.html      # generate the HTML coverage report
-mix spec.prime --base HEAD      # print session-start Spec Led context for the current branch
-mix spec.next                   # point at the next subject or ADR update for current changes
-mix spec.check --base origin/main # run the full Spec Led gate and branch coherence checks
-mix spec.status                 # summarize current coverage and verification strength
 mix docs                # build ExDoc output from the repo docs surface
 ```
 
@@ -198,19 +194,12 @@ mix workflow.run my_workflow --inputs '{"file_path":"lib/example.ex","mode":"ful
 
 The canonical repo-facing guides now live here:
 
-- [`.spec/README.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/README.md) for the repo-local Spec Led Development workflow
-- [`docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md) for the numbered developer architecture guide set; these guides are explanatory and point back to `.spec` as the current-truth source
+- [`docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md) for the numbered developer architecture guide set
 - [`CONTRIBUTING.md`](https://github.com/mikehostetler/jido_code/blob/main/CONTRIBUTING.md) for contributor setup and quality expectations
 - [`memory_ontology_guide.md`](https://github.com/mikehostetler/jido_code/blob/main/memory_ontology_guide.md) for the developer-facing explanation of the coding memory ontology
 - [`tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md) for the separate desktop packaging/runtime path
 - [`CHANGELOG.md`](https://github.com/mikehostetler/jido_code/blob/main/CHANGELOG.md) for release history
 - [`AGENTS.md`](https://github.com/mikehostetler/jido_code/blob/main/AGENTS.md) for local agent operating guidance in this repo
-
-The durable architecture and product-shaping decisions live in [`.spec/decisions/`](https://github.com/mikehostetler/jido_code/tree/main/.spec/decisions), especially:
-
-- [`.spec/decisions/jido_code.runic_execution_model.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.runic_execution_model.md)
-- [`.spec/decisions/jido_code.vsm_recursion_and_scope.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.vsm_recursion_and_scope.md)
-- [`.spec/decisions/jido_code.local_developer_workflow.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/decisions/jido_code.local_developer_workflow.md)
 
 ## Semantic Memory
 
@@ -249,7 +238,7 @@ run `mix memory.verify`.
 
 For operational guidance on configuration, troubleshooting, and production
 deployment of the memory graph capability, see the
-[Memory Graph Operations Guide](https://github.com/mikehostetler/jido_code/blob/main/.spec/planning/memory_graph_operations.md).
+[Memory Graph Operations Guide](https://github.com/mikehostetler/jido_code/blob/main/.planning/memory_graph_operations.md).
 
 ## Repo Shape
 
@@ -261,7 +250,7 @@ lib/      application and web code
 priv/     repo migrations, seeds, and static assets
 tauri/    desktop packaging app
 test/     tests and support code
-.spec/    current-truth specs and ADRs
+.planning/ phased implementation and migration plans
 ```
 
 ## Main Technologies

@@ -84,7 +84,7 @@ defmodule JidoCodeWeb.PhaseFifteenIntegrationTest do
     agents = repo_file!("AGENTS.md")
     ci_workflow = repo_file!(".github/workflows/ci.yml")
     mixfile = repo_file!("mix.exs")
-    phase_plan = repo_file!(".spec/planning/phase-15-frontend-rollout-hardening-and-contributor-convergence.md")
+    phase_plan = repo_file!(".planning/phase-15-frontend-rollout-hardening-and-contributor-convergence.md")
 
     assert readme =~ "mix frontend.verify"
     assert readme =~ "<.vue_surface"

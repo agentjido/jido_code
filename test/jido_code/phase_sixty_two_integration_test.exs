@@ -118,9 +118,10 @@ defmodule JidoCode.PhaseSixtyTwoIntegrationTest do
     assert notice["detail"] =~ "no repo-scoped local workspace path"
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "62.3.3 phase 62 plan and specs remain aligned to repo-scoped workspace binding cutover" do
     phase_plan =
-      repo_file!(".spec/planning/phase-62-managed-repo-workspace-binding-canonicalization.md")
+      repo_file!(".planning/phase-62-managed-repo-workspace-binding-canonicalization.md")
 
     runtime_spec = repo_file!(".spec/specs/runtime_environment_defaults.spec.md")
     setup_spec = repo_file!(".spec/specs/setup_onboarding.spec.md")

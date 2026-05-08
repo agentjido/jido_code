@@ -2,12 +2,11 @@
 
 This guide summarizes how contributors should work in `jido_code` day to day.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
 - [`../../README.md`](https://github.com/mikehostetler/jido_code/blob/main/README.md)
 - [`../../CONTRIBUTING.md`](https://github.com/mikehostetler/jido_code/blob/main/CONTRIBUTING.md)
 - [`../../AGENTS.md`](https://github.com/mikehostetler/jido_code/blob/main/AGENTS.md)
-- [`../../.spec/specs/developer_workflow.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/developer_workflow.spec.md)
 
 ## Normal Local Workflow
 
@@ -32,28 +31,8 @@ before editing:
 
 1. read `README.md`
 2. read `AGENTS.md`
-3. read `.spec/README.md`
-4. read the relevant subject specs and ADRs
-5. read the relevant code, routes, and tests
-
-## Spec-Led Workflow
-
-`.spec/` is the current-truth architecture and policy workspace.
-
-Useful commands:
-
-```bash
-mix spec.prime --base HEAD
-mix spec.next
-mix spec.check --base origin/main
-mix spec.status
-```
-
-These help you:
-
-- load the relevant context
-- see what subject should be updated next
-- verify branch coherence against current truth
+3. read the relevant code, routes, and tests
+4. read the relevant developer guides and planning notes when they apply
 
 ## Quality Commands
 
@@ -102,8 +81,8 @@ pretending the local state is durable.
 
 Before landing meaningful work:
 
-1. verify the relevant specs and code paths
-2. update docs or specs when behavior or expectations changed
+1. verify the relevant code paths
+2. update docs when behavior or expectations changed
 3. run the matching test and verification commands
 4. keep the change aligned with the product-owned boundaries described in these
    guides
@@ -116,4 +95,3 @@ If you need a refresher on the architecture, go back to:
 - [`01-system-overview.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/01-system-overview.md)
 - [`03-agent-workspace-and-runtime-topology.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/03-agent-workspace-and-runtime-topology.md)
 - [`05-specialist-prompts-context-and-tool-execution.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/05-specialist-prompts-context-and-tool-execution.md)
-

@@ -80,9 +80,10 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     refute has_element?(view, "#dashboard-runtime-evidence")
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "65.5.2 phase 65 plan, ADR, specs, and browser coverage remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-65-dashboard-concern-tab-information-architecture.md")
+      repo_file!(".planning/phase-65-dashboard-concern-tab-information-architecture.md")
 
     adr = repo_file!(".spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md")
 
@@ -137,7 +138,7 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     assert runtime_spec =~ "authenticated left-sidebar runtime concern"
     assert runtime_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
 
-    assert package_spec =~ ".spec/planning/phase-65-dashboard-concern-tab-information-architecture.md"
+    assert package_spec =~ ".planning/phase-65-dashboard-concern-tab-information-architecture.md"
     assert package_spec =~ "test/jido_code_web/live/phase_sixty_five_integration_test.exs"
     assert package_spec =~ "test/e2e/dashboard-tabs.spec.ts"
 

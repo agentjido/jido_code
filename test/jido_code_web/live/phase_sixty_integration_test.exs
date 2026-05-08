@@ -200,9 +200,10 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
     assert has_element?(provider_settings_view, "#settings-auth-provider-login-card-github", "Ready")
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "60.3.3 phase 60 plan, route specs, and contributor docs remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-60-welcome-dashboard-and-settings-convergence.md")
+      repo_file!(".planning/phase-60-welcome-dashboard-and-settings-convergence.md")
 
     baseline_spec = repo_file!(".spec/specs/baseline_surface.spec.md")
     auth_spec = repo_file!(".spec/specs/authentication_system.spec.md")

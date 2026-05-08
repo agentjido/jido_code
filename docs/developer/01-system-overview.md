@@ -2,12 +2,6 @@
 
 This guide explains the top-level architecture of `jido_code`.
 
-Current truth for the architecture still lives in:
-
-- [`../../.spec/topology.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/topology.md)
-- [`../../.spec/specs/factory_control_plane.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/factory_control_plane.spec.md)
-- [`../../.spec/specs/agent_os_integration.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/agent_os_integration.spec.md)
-
 ## The Short Version
 
 `jido_code` is a governed software-factory control plane for Git-backed
@@ -127,4 +121,3 @@ This loop is why the repo is described as a software factory control plane.
 
 Continue with
 [`02-product-plane-and-governed-records.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/02-product-plane-and-governed-records.md).
-

@@ -48,7 +48,6 @@ For day-to-day development:
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
 - `mix onboarding.reset --keep-owner` rewinds onboarding to signed-in `/setup` while preserving the bootstrap owner and clearing imported managed repos
 - `mix onboarding.reset --full` returns the install to first-run bootstrap and clears local bootstrap users plus imported managed repos
-- `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
 Ash resource changes are explicit in this workspace. Browser requests do not
@@ -163,7 +162,7 @@ mix coveralls
 mix coveralls.html
 ```
 
-The repo-local package-quality baseline is expressed through `mix.exs`, this guide, the top-level `README.md`, and the current-truth subjects under `.spec/`.
+The repo-local package-quality baseline is expressed through `mix.exs`, this guide, the top-level `README.md`, and the normal Mix quality gates.
 
 ## Frontend Conventions
 

@@ -101,7 +101,7 @@ defmodule JidoCode.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md", "CONTRIBUTING.md", ".spec/README.md"]
+      extras: ["README.md", "CHANGELOG.md", "CONTRIBUTING.md"]
     ]
   end
 
@@ -122,7 +122,6 @@ defmodule JidoCode.MixProject do
       links: %{
         "Documentation" => "#{@source_url}#documentation",
         "GitHub" => @source_url,
-        "Spec Workspace" => "#{@source_url}/tree/main/.spec",
         "Website" => "https://jido.run"
       }
     ]
@@ -217,7 +216,6 @@ defmodule JidoCode.MixProject do
 
       # Development & testing
       {:sourceror, "~> 1.8", only: [:dev, :test]},
-      {:spec_led_ex, github: "specleddev/specled_ex", branch: "main", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0"},
       {:tidewave, "~> 0.5.6", only: [:dev]},
       # TODO: re-enable once startup perf is fixed (v0.6.0 adds ~28s to boot)
@@ -275,7 +273,6 @@ defmodule JidoCode.MixProject do
         "assets.build"
       ],
       q: ["quality.fast"],
-      specs: ["spec.check"],
       precommit: [
         "deps.unlock --check-unused",
         "format --check-formatted",

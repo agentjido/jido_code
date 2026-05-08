@@ -95,9 +95,10 @@ defmodule JidoCodeWeb.PhaseSixtySixIntegrationTest do
     assert has_element?(view, "#dashboard-overview-repository-list")
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "66.3.2 phase 66 plan, ADRs, specs, and browser coverage remain aligned" do
     phase_plan =
-      repo_file!(".spec/planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md")
+      repo_file!(".planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md")
 
     concern_adr = repo_file!(".spec/decisions/jido_code.dashboard_concern_tabs_and_overview_handoff.md")
     monitoring_adr = repo_file!(".spec/decisions/jido_code.dashboard_developer_centric_monitoring_sidebar.md")
@@ -148,7 +149,7 @@ defmodule JidoCodeWeb.PhaseSixtySixIntegrationTest do
     assert runtime_spec =~ "left-sidebar runtime concern"
     assert runtime_spec =~ "test/jido_code_web/live/phase_sixty_six_integration_test.exs"
 
-    assert package_spec =~ ".spec/planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md"
+    assert package_spec =~ ".planning/phase-66-dashboard-sidebar-and-repository-monitoring-foundation.md"
     assert package_spec =~ "test/jido_code_web/live/phase_sixty_six_integration_test.exs"
     assert package_spec =~ "test/e2e/dashboard-tabs.spec.ts"
 

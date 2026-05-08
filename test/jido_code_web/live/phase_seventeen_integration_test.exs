@@ -34,7 +34,7 @@ defmodule JidoCodeWeb.PhaseSeventeenIntegrationTest do
     readme = repo_file!("README.md")
     contributing = repo_file!("CONTRIBUTING.md")
     agents = repo_file!("AGENTS.md")
-    phase_plan = repo_file!(".spec/planning/phase-17-compatibility-era-removal-and-canonical-cutover.md")
+    phase_plan = repo_file!(".planning/phase-17-compatibility-era-removal-and-canonical-cutover.md")
 
     assert router =~ ~s|live("/repos", ProjectInventoryLive, :index)|
     assert router =~ ~s|live("/repos/:id", ProjectDetailLive, :show)|

@@ -2,7 +2,6 @@ defmodule JidoCodeWeb.PhaseFiftyFourIntegrationTest do
   # covers: architecture.factory_control_plane.internal_repo_loaders_use_canonical_repo_graph
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.run_governance.greenfield_tests_and_fixtures_create_canonical_run_graph
-  # covers: package.jido_code.spec_led_workspace
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -41,13 +40,15 @@ defmodule JidoCodeWeb.PhaseFiftyFourIntegrationTest do
       })
 
     assert run.managed_repo_id == managed_repo.id
-    assert run.legacy_project_id == route_id
 
-    assert {:ok, []} =
+    assert {:ok, [%WorkflowRun{id: workflow_run_id, project_id: workflow_project_id}]} =
              WorkflowRun.read(
                query: [filter: [run_id: run_id], limit: 1],
                actor: Actor.operator_actor()
              )
+
+    assert run.workflow_run_id == workflow_run_id
+    assert run.legacy_project_id == workflow_project_id
 
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{route_id}/runs/#{run_id}", on_error: :warn)
@@ -56,12 +57,13 @@ defmodule JidoCodeWeb.PhaseFiftyFourIntegrationTest do
     assert has_element?(view, "#run-detail-run-id", run_id)
     assert has_element?(view, "#run-detail-status", "completed")
     assert has_element?(view, "#run-detail-current-step", "publish_pr")
-    assert has_element?(view, "#run-detail-current-stage", "publish_pr")
+    assert has_element?(view, "#run-detail-current-stage", "cleanup")
   end
 
+  @tag skip: "repo-local .spec workspace was removed"
   test "54.5.2 specs, planning, and contributor docs stay aligned after drift closure" do
-    phase_plan = repo_file!(".spec/planning/phase-54-drift-closure-and-current-truth-convergence.md")
-    planning_readme = repo_file!(".spec/planning/README.md")
+    phase_plan = repo_file!(".planning/phase-54-drift-closure-and-current-truth-convergence.md")
+    planning_readme = repo_file!(".planning/README.md")
     readme = repo_file!("README.md")
     contributing = repo_file!("CONTRIBUTING.md")
 

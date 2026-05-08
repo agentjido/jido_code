@@ -6,12 +6,8 @@ This guide explains what is actually inside the repository-scoped `memory`
 graph, how the coding-memory ontology is used there, and which questions are
 good fits for bounded helper lookups versus explicit SPARQL.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/memory_ontology.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_ontology.spec.md)
-- [`../../.spec/specs/memory_graph.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_graph.spec.md)
-- [`../../.spec/specs/memory_capture_plane.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_capture_plane.spec.md)
-- [`../../.spec/specs/memory_graph_product_adoption.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/memory_graph_product_adoption.spec.md)
 - [`../../lib/jido_code/memory_graph.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/memory_graph.ex)
 - [`../../lib/jido_code/memory_graph/durable_memory_envelope.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/memory_graph/durable_memory_envelope.ex)
 - [`../../lib/jido_code/memory_graph/durable_memory_writer.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/memory_graph/durable_memory_writer.ex)

@@ -5,10 +5,8 @@
 This guide explains the repository-scoped semantic source-code graph and how it
 is exposed to product code.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/source_code_graph_product_adoption.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/source_code_graph_product_adoption.spec.md)
-- [`../../.spec/specs/source_code_graph_pod.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/source_code_graph_pod.spec.md)
 - [`../../lib/jido_code/source_code_graph/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/source_code_graph)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 

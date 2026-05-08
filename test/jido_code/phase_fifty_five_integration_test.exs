@@ -1,7 +1,6 @@
 defmodule JidoCode.PhaseFiftyFiveIntegrationTest do
   # covers: architecture.memory_ontology.coding_memory_types_extend_core_memory_model
   # covers: architecture.memory_graph_surface_rollout_and_governance_actions.canonical_routes_remain_product_and_governed
-  # covers: package.jido_code.spec_led_workspace
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
@@ -392,15 +391,16 @@ defmodule JidoCode.PhaseFiftyFiveIntegrationTest do
 
       # Record one of each new type
       Enum.each(@memory_kinds, fn kind ->
-        builder = apply(DurableMemoryEnvelope, kind, [
-          [
-            session_id: session_id,
-            actor_id: "system:test",
-            revision: revision,
-            content: "#{Atom.to_string(kind)} content for query test.",
-            classification: %{source: "test", reason: "Section 55.6.4 query test."}
-          ]
-        ])
+        builder =
+          apply(DurableMemoryEnvelope, kind, [
+            [
+              session_id: session_id,
+              actor_id: "system:test",
+              revision: revision,
+              content: "#{Atom.to_string(kind)} content for query test.",
+              classification: %{source: "test", reason: "Section 55.6.4 query test."}
+            ]
+          ])
 
         record_memory!(managed_repo.id, workspace_path, revision, builder)
       end)
@@ -589,13 +589,16 @@ defmodule JidoCode.PhaseFiftyFiveIntegrationTest do
           revision: revision
         )
 
-      builder = apply(DurableMemoryEnvelope, kind, [[
-        session_id: "session-55-ontology",
-        actor_id: "system:test",
-        revision: revision,
-        content: content,
-        classification: %{source: "test", reason: "Section 55.6.1 ontology test."}
-      ]])
+      builder =
+        apply(DurableMemoryEnvelope, kind, [
+          [
+            session_id: "session-55-ontology",
+            actor_id: "system:test",
+            revision: revision,
+            content: content,
+            classification: %{source: "test", reason: "Section 55.6.1 ontology test."}
+          ]
+        ])
 
       record_memory!(managed_repo_id, workspace_path, revision, builder)
 

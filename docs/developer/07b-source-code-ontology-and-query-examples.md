@@ -6,10 +6,8 @@ This guide explains what is actually inside the repository-scoped source-code
 graph once it is loaded, what the ontology layers mean, and what kinds of
 questions are good fits for bounded helper lookups versus explicit SPARQL.
 
-Current truth for this area lives in:
+Useful implementation sources:
 
-- [`../../.spec/specs/source_code_graph_pod.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/source_code_graph_pod.spec.md)
-- [`../../.spec/specs/source_code_graph_product_adoption.spec.md`](https://github.com/mikehostetler/jido_code/blob/main/.spec/specs/source_code_graph_product_adoption.spec.md)
 - [`../../lib/jido_code/source_code_graph.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/source_code_graph.ex)
 - [`../../lib/jido_code/source_code_graph/analysis.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/source_code_graph/analysis.ex)
 - [`../../lib/jido_code/source_code_graph/helper_queries.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/source_code_graph/helper_queries.ex)

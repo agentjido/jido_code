@@ -39,7 +39,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Provenance-first long-term capture remains separate and must continue to flow
   through `JidoCode.Conversations.LongTermProvenance`.
 
-[ ] 78 Phase 78 - Conversation Runtime Prompt Recall And Bounded Capture Adoption
+[x] 78 Phase 78 - Conversation Runtime Prompt Recall And Bounded Capture Adoption
   Wire prompt-context retrieval and explicit bounded capture into the real
   conversation runtime so each turn can reuse the right short-term memory
   without replaying raw transcript history or breaking the current provenance
@@ -121,24 +121,24 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         as the explicit durable-memory promotion path instead of auto-promoting
         prompt-memory records into repository memory.
 
-  [ ] 78.3 Section - Phase 78 Integration Tests
+  [x] 78.3 Section - Phase 78 Integration Tests
     Prove real runtime turns can retrieve and write bounded prompt memory
     without regressing deterministic routing, conversation continuity, or the
     provenance-first long-term recall model.
 
-    [ ] 78.3.1 Task - Add runtime prompt-recall and bounded-capture coverage
+    [x] 78.3.1 Task - Add runtime prompt-recall and bounded-capture coverage
       Verify prompt memory appears in real turn assembly only when appropriate
       and that runtime writes stay bounded and product-shaped.
 
-      [ ] 78.3.1.1 Subtask - Add coverage proving runtime request building can
+      [x] 78.3.1.1 Subtask - Add coverage proving runtime request building can
         retrieve bounded prompt memory and append it to the instruction shape
         without breaking workflow routing or explicit scope resolution.
-      [ ] 78.3.1.2 Subtask - Add coverage proving clarification answers,
+      [x] 78.3.1.2 Subtask - Add coverage proving clarification answers,
         accepted tool results, and next-step summaries write prompt-memory
         records with the expected scope, metadata, and retention defaults.
-      [ ] 78.3.1.3 Subtask - Add coverage proving prompt-memory failure or
+      [x] 78.3.1.3 Subtask - Add coverage proving prompt-memory failure or
         disablement falls back to the current bounded runtime path and does not
         replace provenance capture or transcript continuity.
-      [ ] 78.3.1.4 Subtask - Add coverage proving runtime writes use adapter
+      [x] 78.3.1.4 Subtask - Add coverage proving runtime writes use adapter
         helpers with repo, work-item, conversation, turn, workflow, source, TTL,
         and kind metadata instead of raw transcript mirroring.

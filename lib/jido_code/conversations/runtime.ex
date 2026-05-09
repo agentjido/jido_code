@@ -20,6 +20,9 @@ defmodule JidoCode.Conversations.Runtime do
   alias JidoCode.MemoryGraph.WorkflowService, as: MemoryWorkflowService
   alias JidoCode.SourceCodeGraph.WorkflowService, as: SemanticWorkflowService
 
+  @prompt_memory_capture_text_limit 500
+  @prompt_memory_default_ttl_ms 86_400_000
+
   @type runtime_spec :: %{
           conversation_id: String.t(),
           managed_repo_id: String.t(),
@@ -60,6 +63,7 @@ defmodule JidoCode.Conversations.Runtime do
            ),
          {:ok, request} <- build_request(runtime_spec, readiness) do
       _ = LongTermProvenance.capture_turn_started(runtime_spec, request, readiness)
+      _ = capture_prompt_memory_turn_inputs(runtime_spec, request)
 
       emit.(runtime_progress_event(request))
 
@@ -80,6 +84,7 @@ defmodule JidoCode.Conversations.Runtime do
             {:ok, result} ->
               summary = result_summary(result, request.workflow)
               _ = LongTermProvenance.capture_turn_completed(runtime_spec, request, readiness, summary)
+              _ = capture_prompt_memory_turn_completed(runtime_spec, request, summary)
 
               emit.(%{
                 "kind" => "delta",
@@ -790,6 +795,206 @@ defmodule JidoCode.Conversations.Runtime do
   defp workflow_name(workflow) when is_binary(workflow), do: workflow
   defp workflow_name(_workflow), do: "clarify"
 
+  defp capture_prompt_memory_turn_inputs(runtime_spec, request) do
+    scope = prompt_memory_scope(runtime_spec, request.managed_repo_id, request.work_item_id, request.workflow)
+    base_metadata = prompt_memory_capture_metadata(scope, "turn_input")
+
+    prompt_memory_input_records(request, base_metadata)
+    |> remember_prompt_memory_records(scope)
+  end
+
+  defp capture_prompt_memory_turn_completed(runtime_spec, request, summary) do
+    scope = prompt_memory_scope(runtime_spec, request.managed_repo_id, request.work_item_id, request.workflow)
+
+    kind =
+      case request.workflow do
+        :plan -> :plan_summary
+        _workflow -> :next_step
+      end
+
+    %{
+      kind: kind,
+      text: bounded_prompt_memory_text(summary),
+      metadata: prompt_memory_capture_metadata(scope, "turn_completed"),
+      tags: ["runtime-completion", workflow_name(request.workflow)]
+    }
+    |> then(fn record ->
+      if record.text do
+        remember_prompt_memory_records([record], scope)
+      else
+        :ok
+      end
+    end)
+  end
+
+  defp prompt_memory_input_records(request, base_metadata) do
+    []
+    |> Kernel.++(clarification_prompt_memory_records(request.clarification_resume, base_metadata))
+    |> Kernel.++(accepted_tool_result_prompt_memory_records(request.shared_context, base_metadata))
+    |> Kernel.++(active_constraint_prompt_memory_records(request.shared_context, base_metadata))
+  end
+
+  defp clarification_prompt_memory_records(%{} = clarification_resume, base_metadata)
+       when map_size(clarification_resume) > 0 do
+    text =
+      []
+      |> maybe_append_line("prompt", normalize_optional_string(Map.get(clarification_resume, "prompt")))
+      |> maybe_append_line("response", normalize_optional_string(Map.get(clarification_resume, "response")))
+      |> Enum.join(" ")
+      |> bounded_prompt_memory_text()
+
+    if text do
+      [
+        %{
+          kind: :clarification_answer,
+          text: text,
+          metadata:
+            Map.merge(base_metadata, %{
+              "capture_event" => "clarification_resume",
+              "clarification_prompt" => bounded_prompt_memory_text(Map.get(clarification_resume, "prompt"))
+            }),
+          tags: ["clarification-resume"]
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp clarification_prompt_memory_records(_clarification_resume, _base_metadata), do: []
+
+  defp accepted_tool_result_prompt_memory_records(shared_context, base_metadata) do
+    shared_context
+    |> Map.get("accepted_tool_results", [])
+    |> normalize_list_of_maps()
+    |> Enum.take(-3)
+    |> Enum.flat_map(fn result ->
+      case accepted_result_line(result) |> bounded_prompt_memory_text() do
+        nil ->
+          []
+
+        text ->
+          [
+            %{
+              kind: :accepted_tool_result,
+              text: text,
+              metadata:
+                Map.merge(base_metadata, %{
+                  "capture_event" => "accepted_tool_result",
+                  "child_work_id" => normalize_optional_string(Map.get(result, "child_work_id")),
+                  "accepted_workflow" => normalize_optional_string(Map.get(result, "workflow"))
+                }),
+              tags: ["accepted-tool-result"]
+            }
+          ]
+      end
+    end)
+  end
+
+  defp active_constraint_prompt_memory_records(shared_context, base_metadata) do
+    shared_context
+    |> active_constraint_values()
+    |> Enum.flat_map(fn value ->
+      case bounded_prompt_memory_text(value) do
+        nil ->
+          []
+
+        text ->
+          [
+            %{
+              kind: :active_constraint,
+              text: text,
+              metadata: Map.put(base_metadata, "capture_event", "active_constraint"),
+              tags: ["active-constraint"]
+            }
+          ]
+      end
+    end)
+  end
+
+  defp active_constraint_values(shared_context) do
+    []
+    |> Kernel.++(constraint_values(Map.get(shared_context, "active_constraints")))
+    |> Kernel.++(constraint_values(Map.get(shared_context, "accepted_constraints")))
+    |> Kernel.++(constraint_values(Map.get(shared_context, "constraints")))
+    |> Enum.uniq()
+  end
+
+  defp constraint_values(values) when is_list(values) do
+    values
+    |> Enum.flat_map(fn
+      value when is_binary(value) ->
+        [value]
+
+      %{} = value ->
+        [
+          Map.get(value, "summary"),
+          Map.get(value, "constraint"),
+          Map.get(value, "text"),
+          Map.get(value, "detail")
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.take(1)
+
+      _other ->
+        []
+    end)
+  end
+
+  defp constraint_values(value) when is_binary(value), do: [value]
+  defp constraint_values(_value), do: []
+
+  defp remember_prompt_memory_records(records, scope) do
+    Enum.each(records, fn record ->
+      _ = ContextMemory.remember(scope, record)
+    end)
+
+    :ok
+  end
+
+  defp prompt_memory_capture_metadata(scope, capture_event) do
+    namespace_metadata =
+      case ContextMemory.namespaces(scope) do
+        {:ok, %{primary: primary, previous: previous}} ->
+          %{
+            "prompt_memory_namespace" => primary,
+            "previous_prompt_memory_namespaces" => previous
+          }
+
+        {:error, _reason} ->
+          %{}
+      end
+
+    namespace_metadata
+    |> Map.merge(%{
+      "capture_event" => capture_event,
+      "retention_policy" => "short_term_prompt_context",
+      "ttl_ms" => prompt_memory_ttl_ms()
+    })
+  end
+
+  defp prompt_memory_ttl_ms do
+    case Application.get_env(:jido_code, :conversation_context_memory, []) do
+      config when is_list(config) ->
+        case Keyword.get(config, :ttl_ms) do
+          ttl_ms when is_integer(ttl_ms) and ttl_ms > 0 -> ttl_ms
+          _other -> @prompt_memory_default_ttl_ms
+        end
+
+      _other ->
+        @prompt_memory_default_ttl_ms
+    end
+  end
+
+  defp bounded_prompt_memory_text(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> nil
+      text -> String.slice(text, 0, @prompt_memory_capture_text_limit)
+    end
+  end
+
   defp result_summary(result, workflow) do
     case workflow do
       :plan -> Map.get(result, :plan) || Map.get(result, "plan")
@@ -867,27 +1072,29 @@ defmodule JidoCode.Conversations.Runtime do
 
   defp accepted_result_lines(results) do
     results
-    |> Enum.map(fn result ->
-      summary =
-        result
-        |> Map.get("result", %{})
-        |> normalize_map()
-        |> case do
-          %{"summary" => summary} -> summary
-          %{"reason" => reason} -> reason
-          %{} = payload when payload != %{} -> inspect(payload)
-          _other -> nil
-        end
-
-      child_work_id = normalize_optional_string(Map.get(result, "child_work_id"))
-      workflow = normalize_optional_string(Map.get(result, "workflow"))
-
-      [workflow, child_work_id, summary]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" | ")
-      |> normalize_optional_string()
-    end)
+    |> Enum.map(&accepted_result_line/1)
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp accepted_result_line(result) do
+    summary =
+      result
+      |> Map.get("result", %{})
+      |> normalize_map()
+      |> case do
+        %{"summary" => summary} -> summary
+        %{"reason" => reason} -> reason
+        %{} = payload when payload != %{} -> inspect(payload)
+        _other -> nil
+      end
+
+    child_work_id = normalize_optional_string(Map.get(result, "child_work_id"))
+    workflow = normalize_optional_string(Map.get(result, "workflow"))
+
+    [workflow, child_work_id, summary]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" | ")
+    |> normalize_optional_string()
   end
 
   defp clarification_lines(%{} = clarification_resume) do

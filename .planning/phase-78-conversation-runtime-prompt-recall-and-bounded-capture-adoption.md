@@ -85,39 +85,39 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         capped by configured item and byte limits, so prompt memory never
         injects arbitrary provider payloads into the specialist prompt.
 
-  [ ] 78.2 Section - Bounded Prompt Memory Capture At Product-Significant Seams
+  [x] 78.2 Section - Bounded Prompt Memory Capture At Product-Significant Seams
     Add explicit write paths for the small set of turn outcomes that truly help
     the next prompt rather than trying to store whole turns by default.
 
-    [ ] 78.2.1 Task - Capture short-term context reductions at runtime seams
+    [x] 78.2.1 Task - Capture short-term context reductions at runtime seams
       Write only bounded working and episodic summaries when the runtime
       reaches points where reusable context becomes clear and stable enough for
       the next turn.
 
-      [ ] 78.2.1.1 Subtask - Capture clarification answers, accepted
+      [x] 78.2.1.1 Subtask - Capture clarification answers, accepted
         constraints, accepted tool results, plan summaries, and next-step
         summaries through explicit adapter helpers rather than ambient
         transcript mirroring.
-      [ ] 78.2.1.2 Subtask - Attach managed-repository, work-item,
+      [x] 78.2.1.2 Subtask - Attach managed-repository, work-item,
         conversation, turn, workflow, and source metadata plus retention policy
         to those prompt-memory writes.
-      [ ] 78.2.1.3 Subtask - Keep all other turn content out of prompt memory
+      [x] 78.2.1.3 Subtask - Keep all other turn content out of prompt memory
         unless it is deliberately reduced into a bounded reusable summary.
-      [ ] 78.2.1.4 Subtask - Capture from product-significant runtime seams
+      [x] 78.2.1.4 Subtask - Capture from product-significant runtime seams
         only: clarification resume, accepted tool result ingestion, completed
         specialist summary, and explicit next-step handoff.
 
-    [ ] 78.2.2 Task - Preserve scope transitions and the long-term memory split
+    [x] 78.2.2 Task - Preserve scope transitions and the long-term memory split
       Make sure prompt-memory writes stay aligned with productive conversation
       scope and do not leak into provenance or durable memory responsibilities.
 
-      [ ] 78.2.2.1 Subtask - Handle repo-intake to work-item transitions so
+      [x] 78.2.2.1 Subtask - Handle repo-intake to work-item transitions so
         relevant bounded context can seed productive conversation scope without
         leaving repo-global prompt memory as the canonical long-lived lane.
-      [ ] 78.2.2.2 Subtask - Keep `JidoCode.Conversations.LongTermProvenance`
+      [x] 78.2.2.2 Subtask - Keep `JidoCode.Conversations.LongTermProvenance`
         as the long-term lineage capture boundary even when prompt-memory writes
         happen during the same turn lifecycle.
-      [ ] 78.2.2.3 Subtask - Keep `JidoCode.MemoryGraph.ConversationMemoryAdoption`
+      [x] 78.2.2.3 Subtask - Keep `JidoCode.MemoryGraph.ConversationMemoryAdoption`
         as the explicit durable-memory promotion path instead of auto-promoting
         prompt-memory records into repository memory.
 

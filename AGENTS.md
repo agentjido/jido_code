@@ -94,6 +94,7 @@ When touching these packages, consult usage rules first:
 - `deps/req_llm/usage-rules.md`
 - `deps/jido_action/usage-rules.md`
 - `deps/jido_ai/usage-rules.md`
+- `deps/jido_memory/usage-rules.md`
 - `deps/jido/usage-rules.md`
 - `deps/ash/usage-rules.md`
 - `deps/ash_postgres/usage-rules.md`

@@ -12,12 +12,16 @@ defmodule JidoCode.Conversations.Runtime do
   """
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Conversations.ContextMemory
   alias JidoCode.Conversations.LongTermProvenance
-  alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.Conversations.RuntimeReadiness
+  alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.WorkflowService, as: MemoryWorkflowService
   alias JidoCode.SourceCodeGraph.WorkflowService, as: SemanticWorkflowService
+
+  @prompt_memory_capture_text_limit 500
+  @prompt_memory_default_ttl_ms 86_400_000
 
   @type runtime_spec :: %{
           conversation_id: String.t(),
@@ -59,6 +63,7 @@ defmodule JidoCode.Conversations.Runtime do
            ),
          {:ok, request} <- build_request(runtime_spec, readiness) do
       _ = LongTermProvenance.capture_turn_started(runtime_spec, request, readiness)
+      _ = capture_prompt_memory_turn_inputs(runtime_spec, request)
 
       emit.(runtime_progress_event(request))
 
@@ -79,6 +84,7 @@ defmodule JidoCode.Conversations.Runtime do
             {:ok, result} ->
               summary = result_summary(result, request.workflow)
               _ = LongTermProvenance.capture_turn_completed(runtime_spec, request, readiness, summary)
+              _ = capture_prompt_memory_turn_completed(runtime_spec, request, summary)
 
               emit.(%{
                 "kind" => "delta",
@@ -95,7 +101,8 @@ defmodule JidoCode.Conversations.Runtime do
                    "workflow" => Atom.to_string(request.workflow),
                    "context_source" => context_source_name(request.context_source),
                    "instruction" => request.user_instruction,
-                   "llm_selection" => llm_selection_payload(request.llm_selection)
+                   "llm_selection" => llm_selection_payload(request.llm_selection),
+                   "prompt_memory" => prompt_memory_event(request.prompt_memory)
                  }
                }}
 
@@ -181,6 +188,9 @@ defmodule JidoCode.Conversations.Runtime do
       context_source = select_context_source(workflow)
 
       with {:ok, work_item_id} <- require_work_item_for_request(work_item_id, routing) do
+        prompt_memory_scope = prompt_memory_scope(runtime_spec, managed_repo_id, work_item_id, workflow)
+        prompt_memory = retrieve_prompt_memory(prompt_memory_scope, workflow)
+
         {:ok,
          %{
            managed_repo_id: managed_repo_id,
@@ -194,6 +204,7 @@ defmodule JidoCode.Conversations.Runtime do
            referenced_files: referenced_files,
            shared_context: shared_context,
            clarification_resume: clarification_resume,
+           prompt_memory: prompt_memory,
            llm_selection: readiness.llm_selection,
            instruction:
              bounded_instruction(
@@ -204,23 +215,27 @@ defmodule JidoCode.Conversations.Runtime do
                readiness.workspace_path,
                shared_context,
                referenced_files,
-               clarification_resume
+               clarification_resume,
+               prompt_memory
              )
          }}
       end
     end
   end
 
-  defp maybe_request_clarification(%{
-         routing: %{ambiguous?: true} = routing,
-         context_source: context_source
-       }) do
+  defp maybe_request_clarification(
+         %{
+           routing: %{ambiguous?: true} = routing,
+           context_source: context_source
+         } = request
+       ) do
     {:awaiting_input,
      %{
        "kind" => "needs_input",
        "prompt" => workflow_clarification_prompt(),
        "workflow" => "clarify",
        "context_source" => context_source_name(context_source),
+       "prompt_memory" => prompt_memory_event(request.prompt_memory),
        "required_context" => %{
          "workflow_choices" => Enum.map(WorkflowRouter.workflows(), &Atom.to_string/1)
        },
@@ -247,6 +262,7 @@ defmodule JidoCode.Conversations.Runtime do
          "prompt" => clarification_prompt(workflow),
          "workflow" => Atom.to_string(workflow),
          "context_source" => context_source_name(request.context_source),
+         "prompt_memory" => prompt_memory_event(request.prompt_memory),
          "required_context" => %{"referenced_files" => referenced_files}
        }}
     else
@@ -379,7 +395,8 @@ defmodule JidoCode.Conversations.Runtime do
         log_memory_degradation(request.managed_repo_id, :not_ready)
         fallback_to_workspace_with_semantic(request, readiness, actor)
 
-      {:error, reason, _} when reason in [:memory_graph_write_failed, :memory_graph_query_failed, :memory_graph_timeout] ->
+      {:error, reason, _}
+      when reason in [:memory_graph_write_failed, :memory_graph_query_failed, :memory_graph_timeout] ->
         log_memory_degradation(request.managed_repo_id, {:operation_failed, reason})
         fallback_to_workspace_with_semantic(request, readiness, actor)
 
@@ -465,7 +482,8 @@ defmodule JidoCode.Conversations.Runtime do
         log_semantic_degradation(request.managed_repo_id, :not_ready)
         invoke_workspace(request, readiness, actor, [])
 
-      {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+      {:error, reason, _} = _error
+      when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
         # Semantic analysis failed, fall back to plain workspace
         log_semantic_degradation(request.managed_repo_id, {:analysis_failed, reason})
         invoke_workspace(request, readiness, actor, [])
@@ -490,27 +508,35 @@ defmodule JidoCode.Conversations.Runtime do
                semantic: semantic_opts,
                workspace_path: workspace_path,
                actor: actor,
-               llm_selection: readiness.llm_selection) do
+               llm_selection: readiness.llm_selection
+             ) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
+
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
-            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path,
-              actor: actor,
-              llm_selection: readiness.llm_selection)
 
-          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
-            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
+
+          {:error, reason, _} = _error
+          when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+
+            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection
+            )
 
           result ->
             result
@@ -521,27 +547,35 @@ defmodule JidoCode.Conversations.Runtime do
                semantic: semantic_opts,
                workspace_path: workspace_path,
                actor: actor,
-               llm_selection: readiness.llm_selection) do
+               llm_selection: readiness.llm_selection
+             ) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
+
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
-            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path,
-              actor: actor,
-              llm_selection: readiness.llm_selection)
 
-          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
-            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
+
+          {:error, reason, _} = _error
+          when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+
+            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection
+            )
 
           result ->
             result
@@ -552,27 +586,35 @@ defmodule JidoCode.Conversations.Runtime do
                semantic: semantic_opts,
                workspace_path: workspace_path,
                actor: actor,
-               llm_selection: readiness.llm_selection) do
+               llm_selection: readiness.llm_selection
+             ) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
+
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
-            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path,
-              actor: actor,
-              llm_selection: readiness.llm_selection)
 
-          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
-            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
+
+          {:error, reason, _} = _error
+          when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+
+            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection
+            )
 
           result ->
             result
@@ -601,10 +643,9 @@ defmodule JidoCode.Conversations.Runtime do
          workspace_path,
          shared_context,
          referenced_files,
-         clarification_resume
+         clarification_resume,
+         prompt_memory
        ) do
-    workflow_name = if(is_atom(workflow), do: Atom.to_string(workflow), else: "clarify")
-
     accepted_tool_results =
       shared_context
       |> Map.get("accepted_tool_results", [])
@@ -613,7 +654,7 @@ defmodule JidoCode.Conversations.Runtime do
 
     [
       "Repository conversation objective: #{normalize_optional_string(map_get(runtime_spec, :objective)) || "Coordinate managed repository work."}",
-      "Workflow: #{workflow_name}",
+      "Workflow: #{workflow_name(workflow)}",
       "Current request: #{normalize_optional_string(map_get(runtime_spec, :instruction)) || "Continue the repository conversation."}",
       "Repository scope:",
       "- managed_repo_id: #{managed_repo_id}",
@@ -624,6 +665,7 @@ defmodule JidoCode.Conversations.Runtime do
     |> maybe_append_section("Referenced files", referenced_files)
     |> maybe_append_section("Accepted tool results", accepted_result_lines(accepted_tool_results))
     |> maybe_append_section("Clarification context", clarification_lines(clarification_resume))
+    |> maybe_append_section("Prompt memory", prompt_memory_lines(prompt_memory, accepted_tool_results))
     |> Kernel.++([
       "Guidance:",
       "- Stay within the current repository and governed work item unless the conversation explicitly changes scope.",
@@ -641,6 +683,7 @@ defmodule JidoCode.Conversations.Runtime do
         "workflow" => "clarify",
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
+        "prompt_memory" => prompt_memory_event(request.prompt_memory),
         "routing" => WorkflowRouter.metadata(request.routing)
       }
     else
@@ -651,8 +694,304 @@ defmodule JidoCode.Conversations.Runtime do
         "workflow" => Atom.to_string(request.workflow),
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
-        "llm_selection" => llm_selection_payload(request.llm_selection)
+        "llm_selection" => llm_selection_payload(request.llm_selection),
+        "prompt_memory" => prompt_memory_event(request.prompt_memory)
       }
+    end
+  end
+
+  defp prompt_memory_scope(runtime_spec, managed_repo_id, work_item_id, workflow) do
+    %{
+      managed_repo_id: managed_repo_id,
+      work_item_id: normalize_optional_string(work_item_id),
+      conversation_id: normalize_optional_string(map_get(runtime_spec, :conversation_id)),
+      turn_id: normalize_optional_string(map_get(runtime_spec, :turn_id)),
+      workflow: workflow,
+      source: normalize_optional_string(map_get(runtime_spec, :source)) || "conversation_runtime"
+    }
+  end
+
+  defp retrieve_prompt_memory(scope, workflow) do
+    case ContextMemory.retrieve(scope, query: prompt_memory_query(workflow)) do
+      {:ok, prompt_memory} ->
+        prompt_memory
+
+      {:error, reason} ->
+        %{
+          state: :degraded,
+          namespace: nil,
+          items: [],
+          instruction_lines: [],
+          diagnostics: %{reason: inspect(reason)},
+          metadata: %{}
+        }
+    end
+  end
+
+  defp prompt_memory_query(workflow) do
+    %{
+      kinds: prompt_memory_kinds(workflow),
+      tags_any: ["prompt-memory"],
+      order: :desc,
+      extensions: %{workflow: workflow_name(workflow)}
+    }
+  end
+
+  defp prompt_memory_kinds(workflow) when workflow in [:execute, :review] do
+    [
+      :active_constraint,
+      :accepted_tool_result,
+      :clarification_answer,
+      :plan_summary,
+      :next_step,
+      :stable_preference,
+      :workflow_preference
+    ]
+  end
+
+  defp prompt_memory_kinds(_workflow), do: ContextMemory.supported_kinds()
+
+  defp prompt_memory_lines(prompt_memory, accepted_tool_results) do
+    lines = ContextMemory.instruction_lines(prompt_memory)
+
+    if accepted_tool_results == [] do
+      lines
+    else
+      Enum.reject(lines, &String.starts_with?(&1, "- accepted_tool_result:"))
+    end
+  end
+
+  defp prompt_memory_event(%{state: state} = prompt_memory) do
+    metadata = normalize_map(map_get(prompt_memory, :metadata))
+    diagnostics = normalize_map(map_get(prompt_memory, :diagnostics))
+
+    %{}
+    |> Map.put("state", normalize_optional_string(state) || "unknown")
+    |> maybe_put("namespace", normalize_optional_string(map_get(prompt_memory, :namespace)))
+    |> Map.put("item_count", prompt_memory_item_count(prompt_memory, metadata))
+    |> maybe_put("provider", normalize_optional_string(Map.get(metadata, "provider")))
+    |> maybe_put("diagnostics", prompt_memory_diagnostics(diagnostics))
+  end
+
+  defp prompt_memory_event(_prompt_memory), do: %{"state" => "unavailable", "item_count" => 0}
+
+  defp prompt_memory_item_count(prompt_memory, metadata) do
+    case Map.get(metadata, "total_count") do
+      count when is_integer(count) ->
+        count
+
+      _other ->
+        case map_get(prompt_memory, :items) do
+          items when is_list(items) -> length(items)
+          _other -> 0
+        end
+    end
+  end
+
+  defp prompt_memory_diagnostics(diagnostics) when diagnostics == %{}, do: nil
+  defp prompt_memory_diagnostics(diagnostics), do: diagnostics
+
+  defp workflow_name(workflow) when is_atom(workflow), do: Atom.to_string(workflow)
+  defp workflow_name(workflow) when is_binary(workflow), do: workflow
+  defp workflow_name(_workflow), do: "clarify"
+
+  defp capture_prompt_memory_turn_inputs(runtime_spec, request) do
+    scope = prompt_memory_scope(runtime_spec, request.managed_repo_id, request.work_item_id, request.workflow)
+    base_metadata = prompt_memory_capture_metadata(scope, "turn_input")
+
+    prompt_memory_input_records(request, base_metadata)
+    |> remember_prompt_memory_records(scope)
+  end
+
+  defp capture_prompt_memory_turn_completed(runtime_spec, request, summary) do
+    scope = prompt_memory_scope(runtime_spec, request.managed_repo_id, request.work_item_id, request.workflow)
+
+    kind =
+      case request.workflow do
+        :plan -> :plan_summary
+        _workflow -> :next_step
+      end
+
+    %{
+      kind: kind,
+      text: bounded_prompt_memory_text(summary),
+      metadata: prompt_memory_capture_metadata(scope, "turn_completed"),
+      tags: ["runtime-completion", workflow_name(request.workflow)]
+    }
+    |> then(fn record ->
+      if record.text do
+        remember_prompt_memory_records([record], scope)
+      else
+        :ok
+      end
+    end)
+  end
+
+  defp prompt_memory_input_records(request, base_metadata) do
+    []
+    |> Kernel.++(clarification_prompt_memory_records(request.clarification_resume, base_metadata))
+    |> Kernel.++(accepted_tool_result_prompt_memory_records(request.shared_context, base_metadata))
+    |> Kernel.++(active_constraint_prompt_memory_records(request.shared_context, base_metadata))
+  end
+
+  defp clarification_prompt_memory_records(%{} = clarification_resume, base_metadata)
+       when map_size(clarification_resume) > 0 do
+    text =
+      []
+      |> maybe_append_line("prompt", normalize_optional_string(Map.get(clarification_resume, "prompt")))
+      |> maybe_append_line("response", normalize_optional_string(Map.get(clarification_resume, "response")))
+      |> Enum.join(" ")
+      |> bounded_prompt_memory_text()
+
+    if text do
+      [
+        %{
+          kind: :clarification_answer,
+          text: text,
+          metadata:
+            Map.merge(base_metadata, %{
+              "capture_event" => "clarification_resume",
+              "clarification_prompt" => bounded_prompt_memory_text(Map.get(clarification_resume, "prompt"))
+            }),
+          tags: ["clarification-resume"]
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp clarification_prompt_memory_records(_clarification_resume, _base_metadata), do: []
+
+  defp accepted_tool_result_prompt_memory_records(shared_context, base_metadata) do
+    shared_context
+    |> Map.get("accepted_tool_results", [])
+    |> normalize_list_of_maps()
+    |> Enum.take(-3)
+    |> Enum.flat_map(fn result ->
+      case accepted_result_line(result) |> bounded_prompt_memory_text() do
+        nil ->
+          []
+
+        text ->
+          [
+            %{
+              kind: :accepted_tool_result,
+              text: text,
+              metadata:
+                Map.merge(base_metadata, %{
+                  "capture_event" => "accepted_tool_result",
+                  "child_work_id" => normalize_optional_string(Map.get(result, "child_work_id")),
+                  "accepted_workflow" => normalize_optional_string(Map.get(result, "workflow"))
+                }),
+              tags: ["accepted-tool-result"]
+            }
+          ]
+      end
+    end)
+  end
+
+  defp active_constraint_prompt_memory_records(shared_context, base_metadata) do
+    shared_context
+    |> active_constraint_values()
+    |> Enum.flat_map(fn value ->
+      case bounded_prompt_memory_text(value) do
+        nil ->
+          []
+
+        text ->
+          [
+            %{
+              kind: :active_constraint,
+              text: text,
+              metadata: Map.put(base_metadata, "capture_event", "active_constraint"),
+              tags: ["active-constraint"]
+            }
+          ]
+      end
+    end)
+  end
+
+  defp active_constraint_values(shared_context) do
+    []
+    |> Kernel.++(constraint_values(Map.get(shared_context, "active_constraints")))
+    |> Kernel.++(constraint_values(Map.get(shared_context, "accepted_constraints")))
+    |> Kernel.++(constraint_values(Map.get(shared_context, "constraints")))
+    |> Enum.uniq()
+  end
+
+  defp constraint_values(values) when is_list(values) do
+    values
+    |> Enum.flat_map(fn
+      value when is_binary(value) ->
+        [value]
+
+      %{} = value ->
+        [
+          Map.get(value, "summary"),
+          Map.get(value, "constraint"),
+          Map.get(value, "text"),
+          Map.get(value, "detail")
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.take(1)
+
+      _other ->
+        []
+    end)
+  end
+
+  defp constraint_values(value) when is_binary(value), do: [value]
+  defp constraint_values(_value), do: []
+
+  defp remember_prompt_memory_records(records, scope) do
+    Enum.each(records, fn record ->
+      _ = ContextMemory.remember(scope, record)
+    end)
+
+    :ok
+  end
+
+  defp prompt_memory_capture_metadata(scope, capture_event) do
+    namespace_metadata =
+      case ContextMemory.namespaces(scope) do
+        {:ok, %{primary: primary, previous: previous}} ->
+          %{
+            "prompt_memory_namespace" => primary,
+            "previous_prompt_memory_namespaces" => previous
+          }
+
+        {:error, _reason} ->
+          %{}
+      end
+
+    namespace_metadata
+    |> Map.merge(%{
+      "capture_event" => capture_event,
+      "retention_policy" => "short_term_prompt_context",
+      "ttl_ms" => prompt_memory_ttl_ms()
+    })
+  end
+
+  defp prompt_memory_ttl_ms do
+    case Application.get_env(:jido_code, :conversation_context_memory, []) do
+      config when is_list(config) ->
+        case Keyword.get(config, :ttl_ms) do
+          ttl_ms when is_integer(ttl_ms) and ttl_ms > 0 -> ttl_ms
+          _other -> @prompt_memory_default_ttl_ms
+        end
+
+      _other ->
+        @prompt_memory_default_ttl_ms
+    end
+  end
+
+  defp bounded_prompt_memory_text(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> nil
+      text -> String.slice(text, 0, @prompt_memory_capture_text_limit)
     end
   end
 
@@ -733,27 +1072,29 @@ defmodule JidoCode.Conversations.Runtime do
 
   defp accepted_result_lines(results) do
     results
-    |> Enum.map(fn result ->
-      summary =
-        result
-        |> Map.get("result", %{})
-        |> normalize_map()
-        |> case do
-          %{"summary" => summary} -> summary
-          %{"reason" => reason} -> reason
-          %{} = payload when payload != %{} -> inspect(payload)
-          _other -> nil
-        end
-
-      child_work_id = normalize_optional_string(Map.get(result, "child_work_id"))
-      workflow = normalize_optional_string(Map.get(result, "workflow"))
-
-      [workflow, child_work_id, summary]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" | ")
-      |> normalize_optional_string()
-    end)
+    |> Enum.map(&accepted_result_line/1)
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp accepted_result_line(result) do
+    summary =
+      result
+      |> Map.get("result", %{})
+      |> normalize_map()
+      |> case do
+        %{"summary" => summary} -> summary
+        %{"reason" => reason} -> reason
+        %{} = payload when payload != %{} -> inspect(payload)
+        _other -> nil
+      end
+
+    child_work_id = normalize_optional_string(Map.get(result, "child_work_id"))
+    workflow = normalize_optional_string(Map.get(result, "workflow"))
+
+    [workflow, child_work_id, summary]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" | ")
+    |> normalize_optional_string()
   end
 
   defp clarification_lines(%{} = clarification_resume) do

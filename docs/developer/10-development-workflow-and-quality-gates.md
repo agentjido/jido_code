@@ -44,6 +44,7 @@ before editing:
 | `mix frontend.verify` | verify LiveVue and Vite browser pipeline |
 | `mix source_graph.verify` | verify semantic source-code graph stack |
 | `mix memory.verify` | verify memory graph and capture-plane behavior |
+| `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs` | verify prompt context memory adapter and runtime integration |
 | `mix semantic.verify` | verify product-facing semantic behavior |
 | `mix docs` | build repo docs surface |
 
@@ -54,6 +55,8 @@ Run the narrower verification commands when you touch those boundaries:
 - browser stack or `live_vue` changes -> `mix frontend.verify`
 - source graph boundaries -> `mix source_graph.verify`
 - memory graph or capture boundaries -> `mix memory.verify`
+- prompt context memory adapter or conversation prompt recall changes -> run the
+  focused prompt-memory tests listed above
 - product-facing semantic surfaces or services -> `mix semantic.verify`
 
 ## Branching And Collaboration
@@ -75,6 +78,8 @@ pretending the local state is durable.
 - use `Req` for HTTP work
 - do not add a parallel React frontend
 - keep semantic and memory behavior bounded and explicit
+- use `JidoCode.Conversations.ContextMemory` for short-term prompt help, not as
+  transcript storage or durable repository memory
 - run the right verification commands when touching specialized stacks
 
 ## Practical Contributor Checklist

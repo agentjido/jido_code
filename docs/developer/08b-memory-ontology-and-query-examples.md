@@ -36,6 +36,13 @@ This guide explains the `memory` graph content:
   written alongside memories
 - what kinds of questions explicit memory queries can answer
 
+Prompt context memory is deliberately outside this guide's graph model. It is a
+short-term `jido_memory` store used through
+`JidoCode.Conversations.ContextMemory` to help assemble the next conversation
+prompt. If a prompt-memory summary should become long-term product truth, it
+must reenter through the same governed adoption and classification paths as any
+other durable memory.
+
 ## What Lives In `memory`
 
 The canonical durable-memory target is:
@@ -61,6 +68,11 @@ That matters because explicit SPARQL against `memory` only sees the `memory`
 named graph. If you need workflow-session details or exact source-code
 structure, you query those sibling graphs separately or use product-owned
 cross-link helpers.
+
+Prompt context memory records do not appear in this named graph. They are
+ephemeral provider records, scoped to repo intake or work item prompt assembly,
+and are pruned by prompt-memory lifecycle policy rather than memory-graph
+freshness or supersession writes.
 
 ## The Ontology Pair
 
@@ -206,6 +218,7 @@ That split is intentional:
 - product callers get shaped memory projections
 - explicit SPARQL stays a repository-scoped action
 - updates to freshness and supersession still go through the capture plane
+- prompt-memory reads and writes stay in `ContextMemory`, not the memory graph
 
 ## Query Conventions
 

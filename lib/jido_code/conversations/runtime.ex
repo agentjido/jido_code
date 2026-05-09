@@ -12,9 +12,10 @@ defmodule JidoCode.Conversations.Runtime do
   """
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Conversations.ContextMemory
   alias JidoCode.Conversations.LongTermProvenance
-  alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.Conversations.RuntimeReadiness
+  alias JidoCode.Conversations.WorkflowRouter
   alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.WorkflowService, as: MemoryWorkflowService
   alias JidoCode.SourceCodeGraph.WorkflowService, as: SemanticWorkflowService
@@ -95,7 +96,8 @@ defmodule JidoCode.Conversations.Runtime do
                    "workflow" => Atom.to_string(request.workflow),
                    "context_source" => context_source_name(request.context_source),
                    "instruction" => request.user_instruction,
-                   "llm_selection" => llm_selection_payload(request.llm_selection)
+                   "llm_selection" => llm_selection_payload(request.llm_selection),
+                   "prompt_memory" => prompt_memory_event(request.prompt_memory)
                  }
                }}
 
@@ -181,6 +183,9 @@ defmodule JidoCode.Conversations.Runtime do
       context_source = select_context_source(workflow)
 
       with {:ok, work_item_id} <- require_work_item_for_request(work_item_id, routing) do
+        prompt_memory_scope = prompt_memory_scope(runtime_spec, managed_repo_id, work_item_id, workflow)
+        prompt_memory = retrieve_prompt_memory(prompt_memory_scope, workflow)
+
         {:ok,
          %{
            managed_repo_id: managed_repo_id,
@@ -194,6 +199,7 @@ defmodule JidoCode.Conversations.Runtime do
            referenced_files: referenced_files,
            shared_context: shared_context,
            clarification_resume: clarification_resume,
+           prompt_memory: prompt_memory,
            llm_selection: readiness.llm_selection,
            instruction:
              bounded_instruction(
@@ -204,23 +210,27 @@ defmodule JidoCode.Conversations.Runtime do
                readiness.workspace_path,
                shared_context,
                referenced_files,
-               clarification_resume
+               clarification_resume,
+               prompt_memory
              )
          }}
       end
     end
   end
 
-  defp maybe_request_clarification(%{
-         routing: %{ambiguous?: true} = routing,
-         context_source: context_source
-       }) do
+  defp maybe_request_clarification(
+         %{
+           routing: %{ambiguous?: true} = routing,
+           context_source: context_source
+         } = request
+       ) do
     {:awaiting_input,
      %{
        "kind" => "needs_input",
        "prompt" => workflow_clarification_prompt(),
        "workflow" => "clarify",
        "context_source" => context_source_name(context_source),
+       "prompt_memory" => prompt_memory_event(request.prompt_memory),
        "required_context" => %{
          "workflow_choices" => Enum.map(WorkflowRouter.workflows(), &Atom.to_string/1)
        },
@@ -247,6 +257,7 @@ defmodule JidoCode.Conversations.Runtime do
          "prompt" => clarification_prompt(workflow),
          "workflow" => Atom.to_string(workflow),
          "context_source" => context_source_name(request.context_source),
+         "prompt_memory" => prompt_memory_event(request.prompt_memory),
          "required_context" => %{"referenced_files" => referenced_files}
        }}
     else
@@ -379,7 +390,8 @@ defmodule JidoCode.Conversations.Runtime do
         log_memory_degradation(request.managed_repo_id, :not_ready)
         fallback_to_workspace_with_semantic(request, readiness, actor)
 
-      {:error, reason, _} when reason in [:memory_graph_write_failed, :memory_graph_query_failed, :memory_graph_timeout] ->
+      {:error, reason, _}
+      when reason in [:memory_graph_write_failed, :memory_graph_query_failed, :memory_graph_timeout] ->
         log_memory_degradation(request.managed_repo_id, {:operation_failed, reason})
         fallback_to_workspace_with_semantic(request, readiness, actor)
 
@@ -465,7 +477,8 @@ defmodule JidoCode.Conversations.Runtime do
         log_semantic_degradation(request.managed_repo_id, :not_ready)
         invoke_workspace(request, readiness, actor, [])
 
-      {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+      {:error, reason, _} = _error
+      when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
         # Semantic analysis failed, fall back to plain workspace
         log_semantic_degradation(request.managed_repo_id, {:analysis_failed, reason})
         invoke_workspace(request, readiness, actor, [])
@@ -490,27 +503,35 @@ defmodule JidoCode.Conversations.Runtime do
                semantic: semantic_opts,
                workspace_path: workspace_path,
                actor: actor,
-               llm_selection: readiness.llm_selection) do
+               llm_selection: readiness.llm_selection
+             ) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
+
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
-            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path,
-              actor: actor,
-              llm_selection: readiness.llm_selection)
 
-          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
-            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
+
+          {:error, reason, _} = _error
+          when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+
+            AgentWorkspace.plan_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection
+            )
 
           result ->
             result
@@ -521,27 +542,35 @@ defmodule JidoCode.Conversations.Runtime do
                semantic: semantic_opts,
                workspace_path: workspace_path,
                actor: actor,
-               llm_selection: readiness.llm_selection) do
+               llm_selection: readiness.llm_selection
+             ) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
+
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
-            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path,
-              actor: actor,
-              llm_selection: readiness.llm_selection)
 
-          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
-            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
+
+          {:error, reason, _} = _error
+          when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+
+            AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection
+            )
 
           result ->
             result
@@ -552,27 +581,35 @@ defmodule JidoCode.Conversations.Runtime do
                semantic: semantic_opts,
                workspace_path: workspace_path,
                actor: actor,
-               llm_selection: readiness.llm_selection) do
+               llm_selection: readiness.llm_selection
+             ) do
           {:error, :source_code_graph_disabled, _} ->
             log_semantic_degradation(managed_repo_id, :disabled)
+
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
 
           {:error, :source_code_graph_not_ready, _} ->
             log_semantic_degradation(managed_repo_id, :not_ready)
-            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
-              workspace_path: workspace_path,
-              actor: actor,
-              llm_selection: readiness.llm_selection)
 
-          {:error, reason, _} = _error when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
-            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
             AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
               workspace_path: workspace_path,
               actor: actor,
-              llm_selection: readiness.llm_selection)
+              llm_selection: readiness.llm_selection
+            )
+
+          {:error, reason, _} = _error
+          when reason in [:source_code_graph_analysis_failed, :source_code_graph_store_failed] ->
+            log_semantic_degradation(managed_repo_id, {:analysis_failed, reason})
+
+            AgentWorkspace.explain_work(managed_repo_id, work_item_id, instruction,
+              workspace_path: workspace_path,
+              actor: actor,
+              llm_selection: readiness.llm_selection
+            )
 
           result ->
             result
@@ -601,10 +638,9 @@ defmodule JidoCode.Conversations.Runtime do
          workspace_path,
          shared_context,
          referenced_files,
-         clarification_resume
+         clarification_resume,
+         prompt_memory
        ) do
-    workflow_name = if(is_atom(workflow), do: Atom.to_string(workflow), else: "clarify")
-
     accepted_tool_results =
       shared_context
       |> Map.get("accepted_tool_results", [])
@@ -613,7 +649,7 @@ defmodule JidoCode.Conversations.Runtime do
 
     [
       "Repository conversation objective: #{normalize_optional_string(map_get(runtime_spec, :objective)) || "Coordinate managed repository work."}",
-      "Workflow: #{workflow_name}",
+      "Workflow: #{workflow_name(workflow)}",
       "Current request: #{normalize_optional_string(map_get(runtime_spec, :instruction)) || "Continue the repository conversation."}",
       "Repository scope:",
       "- managed_repo_id: #{managed_repo_id}",
@@ -624,6 +660,7 @@ defmodule JidoCode.Conversations.Runtime do
     |> maybe_append_section("Referenced files", referenced_files)
     |> maybe_append_section("Accepted tool results", accepted_result_lines(accepted_tool_results))
     |> maybe_append_section("Clarification context", clarification_lines(clarification_resume))
+    |> maybe_append_section("Prompt memory", prompt_memory_lines(prompt_memory, accepted_tool_results))
     |> Kernel.++([
       "Guidance:",
       "- Stay within the current repository and governed work item unless the conversation explicitly changes scope.",
@@ -641,6 +678,7 @@ defmodule JidoCode.Conversations.Runtime do
         "workflow" => "clarify",
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
+        "prompt_memory" => prompt_memory_event(request.prompt_memory),
         "routing" => WorkflowRouter.metadata(request.routing)
       }
     else
@@ -651,10 +689,106 @@ defmodule JidoCode.Conversations.Runtime do
         "workflow" => Atom.to_string(request.workflow),
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
-        "llm_selection" => llm_selection_payload(request.llm_selection)
+        "llm_selection" => llm_selection_payload(request.llm_selection),
+        "prompt_memory" => prompt_memory_event(request.prompt_memory)
       }
     end
   end
+
+  defp prompt_memory_scope(runtime_spec, managed_repo_id, work_item_id, workflow) do
+    %{
+      managed_repo_id: managed_repo_id,
+      work_item_id: normalize_optional_string(work_item_id),
+      conversation_id: normalize_optional_string(map_get(runtime_spec, :conversation_id)),
+      turn_id: normalize_optional_string(map_get(runtime_spec, :turn_id)),
+      workflow: workflow,
+      source: normalize_optional_string(map_get(runtime_spec, :source)) || "conversation_runtime"
+    }
+  end
+
+  defp retrieve_prompt_memory(scope, workflow) do
+    case ContextMemory.retrieve(scope, query: prompt_memory_query(workflow)) do
+      {:ok, prompt_memory} ->
+        prompt_memory
+
+      {:error, reason} ->
+        %{
+          state: :degraded,
+          namespace: nil,
+          items: [],
+          instruction_lines: [],
+          diagnostics: %{reason: inspect(reason)},
+          metadata: %{}
+        }
+    end
+  end
+
+  defp prompt_memory_query(workflow) do
+    %{
+      kinds: prompt_memory_kinds(workflow),
+      tags_any: ["prompt-memory"],
+      order: :desc,
+      extensions: %{workflow: workflow_name(workflow)}
+    }
+  end
+
+  defp prompt_memory_kinds(workflow) when workflow in [:execute, :review] do
+    [
+      :active_constraint,
+      :accepted_tool_result,
+      :clarification_answer,
+      :plan_summary,
+      :next_step,
+      :stable_preference,
+      :workflow_preference
+    ]
+  end
+
+  defp prompt_memory_kinds(_workflow), do: ContextMemory.supported_kinds()
+
+  defp prompt_memory_lines(prompt_memory, accepted_tool_results) do
+    lines = ContextMemory.instruction_lines(prompt_memory)
+
+    if accepted_tool_results == [] do
+      lines
+    else
+      Enum.reject(lines, &String.starts_with?(&1, "- accepted_tool_result:"))
+    end
+  end
+
+  defp prompt_memory_event(%{state: state} = prompt_memory) do
+    metadata = normalize_map(map_get(prompt_memory, :metadata))
+    diagnostics = normalize_map(map_get(prompt_memory, :diagnostics))
+
+    %{}
+    |> Map.put("state", normalize_optional_string(state) || "unknown")
+    |> maybe_put("namespace", normalize_optional_string(map_get(prompt_memory, :namespace)))
+    |> Map.put("item_count", prompt_memory_item_count(prompt_memory, metadata))
+    |> maybe_put("provider", normalize_optional_string(Map.get(metadata, "provider")))
+    |> maybe_put("diagnostics", prompt_memory_diagnostics(diagnostics))
+  end
+
+  defp prompt_memory_event(_prompt_memory), do: %{"state" => "unavailable", "item_count" => 0}
+
+  defp prompt_memory_item_count(prompt_memory, metadata) do
+    case Map.get(metadata, "total_count") do
+      count when is_integer(count) ->
+        count
+
+      _other ->
+        case map_get(prompt_memory, :items) do
+          items when is_list(items) -> length(items)
+          _other -> 0
+        end
+    end
+  end
+
+  defp prompt_memory_diagnostics(diagnostics) when diagnostics == %{}, do: nil
+  defp prompt_memory_diagnostics(diagnostics), do: diagnostics
+
+  defp workflow_name(workflow) when is_atom(workflow), do: Atom.to_string(workflow)
+  defp workflow_name(workflow) when is_binary(workflow), do: workflow
+  defp workflow_name(_workflow), do: "clarify"
 
   defp result_summary(result, workflow) do
     case workflow do

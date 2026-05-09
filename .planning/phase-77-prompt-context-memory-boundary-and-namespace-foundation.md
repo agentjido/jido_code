@@ -94,40 +94,40 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         so Phase 78 can integrate prompt memory without leaking
         `Jido.Memory.Record`, `Jido.Memory.Query`, or provider option details.
 
-  [ ] 77.2 Section - Namespace, Record, And Retention Policy Foundation
+  [x] 77.2 Section - Namespace, Record, And Retention Policy Foundation
     Formalize the scope and data model rules that keep prompt memory bounded,
     useful, and clearly separate from transcript persistence and durable
     repository memory.
 
-    [ ] 77.2.1 Task - Define the canonical prompt-memory namespace model
+    [x] 77.2.1 Task - Define the canonical prompt-memory namespace model
       Make scope resolution explicit so prompt memory follows the same product
       model as conversation work rather than defaulting to agent identity.
 
-      [ ] 77.2.1.1 Subtask - Define repo-intake namespaces such as
+      [x] 77.2.1.1 Subtask - Define repo-intake namespaces such as
         `repo:<managed_repo_id>:intake` for bounded pre-work conversation
         context and work-item namespaces such as
         `repo:<managed_repo_id>:work_item:<work_item_id>` for governed
         productive conversation context.
-      [ ] 77.2.1.2 Subtask - Keep `conversation_id`, `turn_id`, workflow, and
+      [x] 77.2.1.2 Subtask - Keep `conversation_id`, `turn_id`, workflow, and
         actor linkage in record metadata instead of making one conversation
         instance the primary long-lived namespace.
-      [ ] 77.2.1.3 Subtask - Define how prompt memory transitions from
+      [x] 77.2.1.3 Subtask - Define how prompt memory transitions from
         repo-intake scope into canonical work-item scope once productive
         conversation attaches to governed work.
 
-    [ ] 77.2.2 Task - Define the prompt-memory record taxonomy and defaults
+    [x] 77.2.2 Task - Define the prompt-memory record taxonomy and defaults
       Decide which classes, kinds, tags, and retention defaults the prompt
       memory lane should use before runtime code starts writing records.
 
-      [ ] 77.2.2.1 Subtask - Define initial `:working`, `:episodic`,
+      [x] 77.2.2.1 Subtask - Define initial `:working`, `:episodic`,
         `:semantic`, and `:procedural` usage for prompt context along with a
         bounded first-pass kind taxonomy: `:active_constraint`,
         `:accepted_tool_result`, `:clarification_answer`, `:plan_summary`,
         `:next_step`, and `:stable_preference`.
-      [ ] 77.2.2.2 Subtask - Define default TTL, expiry, and tagging policy so
+      [x] 77.2.2.2 Subtask - Define default TTL, expiry, and tagging policy so
         short-term memory stays useful for prompt assembly without becoming an
         ambient long-term transcript store.
-      [ ] 77.2.2.3 Subtask - Reject raw transcript dumping, raw tool stdout
+      [x] 77.2.2.3 Subtask - Reject raw transcript dumping, raw tool stdout
         capture, and automatic durable-memory promotion as valid prompt-memory
         record behavior.
 

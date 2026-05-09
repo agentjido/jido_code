@@ -23,8 +23,28 @@ defmodule JidoCode.Conversations.ContextMemory do
     ttl_ms: 86_400_000
   ]
 
+  @record_policies %{
+    active_constraint: %{class: :working, tags: ["prompt-memory", "constraint"]},
+    accepted_tool_result: %{class: :episodic, tags: ["prompt-memory", "tool-result"]},
+    clarification_answer: %{class: :episodic, tags: ["prompt-memory", "clarification"]},
+    plan_summary: %{class: :working, tags: ["prompt-memory", "plan"]},
+    next_step: %{class: :working, tags: ["prompt-memory", "next-step"]},
+    stable_preference: %{class: :semantic, tags: ["prompt-memory", "preference"]},
+    workflow_preference: %{class: :procedural, tags: ["prompt-memory", "workflow"]}
+  }
+
+  @default_kind :next_step
+
   @type scope :: map()
   @type state :: :ready | :disabled | :degraded
+  @type prompt_kind ::
+          :active_constraint
+          | :accepted_tool_result
+          | :clarification_answer
+          | :plan_summary
+          | :next_step
+          | :stable_preference
+          | :workflow_preference
   @type item :: %{
           id: String.t() | nil,
           class: atom() | nil,
@@ -129,6 +149,59 @@ defmodule JidoCode.Conversations.ContextMemory do
   def namespace(_scope), do: {:error, :invalid_scope}
 
   @doc """
+  Returns namespace projection metadata for a conversation scope.
+
+  Work-item scoped conversations keep the work item as the primary namespace
+  while retaining repo-intake as a previous namespace for transition-aware
+  adoption in later runtime phases.
+  """
+  @spec namespaces(scope()) ::
+          {:ok, %{primary: String.t(), previous: [String.t()], metadata: map()}} | {:error, term()}
+  def namespaces(scope) when is_map(scope) do
+    managed_repo_id = optional_string(map_get(scope, :managed_repo_id))
+    work_item_id = optional_string(map_get(scope, :work_item_id))
+
+    cond do
+      is_binary(managed_repo_id) and is_binary(work_item_id) ->
+        {:ok,
+         %{
+           primary: "repo:#{managed_repo_id}:work_item:#{work_item_id}",
+           previous: ["repo:#{managed_repo_id}:intake"],
+           metadata: scope_metadata(scope)
+         }}
+
+      is_binary(managed_repo_id) ->
+        {:ok,
+         %{
+           primary: "repo:#{managed_repo_id}:intake",
+           previous: [],
+           metadata: scope_metadata(scope)
+         }}
+
+      true ->
+        {:error, :managed_repo_scope_required}
+    end
+  end
+
+  def namespaces(_scope), do: {:error, :invalid_scope}
+
+  @doc """
+  Returns the bounded prompt-memory record policy for a supported kind.
+  """
+  @spec record_policy(prompt_kind() | String.t() | nil) :: {:ok, map()} | {:error, term()}
+  def record_policy(kind) do
+    with {:ok, normalized_kind} <- normalize_prompt_kind(kind) do
+      {:ok, Map.put(@record_policies[normalized_kind], :kind, normalized_kind)}
+    end
+  end
+
+  @doc """
+  Returns all prompt-memory kinds supported by the product adapter.
+  """
+  @spec supported_kinds() :: [prompt_kind()]
+  def supported_kinds, do: Map.keys(@record_policies)
+
+  @doc """
   Returns prompt-facing instruction lines from a normalized projection.
   """
   @spec instruction_lines(projection() | term()) :: [String.t()]
@@ -190,6 +263,7 @@ defmodule JidoCode.Conversations.ContextMemory do
     |> Keyword.get(:query, %{})
     |> normalize_map()
     |> Map.put(:namespace, namespace)
+    |> Map.put_new(:kinds, supported_kinds())
     |> Map.put_new(:limit, config[:retrieval_limit])
     |> Map.put_new(:order, :desc)
   end
@@ -214,22 +288,36 @@ defmodule JidoCode.Conversations.ContextMemory do
   defp record_attrs(namespace, scope, attrs, config) do
     attrs = normalize_map(attrs)
     now = System.system_time(:millisecond)
+    text = optional_string(map_get(attrs, :text))
+    kind_input = map_get(attrs, :kind) || @default_kind
 
-    metadata =
-      attrs
-      |> Map.get(:metadata, Map.get(attrs, "metadata", %{}))
-      |> normalize_map()
-      |> Map.merge(scope_metadata(scope))
+    with :ok <- ensure_text(text),
+         {:ok, policy} <- record_policy(kind_input) do
+      metadata =
+        attrs
+        |> Map.get(:metadata, Map.get(attrs, "metadata", %{}))
+        |> normalize_map()
+        |> Map.merge(scope_metadata(scope))
 
-    {:ok,
-     attrs
-     |> Map.put(:namespace, namespace)
-     |> Map.put_new(:class, :working)
-     |> Map.put_new(:kind, :note)
-     |> Map.put_new(:source, "conversation_context_memory")
-     |> Map.put(:metadata, metadata)
-     |> Map.put_new(:observed_at, now)
-     |> Map.put_new(:expires_at, now + config[:ttl_ms])}
+      tags =
+        attrs
+        |> map_get(:tags)
+        |> normalize_string_list()
+        |> Kernel.++(policy.tags)
+        |> Enum.uniq()
+
+      {:ok,
+       attrs
+       |> Map.put(:namespace, namespace)
+       |> Map.put(:class, policy.class)
+       |> Map.put(:kind, policy.kind)
+       |> Map.put(:text, text)
+       |> Map.put(:tags, tags)
+       |> Map.put_new(:source, "conversation_context_memory")
+       |> Map.put(:metadata, metadata)
+       |> Map.put_new(:observed_at, now)
+       |> Map.put_new(:expires_at, now + config[:ttl_ms])}
+    end
   end
 
   defp scope_metadata(scope) do
@@ -345,6 +433,35 @@ defmodule JidoCode.Conversations.ContextMemory do
 
   defp normalize_keyword(value) when is_list(value), do: value
   defp normalize_keyword(_value), do: []
+
+  defp normalize_prompt_kind(nil), do: {:ok, @default_kind}
+  defp normalize_prompt_kind(kind) when is_atom(kind) and is_map_key(@record_policies, kind), do: {:ok, kind}
+
+  defp normalize_prompt_kind(kind) when is_binary(kind) do
+    case String.trim(kind) do
+      "active_constraint" -> {:ok, :active_constraint}
+      "accepted_tool_result" -> {:ok, :accepted_tool_result}
+      "clarification_answer" -> {:ok, :clarification_answer}
+      "plan_summary" -> {:ok, :plan_summary}
+      "next_step" -> {:ok, :next_step}
+      "stable_preference" -> {:ok, :stable_preference}
+      "workflow_preference" -> {:ok, :workflow_preference}
+      _other -> {:error, {:unsupported_prompt_memory_kind, kind}}
+    end
+  end
+
+  defp normalize_prompt_kind(kind), do: {:error, {:unsupported_prompt_memory_kind, kind}}
+
+  defp ensure_text(text) when is_binary(text), do: :ok
+  defp ensure_text(_text), do: {:error, :prompt_memory_text_required}
+
+  defp normalize_string_list(values) when is_list(values) do
+    values
+    |> Enum.map(&optional_string/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp normalize_string_list(_values), do: []
 
   defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
   defp positive_integer(_value, default), do: default

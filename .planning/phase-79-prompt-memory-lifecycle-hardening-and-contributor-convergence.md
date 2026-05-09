@@ -46,7 +46,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
   surfaces unless a later explicit adoption/classification flow promotes a
   bounded outcome through the existing governed memory path.
 
-[ ] 79 Phase 79 - Prompt Memory Lifecycle Hardening And Contributor Convergence
+[x] 79 Phase 79 - Prompt Memory Lifecycle Hardening And Contributor Convergence
   Harden provider behavior, retention and cleanup policy, verification
   defaults, and contributor guidance so prompt memory remains bounded,
   explainable, and clearly separate from provenance and durable repository
@@ -131,23 +131,23 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         transcript continuity, use workflow provenance for origin recall, and
         use durable-memory adoption for long-term product truth.
 
-  [ ] 79.3 Section - Phase 79 Integration Tests
+  [x] 79.3 Section - Phase 79 Integration Tests
     Prove prompt memory stays bounded and operationally safe once lifecycle
     cleanup, provider hardening, and contributor-facing defaults are in place.
 
-    [ ] 79.3.1 Task - Add lifecycle and boundary-hardening coverage
+    [x] 79.3.1 Task - Add lifecycle and boundary-hardening coverage
       Verify prompt memory can expire, degrade, and coexist with provenance and
       durable memory without becoming a second truth lane.
 
-      [ ] 79.3.1.1 Subtask - Add coverage proving expired or consolidated
+      [x] 79.3.1.1 Subtask - Add coverage proving expired or consolidated
         prompt-memory records stop influencing retrieval while active bounded
         context still remains available for the next turn.
-      [ ] 79.3.1.2 Subtask - Add coverage proving provider misconfiguration,
+      [x] 79.3.1.2 Subtask - Add coverage proving provider misconfiguration,
         disablement, or degradation falls back safely and leaves conversation
         execution plus provenance capture intact.
-      [ ] 79.3.1.3 Subtask - Add coverage proving prompt memory does not appear
+      [x] 79.3.1.3 Subtask - Add coverage proving prompt memory does not appear
         as durable memory or transcript truth unless later work explicitly
         adopts bounded outcomes through the existing governed memory path.
-      [ ] 79.3.1.4 Subtask - Add coverage proving adapter-level config
+      [x] 79.3.1.4 Subtask - Add coverage proving adapter-level config
         validation and lifecycle cleanup failures degrade conversation runtime
         deterministically without dropping provenance capture.

@@ -9,7 +9,7 @@ defmodule JidoCode.Conversations.ContextMemory do
   conversation runtime callers.
   """
 
-  alias Jido.Memory.{Record, RetrieveResult, Runtime, Store}
+  alias Jido.Memory.{ConsolidationResult, Record, RetrieveResult, Runtime, Store}
 
   @default_config [
     enabled?: false,
@@ -20,7 +20,8 @@ defmodule JidoCode.Conversations.ContextMemory do
     retrieval_limit: 6,
     max_instruction_lines: 6,
     max_instruction_bytes: 2_000,
-    ttl_ms: 86_400_000
+    ttl_ms: 86_400_000,
+    cleanup_before_retrieve?: true
   ]
 
   @record_policies %{
@@ -62,6 +63,14 @@ defmodule JidoCode.Conversations.ContextMemory do
           diagnostics: map(),
           metadata: map()
         }
+  @type lifecycle_result :: %{
+          state: state(),
+          namespace: String.t() | nil,
+          pruned_count: non_neg_integer(),
+          consolidated_count: non_neg_integer(),
+          diagnostics: map(),
+          metadata: map()
+        }
 
   @doc """
   Retrieves bounded prompt memory for a product conversation scope.
@@ -77,11 +86,13 @@ defmodule JidoCode.Conversations.ContextMemory do
     config = config(opts)
 
     with :ok <- ensure_enabled(config),
+         :ok <- ensure_config_valid(config),
          {:ok, namespace} <- namespace(scope),
          :ok <- ensure_store_ready(config),
+         :ok <- maybe_cleanup_before_retrieve(scope, namespace, config),
          query <- retrieval_query(namespace, config, opts),
          {:ok, %RetrieveResult{} = result} <-
-           Runtime.retrieve(target(scope), query, runtime_opts(namespace, config)) do
+           runtime_call(config, fn -> Runtime.retrieve(target(scope), query, runtime_opts(namespace, config)) end) do
       {:ok, ready_projection(namespace, result, config)}
     else
       :disabled ->
@@ -108,23 +119,101 @@ defmodule JidoCode.Conversations.ContextMemory do
     config = config(opts)
 
     with :ok <- ensure_enabled(config),
+         :ok <- ensure_config_valid(config),
          {:ok, namespace} <- namespace(scope),
          :ok <- ensure_store_ready(config),
          {:ok, memory_attrs} <- record_attrs(namespace, scope, attrs, config),
          {:ok, %Record{} = record} <-
-           Runtime.remember(target(scope), memory_attrs, runtime_opts(namespace, config)) do
+           runtime_call(config, fn -> Runtime.remember(target(scope), memory_attrs, runtime_opts(namespace, config)) end) do
       {:ok, %{state: :ready, namespace: namespace, record_id: record.id, diagnostics: %{}}}
     else
       :disabled ->
         {:ok, %{state: :disabled, namespace: nil, record_id: nil, diagnostics: %{}}}
 
       {:error, reason} ->
+        log_degraded(:remember, scope_namespace(scope), reason)
         {:ok, %{state: :degraded, namespace: nil, record_id: nil, diagnostics: %{reason: inspect(reason)}}}
     end
   end
 
   def remember(_scope, _attrs, _opts),
     do: {:ok, %{state: :degraded, namespace: nil, record_id: nil, diagnostics: %{reason: "invalid_scope"}}}
+
+  @doc """
+  Prunes expired prompt-memory records through the product boundary.
+
+  The operation is namespace-addressed from the caller's perspective and remains
+  non-fatal: disabled or degraded providers return a normalized lifecycle
+  result instead of raising into conversation runtime callers.
+  """
+  @spec prune_expired(scope(), keyword()) :: {:ok, lifecycle_result()}
+  def prune_expired(scope, opts \\ [])
+
+  def prune_expired(scope, opts) when is_map(scope) and is_list(opts) do
+    config = config(opts)
+
+    with :ok <- ensure_enabled(config),
+         :ok <- ensure_config_valid(config),
+         {:ok, namespace} <- namespace(scope),
+         :ok <- ensure_store_ready(config),
+         {:ok, pruned_count} <-
+           runtime_call(config, fn -> Runtime.prune_expired(target(scope), runtime_opts(namespace, config)) end) do
+      {:ok, lifecycle_ready(namespace, pruned_count, 0, config)}
+    else
+      :disabled ->
+        {:ok, lifecycle_disabled(scope)}
+
+      {:error, reason} ->
+        {:ok, lifecycle_degraded(scope, reason)}
+    end
+  end
+
+  def prune_expired(_scope, _opts), do: {:ok, lifecycle_degraded(%{}, :invalid_scope)}
+
+  @doc """
+  Runs provider lifecycle consolidation for prompt memory.
+  """
+  @spec consolidate(scope(), keyword()) :: {:ok, lifecycle_result()}
+  def consolidate(scope, opts \\ [])
+
+  def consolidate(scope, opts) when is_map(scope) and is_list(opts) do
+    config = config(opts)
+
+    with :ok <- ensure_enabled(config),
+         :ok <- ensure_config_valid(config),
+         {:ok, namespace} <- namespace(scope),
+         :ok <- ensure_store_ready(config),
+         {:ok, %ConsolidationResult{} = result} <-
+           runtime_call(config, fn -> Runtime.consolidate(target(scope), runtime_opts(namespace, config)) end) do
+      {:ok, lifecycle_ready(namespace, result.pruned_count, result.consolidated_count, config)}
+    else
+      :disabled ->
+        {:ok, lifecycle_disabled(scope)}
+
+      {:error, reason} ->
+        {:ok, lifecycle_degraded(scope, reason)}
+    end
+  end
+
+  def consolidate(_scope, _opts), do: {:ok, lifecycle_degraded(%{}, :invalid_scope)}
+
+  @doc """
+  Validates prompt-memory adapter configuration and returns a safe summary.
+  """
+  @spec validate_config(keyword()) :: {:ok, map()} | {:error, term()}
+  def validate_config(opts \\ [])
+
+  def validate_config(opts) when is_list(opts) do
+    config = config(opts)
+
+    with :ok <- validate_provider(config),
+         :ok <- validate_limits(config),
+         :ok <- validate_store(config) do
+      {:ok, config_summary(config)}
+    end
+  end
+
+  def validate_config(_opts), do: {:error, :invalid_config}
 
   @doc """
   Resolves the product-owned prompt-memory namespace for a conversation scope.
@@ -237,15 +326,23 @@ defmodule JidoCode.Conversations.ContextMemory do
       positive_integer(config[:max_instruction_bytes], @default_config[:max_instruction_bytes])
     )
     |> Keyword.put(:ttl_ms, positive_integer(config[:ttl_ms], @default_config[:ttl_ms]))
+    |> Keyword.put(:cleanup_before_retrieve?, config[:cleanup_before_retrieve?] != false)
   end
 
   defp normalize_provider(provider) when provider in [:basic, :redis], do: provider
   defp normalize_provider("basic"), do: :basic
   defp normalize_provider("redis"), do: :redis
-  defp normalize_provider(_provider), do: :basic
+  defp normalize_provider(provider), do: provider
 
   defp ensure_enabled(config) do
     if config[:enabled?], do: :ok, else: :disabled
+  end
+
+  defp ensure_config_valid(config) do
+    case validate_normalized_config(config) do
+      {:ok, _summary} -> :ok
+      {:error, reason} -> {:error, {:invalid_prompt_memory_config, reason}}
+    end
   end
 
   defp ensure_store_ready(config) do
@@ -255,6 +352,100 @@ defmodule JidoCode.Conversations.ContextMemory do
     with {:ok, {store_mod, base_opts}} <- Store.normalize_store(store),
          :ok <- Store.validate_options(store_mod, Keyword.merge(base_opts, store_opts)) do
       store_mod.ensure_ready(Keyword.merge(base_opts, store_opts))
+    end
+  end
+
+  defp validate_normalized_config(config) do
+    with :ok <- validate_provider(config),
+         :ok <- validate_limits(config),
+         :ok <- validate_store(config) do
+      {:ok, config_summary(config)}
+    end
+  end
+
+  defp validate_provider(config) do
+    if config[:provider] in [:basic, :redis] do
+      :ok
+    else
+      {:error, {:unsupported_provider, config[:provider]}}
+    end
+  end
+
+  defp validate_limits(config) do
+    cond do
+      not positive_integer?(config[:timeout_ms]) ->
+        {:error, {:invalid_timeout_ms, config[:timeout_ms]}}
+
+      not positive_integer?(config[:retrieval_limit]) ->
+        {:error, {:invalid_retrieval_limit, config[:retrieval_limit]}}
+
+      not positive_integer?(config[:max_instruction_lines]) ->
+        {:error, {:invalid_max_instruction_lines, config[:max_instruction_lines]}}
+
+      not positive_integer?(config[:max_instruction_bytes]) ->
+        {:error, {:invalid_max_instruction_bytes, config[:max_instruction_bytes]}}
+
+      not positive_integer?(config[:ttl_ms]) ->
+        {:error, {:invalid_ttl_ms, config[:ttl_ms]}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_store(config) do
+    store = config[:store] || @default_config[:store]
+    store_opts = config[:store_opts] || []
+
+    with {:ok, {store_mod, base_opts}} <- Store.normalize_store(store) do
+      Store.validate_options(store_mod, Keyword.merge(base_opts, store_opts))
+    end
+  end
+
+  defp config_summary(config) do
+    %{
+      enabled?: config[:enabled?],
+      provider: config[:provider],
+      timeout_ms: config[:timeout_ms],
+      retrieval_limit: config[:retrieval_limit],
+      max_instruction_lines: config[:max_instruction_lines],
+      max_instruction_bytes: config[:max_instruction_bytes],
+      ttl_ms: config[:ttl_ms],
+      cleanup_before_retrieve?: config[:cleanup_before_retrieve?]
+    }
+  end
+
+  defp positive_integer?(value), do: is_integer(value) and value > 0
+
+  defp maybe_cleanup_before_retrieve(scope, namespace, config) do
+    if config[:cleanup_before_retrieve?] do
+      case runtime_call(config, fn -> Runtime.prune_expired(target(scope), runtime_opts(namespace, config)) end) do
+        {:ok, _count} -> :ok
+        {:error, reason} -> {:error, {:cleanup_before_retrieve_failed, reason}}
+      end
+    else
+      :ok
+    end
+  end
+
+  defp runtime_call(config, fun) when is_list(config) and is_function(fun, 0) do
+    task =
+      Task.async(fn ->
+        try do
+          fun.()
+        rescue
+          exception ->
+            {:error, {:provider_exception, Exception.message(exception)}}
+        catch
+          kind, reason ->
+            {:error, {kind, reason}}
+        end
+      end)
+
+    case Task.yield(task, config[:timeout_ms]) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      {:exit, reason} -> {:error, {:provider_exit, reason}}
+      nil -> {:error, :prompt_memory_timeout}
     end
   end
 
@@ -349,6 +540,41 @@ defmodule JidoCode.Conversations.ContextMemory do
     }
   end
 
+  defp lifecycle_ready(namespace, pruned_count, consolidated_count, config) do
+    %{
+      state: :ready,
+      namespace: namespace,
+      pruned_count: pruned_count,
+      consolidated_count: consolidated_count,
+      diagnostics: %{},
+      metadata: config_summary(config)
+    }
+  end
+
+  defp lifecycle_disabled(scope) do
+    %{
+      state: :disabled,
+      namespace: scope_namespace(scope),
+      pruned_count: 0,
+      consolidated_count: 0,
+      diagnostics: %{},
+      metadata: %{enabled?: false}
+    }
+  end
+
+  defp lifecycle_degraded(scope, reason) do
+    log_degraded(:lifecycle, scope_namespace(scope), reason)
+
+    %{
+      state: :degraded,
+      namespace: scope_namespace(scope),
+      pruned_count: 0,
+      consolidated_count: 0,
+      diagnostics: %{reason: inspect(reason)},
+      metadata: %{}
+    }
+  end
+
   defp disabled_projection(scope) do
     %{
       state: :disabled,
@@ -361,6 +587,8 @@ defmodule JidoCode.Conversations.ContextMemory do
   end
 
   defp degraded_projection(scope, reason) do
+    log_degraded(:retrieve, scope_namespace(scope), reason)
+
     %{
       state: :degraded,
       namespace: scope_namespace(scope),
@@ -426,6 +654,15 @@ defmodule JidoCode.Conversations.ContextMemory do
   defp provider_name(%{name: name}) when is_binary(name), do: name
   defp provider_name(%{key: key}) when is_atom(key), do: Atom.to_string(key)
   defp provider_name(_provider), do: nil
+
+  defp log_degraded(operation, namespace, reason) do
+    require Logger
+
+    Logger.warning("Prompt memory #{operation} degraded",
+      namespace: namespace,
+      reason: inspect(reason)
+    )
+  end
 
   defp normalize_map(value) when is_list(value), do: Map.new(value)
   defp normalize_map(value) when is_map(value), do: value

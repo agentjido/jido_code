@@ -129,6 +129,28 @@ if max_concurrent = System.get_env("MEMORY_GRAPH_MAX_CONCURRENT_OPERATIONS") do
   config :jido_code, memory_graph_max_concurrent_operations: String.to_integer(max_concurrent)
 end
 
+# Prompt context memory configuration from environment.
+# Disabled by default; runtime callers must keep degraded or disabled memory non-fatal.
+if prompt_memory_enabled = System.get_env("PROMPT_MEMORY_ENABLED") do
+  config :jido_code, :conversation_context_memory, enabled?: prompt_memory_enabled == "true"
+end
+
+if prompt_memory_provider = System.get_env("PROMPT_MEMORY_PROVIDER") do
+  config :jido_code, :conversation_context_memory, provider: prompt_memory_provider
+end
+
+if prompt_memory_timeout = System.get_env("PROMPT_MEMORY_TIMEOUT_MS") do
+  config :jido_code, :conversation_context_memory, timeout_ms: String.to_integer(prompt_memory_timeout)
+end
+
+if prompt_memory_limit = System.get_env("PROMPT_MEMORY_RETRIEVAL_LIMIT") do
+  config :jido_code, :conversation_context_memory, retrieval_limit: String.to_integer(prompt_memory_limit)
+end
+
+if prompt_memory_ttl = System.get_env("PROMPT_MEMORY_TTL_MS") do
+  config :jido_code, :conversation_context_memory, ttl_ms: String.to_integer(prompt_memory_ttl)
+end
+
 # Desktop/Burrito mode: when BURRITO_TARGET is set (by Tauri sidecar or manually),
 # override prod config for local desktop use. This block runs before the prod
 # block below, providing defaults so the raises are never hit.

@@ -110,6 +110,17 @@ config :jido_code, :code_server,
   data_dir: ".jido",
   conversation_orchestration: true
 
+config :jido_code, :conversation_context_memory,
+  enabled?: false,
+  provider: :basic,
+  store: {Jido.Memory.Store.ETS, [table: :jido_code_prompt_memory]},
+  store_opts: [],
+  timeout_ms: 250,
+  retrieval_limit: 6,
+  max_instruction_lines: 6,
+  max_instruction_bytes: 2_000,
+  ttl_ms: 86_400_000
+
 # Configure the endpoint
 config :jido_code, JidoCodeWeb.Endpoint,
   url: [host: "localhost"],

@@ -49,7 +49,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
   `:basic` provider and ETS store, while preserving an explicit future path for
   Redis, Postgres, or provider packages.
 
-[ ] 77 Phase 77 - Prompt Context Memory Boundary And Namespace Foundation
+[x] 77 Phase 77 - Prompt Context Memory Boundary And Namespace Foundation
   Introduce `jido_memory` as a bounded prompt-context layer with a
   product-owned adapter, explicit namespace policy, and provider-safe rollout
   defaults so real conversation runtime can gain memory recall without turning
@@ -131,24 +131,24 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         capture, and automatic durable-memory promotion as valid prompt-memory
         record behavior.
 
-  [ ] 77.3 Section - Phase 77 Integration Tests
+  [x] 77.3 Section - Phase 77 Integration Tests
     Prove the new package and adapter seam can be enabled, disabled, and scoped
     safely before real conversation runtime starts depending on prompt memory.
 
-    [ ] 77.3.1 Task - Add dependency, config, and namespace foundation coverage
+    [x] 77.3.1 Task - Add dependency, config, and namespace foundation coverage
       Verify the prompt-memory boundary resolves the right scope and degrades
       safely when the provider is unavailable or disabled.
 
-      [ ] 77.3.1.1 Subtask - Add coverage proving the `ContextMemory` adapter
+      [x] 77.3.1.1 Subtask - Add coverage proving the `ContextMemory` adapter
         can resolve repo-intake and work-item namespaces with stable metadata
         linkage for managed repository, work item, conversation, and turn
         identity.
-      [ ] 77.3.1.2 Subtask - Add coverage proving disabled or degraded
+      [x] 77.3.1.2 Subtask - Add coverage proving disabled or degraded
         prompt-memory config returns a bounded non-fatal result shape instead of
         crashing runtime callers.
-      [ ] 77.3.1.3 Subtask - Add coverage proving prompt-memory record and
+      [x] 77.3.1.3 Subtask - Add coverage proving prompt-memory record and
         retention defaults stay bounded and do not silently collapse into raw
         transcript or durable-memory semantics.
-      [ ] 77.3.1.4 Subtask - Add coverage proving adapter projections expose
+      [x] 77.3.1.4 Subtask - Add coverage proving adapter projections expose
         `:ready`, `:disabled`, and `:degraded` states plus compact instruction
         lines while keeping provider structs behind the adapter boundary.

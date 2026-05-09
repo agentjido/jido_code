@@ -473,6 +473,7 @@ defmodule JidoCode.Conversations.ContextMemory do
     end
   end
 
+  defp optional_string(nil), do: nil
   defp optional_string(value) when is_atom(value), do: Atom.to_string(value)
   defp optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp optional_string(_value), do: nil

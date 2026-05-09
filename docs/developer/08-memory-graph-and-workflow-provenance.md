@@ -9,6 +9,8 @@ This guide explains how repository-scoped memory and workflow provenance work in
 Useful implementation sources:
 
 - [`../../lib/jido_code/memory_graph/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/memory_graph)
+- [`../../lib/jido_code/conversations/context_memory.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/context_memory.ex)
+- [`../../lib/jido_code/conversations/runtime.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/runtime.ex)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## Two Related Graphs
@@ -22,6 +24,27 @@ The memory stack is really two closely related layers:
 
 `memory` stores intentionally adopted durable lessons, decisions, conventions,
 patterns, questions, issues, and similar semantic knowledge.
+
+## Prompt Context Memory Is Separate
+
+Prompt context memory is a short-term prompt assembly aid, not a third durable
+graph.
+
+Runtime callers use `JidoCode.Conversations.ContextMemory` to read or write
+bounded summaries for the next turn:
+
+- active constraints
+- accepted tool result summaries
+- clarification answers
+- plan summaries
+- next-step summaries
+- stable preferences
+
+Those records are scoped to repo intake or a work item, expire through the
+`jido_memory` provider, and remain behind the conversation runtime boundary.
+They must not be shown as operator durable memory, used as transcript truth, or
+promoted into the repository `memory` graph unless a later explicit adoption
+flow classifies a bounded outcome through the governed memory path.
 
 ## Named Graph Topology
 
@@ -118,6 +141,11 @@ That explicit opt-in matters for two reasons:
 1. memory is a bounded enhancement, not ambient hidden context
 2. freshness, validation, invalidation, and recovery need to remain visible
 
+Prompt context memory follows the same opt-in principle at the conversation
+runtime layer. It can make the next prompt more coherent, but the runtime still
+routes deterministically and falls back to the existing bounded prompt shape
+when the prompt-memory provider is disabled, degraded, or misconfigured.
+
 ## Freshness And Recovery
 
 Operator-facing memory and provenance surfaces should expose:
@@ -138,12 +166,16 @@ These are important non-goals:
 - prompt text is not durable memory just because it exists
 - tool output is not durable memory just because it was produced
 - conversation state is not durable memory by default
+- prompt context memory is not durable memory just because it helped assemble a
+  later prompt
 - graph-local facts are not product truth on their own
 
 ## Conversation Recall Rule
 
 When a later surface needs conversation history, choose the boundary on purpose:
 
+- Use `ContextMemory` only when the immediate next turn needs bounded prompt
+  help.
 - Reopen the canonical repo-detail conversation route when you need transcript
   continuity, active supervision, or turn-by-turn detail.
 - Use bounded conversation-origin recall when you need provenance-shaped origin
@@ -159,7 +191,8 @@ alternate chat browsers.
 Ask two questions:
 
 1. Is this operational provenance or intentionally adopted memory?
-2. Which governed product record should this support or rejoin?
+2. Is this only short-term prompt help, or should it survive as product truth?
+3. Which governed product record should this support or rejoin?
 
 That usually tells you which boundary to use.
 

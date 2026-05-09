@@ -91,42 +91,42 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         options, timeout values, and item limits at the adapter boundary before
         conversation runtime attempts retrieval or writes.
 
-  [ ] 79.2 Section - Promotion Boundary, Verification, And Contributor Guidance
+  [x] 79.2 Section - Promotion Boundary, Verification, And Contributor Guidance
     Converge the rest of the product and contributor story around the rule that
     prompt memory helps the next turn while provenance and durable memory own
     long-term explainability and product truth.
 
-    [ ] 79.2.1 Task - Preserve the split between prompt memory, provenance, and durable memory
+    [x] 79.2.1 Task - Preserve the split between prompt memory, provenance, and durable memory
       Make the boundary between short-term prompt context and long-term product
       memory explicit in both code seams and supporting documentation.
 
-      [ ] 79.2.1.1 Subtask - Keep prompt-memory records out of operator memory
+      [x] 79.2.1.1 Subtask - Keep prompt-memory records out of operator memory
         surfaces and out of any ambient durable-memory projection unless they
         reenter through explicit adoption or classification.
-      [ ] 79.2.1.2 Subtask - Preserve provenance back-links and governed record
+      [x] 79.2.1.2 Subtask - Preserve provenance back-links and governed record
         truth whenever prompt-memory context helps seed later adoption or
         follow-up work.
-      [ ] 79.2.1.3 Subtask - Reject any remaining product or contributor path
+      [x] 79.2.1.3 Subtask - Reject any remaining product or contributor path
         that implies prompt memory is an alternate transcript browser or a
         durable semantic source of truth.
-      [ ] 79.2.1.4 Subtask - Ensure prompt-memory diagnostics are observable as
+      [x] 79.2.1.4 Subtask - Ensure prompt-memory diagnostics are observable as
         runtime health and fallback information without surfacing prompt-memory
         records as operator-facing durable memories.
 
-    [ ] 79.2.2 Task - Align verification defaults and contributor docs
+    [x] 79.2.2 Task - Align verification defaults and contributor docs
       Make the new prompt-memory lane legible enough that future contributors
       use the right boundary and proof strategy for the right problem.
 
-      [ ] 79.2.2.1 Subtask - Document when contributors should use prompt
+      [x] 79.2.2.1 Subtask - Document when contributors should use prompt
         memory, reopen conversation routes, inspect workflow provenance, or
         adopt durable memory.
-      [ ] 79.2.2.2 Subtask - Align `mix memory.verify`, conversation runtime
+      [x] 79.2.2.2 Subtask - Align `mix memory.verify`, conversation runtime
         verification, and prompt-memory-specific coverage with the final rollout
         defaults.
-      [ ] 79.2.2.3 Subtask - Update contributor or developer guidance so no
+      [x] 79.2.2.3 Subtask - Update contributor or developer guidance so no
         durable-memory or semantic docs imply that bounded prompt context is the
         same thing as repository memory or long-term recall.
-      [ ] 79.2.2.4 Subtask - Document the adapter contract: use
+      [x] 79.2.2.4 Subtask - Document the adapter contract: use
         `ContextMemory` for short-term prompt help, use conversation routes for
         transcript continuity, use workflow provenance for origin recall, and
         use durable-memory adoption for long-term product truth.

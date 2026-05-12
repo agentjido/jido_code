@@ -843,6 +843,39 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Notifies the repo-scoped source watcher that product-managed code writes have
+  changed source graph inputs.
+
+  This keeps LLM/tool writes on the same normalized source-change path as human
+  editor saves observed by the filesystem watcher.
+  """
+  @spec notify_workspace_source_changed(managed_repo_id(), String.t(), String.t() | [String.t()], keyword()) ::
+          :ok | {:error, term()}
+  def notify_workspace_source_changed(managed_repo_id, workspace_path, changed_paths, opts \\ []) do
+    with {:ok, _repo_pod} <- ensure_repo_pod_entry(managed_repo_id),
+         {:ok, _watcher_pid} <-
+           RepoMonitor.ensure_source_watcher(
+             managed_repo_id,
+             workspace_path,
+             Keyword.take(opts, [:start_file_system?, :debounce_ms])
+           ) do
+      changed_paths
+      |> List.wrap()
+      |> Enum.reduce_while(:ok, fn changed_path, :ok ->
+        case RepoMonitor.notify_source_changed(
+               managed_repo_id,
+               normalize_changed_source_path(workspace_path, changed_path),
+               Keyword.get(opts, :file_events, [:modified]),
+               Keyword.get(opts, :event_source, :runtime_write)
+             ) do
+          :ok -> {:cont, :ok}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+    end
+  end
+
+  @doc """
   Recovers repository-scoped source graph state after analysis, load, refresh, or query failures.
   """
   @spec recover_source_code_graph(managed_repo_id(), String.t(), keyword()) ::
@@ -2341,11 +2374,18 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
-    watcher_opts = Keyword.take(opts, [:start_file_system?])
+    watcher_opts = Keyword.take(opts, [:start_file_system?, :debounce_ms])
 
     case RepoMonitor.ensure_source_watcher(managed_repo_id, workspace_path, watcher_opts) do
       {:ok, _pid} -> :ok
       {:error, _reason} -> :ok
+    end
+  end
+
+  defp normalize_changed_source_path(workspace_path, changed_path) when is_binary(changed_path) do
+    case Path.type(changed_path) do
+      :absolute -> changed_path
+      _relative -> Path.join(workspace_path, changed_path)
     end
   end
 

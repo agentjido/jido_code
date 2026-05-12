@@ -23,6 +23,7 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
           changed_path: String.t(),
           file_events: [atom() | String.t()],
           event_source: atom(),
+          event_sources: [atom()],
           current_revision: String.t() | nil,
           source_commit: String.t() | nil,
           workspace_snapshot_identity: String.t() | nil,
@@ -122,6 +123,8 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
           state
           |> stop_file_watcher()
           |> Map.put(:workspace_path, normalized_workspace_path)
+          |> Map.put(:debounce_ms, debounce_ms(opts))
+          |> Map.put(:pending_change, nil)
 
         case maybe_start_file_watcher(next_state, opts) do
           {:ok, configured_state} ->
@@ -138,26 +141,12 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
 
   @impl true
   def handle_cast({:notify_change, path, events, event_source}, state) do
-    case source_change_event(state, path, List.wrap(events), event_source) do
-      {:ok, event} ->
-        publish_source_change(event)
-        {:noreply, persist_source_change(state, event)}
-
-      :ignore ->
-        {:noreply, state}
-    end
+    {:noreply, queue_source_change(state, path, List.wrap(events), event_source)}
   end
 
   @impl true
   def handle_info({:file_event, watcher_pid, {path, events}}, %{file_watcher_pid: watcher_pid} = state) do
-    case source_change_event(state, path, List.wrap(events), :human_watcher) do
-      {:ok, event} ->
-        publish_source_change(event)
-        {:noreply, persist_source_change(state, event)}
-
-      :ignore ->
-        {:noreply, state}
-    end
+    {:noreply, queue_source_change(state, path, List.wrap(events), :human_watcher)}
   end
 
   def handle_info({:file_event, watcher_pid, :stop}, %{file_watcher_pid: watcher_pid} = state) do
@@ -165,6 +154,17 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
   end
 
   def handle_info({:file_event, _watcher_pid, _event}, state), do: {:noreply, state}
+
+  def handle_info(:flush_source_changes, state) do
+    case source_change_event(state) do
+      {:ok, event} ->
+        publish_source_change(event)
+        {:noreply, persist_source_change(%{state | debounce_timer: nil, pending_change: nil}, event)}
+
+      :ignore ->
+        {:noreply, %{state | debounce_timer: nil, pending_change: nil}}
+    end
+  end
 
   def handle_info({:EXIT, pid, reason}, %{file_watcher_pid: pid} = state) do
     Logger.warning(
@@ -195,6 +195,9 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
          file_watcher_pid: nil,
          file_watcher_ref: nil,
          watcher_status: :starting,
+         debounce_ms: debounce_ms(opts),
+         debounce_timer: nil,
+         pending_change: nil,
          latest_source_change: nil
        }}
     end
@@ -231,6 +234,10 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
     end
   end
 
+  defp debounce_ms(opts) do
+    Keyword.get(opts, :debounce_ms, Application.get_env(:jido_code, :source_code_graph_file_watcher_debounce_ms, 500))
+  end
+
   defp start_file_watcher(state) do
     with {:module, FileSystem} <- Code.ensure_loaded(FileSystem),
          {:ok, watcher_pid} <- FileSystem.start_link(dirs: [state.workspace_path]),
@@ -260,35 +267,77 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
     %{state | file_watcher_pid: nil, file_watcher_ref: nil, watcher_status: :stopped}
   end
 
-  defp source_change_event(state, path, file_events, event_source) do
+  defp queue_source_change(state, path, file_events, event_source) do
     if SourceCodeGraph.source_file?(state.workspace_path, path) do
-      revision_metadata =
-        case SourceCodeGraph.current_revision_metadata(state.workspace_path) do
-          {:ok, metadata} -> metadata
-          {:error, _reason} -> %{}
-        end
-
       changed_path = Path.relative_to(Path.expand(path), state.workspace_path)
-      observed_at = DateTime.utc_now()
+      pending_change = merge_pending_change(state.pending_change, changed_path, file_events, event_source)
 
-      {:ok,
-       %{
-         kind: :workspace_source_changed,
-         managed_repo_id: state.managed_repo_id,
-         workspace_path: state.workspace_path,
-         changed_paths: [changed_path],
-         changed_path: changed_path,
-         file_events: normalize_file_events(file_events),
-         event_source: event_source,
-         current_revision: Map.get(revision_metadata, :current_revision),
-         source_commit: Map.get(revision_metadata, :source_commit),
-         workspace_snapshot_identity: Map.get(revision_metadata, :workspace_snapshot_identity),
-         observed_at: observed_at
-       }}
+      state
+      |> Map.put(:pending_change, pending_change)
+      |> schedule_debounce()
     else
-      :ignore
+      state
     end
   end
+
+  defp merge_pending_change(nil, changed_path, file_events, event_source) do
+    %{
+      changed_paths: MapSet.new([changed_path]),
+      file_events: MapSet.new(normalize_file_events(file_events)),
+      event_sources: MapSet.new([event_source]),
+      first_observed_at: DateTime.utc_now()
+    }
+  end
+
+  defp merge_pending_change(pending_change, changed_path, file_events, event_source) do
+    pending_change
+    |> update_in([:changed_paths], &MapSet.put(&1, changed_path))
+    |> update_in([:file_events], fn existing ->
+      Enum.reduce(normalize_file_events(file_events), existing, fn event, acc -> MapSet.put(acc, event) end)
+    end)
+    |> update_in([:event_sources], &MapSet.put(&1, event_source))
+  end
+
+  defp schedule_debounce(%{debounce_timer: timer} = state) when is_reference(timer) do
+    Process.cancel_timer(timer)
+    schedule_debounce(%{state | debounce_timer: nil})
+  end
+
+  defp schedule_debounce(state) do
+    %{state | debounce_timer: Process.send_after(self(), :flush_source_changes, state.debounce_ms)}
+  end
+
+  defp source_change_event(%{pending_change: nil}), do: :ignore
+
+  defp source_change_event(state) do
+    revision_metadata =
+      case SourceCodeGraph.current_revision_metadata(state.workspace_path) do
+        {:ok, metadata} -> metadata
+        {:error, _reason} -> %{}
+      end
+
+    changed_paths = state.pending_change.changed_paths |> MapSet.to_list() |> Enum.sort()
+    event_sources = state.pending_change.event_sources |> MapSet.to_list() |> Enum.sort()
+
+    {:ok,
+     %{
+       kind: :workspace_source_changed,
+       managed_repo_id: state.managed_repo_id,
+       workspace_path: state.workspace_path,
+       changed_paths: changed_paths,
+       changed_path: List.first(changed_paths),
+       file_events: state.pending_change.file_events |> MapSet.to_list() |> Enum.sort(),
+       event_source: event_source(event_sources),
+       event_sources: event_sources,
+       current_revision: Map.get(revision_metadata, :current_revision),
+       source_commit: Map.get(revision_metadata, :source_commit),
+       workspace_snapshot_identity: Map.get(revision_metadata, :workspace_snapshot_identity),
+       observed_at: DateTime.utc_now()
+     }}
+  end
+
+  defp event_source([event_source]), do: event_source
+  defp event_source(_event_sources), do: :mixed
 
   defp normalize_file_events(events) do
     events

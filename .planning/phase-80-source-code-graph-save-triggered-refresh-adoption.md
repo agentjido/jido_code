@@ -97,39 +97,39 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         workspace binding changes, repo runtime startup, and repo runtime
         shutdown without leaving orphaned OS watcher processes.
 
-  [ ] 80.2 Section - Save-Origin Coverage For Human And LLM Writes
+  [x] 80.2 Section - Save-Origin Coverage For Human And LLM Writes
     Make both external editor saves and product-managed code writes converge on
     the same source-change event instead of creating actor-specific refresh
     behavior.
 
-    [ ] 80.2.1 Task - Cover human editor saves through the workspace watcher
+    [x] 80.2.1 Task - Cover human editor saves through the workspace watcher
       Treat ordinary editor saves as external repository changes that mark the
       graph stale and enqueue refresh without requiring a product UI action.
 
-      [ ] 80.2.1.1 Subtask - Detect create, modify, rename, and delete events
+      [x] 80.2.1.1 Subtask - Detect create, modify, rename, and delete events
         for source-scope files under the managed repository workspace path.
-      [ ] 80.2.1.2 Subtask - Debounce editor write bursts and atomic-save rename
+      [x] 80.2.1.2 Subtask - Debounce editor write bursts and atomic-save rename
         patterns into one normalized source-change observation per quiet window.
-      [ ] 80.2.1.3 Subtask - Preserve current stale status behavior while a
+      [x] 80.2.1.3 Subtask - Preserve current stale status behavior while a
         refresh is queued or running so product surfaces remain honest about
         graph freshness.
 
-    [ ] 80.2.2 Task - Add explicit product write notifications for LLM save paths
+    [x] 80.2.2 Task - Add explicit product write notifications for LLM save paths
       Ensure runtime-managed writes emit the same source-change signal even when
       the storage layer is remote, virtualized, or otherwise not visible to a
       local OS watcher.
 
-      [ ] 80.2.2.1 Subtask - Add a product-owned helper such as
+      [x] 80.2.2.1 Subtask - Add a product-owned helper such as
         `AgentWorkspace.notify_workspace_source_changed/3` or a RepoMonitor
         action that write-capable runtime boundaries can call after successful
         code writes.
-      [ ] 80.2.2.2 Subtask - Wire product-controlled write paths, including
+      [x] 80.2.2.2 Subtask - Wire product-controlled write paths, including
         Forge/Sprite write helpers and LLM runner save boundaries, to emit the
         normalized change event only after the write succeeds.
-      [ ] 80.2.2.3 Subtask - Include event source metadata such as
+      [x] 80.2.2.3 Subtask - Include event source metadata such as
         `:human_watcher`, `:llm_write`, `:tool_write`, or `:runtime_write`
         without changing graph refresh semantics by actor type.
-      [ ] 80.2.2.4 Subtask - Keep external LLM or CLI edits covered by the
+      [x] 80.2.2.4 Subtask - Keep external LLM or CLI edits covered by the
         filesystem watcher whenever they touch a local workspace on disk.
 
   [ ] 80.3 Section - Debounced Source Graph Refresh Scheduling

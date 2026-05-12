@@ -107,6 +107,47 @@ defmodule JidoCode.RepoMonitorSourceWatcherTest do
       refute_receive {:workspace_source_changed, _event}, 50
     end
 
+    test "coalesces delete and rename-style source events while capping pending paths" do
+      managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> RepoMonitor.stop_source_watcher(managed_repo_id) end)
+
+      assert {:ok, _pid} =
+               RepoMonitor.ensure_source_watcher(
+                 managed_repo_id,
+                 workspace_path,
+                 start_file_system?: false,
+                 debounce_ms: 10,
+                 max_pending_paths: 1
+               )
+
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, RepoMonitor.source_change_topic(managed_repo_id))
+
+      assert :ok =
+               RepoMonitor.notify_source_changed(
+                 managed_repo_id,
+                 Path.join(workspace_path, "lib/alpha.ex"),
+                 [:deleted],
+                 :human_watcher
+               )
+
+      assert :ok =
+               RepoMonitor.notify_source_changed(
+                 managed_repo_id,
+                 Path.join(workspace_path, "lib/beta.ex"),
+                 [:renamed],
+                 :human_watcher
+               )
+
+      assert_receive {:workspace_source_changed, event}, 100
+
+      assert event.changed_paths == ["lib/alpha.ex"]
+      assert event.file_events == [:deleted, :renamed]
+      assert event.event_source == :human_watcher
+      refute_receive {:workspace_source_changed, _event}, 50
+    end
+
     test "ignores non-source files and graph store self writes" do
       managed_repo_id = "repo-#{System.unique_integer([:positive])}"
       workspace_path = create_workspace_path!()

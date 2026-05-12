@@ -52,7 +52,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The source graph's refresh input set must be shared with revision detection so
   watcher filters, stale detection, and analysis do not drift.
 
-[ ] 80 Phase 80 - Source Code Graph Save-Triggered Refresh Adoption
+[x] 80 Phase 80 - Source Code Graph Save-Triggered Refresh Adoption
   Add repository-scoped source-change observation and debounced refresh scheduling
   so the `source_code` graph updates after code saves from either a human editor
   or product-managed LLM write path, while preserving explicit graph lifecycle,
@@ -207,41 +207,41 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         tools emit the normalized source-change notification rather than calling
         graph refresh directly.
 
-  [ ] 80.5 Section - Phase 80 Integration Tests
+  [x] 80.5 Section - Phase 80 Integration Tests
     Prove save-triggered refresh updates the source graph for human and LLM
     saves while preserving stale-query semantics, explicit lifecycle boundaries,
     and operational safety.
 
-    [ ] 80.5.1 Task - Add source-change observation and scheduler coverage
+    [x] 80.5.1 Task - Add source-change observation and scheduler coverage
       Verify file saves become bounded repo-scoped refresh requests without
       duplicated path rules or overlapping graph writes.
 
-      [ ] 80.5.1.1 Subtask - Add unit coverage for source file scope filtering,
+      [x] 80.5.1.1 Subtask - Add unit coverage for source file scope filtering,
         ignored directories, deleted files, atomic-save renames, and graph-store
         self-write suppression.
-      [ ] 80.5.1.2 Subtask - Add GenServer or action-level coverage proving
+      [x] 80.5.1.2 Subtask - Add GenServer or action-level coverage proving
         repeated save events coalesce into one refresh during the debounce
         window.
-      [ ] 80.5.1.3 Subtask - Add coverage proving in-flight refresh coalescing
+      [x] 80.5.1.3 Subtask - Add coverage proving in-flight refresh coalescing
         schedules one follow-up refresh when more saves arrive during analysis
         or load.
-      [ ] 80.5.1.4 Subtask - Add coverage proving disabled configuration skips
+      [x] 80.5.1.4 Subtask - Add coverage proving disabled configuration skips
         watchers and refresh scheduling without breaking manual load, refresh,
         status, or query entrypoints.
 
-    [ ] 80.5.2 Task - Add end-to-end human and LLM save refresh scenarios
+    [x] 80.5.2 Task - Add end-to-end human and LLM save refresh scenarios
       Exercise the full repository-scoped path from save event to refreshed graph
       status through product-owned boundaries.
 
-      [ ] 80.5.2.1 Subtask - Add an integration test that loads a graph, changes
+      [x] 80.5.2.1 Subtask - Add an integration test that loads a graph, changes
         a local source file through a simulated watcher event, waits for the
         debounced refresh, and verifies the graph imports the new revision.
-      [ ] 80.5.2.2 Subtask - Add an integration test that simulates a
+      [x] 80.5.2.2 Subtask - Add an integration test that simulates a
         product-controlled LLM write notification and verifies it follows the
         same refresh path as a watcher event.
-      [ ] 80.5.2.3 Subtask - Add coverage proving stale queries still fail
+      [x] 80.5.2.3 Subtask - Add coverage proving stale queries still fail
         without `allow_stale?: true` while refresh is queued or failed, and
         return current results after refresh completes.
-      [ ] 80.5.2.4 Subtask - Run and document `mix source_graph.verify`, plus
+      [x] 80.5.2.4 Subtask - Run and document `mix source_graph.verify`, plus
         any targeted RepoPod, conversation-runtime, or Forge write-path tests
         touched by the implementation.

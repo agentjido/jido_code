@@ -58,42 +58,42 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
   or product-managed LLM write path, while preserving explicit graph lifecycle,
   stale-state visibility, and fallback behavior.
 
-  [ ] 80.1 Section - Repository-Scoped Source Change Observation Boundary
+  [x] 80.1 Section - Repository-Scoped Source Change Observation Boundary
     Establish one product-owned way to detect and normalize source file changes
     without teaching LiveViews, tool handlers, or graph query code how filesystem
     watching works.
 
-    [ ] 80.1.1 Task - Expose the canonical source graph file scope
+    [x] 80.1.1 Task - Expose the canonical source graph file scope
       Make the graph input set reusable so watcher filtering and revision
       detection agree about what counts as source-code graph input.
 
-      [ ] 80.1.1.1 Subtask - Promote the current private source globs and
+      [x] 80.1.1.1 Subtask - Promote the current private source globs and
         exclusion rules in `JidoCode.SourceCodeGraph` into a public helper such
         as `source_file?/2`, `source_files/1`, or `source_patterns/1`.
-      [ ] 80.1.1.2 Subtask - Keep the canonical input set aligned with current
+      [x] 80.1.1.2 Subtask - Keep the canonical input set aligned with current
         revision detection: `mix.exs`, `lib/**/*.ex`, `lib/**/*.exs`,
         `test/**/*.ex`, `test/**/*.exs`, and `config/**/*.exs`, excluding
         `deps`, `_build`, `node_modules`, and repository-local graph storage.
-      [ ] 80.1.1.3 Subtask - Add coverage proving the watcher filter and
+      [x] 80.1.1.3 Subtask - Add coverage proving the watcher filter and
         revision identity use the same source-scope helper instead of duplicating
         path rules.
 
-    [ ] 80.1.2 Task - Add repo-monitor source change events
+    [x] 80.1.2 Task - Add repo-monitor source change events
       Turn workspace source saves into repository-scoped observations that can
       be consumed by graph refresh scheduling and operator status surfaces.
 
-      [ ] 80.1.2.1 Subtask - Extend `RepoMonitor` or a RepoPod-owned helper with
+      [x] 80.1.2.1 Subtask - Extend `RepoMonitor` or a RepoPod-owned helper with
         a normalized event shape such as `:workspace_source_changed`, carrying
         managed repo id, workspace path, changed paths, detected revision, event
         source, and observed timestamp.
-      [ ] 80.1.2.2 Subtask - Add a local filesystem watcher for repo-scoped
+      [x] 80.1.2.2 Subtask - Add a local filesystem watcher for repo-scoped
         local workspaces, using a direct runtime dependency if needed rather than
         relying on transitive development-only watcher packages.
-      [ ] 80.1.2.3 Subtask - Ignore irrelevant and self-generated paths such as
+      [x] 80.1.2.3 Subtask - Ignore irrelevant and self-generated paths such as
         `.jido_code/source_code_graph`, `.jido_code/memory_graph`, `_build`,
         `deps`, and `node_modules` so refresh does not recursively trigger from
         graph writes.
-      [ ] 80.1.2.4 Subtask - Ensure watcher lifecycle follows managed repository
+      [x] 80.1.2.4 Subtask - Ensure watcher lifecycle follows managed repository
         workspace binding changes, repo runtime startup, and repo runtime
         shutdown without leaving orphaned OS watcher processes.
 

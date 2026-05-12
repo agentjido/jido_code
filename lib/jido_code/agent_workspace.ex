@@ -52,7 +52,7 @@ defmodule JidoCode.AgentWorkspace do
   """
 
   alias JidoCode.AgentOS.Manager
-  alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
+  alias JidoCode.Agents.{Coder, Explainer, Planner, RepoMonitor, Reviewer}
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
   alias JidoCode.Conversations.Driver, as: ConversationDriver
@@ -707,7 +707,8 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_source_code_graph_pod(managed_repo_id(), String.t(), keyword()) ::
           {:ok, source_code_graph_summary()} | {:error, term()}
   def ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
-    with :ok <- ensure_source_code_graph_enabled(opts) do
+    with :ok <- ensure_source_code_graph_enabled(opts),
+         {:ok, _repo_pod} <- ensure_repo_pod_entry(managed_repo_id) do
       case Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id()) do
         nil ->
           with {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts),
@@ -717,12 +718,15 @@ defmodule JidoCode.AgentWorkspace do
                    SourceCodeGraph.pod_id(),
                    SourceCodeGraphPod,
                    pod_metadata
-                 ) do
+                 ),
+               :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
             {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
           end
 
         pod_entry ->
-          {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+          with :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
+            {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+          end
       end
     end
   end
@@ -1208,6 +1212,19 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
+
+  defp ensure_repo_pod_entry(managed_repo_id) do
+    Manager.ensure_pod(
+      managed_repo_id,
+      @repo_pod_id,
+      RepoPod,
+      %{
+        scope: :repository,
+        managed_repo_id: managed_repo_id,
+        runtime_status: :logical
+      }
+    )
+  end
 
   defp ensure_repo_pod_runtime(managed_repo_id) do
     ensure_runtime_pod(
@@ -2320,6 +2337,15 @@ defmodule JidoCode.AgentWorkspace do
       :ok
     else
       {:error, :source_code_graph_disabled}
+    end
+  end
+
+  defp maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
+    watcher_opts = Keyword.take(opts, [:start_file_system?])
+
+    case RepoMonitor.ensure_source_watcher(managed_repo_id, workspace_path, watcher_opts) do
+      {:ok, _pid} -> :ok
+      {:error, _reason} -> :ok
     end
   end
 

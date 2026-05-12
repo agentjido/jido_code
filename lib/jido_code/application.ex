@@ -25,6 +25,9 @@ defmodule JidoCode.Application do
         {DynamicSupervisor, name: JidoCode.Forge.SpriteSupervisor, strategy: :one_for_one},
         {DynamicSupervisor, name: JidoCode.Forge.ExecSessionSupervisor, strategy: :one_for_one},
         JidoCode.Forge.Manager,
+        # Repository source-change monitoring
+        {Registry, keys: :unique, name: JidoCode.RepoMonitor.SourceWatcherRegistry},
+        {DynamicSupervisor, name: JidoCode.RepoMonitor.SourceWatcherSupervisor, strategy: :one_for_one},
         # AgentOS supervision tree
         {JidoCode.AgentOS.Manager.Server, []},
         {JidoCode.AgentOS.Manager.Supervisor, []}

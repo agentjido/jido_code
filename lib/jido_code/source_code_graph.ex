@@ -66,6 +66,32 @@ defmodule JidoCode.SourceCodeGraph do
     |> then(&Path.join([&1, ".jido_code", "source_code_graph", "triple_store"]))
   end
 
+  @spec source_file_patterns(workspace_path()) :: [String.t()]
+  def source_file_patterns(workspace_path) when is_binary(workspace_path), do: source_globs(Path.expand(workspace_path))
+
+  @spec source_files(workspace_path()) :: [String.t()]
+  def source_files(workspace_path) when is_binary(workspace_path) do
+    workspace_path
+    |> Path.expand()
+    |> source_globs()
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.filter(&source_file?(workspace_path, &1))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  @spec source_file?(workspace_path(), String.t()) :: boolean()
+  def source_file?(workspace_path, path) when is_binary(workspace_path) and is_binary(path) do
+    workspace_path = Path.expand(workspace_path)
+    path = Path.expand(path)
+
+    inside_workspace?(workspace_path, path) and
+      source_relative_file?(Path.relative_to(path, workspace_path)) and
+      not excluded_source_file?(path)
+  end
+
+  def source_file?(_workspace_path, _path), do: false
+
   @spec base_iri(managed_repo_id()) :: String.t()
   def base_iri(managed_repo_id) when is_binary(managed_repo_id) do
     "https://jido.run/managed_repos/#{managed_repo_id}/source_code#"
@@ -251,15 +277,6 @@ defmodule JidoCode.SourceCodeGraph do
     end
   end
 
-  defp source_files(workspace_path) do
-    workspace_path
-    |> source_globs()
-    |> Enum.flat_map(&Path.wildcard/1)
-    |> Enum.reject(&excluded_source_file?/1)
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
-
   defp source_globs(workspace_path) do
     [
       Path.join(workspace_path, "mix.exs"),
@@ -271,9 +288,28 @@ defmodule JidoCode.SourceCodeGraph do
     ]
   end
 
+  defp inside_workspace?(workspace_path, path) do
+    path == workspace_path or String.starts_with?(path, workspace_path <> "/")
+  end
+
+  defp source_relative_file?("mix.exs"), do: true
+
+  defp source_relative_file?(relative_path) do
+    segments = Path.split(relative_path)
+    extension = Path.extname(relative_path)
+
+    case segments do
+      ["lib" | _] when extension in [".ex", ".exs"] -> true
+      ["test" | _] when extension in [".ex", ".exs"] -> true
+      ["config" | _] when extension == ".exs" -> true
+      _ -> false
+    end
+  end
+
   defp excluded_source_file?(path) do
     String.contains?(path, "/deps/") or
       String.contains?(path, "/_build/") or
-      String.contains?(path, "/node_modules/")
+      String.contains?(path, "/node_modules/") or
+      String.contains?(path, "/.jido_code/")
   end
 end

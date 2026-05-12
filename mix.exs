@@ -173,6 +173,7 @@ defmodule JidoCode.MixProject do
       {:swoosh, "~> 1.16"},
       {:heroicons,
        github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false, depth: 1},
+      {:file_system, "~> 1.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
 
       # Observability & monitoring

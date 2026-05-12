@@ -132,42 +132,42 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 80.2.2.4 Subtask - Keep external LLM or CLI edits covered by the
         filesystem watcher whenever they touch a local workspace on disk.
 
-  [ ] 80.3 Section - Debounced Source Graph Refresh Scheduling
+  [x] 80.3 Section - Debounced Source Graph Refresh Scheduling
     Convert source-change observations into bounded graph refresh work that is
     reliable under save bursts and does not block editing, tool execution, or
     conversation progress.
 
-    [ ] 80.3.1 Task - Introduce a per-repository refresh coordinator
+    [x] 80.3.1 Task - Introduce a per-repository refresh coordinator
       Add one repo-scoped scheduler that owns debounce, coalescing, in-flight
       protection, and retry visibility for source graph refresh requests.
 
-      [ ] 80.3.1.1 Subtask - Add a RepoPod-owned or AgentWorkspace-owned
+      [x] 80.3.1.1 Subtask - Add a RepoPod-owned or AgentWorkspace-owned
         coordinator that queues refresh requests per managed repo and workspace
         path with configurable debounce and maximum coalescing windows.
-      [ ] 80.3.1.2 Subtask - Prevent overlapping source graph refreshes for the
+      [x] 80.3.1.2 Subtask - Prevent overlapping source graph refreshes for the
         same managed repo; if another save arrives while refresh is in flight,
         mark a follow-up refresh as pending and run it after the current refresh
         completes.
-      [ ] 80.3.1.3 Subtask - Keep refresh work asynchronous from the save path,
+      [x] 80.3.1.3 Subtask - Keep refresh work asynchronous from the save path,
         returning event acceptance promptly while recording queued, running,
         succeeded, skipped, and failed scheduler states.
-      [ ] 80.3.1.4 Subtask - Add bounded retries or handoff to
+      [x] 80.3.1.4 Subtask - Add bounded retries or handoff to
         `recover_source_code_graph/3` for refresh failures without creating an
         infinite analysis loop.
 
-    [ ] 80.3.2 Task - Reuse explicit graph lifecycle entrypoints
+    [x] 80.3.2 Task - Reuse explicit graph lifecycle entrypoints
       Preserve the current source graph lifecycle by routing scheduler work
       through `AgentWorkspace` rather than writing to TripleStore directly.
 
-      [ ] 80.3.2.1 Subtask - For ready stale graphs, call
+      [x] 80.3.2.1 Subtask - For ready stale graphs, call
         `AgentWorkspace.refresh_source_code_graph/3` so the existing staged
         replacement behavior remains canonical.
-      [ ] 80.3.2.2 Subtask - For missing graphs, make policy explicit: either
+      [x] 80.3.2.2 Subtask - For missing graphs, make policy explicit: either
         leave the graph not-ready until semantic use requests `load_if_missing`,
         or enqueue `load_source_code_graph/3` behind an opt-in configuration.
-      [ ] 80.3.2.3 Subtask - For disabled source graph configuration, drop or
+      [x] 80.3.2.3 Subtask - For disabled source graph configuration, drop or
         record the event as skipped without starting watcher or refresh work.
-      [ ] 80.3.2.4 Subtask - Persist refresh diagnostics on the existing source
+      [x] 80.3.2.4 Subtask - Persist refresh diagnostics on the existing source
         graph pod metadata so product surfaces and recovery actions can explain
         queued, stale, failed, and refreshed states.
 

@@ -28,6 +28,9 @@ defmodule JidoCode.Application do
         # Repository source-change monitoring
         {Registry, keys: :unique, name: JidoCode.RepoMonitor.SourceWatcherRegistry},
         {DynamicSupervisor, name: JidoCode.RepoMonitor.SourceWatcherSupervisor, strategy: :one_for_one},
+        {Registry, keys: :unique, name: JidoCode.SourceCodeGraph.RefreshSchedulerRegistry},
+        {DynamicSupervisor, name: JidoCode.SourceCodeGraph.RefreshSchedulerSupervisor, strategy: :one_for_one},
+        {Task.Supervisor, name: JidoCode.SourceCodeGraph.RefreshTaskSupervisor},
         # AgentOS supervision tree
         {JidoCode.AgentOS.Manager.Server, []},
         {JidoCode.AgentOS.Manager.Supervisor, []}

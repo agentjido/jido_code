@@ -10,6 +10,7 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
   alias JidoCode.Agents.RepoMonitor
   alias JidoCode.AgentOS.Manager
   alias JidoCode.SourceCodeGraph
+  alias JidoCode.SourceCodeGraph.RefreshScheduler
 
   @registry JidoCode.RepoMonitor.SourceWatcherRegistry
   @supervisor JidoCode.RepoMonitor.SourceWatcherSupervisor
@@ -354,6 +355,8 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
       RepoMonitor.source_change_topic(event.managed_repo_id),
       {:workspace_source_changed, event}
     )
+
+    RefreshScheduler.enqueue(event)
   end
 
   defp persist_source_change(state, event) do

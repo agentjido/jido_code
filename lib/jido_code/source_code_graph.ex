@@ -181,6 +181,7 @@ defmodule JidoCode.SourceCodeGraph do
            revision_source: nil,
            failure: nil
          },
+         source_graph_refresh: default_refresh_status(managed_repo_id),
          latest_failure: nil
        }}
     end
@@ -198,10 +199,44 @@ defmodule JidoCode.SourceCodeGraph do
          graph_store_path: context.graph_store_path,
          latest_analysis_status: context.latest_analysis_status,
          latest_import_status: context.latest_import_status,
+         source_graph_refresh: context.source_graph_refresh,
          latest_failure: context.latest_failure,
          dataset_metadata: context.dataset_metadata
        }}
     end
+  end
+
+  @spec default_refresh_status(managed_repo_id() | nil) :: map()
+  def default_refresh_status(managed_repo_id \\ nil) do
+    %{
+      managed_repo_id: managed_repo_id,
+      state: :idle,
+      auto_refresh_enabled?: Application.get_env(:jido_code, :source_code_graph_auto_refresh_enabled, false),
+      file_watcher_enabled?: Application.get_env(:jido_code, :source_code_graph_file_watcher_enabled, false),
+      file_watcher_debounce_ms: Application.get_env(:jido_code, :source_code_graph_file_watcher_debounce_ms, 500),
+      file_watcher_max_pending_paths:
+        Application.get_env(:jido_code, :source_code_graph_file_watcher_max_pending_paths, 500),
+      refresh_debounce_ms: Application.get_env(:jido_code, :source_code_graph_refresh_debounce_ms, 250),
+      refresh_max_coalesce_ms: Application.get_env(:jido_code, :source_code_graph_refresh_max_coalesce_ms, 2_500),
+      refresh_max_pending_paths: Application.get_env(:jido_code, :source_code_graph_refresh_max_pending_paths, 500),
+      missing_graph_policy:
+        Application.get_env(:jido_code, :source_code_graph_auto_refresh_missing_graph_policy, :skip),
+      max_refresh_attempts: Application.get_env(:jido_code, :source_code_graph_auto_refresh_max_attempts, 1),
+      refresh_queued?: false,
+      refresh_in_flight?: false,
+      pending_changed_paths: [],
+      last_source_change_at: nil,
+      last_refresh_started_at: nil,
+      last_refresh_completed_at: nil,
+      last_result: nil,
+      last_failure: nil
+    }
+  end
+
+  @spec merge_refresh_status(map() | nil, managed_repo_id() | nil) :: map()
+  def merge_refresh_status(status, managed_repo_id \\ nil) do
+    default_refresh_status(managed_repo_id)
+    |> Map.merge(if(is_map(status), do: status, else: %{}))
   end
 
   defp default_analysis_status(revision_metadata) do

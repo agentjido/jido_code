@@ -39,6 +39,13 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
            :latest_failure,
            latest_failure(context, graph_context.latest_failure)
          )
+       end)
+       |> then(fn graph_context ->
+         Map.put(
+           graph_context,
+           :source_graph_refresh,
+           source_graph_refresh(context, graph_context.source_graph_refresh, managed_repo_id)
+         )
        end)}
     end
   end
@@ -62,6 +69,16 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
     context[:latest_failure] ||
       get_in(context, [:graph, :latest_failure]) ||
       default_failure
+  end
+
+  @spec source_graph_refresh(map(), map() | nil, String.t() | nil) :: map()
+  def source_graph_refresh(context, default_refresh, managed_repo_id \\ nil) do
+    refresh =
+      context[:source_graph_refresh] ||
+        get_in(context, [:graph, :source_graph_refresh]) ||
+        default_refresh
+
+    SourceCodeGraph.merge_refresh_status(refresh, managed_repo_id)
   end
 
   @spec ready?(map()) :: boolean()

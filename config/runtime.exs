@@ -82,6 +82,46 @@ if query_timeout = System.get_env("SOURCE_CODE_GRAPH_QUERY_TIMEOUT_MS") do
   config :jido_code, source_code_graph_query_timeout_ms: String.to_integer(query_timeout)
 end
 
+if watcher_enabled = System.get_env("SOURCE_CODE_GRAPH_FILE_WATCHER_ENABLED") do
+  config :jido_code, source_code_graph_file_watcher_enabled: watcher_enabled == "true"
+end
+
+if watcher_debounce = System.get_env("SOURCE_CODE_GRAPH_FILE_WATCHER_DEBOUNCE_MS") do
+  config :jido_code, source_code_graph_file_watcher_debounce_ms: String.to_integer(watcher_debounce)
+end
+
+if watcher_max_paths = System.get_env("SOURCE_CODE_GRAPH_FILE_WATCHER_MAX_PENDING_PATHS") do
+  config :jido_code, source_code_graph_file_watcher_max_pending_paths: String.to_integer(watcher_max_paths)
+end
+
+if auto_refresh_enabled = System.get_env("SOURCE_CODE_GRAPH_AUTO_REFRESH_ENABLED") do
+  config :jido_code, source_code_graph_auto_refresh_enabled: auto_refresh_enabled == "true"
+end
+
+if refresh_debounce = System.get_env("SOURCE_CODE_GRAPH_REFRESH_DEBOUNCE_MS") do
+  config :jido_code, source_code_graph_refresh_debounce_ms: String.to_integer(refresh_debounce)
+end
+
+if refresh_max_coalesce = System.get_env("SOURCE_CODE_GRAPH_REFRESH_MAX_COALESCE_MS") do
+  config :jido_code, source_code_graph_refresh_max_coalesce_ms: String.to_integer(refresh_max_coalesce)
+end
+
+if refresh_max_paths = System.get_env("SOURCE_CODE_GRAPH_REFRESH_MAX_PENDING_PATHS") do
+  config :jido_code, source_code_graph_refresh_max_pending_paths: String.to_integer(refresh_max_paths)
+end
+
+if missing_graph_policy = System.get_env("SOURCE_CODE_GRAPH_AUTO_REFRESH_MISSING_GRAPH_POLICY") do
+  case missing_graph_policy do
+    "skip" -> config :jido_code, source_code_graph_auto_refresh_missing_graph_policy: :skip
+    "load" -> config :jido_code, source_code_graph_auto_refresh_missing_graph_policy: :load
+    _other -> raise "SOURCE_CODE_GRAPH_AUTO_REFRESH_MISSING_GRAPH_POLICY must be skip or load"
+  end
+end
+
+if auto_refresh_attempts = System.get_env("SOURCE_CODE_GRAPH_AUTO_REFRESH_MAX_ATTEMPTS") do
+  config :jido_code, source_code_graph_auto_refresh_max_attempts: String.to_integer(auto_refresh_attempts)
+end
+
 # Memory graph configuration from environment
 # These can be set to override defaults for production deployment
 # Default: memory_graph_enabled is false in production

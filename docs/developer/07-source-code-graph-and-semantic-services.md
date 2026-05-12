@@ -67,6 +67,11 @@ The expected lifecycle is:
 This explicit lifecycle matters because freshness, stale state, degraded query
 behavior, and recovery are part of the product contract.
 
+Save-triggered refresh keeps that lifecycle explicit. Repository-scoped source
+change events can enqueue debounced background refresh work, but they still route
+through `AgentWorkspace` graph actions. A queued or running refresh is supporting
+status context, not proof that the graph is current.
+
 ## Product Adoption Pattern
 
 The source-code graph is intended to enrich canonical product surfaces rather
@@ -101,6 +106,7 @@ Product-facing semantic surfaces should expose:
 - ready vs not ready
 - stale vs current
 - latest failure
+- queued or running background refresh activity
 - explicit recovery affordances
 
 The system should not pretend the graph is current when it is degraded.
@@ -126,6 +132,8 @@ Prefer ordinary file reads and code inspection when you need:
 - it is product-owned through bounded services
 - it should enrich managed-repo and governed surfaces, not replace them
 - its findings matter only after they rejoin governed records
+- write-capable tools should emit the normalized source-change notification
+  after successful saves instead of calling refresh directly
 
 ## Read Next
 

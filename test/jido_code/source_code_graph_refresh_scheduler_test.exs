@@ -48,6 +48,58 @@ defmodule JidoCode.SourceCodeGraphRefreshSchedulerTest do
     assert status.state in [:running, :succeeded]
   end
 
+  test "uses maximum coalescing window as an upper debounce bound" do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    workspace_path = System.tmp_dir!()
+    parent = self()
+
+    refresh_fun = fn _managed_repo_id, _workspace_path, event, _opts ->
+      send(parent, {:refresh, event})
+      {:ok, %{status: :graph_refreshed}}
+    end
+
+    on_exit(fn -> RefreshScheduler.stop(managed_repo_id) end)
+
+    assert {:ok, _pid} =
+             RefreshScheduler.ensure_started(
+               managed_repo_id,
+               refresh_fun: refresh_fun,
+               refresh_debounce_ms: 1_000,
+               refresh_max_coalesce_ms: 0
+             )
+
+    assert :ok = RefreshScheduler.enqueue(event(managed_repo_id, workspace_path, ["lib/alpha.ex"]))
+
+    assert_receive {:refresh, refresh_event}, 100
+    assert refresh_event.changed_paths == ["lib/alpha.ex"]
+  end
+
+  test "caps pending changed paths in scheduler status" do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    workspace_path = System.tmp_dir!()
+    parent = self()
+
+    refresh_fun = fn _managed_repo_id, _workspace_path, event, _opts ->
+      send(parent, {:refresh, event})
+      {:ok, %{status: :graph_refreshed}}
+    end
+
+    on_exit(fn -> RefreshScheduler.stop(managed_repo_id) end)
+
+    assert {:ok, _pid} =
+             RefreshScheduler.ensure_started(
+               managed_repo_id,
+               refresh_fun: refresh_fun,
+               refresh_debounce_ms: 1,
+               max_pending_paths: 1
+             )
+
+    assert :ok = RefreshScheduler.enqueue(event(managed_repo_id, workspace_path, ["lib/alpha.ex", "lib/beta.ex"]))
+
+    assert_receive {:refresh, refresh_event}, 100
+    assert refresh_event.changed_paths == ["lib/alpha.ex"]
+  end
+
   test "runs one follow-up refresh when source changes arrive during an in-flight refresh" do
     managed_repo_id = "repo-#{System.unique_integer([:positive])}"
     workspace_path = System.tmp_dir!()

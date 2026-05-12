@@ -171,39 +171,39 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
         graph pod metadata so product surfaces and recovery actions can explain
         queued, stale, failed, and refreshed states.
 
-  [ ] 80.4 Section - Operator Visibility And Runtime Degradation
+  [x] 80.4 Section - Operator Visibility And Runtime Degradation
     Surface save-triggered refresh as a bounded runtime capability without
     making the graph feel magically current when refresh is queued, disabled,
     or degraded.
 
-    [ ] 80.4.1 Task - Extend source graph status projections with refresh activity
+    [x] 80.4.1 Task - Extend source graph status projections with refresh activity
       Make background refresh state visible to product helpers and operator
       surfaces through existing bounded projection layers.
 
-      [ ] 80.4.1.1 Subtask - Extend source graph status or health projections
+      [x] 80.4.1.1 Subtask - Extend source graph status or health projections
         with fields such as `auto_refresh`, `last_source_change_at`,
         `last_refresh_started_at`, `last_refresh_completed_at`,
         `refresh_queued?`, and `refresh_in_flight?`.
-      [ ] 80.4.1.2 Subtask - Keep existing ready, stale, degraded, and recovery
+      [x] 80.4.1.2 Subtask - Keep existing ready, stale, degraded, and recovery
         labels authoritative while adding refresh activity as supporting context.
-      [ ] 80.4.1.3 Subtask - Update managed-repo semantic inspection and
+      [x] 80.4.1.3 Subtask - Update managed-repo semantic inspection and
         dashboard monitoring hints to explain queued or failed background
         refresh without exposing watcher internals.
 
-    [ ] 80.4.2 Task - Add configuration and contributor guidance
+    [x] 80.4.2 Task - Add configuration and contributor guidance
       Make save-triggered refresh safe to enable by environment, workspace type,
       and repository size.
 
-      [ ] 80.4.2.1 Subtask - Add configuration for auto-refresh enablement,
+      [x] 80.4.2.1 Subtask - Add configuration for auto-refresh enablement,
         debounce interval, maximum coalescing delay, watcher path limits, and
         missing-graph load policy.
-      [ ] 80.4.2.2 Subtask - Default auto-refresh conservatively for production
+      [x] 80.4.2.2 Subtask - Default auto-refresh conservatively for production
         while keeping local development behavior useful when the source graph is
         enabled.
-      [ ] 80.4.2.3 Subtask - Update source graph developer and operations docs
+      [x] 80.4.2.3 Subtask - Update source graph developer and operations docs
         to explain human editor saves, LLM write notifications, debounce,
         skipped refreshes, and manual recovery.
-      [ ] 80.4.2.4 Subtask - Align contributor guidance so future write-capable
+      [x] 80.4.2.4 Subtask - Align contributor guidance so future write-capable
         tools emit the normalized source-change notification rather than calling
         graph refresh directly.
 

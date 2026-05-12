@@ -52,7 +52,14 @@ config :jido_code,
 
 config :jido_code,
   source_code_graph_file_watcher_enabled: false,
-  source_code_graph_auto_refresh_enabled: false
+  source_code_graph_file_watcher_debounce_ms: 5,
+  source_code_graph_file_watcher_max_pending_paths: 100,
+  source_code_graph_auto_refresh_enabled: false,
+  source_code_graph_refresh_debounce_ms: 5,
+  source_code_graph_refresh_max_coalesce_ms: 50,
+  source_code_graph_refresh_max_pending_paths: 100,
+  source_code_graph_auto_refresh_missing_graph_policy: :skip,
+  source_code_graph_auto_refresh_max_attempts: 1
 
 config :jido_code, :llm_selection, %{default: %{provider: "deterministic", model: "deterministic"}}
 

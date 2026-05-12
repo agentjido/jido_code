@@ -174,6 +174,7 @@ defmodule JidoCode.SourceCodeGraph.ViewModel do
       imported_revision: nil,
       current_revision: nil,
       latest_failure: nil,
+      refresh: refresh_state(nil),
       recovery_action: graph_recovery_action(nil, reason)
     }
   end
@@ -205,6 +206,7 @@ defmodule JidoCode.SourceCodeGraph.ViewModel do
       imported_revision: Map.get(status_result, :imported_revision),
       current_revision: Map.get(status_result, :current_revision),
       latest_failure: normalize_failure(latest_failure),
+      refresh: refresh_state(Map.get(status_result, :source_graph_refresh)),
       recovery_action: graph_recovery_action(status_result, reason)
     }
   end
@@ -326,5 +328,41 @@ defmodule JidoCode.SourceCodeGraph.ViewModel do
       stage: Map.get(failure, :stage) || Map.get(failure, "stage"),
       message: Map.get(failure, :message) || Map.get(failure, "message")
     }
+  end
+
+  defp refresh_state(nil) do
+    refresh_state(%{})
+  end
+
+  defp refresh_state(refresh) when is_map(refresh) do
+    %{
+      state: map_get(refresh, :state, "state", :idle),
+      auto_refresh_enabled?: map_get(refresh, :auto_refresh_enabled?, "auto_refresh_enabled?", false),
+      file_watcher_enabled?: map_get(refresh, :file_watcher_enabled?, "file_watcher_enabled?", false),
+      file_watcher_debounce_ms: map_get(refresh, :file_watcher_debounce_ms, "file_watcher_debounce_ms"),
+      file_watcher_max_pending_paths:
+        map_get(refresh, :file_watcher_max_pending_paths, "file_watcher_max_pending_paths"),
+      refresh_debounce_ms: map_get(refresh, :refresh_debounce_ms, "refresh_debounce_ms"),
+      refresh_max_coalesce_ms: map_get(refresh, :refresh_max_coalesce_ms, "refresh_max_coalesce_ms"),
+      refresh_max_pending_paths: map_get(refresh, :refresh_max_pending_paths, "refresh_max_pending_paths"),
+      missing_graph_policy: map_get(refresh, :missing_graph_policy, "missing_graph_policy", :skip),
+      max_refresh_attempts: map_get(refresh, :max_refresh_attempts, "max_refresh_attempts"),
+      refresh_queued?: map_get(refresh, :refresh_queued?, "refresh_queued?", false),
+      refresh_in_flight?: map_get(refresh, :refresh_in_flight?, "refresh_in_flight?", false),
+      pending_changed_paths: map_get(refresh, :pending_changed_paths, "pending_changed_paths", []),
+      last_source_change_at: map_get(refresh, :last_source_change_at, "last_source_change_at"),
+      last_refresh_started_at: map_get(refresh, :last_refresh_started_at, "last_refresh_started_at"),
+      last_refresh_completed_at: map_get(refresh, :last_refresh_completed_at, "last_refresh_completed_at"),
+      last_result: map_get(refresh, :last_result, "last_result"),
+      last_failure: map_get(refresh, :last_failure, "last_failure")
+    }
+  end
+
+  defp map_get(map, atom_key, string_key, default \\ nil) when is_map(map) do
+    cond do
+      Map.has_key?(map, atom_key) -> Map.get(map, atom_key)
+      Map.has_key?(map, string_key) -> Map.get(map, string_key)
+      true -> default
+    end
   end
 end

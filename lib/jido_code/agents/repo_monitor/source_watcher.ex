@@ -125,6 +125,7 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
           |> stop_file_watcher()
           |> Map.put(:workspace_path, normalized_workspace_path)
           |> Map.put(:debounce_ms, debounce_ms(opts))
+          |> Map.put(:max_pending_paths, max_pending_paths(opts))
           |> Map.put(:pending_change, nil)
 
         case maybe_start_file_watcher(next_state, opts) do
@@ -197,6 +198,7 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
          file_watcher_ref: nil,
          watcher_status: :starting,
          debounce_ms: debounce_ms(opts),
+         max_pending_paths: max_pending_paths(opts),
          debounce_timer: nil,
          pending_change: nil,
          latest_source_change: nil
@@ -225,7 +227,7 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
       Keyword.get(
         opts,
         :start_file_system?,
-        Application.get_env(:jido_code, :source_code_graph_file_watcher_enabled, true)
+        Application.get_env(:jido_code, :source_code_graph_file_watcher_enabled, false)
       )
 
     if start_file_system? do
@@ -237,6 +239,14 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
 
   defp debounce_ms(opts) do
     Keyword.get(opts, :debounce_ms, Application.get_env(:jido_code, :source_code_graph_file_watcher_debounce_ms, 500))
+  end
+
+  defp max_pending_paths(opts) do
+    Keyword.get(
+      opts,
+      :max_pending_paths,
+      Application.get_env(:jido_code, :source_code_graph_file_watcher_max_pending_paths, 500)
+    )
   end
 
   defp start_file_watcher(state) do
@@ -271,7 +281,9 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
   defp queue_source_change(state, path, file_events, event_source) do
     if SourceCodeGraph.source_file?(state.workspace_path, path) do
       changed_path = Path.relative_to(Path.expand(path), state.workspace_path)
-      pending_change = merge_pending_change(state.pending_change, changed_path, file_events, event_source)
+
+      pending_change =
+        merge_pending_change(state.pending_change, changed_path, file_events, event_source, state.max_pending_paths)
 
       state
       |> Map.put(:pending_change, pending_change)
@@ -281,7 +293,7 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
     end
   end
 
-  defp merge_pending_change(nil, changed_path, file_events, event_source) do
+  defp merge_pending_change(nil, changed_path, file_events, event_source, _max_pending_paths) do
     %{
       changed_paths: MapSet.new([changed_path]),
       file_events: MapSet.new(normalize_file_events(file_events)),
@@ -290,13 +302,21 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
     }
   end
 
-  defp merge_pending_change(pending_change, changed_path, file_events, event_source) do
+  defp merge_pending_change(pending_change, changed_path, file_events, event_source, max_pending_paths) do
     pending_change
-    |> update_in([:changed_paths], &MapSet.put(&1, changed_path))
+    |> update_in([:changed_paths], &bounded_path_put(&1, changed_path, max_pending_paths))
     |> update_in([:file_events], fn existing ->
       Enum.reduce(normalize_file_events(file_events), existing, fn event, acc -> MapSet.put(acc, event) end)
     end)
     |> update_in([:event_sources], &MapSet.put(&1, event_source))
+  end
+
+  defp bounded_path_put(paths, changed_path, max_pending_paths) do
+    cond do
+      MapSet.member?(paths, changed_path) -> paths
+      MapSet.size(paths) < max_pending_paths -> MapSet.put(paths, changed_path)
+      true -> paths
+    end
   end
 
   defp schedule_debounce(%{debounce_timer: timer} = state) when is_reference(timer) do

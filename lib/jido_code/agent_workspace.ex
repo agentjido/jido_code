@@ -2406,6 +2406,7 @@ defmodule JidoCode.AgentWorkspace do
       latest_import_status: get_in(pod_entry, [:metadata, :latest_import_status]),
       latest_analysis_status: get_in(pod_entry, [:metadata, :latest_analysis_status]),
       latest_failure: get_in(pod_entry, [:metadata, :latest_failure]),
+      source_graph_refresh: get_in(pod_entry, [:metadata, :source_graph_refresh]),
       graph: %{revision: Keyword.get(opts, :revision)}
     }
 

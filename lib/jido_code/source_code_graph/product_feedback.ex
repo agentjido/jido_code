@@ -12,6 +12,7 @@ defmodule JidoCode.SourceCodeGraph.ProductFeedback do
     imported_revision: nil,
     current_revision: nil,
     latest_failure: nil,
+    refresh: %{},
     recovery_action: :none
   }
 
@@ -35,6 +36,7 @@ defmodule JidoCode.SourceCodeGraph.ProductFeedback do
       imported_revision: Map.get(graph, :imported_revision),
       current_revision: Map.get(graph, :current_revision),
       latest_failure: normalize_failure(Map.get(graph, :latest_failure)),
+      refresh: Map.get(graph, :refresh, %{}),
       recovery_action: Map.get(graph, :recovery_action, :none)
     }
   end

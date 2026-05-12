@@ -104,7 +104,17 @@ config :jido_code,
   system_config_saver: &JidoCode.Setup.SystemConfigPersistence.save/1,
   ash_authentication: [return_error_on_invalid_magic_link_token?: true],
   mailer: [from_name: "Jido Code"],
-  runtime_mode: config_env()
+  runtime_mode: config_env(),
+  # Source-code graph save-triggered refresh defaults are conservative outside dev.
+  source_code_graph_file_watcher_enabled: false,
+  source_code_graph_file_watcher_debounce_ms: 500,
+  source_code_graph_file_watcher_max_pending_paths: 500,
+  source_code_graph_auto_refresh_enabled: false,
+  source_code_graph_refresh_debounce_ms: 250,
+  source_code_graph_refresh_max_coalesce_ms: 2_500,
+  source_code_graph_refresh_max_pending_paths: 500,
+  source_code_graph_auto_refresh_missing_graph_policy: :skip,
+  source_code_graph_auto_refresh_max_attempts: 1
 
 config :jido_code, :code_server,
   data_dir: ".jido",

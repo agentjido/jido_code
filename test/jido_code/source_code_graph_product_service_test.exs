@@ -6,6 +6,8 @@ defmodule JidoCode.SourceCodeGraphProductServiceTest do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.SourceCodeGraph.ProductService
+  alias JidoCode.SourceCodeGraph.RefreshScheduler
+  alias JidoCode.Workbench.ProjectSemanticInspection
 
   setup do
     previous = Application.get_env(:jido_code, :source_code_graph_enabled, false)
@@ -56,6 +58,95 @@ defmodule JidoCode.SourceCodeGraphProductServiceTest do
       assert summary.graph.state == :not_ready
       assert summary.groups.modules.status == :unavailable
       assert summary.groups.runtime_patterns.status == :unavailable
+    end
+
+    test "semantic status hints explain queued background refresh activity" do
+      previous_auto_refresh = Application.get_env(:jido_code, :source_code_graph_auto_refresh_enabled)
+      Application.put_env(:jido_code, :source_code_graph_auto_refresh_enabled, true)
+
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn ->
+        restore_env(:source_code_graph_auto_refresh_enabled, previous_auto_refresh)
+        RefreshScheduler.stop(managed_repo_id)
+      end)
+
+      assert {:ok, _pod} =
+               AgentWorkspace.ensure_source_code_graph_pod(
+                 managed_repo_id,
+                 workspace_path,
+                 start_file_system?: false
+               )
+
+      assert {:ok, _pid} =
+               RefreshScheduler.ensure_started(
+                 managed_repo_id,
+                 refresh_fun: fn _managed_repo_id, _workspace_path, _event, _opts ->
+                   {:ok, %{status: :graph_refreshed}}
+                 end,
+                 refresh_debounce_ms: 1_000
+               )
+
+      assert :ok = RefreshScheduler.enqueue(source_change_event(managed_repo_id, workspace_path, ["lib/example.ex"]))
+      assert {:ok, _scheduler_status} = RefreshScheduler.status(managed_repo_id)
+
+      project_like = %{
+        managed_repo_id: managed_repo_id,
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path
+          }
+        }
+      }
+
+      assert %{} = hint = ProjectSemanticInspection.status_hint(project_like)
+      assert hint.detail == "Background source-code graph refresh is queued after a source save."
+      assert hint.remediation == "Refresh status will update after the debounce window."
+    end
+  end
+
+  describe "status/3" do
+    test "projects background refresh activity without changing graph state" do
+      previous_auto_refresh = Application.get_env(:jido_code, :source_code_graph_auto_refresh_enabled)
+      Application.put_env(:jido_code, :source_code_graph_auto_refresh_enabled, true)
+
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn ->
+        restore_env(:source_code_graph_auto_refresh_enabled, previous_auto_refresh)
+        RefreshScheduler.stop(managed_repo_id)
+      end)
+
+      assert {:ok, _pod} =
+               AgentWorkspace.ensure_source_code_graph_pod(
+                 managed_repo_id,
+                 workspace_path,
+                 start_file_system?: false
+               )
+
+      assert {:ok, _pid} =
+               RefreshScheduler.ensure_started(
+                 managed_repo_id,
+                 refresh_fun: fn _managed_repo_id, _workspace_path, _event, _opts ->
+                   {:ok, %{status: :graph_refreshed}}
+                 end,
+                 refresh_debounce_ms: 1_000
+               )
+
+      assert :ok = RefreshScheduler.enqueue(source_change_event(managed_repo_id, workspace_path, ["lib/example.ex"]))
+      assert {:ok, scheduler_status} = RefreshScheduler.status(managed_repo_id)
+      assert scheduler_status.refresh_queued? == true
+
+      assert {:ok, status} = ProductService.status(managed_repo_id, workspace_path)
+
+      assert status.graph.state == :not_ready
+      assert status.graph.refresh.auto_refresh_enabled? == true
+      assert status.graph.refresh.refresh_queued? == true
+      assert status.graph.refresh.refresh_in_flight? == false
+      assert status.graph.refresh.pending_changed_paths == ["lib/example.ex"]
     end
   end
 
@@ -206,4 +297,21 @@ defmodule JidoCode.SourceCodeGraphProductServiceTest do
       """
     )
   end
+
+  defp source_change_event(managed_repo_id, workspace_path, changed_paths) do
+    %{
+      kind: :workspace_source_changed,
+      managed_repo_id: managed_repo_id,
+      workspace_path: workspace_path,
+      changed_paths: changed_paths,
+      changed_path: List.first(changed_paths),
+      file_events: [:modified],
+      event_source: :human_watcher,
+      event_sources: [:human_watcher],
+      observed_at: DateTime.utc_now()
+    }
+  end
+
+  defp restore_env(key, nil), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

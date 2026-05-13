@@ -66,6 +66,32 @@ defmodule JidoCode.SourceCodeGraph do
     |> then(&Path.join([&1, ".jido_code", "source_code_graph", "triple_store"]))
   end
 
+  @spec source_file_patterns(workspace_path()) :: [String.t()]
+  def source_file_patterns(workspace_path) when is_binary(workspace_path), do: source_globs(Path.expand(workspace_path))
+
+  @spec source_files(workspace_path()) :: [String.t()]
+  def source_files(workspace_path) when is_binary(workspace_path) do
+    workspace_path
+    |> Path.expand()
+    |> source_globs()
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.filter(&source_file?(workspace_path, &1))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  @spec source_file?(workspace_path(), String.t()) :: boolean()
+  def source_file?(workspace_path, path) when is_binary(workspace_path) and is_binary(path) do
+    workspace_path = Path.expand(workspace_path)
+    path = Path.expand(path)
+
+    inside_workspace?(workspace_path, path) and
+      source_relative_file?(Path.relative_to(path, workspace_path)) and
+      not excluded_source_file?(path)
+  end
+
+  def source_file?(_workspace_path, _path), do: false
+
   @spec base_iri(managed_repo_id()) :: String.t()
   def base_iri(managed_repo_id) when is_binary(managed_repo_id) do
     "https://jido.run/managed_repos/#{managed_repo_id}/source_code#"
@@ -155,6 +181,7 @@ defmodule JidoCode.SourceCodeGraph do
            revision_source: nil,
            failure: nil
          },
+         source_graph_refresh: default_refresh_status(managed_repo_id),
          latest_failure: nil
        }}
     end
@@ -172,10 +199,44 @@ defmodule JidoCode.SourceCodeGraph do
          graph_store_path: context.graph_store_path,
          latest_analysis_status: context.latest_analysis_status,
          latest_import_status: context.latest_import_status,
+         source_graph_refresh: context.source_graph_refresh,
          latest_failure: context.latest_failure,
          dataset_metadata: context.dataset_metadata
        }}
     end
+  end
+
+  @spec default_refresh_status(managed_repo_id() | nil) :: map()
+  def default_refresh_status(managed_repo_id \\ nil) do
+    %{
+      managed_repo_id: managed_repo_id,
+      state: :idle,
+      auto_refresh_enabled?: Application.get_env(:jido_code, :source_code_graph_auto_refresh_enabled, false),
+      file_watcher_enabled?: Application.get_env(:jido_code, :source_code_graph_file_watcher_enabled, false),
+      file_watcher_debounce_ms: Application.get_env(:jido_code, :source_code_graph_file_watcher_debounce_ms, 500),
+      file_watcher_max_pending_paths:
+        Application.get_env(:jido_code, :source_code_graph_file_watcher_max_pending_paths, 500),
+      refresh_debounce_ms: Application.get_env(:jido_code, :source_code_graph_refresh_debounce_ms, 250),
+      refresh_max_coalesce_ms: Application.get_env(:jido_code, :source_code_graph_refresh_max_coalesce_ms, 2_500),
+      refresh_max_pending_paths: Application.get_env(:jido_code, :source_code_graph_refresh_max_pending_paths, 500),
+      missing_graph_policy:
+        Application.get_env(:jido_code, :source_code_graph_auto_refresh_missing_graph_policy, :skip),
+      max_refresh_attempts: Application.get_env(:jido_code, :source_code_graph_auto_refresh_max_attempts, 1),
+      refresh_queued?: false,
+      refresh_in_flight?: false,
+      pending_changed_paths: [],
+      last_source_change_at: nil,
+      last_refresh_started_at: nil,
+      last_refresh_completed_at: nil,
+      last_result: nil,
+      last_failure: nil
+    }
+  end
+
+  @spec merge_refresh_status(map() | nil, managed_repo_id() | nil) :: map()
+  def merge_refresh_status(status, managed_repo_id \\ nil) do
+    default_refresh_status(managed_repo_id)
+    |> Map.merge(if(is_map(status), do: status, else: %{}))
   end
 
   defp default_analysis_status(revision_metadata) do
@@ -251,15 +312,6 @@ defmodule JidoCode.SourceCodeGraph do
     end
   end
 
-  defp source_files(workspace_path) do
-    workspace_path
-    |> source_globs()
-    |> Enum.flat_map(&Path.wildcard/1)
-    |> Enum.reject(&excluded_source_file?/1)
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
-
   defp source_globs(workspace_path) do
     [
       Path.join(workspace_path, "mix.exs"),
@@ -271,9 +323,28 @@ defmodule JidoCode.SourceCodeGraph do
     ]
   end
 
+  defp inside_workspace?(workspace_path, path) do
+    path == workspace_path or String.starts_with?(path, workspace_path <> "/")
+  end
+
+  defp source_relative_file?("mix.exs"), do: true
+
+  defp source_relative_file?(relative_path) do
+    segments = Path.split(relative_path)
+    extension = Path.extname(relative_path)
+
+    case segments do
+      ["lib" | _] when extension in [".ex", ".exs"] -> true
+      ["test" | _] when extension in [".ex", ".exs"] -> true
+      ["config" | _] when extension == ".exs" -> true
+      _ -> false
+    end
+  end
+
   defp excluded_source_file?(path) do
     String.contains?(path, "/deps/") or
       String.contains?(path, "/_build/") or
-      String.contains?(path, "/node_modules/")
+      String.contains?(path, "/node_modules/") or
+      String.contains?(path, "/.jido_code/")
   end
 end

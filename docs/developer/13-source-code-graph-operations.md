@@ -43,6 +43,30 @@ export SOURCE_CODE_GRAPH_ENABLED=true
 | `source_code_graph_retry_backoff_ms` | 1000 | Base backoff for retry (exponential) |
 | `source_code_graph_allow_partial_results` | false | Whether to allow partial results on failure |
 
+### Save-Triggered Refresh
+
+The graph can observe source saves and enqueue a debounced background refresh.
+Human editor saves are detected by the repository-scoped file watcher when it is
+enabled. Product-managed LLM or tool writes should call
+`AgentWorkspace.notify_workspace_source_changed/4` after the write succeeds so
+local, remote, and virtual write paths converge on the same normalized event.
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `source_code_graph_file_watcher_enabled` | false (`true` in dev) | Enables local filesystem observation for managed repository workspaces |
+| `source_code_graph_file_watcher_debounce_ms` | 500 | Quiet window for editor write bursts and atomic-save rename patterns |
+| `source_code_graph_file_watcher_max_pending_paths` | 500 | Maximum changed paths carried in one watcher observation |
+| `source_code_graph_auto_refresh_enabled` | false (`true` in dev) | Enqueues background refresh work from normalized source-change events |
+| `source_code_graph_refresh_debounce_ms` | 250 | Quiet window before the refresh scheduler starts graph work |
+| `source_code_graph_refresh_max_coalesce_ms` | 2500 | Upper bound before queued save bursts are flushed into refresh work |
+| `source_code_graph_refresh_max_pending_paths` | 500 | Maximum changed paths carried in one scheduler request |
+| `source_code_graph_auto_refresh_missing_graph_policy` | `:skip` | `:skip` leaves missing graphs not-ready; `:load` loads missing graphs from save events |
+| `source_code_graph_auto_refresh_max_attempts` | 1 | Bounded attempts for one scheduled refresh request |
+
+Background refresh always routes through `AgentWorkspace.refresh_source_code_graph/3`
+or, when explicitly configured, `AgentWorkspace.load_source_code_graph/3`. It does
+not write directly to TripleStore.
+
 ## Operational Requirements
 
 ### Dependencies
@@ -88,6 +112,12 @@ Analysis requires approximately:
 # - last_analysis_at: DateTime | nil
 # - graph_size_mb: Integer | nil
 ```
+
+Source graph status projections also include `graph.refresh` with
+`auto_refresh_enabled?`, `last_source_change_at`, `last_refresh_started_at`,
+`last_refresh_completed_at`, `refresh_queued?`, `refresh_in_flight?`, and
+`last_failure`. These fields explain background activity while the existing
+ready, stale, degraded, failed, and disabled graph states remain authoritative.
 
 ### Health States
 
@@ -141,6 +171,23 @@ Analysis requires approximately:
 1. Increase `source_code_graph_query_timeout_ms`
 2. Reduce result set size with `limit`
 3. Refresh graph if stale
+
+### Background Refresh Skipped Or Failed
+
+**Symptom:** status shows `graph.refresh.last_failure` or a skipped refresh
+result after a save.
+
+**Causes:**
+- Auto-refresh is disabled in this environment
+- The graph has not been loaded and missing-graph policy is `:skip`
+- Analysis or TripleStore load failed
+- More saves arrived while a previous refresh was already running
+
+**Solutions:**
+1. Confirm `source_code_graph_auto_refresh_enabled` and watcher settings
+2. Load or recover the graph manually when status is not ready or failed
+3. Keep write-capable tools emitting `AgentWorkspace.notify_workspace_source_changed/4` after successful saves
+4. Increase debounce or coalescing settings for repositories with noisy generated files
 
 ### Graceful Degradation
 

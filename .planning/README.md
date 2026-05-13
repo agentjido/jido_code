@@ -128,6 +128,7 @@ The plan aligns to:
 71. [Phase 77 - Prompt Context Memory Boundary And Namespace Foundation](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-77-prompt-context-memory-boundary-and-namespace-foundation.md): introduce `jido_memory` as a bounded prompt-context layer with a product-owned adapter, explicit namespace policy, and provider-safe rollout defaults so conversation runtime can gain recall without turning prompt memory into product truth.
 72. [Phase 78 - Conversation Runtime Prompt Recall And Bounded Capture Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-78-conversation-runtime-prompt-recall-and-bounded-capture-adoption.md): wire prompt-context retrieval and explicit bounded capture into the real conversation runtime so each turn can reuse the right short-term memory without replaying raw transcript history.
 73. [Phase 79 - Prompt Memory Lifecycle Hardening And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-79-prompt-memory-lifecycle-hardening-and-contributor-convergence.md): harden provider behavior, retention and cleanup policy, verification defaults, and contributor guidance so prompt memory remains bounded, explainable, and clearly separate from provenance and durable repository memory.
+74. [Phase 80 - Source Code Graph Save-Triggered Refresh Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-80-source-code-graph-save-triggered-refresh-adoption.md): add repository-scoped source-change observation and debounced refresh scheduling so the `source_code` graph updates after code saves from either a human editor or product-managed LLM write path.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -157,6 +158,11 @@ bounded retrieval and explicit capture into the real conversation runtime, and
 Phase 79 hardens lifecycle, provider behavior, and contributor guidance while
 preserving the provenance-first and explicit-adoption split for long-term
 memory.
+
+Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
+top of the existing explicit analyze, load, refresh, status, query, and recovery
+lifecycle. Repo-scoped monitoring owns source-change observation while
+`AgentWorkspace` and `SourceCodeGraphPod` continue to own graph mutation.
 
 ## Shared Conventions
 - Numbering:

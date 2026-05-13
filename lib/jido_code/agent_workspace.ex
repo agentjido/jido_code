@@ -52,7 +52,7 @@ defmodule JidoCode.AgentWorkspace do
   """
 
   alias JidoCode.AgentOS.Manager
-  alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
+  alias JidoCode.Agents.{Coder, Explainer, Planner, RepoMonitor, Reviewer}
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
   alias JidoCode.Conversations.Driver, as: ConversationDriver
@@ -707,7 +707,8 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_source_code_graph_pod(managed_repo_id(), String.t(), keyword()) ::
           {:ok, source_code_graph_summary()} | {:error, term()}
   def ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
-    with :ok <- ensure_source_code_graph_enabled(opts) do
+    with :ok <- ensure_source_code_graph_enabled(opts),
+         {:ok, _repo_pod} <- ensure_repo_pod_entry(managed_repo_id) do
       case Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id()) do
         nil ->
           with {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts),
@@ -717,12 +718,15 @@ defmodule JidoCode.AgentWorkspace do
                    SourceCodeGraph.pod_id(),
                    SourceCodeGraphPod,
                    pod_metadata
-                 ) do
+                 ),
+               :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
             {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
           end
 
         pod_entry ->
-          {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+          with :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
+            {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+          end
       end
     end
   end
@@ -835,6 +839,39 @@ defmodule JidoCode.AgentWorkspace do
 
           {:error, reason, diagnostics}
       end
+    end
+  end
+
+  @doc """
+  Notifies the repo-scoped source watcher that product-managed code writes have
+  changed source graph inputs.
+
+  This keeps LLM/tool writes on the same normalized source-change path as human
+  editor saves observed by the filesystem watcher.
+  """
+  @spec notify_workspace_source_changed(managed_repo_id(), String.t(), String.t() | [String.t()], keyword()) ::
+          :ok | {:error, term()}
+  def notify_workspace_source_changed(managed_repo_id, workspace_path, changed_paths, opts \\ []) do
+    with {:ok, _repo_pod} <- ensure_repo_pod_entry(managed_repo_id),
+         {:ok, _watcher_pid} <-
+           RepoMonitor.ensure_source_watcher(
+             managed_repo_id,
+             workspace_path,
+             Keyword.take(opts, [:start_file_system?, :debounce_ms])
+           ) do
+      changed_paths
+      |> List.wrap()
+      |> Enum.reduce_while(:ok, fn changed_path, :ok ->
+        case RepoMonitor.notify_source_changed(
+               managed_repo_id,
+               normalize_changed_source_path(workspace_path, changed_path),
+               Keyword.get(opts, :file_events, [:modified]),
+               Keyword.get(opts, :event_source, :runtime_write)
+             ) do
+          :ok -> {:cont, :ok}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
     end
   end
 
@@ -1208,6 +1245,19 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
+
+  defp ensure_repo_pod_entry(managed_repo_id) do
+    Manager.ensure_pod(
+      managed_repo_id,
+      @repo_pod_id,
+      RepoPod,
+      %{
+        scope: :repository,
+        managed_repo_id: managed_repo_id,
+        runtime_status: :logical
+      }
+    )
+  end
 
   defp ensure_repo_pod_runtime(managed_repo_id) do
     ensure_runtime_pod(
@@ -2323,6 +2373,22 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
+    watcher_opts = Keyword.take(opts, [:start_file_system?, :debounce_ms])
+
+    case RepoMonitor.ensure_source_watcher(managed_repo_id, workspace_path, watcher_opts) do
+      {:ok, _pid} -> :ok
+      {:error, _reason} -> :ok
+    end
+  end
+
+  defp normalize_changed_source_path(workspace_path, changed_path) when is_binary(changed_path) do
+    case Path.type(changed_path) do
+      :absolute -> changed_path
+      _relative -> Path.join(workspace_path, changed_path)
+    end
+  end
+
   defp ensure_memory_graph_enabled(opts) do
     if MemoryGraph.capability_enabled?(opts) do
       :ok
@@ -2340,6 +2406,7 @@ defmodule JidoCode.AgentWorkspace do
       latest_import_status: get_in(pod_entry, [:metadata, :latest_import_status]),
       latest_analysis_status: get_in(pod_entry, [:metadata, :latest_analysis_status]),
       latest_failure: get_in(pod_entry, [:metadata, :latest_failure]),
+      source_graph_refresh: get_in(pod_entry, [:metadata, :source_graph_refresh]),
       graph: %{revision: Keyword.get(opts, :revision)}
     }
 

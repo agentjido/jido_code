@@ -25,6 +25,16 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
     imported_revision: nil,
     current_revision: nil,
     latest_failure: nil,
+    refresh: %{
+      state: :idle,
+      auto_refresh_enabled?: false,
+      refresh_queued?: false,
+      refresh_in_flight?: false,
+      last_source_change_at: nil,
+      last_refresh_started_at: nil,
+      last_refresh_completed_at: nil,
+      last_failure: nil
+    },
     recovery_action: :none
   }
 
@@ -307,10 +317,39 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
 
   defp semantic_notice_kind(graph), do: ProductFeedback.notice_kind(graph)
 
-  defp hint_detail(%{graph: graph, error: error}), do: ProductFeedback.for_graph(graph, error).detail
+  defp hint_detail(%{graph: graph, error: error}) do
+    refresh_hint_detail(graph) || ProductFeedback.for_graph(graph, error).detail
+  end
+
   defp hint_detail(_status), do: "Semantic repository state is unavailable."
 
-  defp hint_remediation(graph), do: ProductFeedback.for_graph(graph).remediation
+  defp hint_remediation(graph), do: refresh_hint_remediation(graph) || ProductFeedback.for_graph(graph).remediation
+
+  defp refresh_hint_detail(%{refresh: %{last_failure: last_failure}}) when is_map(last_failure) do
+    "Background source-code graph refresh failed after a source save."
+  end
+
+  defp refresh_hint_detail(%{refresh: %{refresh_in_flight?: true}}) do
+    "Background source-code graph refresh is running after a source save."
+  end
+
+  defp refresh_hint_detail(%{refresh: %{refresh_queued?: true}}) do
+    "Background source-code graph refresh is queued after a source save."
+  end
+
+  defp refresh_hint_detail(_graph), do: nil
+
+  defp refresh_hint_remediation(%{refresh: %{last_failure: last_failure}}) when is_map(last_failure) do
+    "Review semantic graph status and run recovery if refresh keeps failing."
+  end
+
+  defp refresh_hint_remediation(%{refresh: %{refresh_in_flight?: true}}),
+    do: "Refresh status will update when analysis completes."
+
+  defp refresh_hint_remediation(%{refresh: %{refresh_queued?: true}}),
+    do: "Refresh status will update after the debounce window."
+
+  defp refresh_hint_remediation(_graph), do: nil
 
   defp recovery_feedback(%{status: :source_code_graph_recovery_not_needed}) do
     %{

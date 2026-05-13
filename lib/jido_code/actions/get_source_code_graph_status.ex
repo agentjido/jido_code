@@ -40,6 +40,7 @@ defmodule JidoCode.Actions.GetSourceCodeGraphStatus do
          imported_revision: Map.get(latest_import_status, :imported_revision),
          latest_import_status: latest_import_status,
          latest_analysis_status: latest_analysis_status,
+         source_graph_refresh: graph_context.source_graph_refresh,
          latest_failure: graph_context.latest_failure,
          dataset: graph_context.dataset_metadata
        }}

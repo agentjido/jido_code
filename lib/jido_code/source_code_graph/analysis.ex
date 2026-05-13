@@ -32,21 +32,23 @@ defmodule JidoCode.SourceCodeGraph.Analysis do
            analyzed_at: DateTime.utc_now(),
            source_commit: revision_metadata.source_commit,
            workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
-           failure: reason,
+           failure: normalize_failure(reason),
            details: details
          }}
     end
   end
 
   defp do_analyze(graph_context, analysis_options, revision_metadata, started_at, timeout, opts) do
-
     analysis_task =
       Task.async(fn ->
         retry_opts = Keyword.take(opts, [:max_retries, :retry_backoff_ms, :on_retry])
 
-        RetryPolicy.retry(fn ->
-          ElixirOntologies.analyze_project(graph_context.workspace_path, analysis_options)
-        end, retry_opts)
+        RetryPolicy.retry(
+          fn ->
+            ElixirOntologies.analyze_project(graph_context.workspace_path, analysis_options)
+          end,
+          retry_opts
+        )
       end)
 
     case Task.yield(analysis_task, timeout) || Task.shutdown(analysis_task, :brutal_kill) do

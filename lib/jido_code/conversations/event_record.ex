@@ -26,7 +26,6 @@ defmodule JidoCode.Conversations.EventRecord do
       primary? true
 
       accept [
-        :id,
         :conversation_id,
         :sequence,
         :name,

@@ -6,6 +6,9 @@ This guide explains the repository-scoped runtime and the role of
 Useful implementation sources:
 
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
+- [`../../lib/jido_code/agents/repo_monitor.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agents/repo_monitor.ex)
+- [`../../lib/jido_code/agents/repo_monitor/source_watcher.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agents/repo_monitor/source_watcher.ex)
+- [`../../lib/jido_code/source_code_graph/refresh_scheduler.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/source_code_graph/refresh_scheduler.ex)
 
 ## What AgentWorkspace Is
 
@@ -48,6 +51,13 @@ flowchart TD
 Repository singleton for repo-scoped runtime support such as monitoring and work
 registry behavior.
 
+Repo-scoped monitoring also owns source-change observation for the semantic
+source-code graph. Local workspace saves are normalized by the source watcher,
+and product-managed write paths can emit the same observation through
+`AgentWorkspace.notify_workspace_source_changed/4`. The `RepoPod`/monitoring
+side observes source changes; graph mutation still routes through
+`AgentWorkspace` and the source graph actions.
+
 ### CodingPod
 
 One per work item. This is where planning, coding, review, explanation, and
@@ -56,6 +66,12 @@ task-board coordination happen.
 ### SourceCodeGraphPod
 
 Repository-scoped semantic source-code graph support.
+
+The source graph lifecycle stays explicit: analyze, load or refresh, then query.
+Save-triggered refresh adds a debounced per-repository scheduler around that
+lifecycle. It coalesces save bursts, avoids overlapping refreshes for the same
+managed repo, and records queued/running/failed refresh state in source graph
+status projections.
 
 ### MemoryGraphPod
 
@@ -68,6 +84,7 @@ Repository-scoped memory and workflow-provenance support.
 - kernel preparation
 - coding work entrypoints
 - source-code graph preparation and query
+- source-code graph source-change notification after successful code writes
 - memory graph recording and query
 - conversation entrypoints
 
@@ -131,4 +148,3 @@ product-owned service over:
 
 Continue with
 [`04-coding-pod-and-specialist-workflows.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/04-coding-pod-and-specialist-workflows.md).
-

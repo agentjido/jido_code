@@ -82,6 +82,10 @@ The repository-scoped semantic graph stack uses `elixir_ontologies`,
 - The canonical named graph is `source_code`.
 - Repository-local graph data lives under `.jido_code/source_code_graph/triple_store`.
 - Normal workflow is explicit: analyze, load or refresh, then query.
+- Save-triggered refresh is a bounded runtime helper around that lifecycle:
+  human editor saves and product-managed LLM/tool writes become normalized
+  source-change observations, then a debounced scheduler refreshes through
+  `AgentWorkspace` when the graph is ready.
 - If you touch the semantic graph boundary, actions, pod agents, or repository
   workspace entrypoints, run `mix source_graph.verify`.
 - If you touch memory graph boundaries, capture envelopes, memory actions,
@@ -102,6 +106,8 @@ product dependency:
 
 - keep semantic freshness, stale state, and recovery visible in operator-facing
   behavior
+- emit `AgentWorkspace.notify_workspace_source_changed/4` after successful
+  product-managed source writes instead of calling graph refresh directly
 - let planning, review, and explanation opt into semantic context explicitly
 - route semantic findings back into governed records before they change product
   behavior

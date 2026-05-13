@@ -78,6 +78,8 @@ pretending the local state is durable.
 - use `Req` for HTTP work
 - do not add a parallel React frontend
 - keep semantic and memory behavior bounded and explicit
+- emit normalized source-change notifications after successful source writes
+  instead of refreshing the source graph directly
 - use `JidoCode.Conversations.ContextMemory` for short-term prompt help, not as
   transcript storage or durable repository memory
 - run the right verification commands when touching specialized stacks

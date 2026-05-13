@@ -206,6 +206,29 @@ tool_context -> tool execution environment -> tool result -> appended tool resul
 That is why tool context affects model behavior without necessarily being prompt
 text.
 
+### Write-Capable Tools And Source Graph Refresh
+
+Tools that write source files must treat the file write as the source of truth.
+After a write succeeds, product-owned write boundaries should emit the normalized
+source-change notification instead of calling graph refresh directly.
+
+Use:
+
+- `AgentWorkspace.notify_workspace_source_changed/4` for product-managed writes
+- `SpriteClient.write_file/4` with `managed_repo_id` and `workspace_path` opts
+  when writing through Sprite-backed execution helpers
+
+This keeps LLM/tool writes on the same path as human editor saves:
+
+```text
+successful source write -> source-change event -> debounced scheduler -> AgentWorkspace refresh/load action
+```
+
+The semantic graph may remain stale while refresh is queued or running. Tools and
+specialists should keep using ordinary file reads for exact latest source text,
+and semantic helpers should respect existing stale-query behavior unless
+`allow_stale?: true` is explicitly appropriate.
+
 ## Shared Pod State vs Prompt State
 
 The pod has eager collaboration state in `task_board` and `project_context`, but

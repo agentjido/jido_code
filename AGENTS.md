@@ -64,6 +64,8 @@ This repo uses `bw` (beadwork) for durable local agent work state.
 - Use the semantic graph for repository-wide structural questions like module discovery, function discovery, runtime-pattern lookup, bounded impact tracing, or repeated SPARQL-backed semantic questions.
 - Prefer ordinary file/code tools when you need exact latest source text, line-level context, or one-off single-file inspection.
 - Keep the lifecycle explicit: analyze, load or refresh, then query. Do not assume the `source_code` graph is ambiently fresh.
+- Save-triggered refresh is a bounded helper around that lifecycle: human editor saves and product-managed LLM/tool writes emit normalized source-change observations, then a debounced scheduler refreshes through `AgentWorkspace` when appropriate.
+- Write-capable runtime helpers must emit `AgentWorkspace.notify_workspace_source_changed/4` after successful source saves instead of refreshing the graph directly.
 - When touching the semantic graph boundary, actions, pod agents, helper queries, or workspace entrypoints, run `mix source_graph.verify`.
 - When touching memory graph boundaries, capture envelopes, memory writers, memory actions, memory workspace entrypoints, workflow provenance capture, or durable-memory adoption, run `mix memory.verify`.
 - When touching conversation-derived recall, keep transcript browsing on repo-detail conversation surfaces, use bounded workflow-provenance projections for origin recall, and only classify durable memory through the explicit adoption boundary.

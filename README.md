@@ -100,6 +100,10 @@ for managed repositories.
   store under `.jido_code/source_code_graph/triple_store`.
 - Normal lifecycle is explicit: analyze, load or refresh the canonical
   `source_code` named graph, then query it.
+- Save-triggered refresh can observe human editor saves or product-managed
+  LLM/tool writes and enqueue a debounced background refresh through
+  `AgentWorkspace`; queued or running refresh state is status context, not proof
+  that the graph is current.
 - Contributors touching this stack should have the normal native build toolchain
   available for RocksDB-backed dependencies. The repo already pins the Elixir,
   Erlang, Node, Rust, and Zig toolchain through `.tool-versions`.
@@ -126,6 +130,9 @@ Keep the semantic graph as a bounded enhancement, not a hidden dependency:
 
 - operator and workflow paths should remain legible when the graph is stale,
   degraded, or unavailable
+- write-capable runtime helpers should emit the normalized source-change
+  notification after successful source saves instead of refreshing the graph
+  directly
 - recovery stays product-owned and repo-scoped
 - semantic findings only influence product behavior after explicit governed
   adoption into records like `Observation`, `Assessment`, `WorkItem`, or

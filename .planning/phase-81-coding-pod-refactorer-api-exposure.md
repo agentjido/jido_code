@@ -25,23 +25,23 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 81 Phase 81 - CodingPod Refactorer API Exposure
   Expose the existing `CodingPod` refactorer specialist through a first-class product API so behavior-preserving refactoring can use the same runtime, provenance, and context boundaries as other specialist work.
 
-  [ ] 81.1 Section - Workspace Refactor Entry Point
+  [x] 81.1 Section - Workspace Refactor Entry Point
     Add the missing product-owned API surface for invoking the lazy refactorer specialist without leaking pod internals.
 
-    [ ] 81.1.1 Task - Add `AgentWorkspace.refactor_work/3,4`
+    [x] 81.1.1 Task - Add `AgentWorkspace.refactor_work/3,4`
       Route refactoring requests through the existing per-work-item `CodingPod` lifecycle and specialist runner pattern.
 
-      [ ] 81.1.1.1 Subtask - Resolve workspace path, LLM selection, kernel, and coding pod exactly like `plan_work/4`, `execute_work/4`, `review_work/4`, and `explain_work/4`.
-      [ ] 81.1.1.2 Subtask - Build refactor instructions through the shared `agent_instruction/4` path with semantic and memory context included when available.
-      [ ] 81.1.1.3 Subtask - Ensure the `:refactorer` node lazily starts through `ensure_coding_specialist/3`.
-      [ ] 81.1.1.4 Subtask - Return a bounded result map with refactoring output, original instruction, semantic context, memory context, workflow provenance summary, and LLM selection summary.
+      [x] 81.1.1.1 Subtask - Resolve workspace path, LLM selection, kernel, and coding pod exactly like `plan_work/4`, `execute_work/4`, `review_work/4`, and `explain_work/4`.
+      [x] 81.1.1.2 Subtask - Build refactor instructions through the shared `agent_instruction/4` path with semantic and memory context included when available.
+      [x] 81.1.1.3 Subtask - Ensure the `:refactorer` node lazily starts through `ensure_coding_specialist/3`.
+      [x] 81.1.1.4 Subtask - Return a bounded result map with refactoring output, original instruction, semantic context, memory context, workflow provenance summary, and LLM selection summary.
 
-    [ ] 81.1.2 Task - Persist refactor-stage pod metadata and task-board state
+    [x] 81.1.2 Task - Persist refactor-stage pod metadata and task-board state
       Keep refactorer runs visible and recoverable using the same product-owned runtime bookkeeping as other CodingPod specialists.
 
-      [ ] 81.1.2.1 Subtask - Persist a `:refactoring` stage result with `last_refactor` metadata on the coding pod.
-      [ ] 81.1.2.2 Subtask - Ensure task-board stage events and artifacts are written by the shared specialist-run wrapper.
-      [ ] 81.1.2.3 Subtask - Preserve workflow provenance capture for refactorer runs without exposing specialist-local internals to callers.
+      [x] 81.1.2.1 Subtask - Persist a `:refactoring` stage result with `last_refactor` metadata on the coding pod.
+      [x] 81.1.2.2 Subtask - Ensure task-board stage events and artifacts are written by the shared specialist-run wrapper.
+      [x] 81.1.2.3 Subtask - Preserve workflow provenance capture for refactorer runs without exposing specialist-local internals to callers.
 
   [ ] 81.2 Section - Product Routing And Documentation
     Make refactorer exposure understandable to contributors and safe for future conversation or workflow adoption.

@@ -48,11 +48,12 @@ defmodule JidoCode.AgentWorkspace do
 
   ## Work Execution
 
-  Functions for planning, executing, and reviewing work through agents.
+  Functions for planning, executing, refactoring, reviewing, and explaining
+  work through agents.
   """
 
   alias JidoCode.AgentOS.Manager
-  alias JidoCode.Agents.{Coder, Explainer, Planner, RepoMonitor, Reviewer}
+  alias JidoCode.Agents.{Coder, Explainer, Planner, Refactorer, RepoMonitor, Reviewer}
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
   alias JidoCode.Conversations.Driver, as: ConversationDriver
@@ -561,6 +562,70 @@ defmodule JidoCode.AgentWorkspace do
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :reviewing, %{last_review: result})
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  Refactors work by routing to the refactorer agent.
+
+  Sends a behavior-preserving refactor request to the refactorer agent within
+  the WorkItem's CodingPod and returns the result.
+
+  ## Examples
+
+      iex> AgentWorkspace.refactor_work("repo-123", "work-item-1", "Extract shared login validation")
+      {:ok, %{refactoring: "..."}}
+
+  """
+  @spec refactor_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
+  def refactor_work(managed_repo_id, work_item_id, instruction) do
+    refactor_work(managed_repo_id, work_item_id, instruction, [])
+  end
+
+  @spec refactor_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def refactor_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
+    with {:ok, workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
+         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, provenance_context} <-
+           workflow_provenance_context(
+             managed_repo_id,
+             work_item_id,
+             workspace_path,
+             :refactor,
+             instruction,
+             opts
+           ),
+         {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :refactor, opts),
+         {:ok, memory_context} <- workflow_memory_context(:refactor, opts),
+         {:ok, refactorer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :refactorer),
+         {:ok, response} <-
+           run_specialist(
+             Refactorer,
+             refactorer_pid,
+             agent_instruction(:refactor, instruction, semantic_context, memory_context),
+             managed_repo_id,
+             work_item_id,
+             workspace_path,
+             semantic_context,
+             memory_context,
+             provenance_context,
+             Keyword.put(opts, :work_item_id, work_item_id)
+           ) do
+      result = %{
+        refactoring: normalize_specialist_result(response),
+        instruction: instruction,
+        semantic_context: semantic_context,
+        memory_context: memory_context,
+        workflow_provenance: provenance_summary(provenance_context),
+        llm_selection: llm_selection_summary(opts)
+      }
+
+      persist_coding_pod_result(managed_repo_id, work_item_id, :refactoring, %{last_refactor: result})
       {:ok, result}
     end
   end
@@ -1566,6 +1631,7 @@ defmodule JidoCode.AgentWorkspace do
   defp specialist_stage(Planner), do: :planning
   defp specialist_stage(Coder), do: :coding
   defp specialist_stage(Reviewer), do: :reviewing
+  defp specialist_stage(Refactorer), do: :refactoring
   defp specialist_stage(Explainer), do: :explaining
   defp specialist_stage(_other), do: :working
 
@@ -1741,6 +1807,7 @@ defmodule JidoCode.AgentWorkspace do
   defp task_board_artifact_type(:planning), do: "plan"
   defp task_board_artifact_type(:coding), do: "draft"
   defp task_board_artifact_type(:reviewing), do: "review"
+  defp task_board_artifact_type(:refactoring), do: "refactor"
   defp task_board_artifact_type(:explaining), do: "explanation"
   defp task_board_artifact_type(_other), do: "artifact"
 
@@ -2173,6 +2240,24 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp specialist_artifact_capture(:coding, provenance_context, agent_run_id, content, started_at, ended_at) do
+    CaptureEnvelope.patch(
+      session_id: provenance_context.session_id,
+      actor_id: provenance_context.actor_id,
+      workflow: provenance_context.workflow,
+      work_item_id: provenance_context.work_item_id,
+      agent_run_id: agent_run_id,
+      content: stringify_artifact_content(content),
+      started_at: started_at,
+      ended_at: ended_at,
+      model: provenance_model_name(provenance_context),
+      revision: provenance_context.revision,
+      governed_references: provenance_context.governed_references,
+      related_resources: provenance_context.related_resources,
+      metadata: provenance_metadata(provenance_context)
+    )
+  end
+
+  defp specialist_artifact_capture(:refactoring, provenance_context, agent_run_id, content, started_at, ended_at) do
     CaptureEnvelope.patch(
       session_id: provenance_context.session_id,
       actor_id: provenance_context.actor_id,

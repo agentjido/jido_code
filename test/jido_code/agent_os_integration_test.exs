@@ -144,6 +144,58 @@ defmodule JidoCode.AgentOSIntegrationTest do
       assert get_in(restored_status, [:metadata, :last_plan, :plan]) =~ "deterministic planner response"
       assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
     end
+
+    test "19.7.2.4 refactorer runs stay isolated and end with pod teardown" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_1 = "work-#{System.unique_integer()}-one"
+      work_item_2 = "work-#{System.unique_integer()}-two"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result_1} =
+               AgentWorkspace.refactor_work(
+                 managed_repo_id,
+                 work_item_1,
+                 "Refactor first work item",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, result_2} =
+               AgentWorkspace.refactor_work(
+                 managed_repo_id,
+                 work_item_2,
+                 "Refactor second work item",
+                 workspace_path: workspace_path
+               )
+
+      assert result_1.refactoring =~ "Refactor first work item"
+      assert result_2.refactoring =~ "Refactor second work item"
+
+      status_1 = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_1}")
+      status_2 = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_2}")
+      pod_pid_1 = get_in(status_1, [:metadata, :runtime_pid])
+      pod_pid_2 = get_in(status_2, [:metadata, :runtime_pid])
+
+      assert is_pid(pod_pid_1)
+      assert is_pid(pod_pid_2)
+      assert pod_pid_1 != pod_pid_2
+
+      assert {:ok, refactorer_pid_1} = Pod.lookup_node(pod_pid_1, :refactorer)
+      assert {:ok, refactorer_pid_2} = Pod.lookup_node(pod_pid_2, :refactorer)
+      assert refactorer_pid_1 != refactorer_pid_2
+
+      assert get_in(status_1, [:metadata, :last_refactor, :instruction]) == "Refactor first work item"
+      assert get_in(status_2, [:metadata, :last_refactor, :instruction]) == "Refactor second work item"
+
+      assert :ok = AgentWorkspace.complete_work(managed_repo_id, work_item_1)
+
+      completed_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_1}")
+      assert get_in(completed_status, [:metadata, :runtime_pid]) == nil
+      assert get_in(completed_status, [:metadata, :runtime_status]) == :completed
+      refute work_item_1 in AgentWorkspace.active_work_items(managed_repo_id)
+      assert work_item_2 in AgentWorkspace.active_work_items(managed_repo_id)
+    end
   end
 
   describe "19.7.3 Agent collaboration scenarios" do
@@ -245,6 +297,37 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
       assert Enum.any?(task_board_state.activity_log, &(&1.type == "reviewing.started"))
       assert Enum.any?(task_board_state.activity_log, &(&1.type == "reviewing.completed"))
+    end
+
+    test "19.7.3.4 refactorer workflow persists refactor output in pod state" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.refactor_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Refactor with persisted result",
+                 workspace_path: workspace_path
+               )
+
+      assert result.refactoring =~ "deterministic refactorer response"
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(pod_status, [:metadata, :last_refactor, :refactoring]) =~ "deterministic refactorer response"
+
+      task_board_state = pod_node_state(managed_repo_id, work_item_id, :task_board)
+
+      assert Enum.any?(task_board_state.artifacts, fn artifact ->
+               artifact.type == "refactor" and
+                 String.contains?(artifact.content, "deterministic refactorer response")
+             end)
+
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "refactoring.started"))
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "refactoring.completed"))
     end
   end
 

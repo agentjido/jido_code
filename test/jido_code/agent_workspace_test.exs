@@ -27,6 +27,7 @@ defmodule JidoCode.AgentWorkspaceTest do
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
+  alias Jido.Pod
 
   describe "kernel lifecycle" do
     test "ensure_kernel creates or returns existing kernel" do
@@ -362,6 +363,155 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert result.feedback =~ "deterministic reviewer response"
     end
 
+    test "refactor_work returns ok with refactoring map and bounded context" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      memory_graph = %{
+        workflow: :refactor,
+        graph: %{
+          ready?: true,
+          stale?: false,
+          state: :ready,
+          current_revision: "rev-81-refactor"
+        },
+        freshness: %{
+          state: :ready,
+          label: "Memory graph ready"
+        },
+        policy: %{
+          intent: :implementation_constraints,
+          follow_up_intent: :work_item,
+          memory_kinds: [:decision, :invariant, :convention, :known_issue, :pattern],
+          provenance_kinds: [:plan, :review, :patch]
+        },
+        selection: %{
+          governed_references: [
+            %{kind: :work_item, id: work_item_id, label: "Current work item"}
+          ],
+          memory_resources: ["https://example.test/memory#refactor-rule"],
+          provenance_resources: ["https://example.test/workflow_provenance#patch-81"],
+          related_resources: [
+            "https://example.test/memory#refactor-rule",
+            "https://example.test/workflow_provenance#patch-81"
+          ],
+          selected_items: %{
+            memories: [
+              %{
+                memory_kind: "Invariant",
+                content: "Preserve public behavior while extracting helpers."
+              }
+            ],
+            provenance: [
+              %{
+                provenance_kind: "Patch",
+                content: "Previous patch touched the same module."
+              }
+            ]
+          }
+        }
+      }
+
+      assert {:ok, result} =
+               AgentWorkspace.refactor_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Extract shared validation without changing behavior",
+                 workspace_path: workspace_path,
+                 enabled?: true,
+                 memory_graph: memory_graph,
+                 llm_selection: %{"provider" => "openai", "model" => "gpt-5"}
+               )
+
+      assert is_map(result)
+      assert result.refactoring =~ "deterministic refactorer response"
+      assert result.refactoring =~ "Workflow: refactor"
+      assert result.refactoring =~ "Memory context:"
+      assert result.instruction == "Extract shared validation without changing behavior"
+      assert result.semantic_context == %{}
+      assert result.memory_context.workflow == :refactor
+      assert result.memory_context.graph["ready?"] == true
+      assert result.memory_context.policy["intent"] == "implementation_constraints"
+      assert result.workflow_provenance.workflow == :refactor
+
+      assert result.llm_selection == %{
+               provider: "openai",
+               model: "gpt-5",
+               model_spec: "openai:gpt-5",
+               source: :explicit
+             }
+
+      assert Manager.kernel_exists?(managed_repo_id)
+      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(pod_status, [:metadata, :runtime_status]) == :refactoring
+      assert get_in(pod_status, [:metadata, :last_refactor, :refactoring]) =~ "deterministic refactorer response"
+      assert get_in(pod_status, [:metadata, :last_refactor, :llm_selection, :model_spec]) == "openai:gpt-5"
+
+      assert {:ok, _refactorer_pid} = Pod.lookup_node(get_in(pod_status, [:metadata, :runtime_pid]), :refactorer)
+    end
+
+    test "refactor_work records last_refactor without disturbing other specialist metadata" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, plan_result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Plan before refactor",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, changes_result} =
+               AgentWorkspace.execute_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Code before refactor",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, review_result} =
+               AgentWorkspace.review_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Review before refactor",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, explanation_result} =
+               AgentWorkspace.explain_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Explain before refactor",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, refactor_result} =
+               AgentWorkspace.refactor_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Refactor after existing specialist runs",
+                 workspace_path: workspace_path
+               )
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+
+      assert get_in(pod_status, [:metadata, :last_plan, :plan]) == plan_result.plan
+      assert get_in(pod_status, [:metadata, :last_changes, :changes]) == changes_result.changes
+      assert get_in(pod_status, [:metadata, :last_review, :feedback]) == review_result.feedback
+      assert get_in(pod_status, [:metadata, :last_explanation, :explanation]) == explanation_result.explanation
+      assert get_in(pod_status, [:metadata, :last_refactor, :refactoring]) == refactor_result.refactoring
+      assert get_in(pod_status, [:metadata, :runtime_status]) == :refactoring
+    end
+
     test "full_workflow returns ok with plan, changes, and feedback" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
@@ -388,6 +538,7 @@ defmodule JidoCode.AgentWorkspaceTest do
       plan_work_item_id = "plan-#{System.unique_integer()}"
       coding_work_item_id = "code-#{System.unique_integer()}"
       review_work_item_id = "review-#{System.unique_integer()}"
+      refactor_work_item_id = "refactor-#{System.unique_integer()}"
       explain_work_item_id = "explain-#{System.unique_integer()}"
       previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
 
@@ -422,6 +573,14 @@ defmodule JidoCode.AgentWorkspaceTest do
                  workspace_path: workspace_path
                )
 
+      assert {:ok, refactor_result} =
+               AgentWorkspace.refactor_work(
+                 managed_repo_id,
+                 refactor_work_item_id,
+                 "Refactor with provenance",
+                 workspace_path: workspace_path
+               )
+
       assert {:ok, explain_result} =
                AgentWorkspace.explain_work(
                  managed_repo_id,
@@ -433,6 +592,7 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert plan_result.workflow_provenance.workflow == :plan
       assert code_result.workflow_provenance.workflow == :execute
       assert review_result.workflow_provenance.workflow == :review
+      assert refactor_result.workflow_provenance.workflow == :refactor
       assert explain_result.workflow_provenance.workflow == :explain
 
       assert {:ok, plan_query} =
@@ -490,6 +650,24 @@ defmodule JidoCode.AgentWorkspaceTest do
                )
 
       assert review_query.row_count == 1
+
+      assert {:ok, refactor_query} =
+               AgentWorkspace.query_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 """
+                 SELECT ?session ?patch
+                 WHERE {
+                   ?session a jido:WorkSession ;
+                     jido:sessionId "#{refactor_result.workflow_provenance.session_id}" ;
+                     jido:hasPatch ?patch .
+                 }
+                 """,
+                 graph_name: "workflow_provenance",
+                 allow_stale?: true
+               )
+
+      assert refactor_query.row_count == 1
 
       assert {:ok, explain_query} =
                AgentWorkspace.query_memory_graph(

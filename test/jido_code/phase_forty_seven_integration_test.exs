@@ -172,7 +172,7 @@ defmodule JidoCode.PhaseFortySevenIntegrationTest do
     assert resumed_completion_snapshot.shared_context["work_resolution"]["work_item_id"] == work_item_id
   end
 
-  test "equivalent productive repo conversations reuse the same governed work item" do
+  test "equivalent productive repo conversations cannot claim the same active governed work item" do
     {project, managed_repo} = managed_repo_fixture!("work-dedup")
     tracked_conversations = tracked_conversations!(managed_repo.id)
 
@@ -215,7 +215,13 @@ defmodule JidoCode.PhaseFortySevenIntegrationTest do
     track_conversation!(tracked_conversations, second_conversation.id)
     refute second_conversation.id == first_conversation.id
 
-    assert {:ok, _second_running_snapshot} =
+    assert {:error,
+            {:active_work_item_conversation_exists,
+             %{
+               work_item_id: work_item_id,
+               active_conversation_id: active_conversation_id,
+               attempted_conversation_id: attempted_conversation_id
+             }}} =
              AgentWorkspace.handle_conversation_command(
                second_conversation.id,
                %{
@@ -225,25 +231,15 @@ defmodule JidoCode.PhaseFortySevenIntegrationTest do
                actor: Actor.operator_actor(%{"id" => "operator-phase47-dedup-second-turn"})
              )
 
-    second_completed_snapshot =
-      eventually_snapshot!(second_conversation.id, fn snapshot ->
-        snapshot.work_item_id == first_work_item_id and
-          snapshot.scope == :work_item_scoped and
-          snapshot.active_turn == nil and snapshot.active_child_work == nil and
-          snapshot.work_resolution["action"] in ["suppressed_duplicate", "reprioritized"]
-      end)
+    assert work_item_id == first_work_item_id
+    assert active_conversation_id == first_conversation.id
+    assert attempted_conversation_id == second_conversation.id
 
-    assert second_completed_snapshot.work_item_id == first_work_item_id
-    assert second_completed_snapshot.work_resolution["work_item_id"] == first_work_item_id
-    assert second_completed_snapshot.shared_context["work_item_id"] == first_work_item_id
-
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(
-               query: [filter: [id: first_work_item_id], limit: 1],
-               actor: Actor.operator_actor()
-             )
-
-    assert List.last(persisted_work_item.audit_log)["action"] in ["suppressed_duplicate", "reprioritized"]
+    assert {:ok, second_snapshot} = AgentWorkspace.conversation_snapshot(second_conversation.id)
+    assert second_snapshot.scope == :repo_scoped
+    assert second_snapshot.work_item_id == nil
+    assert second_snapshot.active_turn == nil
+    assert second_snapshot.active_child_work == nil
   end
 
   defp tracked_conversations!(managed_repo_id) do

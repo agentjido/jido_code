@@ -406,6 +406,51 @@ defmodule JidoCode.ConversationsTest do
     assert List.last(persisted_work_item.audit_log)["action"] == "steered"
   end
 
+  test "steer_work refuses to attach a second active conversation to the same governed work" do
+    managed_repo = managed_repo_fixture!("conversation-steer-existing-active-work")
+    work_item = work_item_fixture!(managed_repo, "operator-existing-active-steer")
+
+    assert {:ok, %{conversation: active_conversation}} =
+             Conversations.open_or_resume_for_work_item(
+               work_item.id,
+               actor: Actor.operator_actor(%{"id" => "operator-active-work-open"})
+             )
+
+    {:ok, %{conversation: repo_conversation}} =
+      Conversations.start(%{
+        managed_repo_id: managed_repo.id,
+        source: "conversation",
+        objective: "Start a second repo-scoped conversation before steering."
+      })
+
+    assert {:error,
+            {:active_work_item_conversation_exists,
+             %{
+               work_item_id: work_item_id,
+               active_conversation_id: active_conversation_id,
+               attempted_conversation_id: attempted_conversation_id
+             }}} =
+             Conversations.steer_work(
+               repo_conversation,
+               %{
+                 work_item_id: work_item.id,
+                 instruction: "Attempt to redirect onto already-active governed work."
+               },
+               actor: Actor.operator_actor(%{"id" => "operator-second-active-work"}),
+               shared_context: %{}
+             )
+
+    assert work_item_id == work_item.id
+    assert active_conversation_id == active_conversation.id
+    assert attempted_conversation_id == repo_conversation.id
+
+    assert {:ok, [persisted_repo_conversation]} =
+             Conversation.read(query: [filter: [id: repo_conversation.id]], actor: Actor.operator_actor())
+
+    assert persisted_repo_conversation.work_item_id == nil
+    assert persisted_repo_conversation.scope == :repo_scoped
+  end
+
   test "steer_work preserves attached governed work and conversation origin metadata" do
     managed_repo = managed_repo_fixture!("conversation-steer-origin")
 

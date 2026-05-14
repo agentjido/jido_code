@@ -132,6 +132,11 @@ That value is still visible as the request later in
 For words like `fix`, `change`, `edit`, or `patch`, it usually infers
 `:execute`.
 
+The `refactorer` specialist is exposed through `AgentWorkspace.refactor_work/3,4`,
+but conversation workflow inference does not currently choose a dedicated
+`:refactor` workflow. Conversation adoption should be explicit if it is added
+later.
+
 This matters because it decides:
 
 - whether the turn needs governed work attachment

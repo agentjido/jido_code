@@ -26,7 +26,7 @@ This distinction is the most important thing to keep straight.
 
 ```mermaid
 flowchart TD
-  A["AgentWorkspace.plan/execute/review/explain"]
+  A["AgentWorkspace.plan/execute/review/refactor/explain"]
   B["Build semantic context and memory context"]
   C["Build user instruction text"]
   D["Build tool_context map"]
@@ -50,8 +50,8 @@ flowchart TD
 
 ## What The Workspace Adds Before Calling The Specialist
 
-For `plan_work`, `execute_work`, `review_work`, and `explain_work`,
-`AgentWorkspace` prepares three important inputs:
+For `plan_work`, `execute_work`, `review_work`, `refactor_work`, and
+`explain_work`, `AgentWorkspace` prepares three important inputs:
 
 1. a user instruction string
 2. a `tool_context` map
@@ -241,6 +241,10 @@ practice, but specialist-local inside that work item.
 The workspace does not automatically feed the planner's result text into the
 coder and reviewer as a new explicit prompt. The stages are orchestrated
 sequentially, but prompt chaining is not the main contract.
+
+`full_workflow/3,4` remains plan -> code -> review. `refactor_work/3,4` is an
+explicit workspace entrypoint, not a default stage in full workflow
+orchestration.
 
 ### Relatedness Is Not Semantic Today
 

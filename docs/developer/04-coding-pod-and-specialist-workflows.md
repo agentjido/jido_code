@@ -101,7 +101,7 @@ It wraps each run with:
 - success or failure events
 - workflow provenance capture
 - pod metadata persistence such as `last_plan`, `last_changes`,
-  `last_review`, and `last_explanation`
+  `last_review`, `last_refactor`, and `last_explanation`
 
 ## Important Nuance: Specialist Context Is Per Specialist
 
@@ -131,12 +131,26 @@ forward the planner's output as a new prompt into the coder and reviewer.
 Instead, each stage gets the requested instruction and the current repo state,
 plus any explicit semantic or memory context passed in through options.
 
-## Refactorer Nuance
+## Refactorer API
 
-The pod topology includes a `refactorer`, but the main public workspace API
-does not currently expose a dedicated `refactor_work/...` entrypoint. The node
-exists in the pod contract even though it is not surfaced like plan, execute,
-review, and explain.
+The pod topology includes a lazy `refactorer`, exposed through
+`AgentWorkspace.refactor_work/3,4`.
+
+Use the workspace entrypoint rather than direct pod or specialist calls. It:
+
+- routes through the existing per-work-item `CodingPod`
+- lazily ensures the `refactorer` node
+- preserves the shared specialist wrapper for task-board state, artifacts,
+  workflow provenance, semantic context, memory context, and pod metadata
+
+`full_workflow/3,4` still remains plan -> code -> review. Refactoring is an
+explicit stage until a later phase changes default workflow orchestration.
+
+Conversation routing does not currently infer a dedicated refactor workflow.
+If conversation or workflow surfaces adopt refactorer dispatch later, they
+should map explicit refactor intent to `AgentWorkspace.refactor_work/3,4` and
+return typed product-facing unavailable or degraded states when the refactorer
+cannot run.
 
 ## Pod Teardown
 
@@ -152,4 +166,3 @@ So the work-item boundary is also the practical lifetime boundary.
 
 Continue with
 [`05-specialist-prompts-context-and-tool-execution.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/05-specialist-prompts-context-and-tool-execution.md).
-

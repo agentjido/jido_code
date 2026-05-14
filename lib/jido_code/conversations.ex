@@ -55,6 +55,7 @@ defmodule JidoCode.Conversations do
   @spec start(map()) :: {:ok, start_result()} | {:error, term()}
   def start(%{} = attrs) do
     with {:ok, context} <- build_start_context(attrs),
+         :ok <- ensure_start_work_item_conversation_available(context),
          {:ok, conversation} <- Conversation.create(conversation_attrs(context), actor: context.actor) do
       {:ok,
        %{
@@ -543,34 +544,82 @@ defmodule JidoCode.Conversations do
          actor,
          now
        ) do
-    case Conversation.update(
-           conversation,
-           %{
-             work_item_id: optional_id(work_item),
-             attachment_mode: attachment_mode,
-             scope: scope,
-             conversation_metadata:
-               steering_conversation_metadata(
-                 conversation,
-                 payload,
-                 shared_context,
-                 work_item,
-                 work_action,
-                 attachment_mode,
-                 scope,
-                 now
-               ),
-             last_activity_at: now
-           },
-           actor: actor
-         ) do
-      {:ok, updated_conversation} ->
-        _ = LongTermProvenance.capture_work_attachment(updated_conversation, actor: actor)
-        {:ok, updated_conversation}
+    with :ok <- ensure_work_item_conversation_available(conversation, work_item, actor) do
+      case Conversation.update(
+             conversation,
+             %{
+               work_item_id: optional_id(work_item),
+               attachment_mode: attachment_mode,
+               scope: scope,
+               conversation_metadata:
+                 steering_conversation_metadata(
+                   conversation,
+                   payload,
+                   shared_context,
+                   work_item,
+                   work_action,
+                   attachment_mode,
+                   scope,
+                   now
+                 ),
+               last_activity_at: now
+             },
+             actor: actor
+           ) do
+        {:ok, updated_conversation} ->
+          _ = LongTermProvenance.capture_work_attachment(updated_conversation, actor: actor)
+          {:ok, updated_conversation}
 
-      other ->
-        other
+        other ->
+          other
+      end
     end
+  end
+
+  defp ensure_start_work_item_conversation_available(%{work_item: %{id: work_item_id}, actor: actor})
+       when is_binary(work_item_id) do
+    case active_for_work_item(work_item_id, actor: actor) do
+      {:ok, nil} ->
+        :ok
+
+      {:ok, %Conversation{} = active_conversation} ->
+        {:error, active_work_item_conflict(work_item_id, active_conversation)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp ensure_start_work_item_conversation_available(_context), do: :ok
+
+  defp ensure_work_item_conversation_available(%Conversation{} = conversation, %{id: work_item_id}, actor)
+       when is_binary(work_item_id) do
+    case active_for_work_item(work_item_id, actor: actor) do
+      {:ok, nil} ->
+        :ok
+
+      {:ok, %Conversation{id: active_conversation_id}} when active_conversation_id == conversation.id ->
+        :ok
+
+      {:ok, %Conversation{} = active_conversation} ->
+        {:error, active_work_item_conflict(work_item_id, active_conversation, conversation.id)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp ensure_work_item_conversation_available(_conversation, _work_item, _actor), do: :ok
+
+  defp active_work_item_conflict(work_item_id, %Conversation{} = active_conversation, attempted_conversation_id \\ nil) do
+    details =
+      %{
+        work_item_id: work_item_id,
+        active_conversation_id: active_conversation.id
+      }
+      |> maybe_put(:attempted_conversation_id, attempted_conversation_id)
+
+    {:active_work_item_conversation_exists, details}
   end
 
   defp steering_conversation_metadata(

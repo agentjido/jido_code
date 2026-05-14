@@ -43,22 +43,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 81.1.2.2 Subtask - Ensure task-board stage events and artifacts are written by the shared specialist-run wrapper.
       [x] 81.1.2.3 Subtask - Preserve workflow provenance capture for refactorer runs without exposing specialist-local internals to callers.
 
-  [ ] 81.2 Section - Product Routing And Documentation
+  [x] 81.2 Section - Product Routing And Documentation
     Make refactorer exposure understandable to contributors and safe for future conversation or workflow adoption.
 
-    [ ] 81.2.1 Task - Update developer guidance for refactorer API exposure
+    [x] 81.2.1 Task - Update developer guidance for refactorer API exposure
       Align the CodingPod and prompt-context guides with the new refactorer entrypoint.
 
-      [ ] 81.2.1.1 Subtask - Update the CodingPod guide so `refactor_work/3,4` is listed with plan, execute, review, and explain.
-      [ ] 81.2.1.2 Subtask - Update the prompt-context guide so refactorer runs are included in the workspace-prepared specialist request list.
-      [ ] 81.2.1.3 Subtask - Document that `full_workflow/3,4` remains plan -> execute -> review unless explicitly changed later.
+      [x] 81.2.1.1 Subtask - Update the CodingPod guide so `refactor_work/3,4` is listed with plan, execute, review, and explain.
+      [x] 81.2.1.2 Subtask - Update the prompt-context guide so refactorer runs are included in the workspace-prepared specialist request list.
+      [x] 81.2.1.3 Subtask - Document that `full_workflow/3,4` remains plan -> execute -> review unless explicitly changed later.
 
-    [ ] 81.2.2 Task - Keep specialist selection deterministic
+    [x] 81.2.2 Task - Keep specialist selection deterministic
       Preserve product-owned dispatch when refactorer work is later adopted by conversations or workflows.
 
-      [ ] 81.2.2.1 Subtask - Keep callers on `AgentWorkspace.refactor_work/3,4` rather than direct pod or agent calls.
-      [ ] 81.2.2.2 Subtask - Ensure any future conversation routing maps explicit refactor intent to the refactorer deterministically.
-      [ ] 81.2.2.3 Subtask - Keep refactorer unavailable or degraded states typed and product-facing.
+      [x] 81.2.2.1 Subtask - Keep callers on `AgentWorkspace.refactor_work/3,4` rather than direct pod or agent calls.
+      [x] 81.2.2.2 Subtask - Ensure any future conversation routing maps explicit refactor intent to the refactorer deterministically.
+      [x] 81.2.2.3 Subtask - Keep refactorer unavailable or degraded states typed and product-facing.
 
   [ ] 81.3 Section - Verification
     Prove the refactorer is exposed through the same bounded runtime contract as the other CodingPod specialists.

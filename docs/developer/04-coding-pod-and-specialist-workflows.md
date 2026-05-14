@@ -138,6 +138,16 @@ does not currently expose a dedicated `refactor_work/...` entrypoint. The node
 exists in the pod contract even though it is not surfaced like plan, execute,
 review, and explain.
 
+Phase 81 specifies the intended closure for that gap:
+
+- add `AgentWorkspace.refactor_work/3,4`
+- route through the existing per-work-item `CodingPod`
+- lazily ensure the `refactorer` node
+- preserve the shared specialist wrapper for task-board state, artifacts,
+  workflow provenance, semantic context, memory context, and pod metadata
+- keep `full_workflow/3,4` as plan -> code -> review unless a later phase
+  explicitly adopts a refactor stage
+
 ## Pod Teardown
 
 When work is completed:
@@ -152,4 +162,3 @@ So the work-item boundary is also the practical lifetime boundary.
 
 Continue with
 [`05-specialist-prompts-context-and-tool-execution.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/05-specialist-prompts-context-and-tool-execution.md).
-

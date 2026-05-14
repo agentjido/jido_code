@@ -129,6 +129,7 @@ The plan aligns to:
 72. [Phase 78 - Conversation Runtime Prompt Recall And Bounded Capture Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-78-conversation-runtime-prompt-recall-and-bounded-capture-adoption.md): wire prompt-context retrieval and explicit bounded capture into the real conversation runtime so each turn can reuse the right short-term memory without replaying raw transcript history.
 73. [Phase 79 - Prompt Memory Lifecycle Hardening And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-79-prompt-memory-lifecycle-hardening-and-contributor-convergence.md): harden provider behavior, retention and cleanup policy, verification defaults, and contributor guidance so prompt memory remains bounded, explainable, and clearly separate from provenance and durable repository memory.
 74. [Phase 80 - Source Code Graph Save-Triggered Refresh Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-80-source-code-graph-save-triggered-refresh-adoption.md): add repository-scoped source-change observation and debounced refresh scheduling so the `source_code` graph updates after code saves from either a human editor or product-managed LLM write path.
+75. [Phase 81 - CodingPod Refactorer API Exposure](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-81-coding-pod-refactorer-api-exposure.md): expose the existing lazy `Refactorer` specialist through a first-class `AgentWorkspace.refactor_work/3,4` API while preserving CodingPod isolation, task-board visibility, workflow provenance, and deterministic product-owned specialist routing.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -163,6 +164,11 @@ Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery
 lifecycle. Repo-scoped monitoring owns source-change observation while
 `AgentWorkspace` and `SourceCodeGraphPod` continue to own graph mutation.
+
+CodingPod refactorer exposure note: Phase 81 closes the remaining gap between
+the `CodingPod` topology and the public workspace API by specifying a
+first-class `refactor_work/3,4` route to the existing lazy `Refactorer`
+specialist.
 
 ## Shared Conventions
 - Numbering:

@@ -51,7 +51,9 @@ flowchart TD
 ## What The Workspace Adds Before Calling The Specialist
 
 For `plan_work`, `execute_work`, `review_work`, and `explain_work`,
-`AgentWorkspace` prepares three important inputs:
+`AgentWorkspace` prepares three important inputs. Phase 81 specifies that the
+same preparation contract should apply when the existing `refactorer` specialist
+is exposed through `refactor_work/3,4`:
 
 1. a user instruction string
 2. a `tool_context` map

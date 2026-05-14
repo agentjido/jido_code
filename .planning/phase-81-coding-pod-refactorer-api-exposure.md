@@ -22,7 +22,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Refactoring work must preserve behavior and should follow the same bounded context, workflow provenance, task-board artifact, and pod metadata patterns as plan, execute, review, and explain.
 - Refactorer exposure should not change `full_workflow/3,4` by default. Full workflow remains plan -> execute -> review unless a later phase explicitly adopts a refactor stage.
 
-[ ] 81 Phase 81 - CodingPod Refactorer API Exposure
+[x] 81 Phase 81 - CodingPod Refactorer API Exposure
   Expose the existing `CodingPod` refactorer specialist through a first-class product API so behavior-preserving refactoring can use the same runtime, provenance, and context boundaries as other specialist work.
 
   [x] 81.1 Section - Workspace Refactor Entry Point
@@ -60,19 +60,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 81.2.2.2 Subtask - Ensure any future conversation routing maps explicit refactor intent to the refactorer deterministically.
       [x] 81.2.2.3 Subtask - Keep refactorer unavailable or degraded states typed and product-facing.
 
-  [ ] 81.3 Section - Verification
+  [x] 81.3 Section - Verification
     Prove the refactorer is exposed through the same bounded runtime contract as the other CodingPod specialists.
 
-    [ ] 81.3.1 Task - Add focused workspace coverage
+    [x] 81.3.1 Task - Add focused workspace coverage
       Verify `refactor_work/3,4` starts the refactorer lazily and records bounded runtime state.
 
-      [ ] 81.3.1.1 Subtask - Add coverage proving `AgentWorkspace.refactor_work/4` ensures kernel, coding pod, and `:refactorer` node before running.
-      [ ] 81.3.1.2 Subtask - Add coverage proving returned refactor results include instruction, semantic context, memory context, workflow provenance, and LLM selection summary.
-      [ ] 81.3.1.3 Subtask - Add coverage proving pod metadata records `last_refactor` without disturbing existing `last_plan`, `last_changes`, `last_review`, or `last_explanation` metadata.
+      [x] 81.3.1.1 Subtask - Add coverage proving `AgentWorkspace.refactor_work/4` ensures kernel, coding pod, and `:refactorer` node before running.
+      [x] 81.3.1.2 Subtask - Add coverage proving returned refactor results include instruction, semantic context, memory context, workflow provenance, and LLM selection summary.
+      [x] 81.3.1.3 Subtask - Add coverage proving pod metadata records `last_refactor` without disturbing existing `last_plan`, `last_changes`, `last_review`, or `last_explanation` metadata.
 
-    [ ] 81.3.2 Task - Add integration coverage
+    [x] 81.3.2 Task - Add integration coverage
       Verify refactorer exposure fits the existing CodingPod isolation and lifecycle model.
 
-      [ ] 81.3.2.1 Subtask - Add an integration test proving different work items invoke isolated refactorer specialists in separate CodingPods.
-      [ ] 81.3.2.2 Subtask - Add coverage proving completed work-item pod teardown ends refactorer context along with other specialist context.
-      [ ] 81.3.2.3 Subtask - Run the relevant CodingPod, AgentWorkspace, and conversation-runtime suites after implementation.
+      [x] 81.3.2.1 Subtask - Add an integration test proving different work items invoke isolated refactorer specialists in separate CodingPods.
+      [x] 81.3.2.2 Subtask - Add coverage proving completed work-item pod teardown ends refactorer context along with other specialist context.
+      [x] 81.3.2.3 Subtask - Run the relevant CodingPod, AgentWorkspace, and conversation-runtime suites after implementation.

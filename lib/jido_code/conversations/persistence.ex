@@ -36,14 +36,14 @@ defmodule JidoCode.Conversations.Persistence do
         |> Enum.filter(&(&1.sequence > Map.get(previous_state, :event_sequence, 0)))
 
       case Repo.transaction(fn ->
-             with :ok <- persist_events(new_events),
-                  {:ok, _record} <- upsert_snapshot(Snapshot.from_state(next_state)) do
-               :ok
+             with {:ok, event_notifications} <- persist_events(new_events),
+                  {:ok, _record, snapshot_notifications} <- upsert_snapshot(Snapshot.from_state(next_state)) do
+               event_notifications ++ snapshot_notifications
              else
                {:error, reason} -> Repo.rollback(reason)
              end
            end) do
-        {:ok, :ok} -> :ok
+        {:ok, notifications} -> notify_after_commit(notifications)
         {:error, reason} -> {:error, reason}
       end
     else
@@ -56,11 +56,11 @@ defmodule JidoCode.Conversations.Persistence do
     if enabled?() do
       case Repo.transaction(fn ->
              case upsert_snapshot(snapshot) do
-               {:ok, _record} -> :ok
+               {:ok, _record, notifications} -> notifications
                {:error, reason} -> Repo.rollback(reason)
              end
            end) do
-        {:ok, :ok} -> :ok
+        {:ok, notifications} -> notify_after_commit(notifications)
         {:error, reason} -> {:error, reason}
       end
     else
@@ -117,20 +117,34 @@ defmodule JidoCode.Conversations.Persistence do
   end
 
   defp persist_events(events) when is_list(events) do
-    Enum.reduce_while(events, :ok, fn %Event{} = event, :ok ->
+    events
+    |> Enum.reduce_while({:ok, []}, fn %Event{} = event, {:ok, notifications} ->
       case Ash.create(EventRecord, event_record_attrs(event),
              action: :append,
              domain: JidoCode.Conversations,
-             actor: @persistence_actor
+             actor: @persistence_actor,
+             return_notifications?: true
            ) do
-        {:ok, _record} -> {:cont, :ok}
+        {:ok, _record, event_notifications} -> {:cont, {:ok, [event_notifications | notifications]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+    |> case do
+      {:ok, notifications} -> {:ok, notifications |> Enum.reverse() |> List.flatten()}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp upsert_snapshot(snapshot) do
-    SnapshotRecord.upsert_for_conversation(snapshot_record_attrs(snapshot), actor: @persistence_actor)
+    SnapshotRecord.upsert_for_conversation(snapshot_record_attrs(snapshot),
+      actor: @persistence_actor,
+      return_notifications?: true
+    )
+  end
+
+  defp notify_after_commit(notifications) do
+    _remaining = Ash.Notifier.notify(notifications)
+    :ok
   end
 
   defp event_record_attrs(%Event{} = event) do

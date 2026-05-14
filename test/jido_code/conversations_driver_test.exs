@@ -28,6 +28,37 @@ defmodule JidoCode.ConversationsDriverTest do
     assert :ok = Driver.stop(conversation.id)
   end
 
+  test "driver persistence dispatches Ash notifications after committing transactions" do
+    original_missed_notifications = Application.get_env(:ash, :missed_notifications, :__missing__)
+    Application.put_env(:ash, :missed_notifications, :raise)
+
+    on_exit(fn ->
+      case original_missed_notifications do
+        :__missing__ -> Application.delete_env(:ash, :missed_notifications)
+        value -> Application.put_env(:ash, :missed_notifications, value)
+      end
+    end)
+
+    managed_repo = managed_repo_fixture!("driver-persistence-notifications")
+
+    assert {:ok, %{conversation: conversation}} =
+             Driver.start_conversation(%{
+               managed_repo_id: managed_repo.id,
+               source: "conversation",
+               objective: "Persist conversation changes without missed Ash notifications."
+             })
+
+    assert {:ok, snapshot} =
+             Driver.handle_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Exercise transactional persistence."}},
+               actor: Actor.operator_actor()
+             )
+
+    assert snapshot.event_count > 0
+    assert :ok = Driver.stop(conversation.id)
+  end
+
   test "driver admits work and control commands through distinct product-owned shapes" do
     managed_repo = managed_repo_fixture!("driver-commands")
 

@@ -31,8 +31,10 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Execute routing keeps generic implementation, fix, edit, update, and patch cues; refactor-specific scoring is separated so broad implementation requests do not silently move to the Refactorer.
 - Phase 83.2 routes refactor runtime requests through `AgentWorkspace.refactor_work/4`, projects `:refactoring` results, includes refactor in governed work resolution, and adds refactor-aware memory workflow policy.
 - Phase 83.3 updates developer guidance and current-truth notes so conversation-level refactor routing is discoverable while `full_workflow/3,4` remains plan -> execute -> review.
+- Phase 83.4 adds focused router, conversation runtime, work-item identity, and memory workflow coverage for refactor routing.
+- Verified with the Phase 83 integration test, Phase 52 routing regression test, conversation-runtime batch, AgentWorkspace tests, memory workflow service tests, and `mix memory.verify`.
 
-[ ] 83 Phase 83 - Refactorer Conversation Routing Adoption
+[x] 83 Phase 83 - Refactorer Conversation Routing Adoption
   Adopt the existing Refactorer specialist into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without weakening execute, review, explain, or full-workflow semantics.
 
   [x] 83.1 Section - Routing Model And Intent Contract
@@ -86,19 +88,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 83.3.2.2 Subtask - Preserve route-owned recovery copy when refactor routing cannot start because runtime, workspace, or graph context is unavailable.
       [x] 83.3.2.3 Subtask - Keep product surfaces from exposing pod-local details such as node names, process ids, or specialist internals.
 
-  [ ] 83.4 Section - Integration Tests
+  [x] 83.4 Section - Integration Tests
     End the phase by proving explicit refactor conversations route through the Refactorer while existing workflows keep their current behavior.
 
-    [ ] 83.4.1 Task - Add focused routing and runtime coverage
+    [x] 83.4.1 Task - Add focused routing and runtime coverage
       Verify `:refactor` is selected, dispatched, and projected only when routing inputs justify it.
 
-      [ ] 83.4.1.1 Subtask - Add coverage proving explicit refactor intent routes to `:refactor` and invokes `AgentWorkspace.refactor_work/4`.
-      [ ] 83.4.1.2 Subtask - Add coverage proving generic fix, edit, and implementation requests still route to `:execute`.
-      [ ] 83.4.1.3 Subtask - Add coverage proving ambiguous execute/refactor or review/refactor requests clarify rather than silently choosing the wrong specialist.
+      [x] 83.4.1.1 Subtask - Add coverage proving explicit refactor intent routes to `:refactor` and invokes `AgentWorkspace.refactor_work/4`.
+      [x] 83.4.1.2 Subtask - Add coverage proving generic fix, edit, and implementation requests still route to `:execute`.
+      [x] 83.4.1.3 Subtask - Add coverage proving ambiguous execute/refactor or review/refactor requests clarify rather than silently choosing the wrong specialist.
 
-    [ ] 83.4.2 Task - Add end-to-end conversation coverage
+    [x] 83.4.2 Task - Add end-to-end conversation coverage
       Verify refactor routing behaves correctly through governed work-item conversations and existing runtime context boundaries.
 
-      [ ] 83.4.2.1 Subtask - Add an end-to-end conversation test that creates or reuses governed work and records a refactor turn result.
-      [ ] 83.4.2.2 Subtask - Add coverage proving refactor turns preserve work-item conversation identity and do not allow a second active conversation for the same WorkItem.
-      [ ] 83.4.2.3 Subtask - Run the conversation-runtime suite, AgentWorkspace refactor coverage, and any memory or semantic verification commands required by touched boundaries.
+      [x] 83.4.2.1 Subtask - Add an end-to-end conversation test that creates or reuses governed work and records a refactor turn result.
+      [x] 83.4.2.2 Subtask - Add coverage proving refactor turns preserve work-item conversation identity and do not allow a second active conversation for the same WorkItem.
+      [x] 83.4.2.3 Subtask - Run the conversation-runtime suite, AgentWorkspace refactor coverage, and any memory or semantic verification commands required by touched boundaries.

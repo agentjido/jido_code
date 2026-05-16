@@ -26,25 +26,29 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - `full_workflow/3,4` remains plan -> execute -> review; this phase adopts conversation routing only and should not silently add refactor to full workflow orchestration.
 - Refactor routing should be deterministic and explicit enough that generic edit, fix, or patch requests still route to `:execute` unless the operator's intent is behavior-preserving refactoring.
 
+## Implementation Notes
+- Phase 83.1 adds `:refactor` to `WorkflowRouter.workflows/0`, normalization, default scores, metadata, and deterministic cues for explicit behavior-preserving refactor intent.
+- Execute routing keeps generic implementation, fix, edit, update, and patch cues; refactor-specific scoring is separated so broad implementation requests do not silently move to the Refactorer.
+
 [ ] 83 Phase 83 - Refactorer Conversation Routing Adoption
   Adopt the existing Refactorer specialist into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without weakening execute, review, explain, or full-workflow semantics.
 
-  [ ] 83.1 Section - Routing Model And Intent Contract
+  [x] 83.1 Section - Routing Model And Intent Contract
     Extend the canonical workflow routing model with refactor intent while keeping routing explainable and bounded.
 
-    [ ] 83.1.1 Task - Add `:refactor` to the canonical workflow router
+    [x] 83.1.1 Task - Add `:refactor` to the canonical workflow router
       Teach the product-owned routing boundary that refactor is a valid specialist workflow with its own scoring, metadata, and normalization path.
 
-      [ ] 83.1.1.1 Subtask - Extend workflow normalization, workflow lists, and routing metadata to include `:refactor`.
-      [ ] 83.1.1.2 Subtask - Add deterministic refactor cues such as "refactor", "extract", "rename", "simplify", and "preserve behavior" without stealing generic implementation requests from `:execute`.
-      [ ] 83.1.1.3 Subtask - Keep routing reasons inspectable so operators and tests can distinguish explicit refactor intent from implementation or review intent.
+      [x] 83.1.1.1 Subtask - Extend workflow normalization, workflow lists, and routing metadata to include `:refactor`.
+      [x] 83.1.1.2 Subtask - Add deterministic refactor cues such as "refactor", "extract", "rename", "simplify", and "preserve behavior" without stealing generic implementation requests from `:execute`.
+      [x] 83.1.1.3 Subtask - Keep routing reasons inspectable so operators and tests can distinguish explicit refactor intent from implementation or review intent.
 
-    [ ] 83.1.2 Task - Preserve routing precedence and ambiguity behavior
+    [x] 83.1.2 Task - Preserve routing precedence and ambiguity behavior
       Make refactor adoption follow the same explicit intent, continuity, and clarification rules established by deterministic workflow routing.
 
-      [ ] 83.1.2.1 Subtask - Let explicit product intent select `:refactor` ahead of free-text cues.
-      [ ] 83.1.2.2 Subtask - Preserve active work-item workflow continuity for refactor turns unless the operator explicitly changes workflow.
-      [ ] 83.1.2.3 Subtask - Clarify ambiguous requests when refactor and execute or review signals are tied or weak.
+      [x] 83.1.2.1 Subtask - Let explicit product intent select `:refactor` ahead of free-text cues.
+      [x] 83.1.2.2 Subtask - Preserve active work-item workflow continuity for refactor turns unless the operator explicitly changes workflow.
+      [x] 83.1.2.3 Subtask - Clarify ambiguous requests when refactor and execute or review signals are tied or weak.
 
   [ ] 83.2 Section - Runtime Dispatch And Result Projection
     Route refactor decisions through the same conversation runtime, governed work, and workspace boundaries as other productive workflows.

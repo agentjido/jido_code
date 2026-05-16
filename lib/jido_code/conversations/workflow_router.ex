@@ -10,7 +10,7 @@ defmodule JidoCode.Conversations.WorkflowRouter do
   deterministic text heuristics.
   """
 
-  @workflows [:plan, :execute, :review, :explain]
+  @workflows [:plan, :execute, :refactor, :review, :explain]
 
   @surface_intent_keys ["surface_workflow", "surface_intent", "workflow_hint", "workflow"]
 
@@ -41,11 +41,33 @@ defmodule JidoCode.Conversations.WorkflowRouter do
         {"fix", 8},
         {"update", 5},
         {"edit", 5},
-        {"refactor", 6},
         {"write", 5},
         {"add", 4},
         {"remove", 4},
         {"patch", 6}
+      ]
+    },
+    refactor: %{
+      phrases: [
+        {"refactor this", 18},
+        {"refactor the", 16},
+        {"behavior preserving", 20},
+        {"preserve behavior", 20},
+        {"without changing behavior", 20},
+        {"extract function", 16},
+        {"extract module", 16},
+        {"rename without changing", 18},
+        {"simplify without changing", 18}
+      ],
+      tokens: [
+        {"refactor", 10},
+        {"refactoring", 10},
+        {"extract", 8},
+        {"rename", 7},
+        {"simplify", 6},
+        {"deduplicate", 8},
+        {"reorganize", 6},
+        {"cleanup", 6}
       ]
     },
     review: %{
@@ -90,7 +112,7 @@ defmodule JidoCode.Conversations.WorkflowRouter do
     }
   }
 
-  @type workflow :: :plan | :execute | :review | :explain
+  @type workflow :: :plan | :execute | :refactor | :review | :explain
 
   @type decision :: %{
           workflow: workflow() | nil,
@@ -172,6 +194,11 @@ defmodule JidoCode.Conversations.WorkflowRouter do
     case String.trim(value) do
       "plan" -> :plan
       "execute" -> :execute
+      "implement" -> :execute
+      "implementation" -> :execute
+      "refactor" -> :refactor
+      "refactoring" -> :refactor
+      "refactor_work" -> :refactor
       "review" -> :review
       "explain" -> :explain
       _other -> nil

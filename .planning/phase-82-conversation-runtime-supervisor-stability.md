@@ -25,25 +25,32 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The fix should preserve existing coordinator semantics for stop, steer, resume, queued child work, and turn supersession.
 - The conversation runtime should not depend on test file ordering, global process leakage, or implicit supervisor lifetime assumptions.
 
+## Implementation Notes
+- Reproduced the historical batch failure with:
+  `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1`
+- The same combined batch can pass with other seeds, and `test/jido_code/conversations_coordinator_test.exs:448` passes in isolation, so this is an order-sensitive supervisor lifecycle issue.
+- The crash occurs while `Coordinator.settle_child_work/5` settles a superseded active turn and immediately activates the queued replacement turn. That path calls `ChildWorker.start/1`, which directly calls the named `JidoCode.Conversations.ChildSupervisor`.
+- The failing stack shows `DynamicSupervisor.start_child/2` exiting with `:shutdown`, which means the coordinator currently lets child-supervisor unavailability escape as a coordinator crash instead of preserving the settled state and leaving queued work recoverable.
+
 [ ] 82 Phase 82 - Conversation Runtime Supervisor Stability
   Stabilize the conversation runtime child-work supervision contract so combined conversation suites are deterministic, queued work activation is resilient, and supervisor lifecycle assumptions are explicit in both runtime code and tests.
 
-  [ ] 82.1 Section - Failure Reproduction And Lifecycle Diagnosis
+  [x] 82.1 Section - Failure Reproduction And Lifecycle Diagnosis
     Capture the existing combined-suite failure as a bounded runtime problem before changing coordinator behavior.
 
-    [ ] 82.1.1 Task - Reproduce the combined conversation batch failure
+    [x] 82.1.1 Task - Reproduce the combined conversation batch failure
       Lock down the failing command and identify the minimal cross-file ordering or shared process state that makes the coordinator test fail.
 
-      [ ] 82.1.1.1 Subtask - Record the failing combined conversation command, seed behavior, and exact failure shape for `Conversations.ChildSupervisor`.
-      [ ] 82.1.1.2 Subtask - Confirm the same coordinator test passes in isolation so the regression target is suite-order stability rather than the test's core assertions.
-      [ ] 82.1.1.3 Subtask - Identify whether the failure comes from application supervision, test setup teardown, named process shutdown, or queued child-work activation timing.
+      [x] 82.1.1.1 Subtask - Record the failing combined conversation command, seed behavior, and exact failure shape for `Conversations.ChildSupervisor`.
+      [x] 82.1.1.2 Subtask - Confirm the same coordinator test passes in isolation so the regression target is suite-order stability rather than the test's core assertions.
+      [x] 82.1.1.3 Subtask - Identify whether the failure comes from application supervision, test setup teardown, named process shutdown, or queued child-work activation timing.
 
-    [ ] 82.1.2 Task - Trace child-work activation ownership
+    [x] 82.1.2 Task - Trace child-work activation ownership
       Make the runtime ownership model clear enough that the fix lands at the correct boundary.
 
-      [ ] 82.1.2.1 Subtask - Trace where `Coordinator` starts queued `ChildWork` and where it assumes `ChildSupervisor` is globally available.
-      [ ] 82.1.2.2 Subtask - Trace how tests start, stop, or replace conversation supervisors across async and sync files.
-      [ ] 82.1.2.3 Subtask - Document the intended supervisor ownership in the phase implementation notes or developer guidance before broadening behavior.
+      [x] 82.1.2.1 Subtask - Trace where `Coordinator` starts queued `ChildWork` and where it assumes `ChildSupervisor` is globally available.
+      [x] 82.1.2.2 Subtask - Trace how tests start, stop, or replace conversation supervisors across async and sync files.
+      [x] 82.1.2.3 Subtask - Document the intended supervisor ownership in the phase implementation notes or developer guidance before broadening behavior.
 
   [ ] 82.2 Section - Supervisor Availability Contract
     Make child-work startup fail closed or recover through a product-owned path instead of crashing the coordinator when the child supervisor is unavailable.

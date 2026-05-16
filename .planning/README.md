@@ -130,6 +130,8 @@ The plan aligns to:
 73. [Phase 79 - Prompt Memory Lifecycle Hardening And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-79-prompt-memory-lifecycle-hardening-and-contributor-convergence.md): harden provider behavior, retention and cleanup policy, verification defaults, and contributor guidance so prompt memory remains bounded, explainable, and clearly separate from provenance and durable repository memory.
 74. [Phase 80 - Source Code Graph Save-Triggered Refresh Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-80-source-code-graph-save-triggered-refresh-adoption.md): add repository-scoped source-change observation and debounced refresh scheduling so the `source_code` graph updates after code saves from either a human editor or product-managed LLM write path.
 75. [Phase 81 - CodingPod Refactorer API Exposure](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-81-coding-pod-refactorer-api-exposure.md): expose the existing lazy `Refactorer` specialist through a first-class `AgentWorkspace.refactor_work/3,4` API while preserving CodingPod isolation, task-board visibility, workflow provenance, and deterministic product-owned specialist routing.
+76. [Phase 82 - Conversation Runtime Supervisor Stability](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-82-conversation-runtime-supervisor-stability.md): stabilize the conversation runtime child-work supervision contract so combined conversation suites are deterministic and queued work activation does not crash when the child supervisor is unavailable.
+77. [Phase 83 - Refactorer Conversation Routing Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-83-refactorer-conversation-routing-adoption.md): adopt the exposed Refactorer into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without changing full-workflow orchestration.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -169,6 +171,17 @@ CodingPod refactorer exposure note: Phase 81 closes the remaining gap between
 the `CodingPod` topology and the public workspace API by specifying a
 first-class `refactor_work/3,4` route to the existing lazy `Refactorer`
 specialist.
+
+Conversation-runtime stability note: Phase 82 addresses the historical
+combined conversation-suite failure where queued child-work activation can
+encounter an unavailable `Conversations.ChildSupervisor` even though the
+involved test files pass individually.
+
+Refactorer conversation routing note: Phase 83 is the follow-on to Phase 81.
+Phase 81 exposes the workspace API; Phase 83 routes explicit
+behavior-preserving refactor intent through deterministic conversation routing
+while keeping generic implementation requests on execute and
+`full_workflow/3,4` unchanged.
 
 ## Shared Conventions
 - Numbering:

@@ -313,7 +313,7 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp invoke(%{workflow: workflow} = request, runtime_spec, readiness)
-       when workflow in [:plan, :execute, :review, :explain] do
+       when workflow in [:plan, :execute, :refactor, :review, :explain] do
     actor = map_get(runtime_spec, :actor)
 
     case select_context_source(workflow) do
@@ -332,7 +332,7 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp invoke_memory_workflow(%{workflow: workflow} = request, readiness, actor)
-       when workflow in [:plan, :execute, :review, :explain] do
+       when workflow in [:plan, :execute, :refactor, :review, :explain] do
     memory_opts = [workspace_path: readiness.workspace_path, prepare: :recover_if_needed]
 
     result =
@@ -350,6 +350,17 @@ defmodule JidoCode.Conversations.Runtime do
 
         :execute ->
           MemoryWorkflowService.execute(
+            request.managed_repo_id,
+            request.work_item_id,
+            request.instruction,
+            memory: memory_opts,
+            workspace_path: readiness.workspace_path,
+            actor: actor,
+            llm_selection: readiness.llm_selection
+          )
+
+        :refactor ->
+          MemoryWorkflowService.refactor(
             request.managed_repo_id,
             request.work_item_id,
             request.instruction,
@@ -427,7 +438,7 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp invoke_workspace(%{workflow: workflow} = request, readiness, actor, extra_opts)
-       when workflow in [:plan, :execute, :review, :explain] do
+       when workflow in [:plan, :execute, :refactor, :review, :explain] do
     opts =
       [workspace_path: readiness.workspace_path, actor: actor, llm_selection: readiness.llm_selection]
       |> Keyword.merge(List.wrap(extra_opts))
@@ -443,6 +454,14 @@ defmodule JidoCode.Conversations.Runtime do
 
       :execute ->
         AgentWorkspace.execute_work(
+          request.managed_repo_id,
+          request.work_item_id,
+          request.instruction,
+          opts
+        )
+
+      :refactor ->
+        AgentWorkspace.refactor_work(
           request.managed_repo_id,
           request.work_item_id,
           request.instruction,
@@ -621,7 +640,7 @@ defmodule JidoCode.Conversations.Runtime do
         end
 
       _workflow ->
-        # For execute workflow, use workspace with semantic fallback
+        # Execute and refactor use workspace dispatch with optional semantic context.
         invoke_workspace_with_semantic_fallback(request, readiness, actor)
     end
   end
@@ -679,7 +698,7 @@ defmodule JidoCode.Conversations.Runtime do
       %{
         "kind" => "progress",
         "summary" =>
-          "Requesting clarification before choosing whether to plan, implement, review, or explain this repository work.",
+          "Requesting clarification before choosing whether to plan, implement, refactor, review, or explain this repository work.",
         "workflow" => "clarify",
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
@@ -737,7 +756,7 @@ defmodule JidoCode.Conversations.Runtime do
     }
   end
 
-  defp prompt_memory_kinds(workflow) when workflow in [:execute, :review] do
+  defp prompt_memory_kinds(workflow) when workflow in [:execute, :refactor, :review] do
     [
       :active_constraint,
       :accepted_tool_result,
@@ -999,6 +1018,7 @@ defmodule JidoCode.Conversations.Runtime do
     case workflow do
       :plan -> Map.get(result, :plan) || Map.get(result, "plan")
       :execute -> Map.get(result, :changes) || Map.get(result, "changes")
+      :refactor -> Map.get(result, :refactoring) || Map.get(result, "refactoring")
       :review -> Map.get(result, :feedback) || Map.get(result, "feedback")
       :explain -> Map.get(result, :explanation) || Map.get(result, "explanation")
     end
@@ -1009,11 +1029,14 @@ defmodule JidoCode.Conversations.Runtime do
     text = (instruction || "") |> String.downcase()
 
     contains_any?(text, ["clarify", "needs input", "which file", "what file"]) or
-      (workflow in [:execute, :review] and contains_any?(text, ["file", "module", "function"]))
+      (workflow in [:execute, :refactor, :review] and contains_any?(text, ["file", "module", "function"]))
   end
 
   defp clarification_prompt(:execute),
     do: "Which file or module should I change first?"
+
+  defp clarification_prompt(:refactor),
+    do: "Which file, module, or behavior-preserving structure should I refactor first?"
 
   defp clarification_prompt(:review),
     do: "Which file, module, or diff should I review first?"
@@ -1022,12 +1045,12 @@ defmodule JidoCode.Conversations.Runtime do
     do: "Which file or module should I inspect first?"
 
   defp workflow_clarification_prompt do
-    "Do you want me to plan, implement, review, or explain this request?"
+    "Do you want me to plan, implement, refactor, review, or explain this request?"
   end
 
   defp select_context_source(nil), do: :workflow_clarification
 
-  defp select_context_source(:execute) do
+  defp select_context_source(workflow) when workflow in [:execute, :refactor] do
     cond do
       memory_enabled?() -> :memory_workflow
       semantic_enabled?() -> :workspace_with_semantic

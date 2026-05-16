@@ -7,8 +7,8 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   @moduledoc """
   Product-owned memory workflow boundary over AgentWorkspace.
 
-  This module keeps planning, coding, review, and explanation flows explicit
-  about when durable memory or workflow provenance context is requested and
+  This module keeps planning, coding, refactoring, review, and explanation
+  flows explicit about when durable memory or workflow provenance context is requested and
   returns bounded memory input maps rather than raw graph query details.
   """
 
@@ -17,7 +17,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, ProductFeedback, ProductService, RetrievalPolicy}
 
-  @type workflow_kind :: :plan | :execute | :review | :explain
+  @type workflow_kind :: :plan | :execute | :refactor | :review | :explain
   @type workflow_result :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
   @workflow_provenance_actor Actor.factory_system_actor(%{
                                "id" => "system:memory-graph-workflow-provenance",
@@ -39,6 +39,11 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
     run_workflow(:execute, managed_repo_id, work_item_id, instruction, opts)
   end
 
+  @spec refactor(String.t(), String.t(), String.t(), keyword()) :: workflow_result()
+  def refactor(managed_repo_id, work_item_id, instruction, opts \\ []) do
+    run_workflow(:refactor, managed_repo_id, work_item_id, instruction, opts)
+  end
+
   @spec explain(String.t(), String.t(), String.t(), keyword()) :: workflow_result()
   def explain(managed_repo_id, work_item_id, instruction, opts \\ []) do
     run_workflow(:explain, managed_repo_id, work_item_id, instruction, opts)
@@ -49,7 +54,7 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
   def follow_up_context(_result), do: nil
 
   defp run_workflow(workflow, managed_repo_id, work_item_id, instruction, opts)
-       when workflow in [:plan, :execute, :review, :explain] and is_list(opts) do
+       when workflow in [:plan, :execute, :refactor, :review, :explain] and is_list(opts) do
     with {:ok, memory_opts} <- normalize_memory_opts(Keyword.get(opts, :memory)),
          {:ok, workflow_provenance} <-
            workflow_provenance_context(
@@ -95,6 +100,9 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
 
   defp invoke_workspace(:execute, managed_repo_id, work_item_id, instruction, opts),
     do: AgentWorkspace.execute_work(managed_repo_id, work_item_id, instruction, opts)
+
+  defp invoke_workspace(:refactor, managed_repo_id, work_item_id, instruction, opts),
+    do: AgentWorkspace.refactor_work(managed_repo_id, work_item_id, instruction, opts)
 
   defp invoke_workspace(:review, managed_repo_id, work_item_id, instruction, opts),
     do: AgentWorkspace.review_work(managed_repo_id, work_item_id, instruction, opts)
@@ -395,6 +403,28 @@ defmodule JidoCode.MemoryGraph.WorkflowService do
       memory_input: memory_input,
       workflow_provenance: provenance_summary(workflow_provenance),
       follow_up_context: follow_up_context(:execute, memory_input, workflow_provenance),
+      llm_selection: Map.get(raw_result, :llm_selection)
+    }
+  end
+
+  defp shape_result(
+         :refactor,
+         managed_repo_id,
+         work_item_id,
+         instruction,
+         raw_result,
+         memory_input,
+         workflow_provenance
+       ) do
+    %{
+      workflow: :refactor,
+      managed_repo_id: managed_repo_id,
+      work_item_id: work_item_id,
+      instruction: instruction,
+      refactoring: Map.get(raw_result, :refactoring),
+      memory_input: memory_input,
+      workflow_provenance: provenance_summary(workflow_provenance),
+      follow_up_context: follow_up_context(:refactor, memory_input, workflow_provenance),
       llm_selection: Map.get(raw_result, :llm_selection)
     }
   end

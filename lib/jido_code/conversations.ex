@@ -833,6 +833,7 @@ defmodule JidoCode.Conversations do
 
   defp workflow_label("plan"), do: "planning"
   defp workflow_label("execute"), do: "implementation"
+  defp workflow_label("refactor"), do: "refactoring"
   defp workflow_label("review"), do: "review"
   defp workflow_label("explain"), do: "follow-up"
   defp workflow_label(_workflow_name), do: "governed"

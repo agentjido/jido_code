@@ -208,6 +208,43 @@ defmodule JidoCode.MemoryGraphWorkflowServiceTest do
     assert plan_resource_iri in result.follow_up_context["provenance_resources"]
   end
 
+  test "refactor returns bounded memory workflow inputs with refactor-focused defaults", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+    work_item_id = "work-#{System.unique_integer([:positive])}"
+    revision = "rev-83-memory-refactor"
+
+    %{memory_resource_iri: memory_resource_iri} =
+      seed_memory_graph!(managed_repo_id, workspace_path, revision)
+
+    assert {:ok, result} =
+             WorkflowService.refactor(
+               managed_repo_id,
+               work_item_id,
+               "Refactor with memory context",
+               workspace_path: workspace_path,
+               memory: [
+                 workspace_path: workspace_path,
+                 prepare: :recover_if_needed,
+                 revision: revision
+               ]
+             )
+
+    assert result.workflow == :refactor
+    assert result.refactoring =~ "deterministic refactorer response"
+    assert result.memory_input.workflow == :refactor
+    assert result.memory_input.policy.intent == :refactoring_constraints
+    assert result.memory_input.policy.follow_up_intent == :refactor
+    assert :anti_pattern in result.memory_input.policy.memory_kinds
+    assert :agent_run in result.memory_input.policy.provenance_kinds
+    assert memory_resource_iri in result.memory_input.selection.memory_resources
+    assert result.workflow_provenance.workflow == :refactor
+    assert result.workflow_provenance.follow_up_intent == :refactor
+    assert result.follow_up_context["workflow"] == "refactor"
+    assert result.follow_up_context["retrieval_policy"]["intent"] == "refactoring_constraints"
+  end
+
   test "workflow memory requests fail safely with explicit freshness and recovery feedback", %{
     workspace_path: workspace_path
   } do

@@ -16,6 +16,7 @@ defmodule JidoCode.Conversations.ChildWorker do
   alias JidoCode.Control.Actor
 
   @supervisor JidoCode.Conversations.ChildSupervisor
+  @supervisor_start_attempts 2
 
   @type runtime_spec :: map()
   @type state :: %{
@@ -34,7 +35,60 @@ defmodule JidoCode.Conversations.ChildWorker do
 
   @spec start(ChildWork.t()) :: {:ok, pid()} | {:error, term()}
   def start(%ChildWork{} = child_work) do
-    DynamicSupervisor.start_child(@supervisor, {__MODULE__, child_work})
+    start(child_work, @supervisor_start_attempts)
+  end
+
+  defp start(%ChildWork{} = child_work, attempts_remaining) do
+    case start_once(child_work) do
+      {:error, {:child_supervisor_unavailable, _reason}} when attempts_remaining > 0 ->
+        wait_for_supervisor_recovery()
+        start(child_work, attempts_remaining - 1)
+
+      {:error, {:child_supervisor_unavailable, reason}} ->
+        start_without_supervisor(child_work, reason)
+
+      result ->
+        result
+    end
+  end
+
+  defp start_once(%ChildWork{} = child_work) do
+    case Process.whereis(@supervisor) do
+      supervisor_pid when is_pid(supervisor_pid) ->
+        try do
+          DynamicSupervisor.start_child(@supervisor, {__MODULE__, child_work})
+        catch
+          :exit, reason -> {:error, {:child_supervisor_unavailable, reason}}
+        end
+
+      _other ->
+        {:error, {:child_supervisor_unavailable, :not_started}}
+    end
+  end
+
+  defp wait_for_supervisor_recovery do
+    case Process.whereis(@supervisor) do
+      supervisor_pid when is_pid(supervisor_pid) ->
+        ref = Process.monitor(supervisor_pid)
+
+        receive do
+          {:DOWN, ^ref, :process, ^supervisor_pid, _reason} -> :ok
+        after
+          25 -> Process.demonitor(ref, [:flush])
+        end
+
+      _other ->
+        :ok
+    end
+  end
+
+  defp start_without_supervisor(%ChildWork{} = child_work, supervisor_reason) do
+    try do
+      GenServer.start(__MODULE__, child_work)
+    catch
+      :exit, reason ->
+        {:error, {:child_supervisor_unavailable, supervisor_reason, {:isolated_start_failed, reason}}}
+    end
   end
 
   @spec snapshot(pid()) :: {:ok, ChildWork.t()}
@@ -123,14 +177,14 @@ defmodule JidoCode.Conversations.ChildWorker do
     maybe_allow_test_sandbox(runtime_pid, runtime_spec)
 
     {:reply, {:ok, child_work},
-       %{
-         state
-         | runtime_pid: runtime_pid,
-           runtime_ref: runtime_ref,
-           runtime_spec: runtime_spec,
-           runtime_status: :running,
-           runtime_managed?: true
-       }}
+     %{
+       state
+       | runtime_pid: runtime_pid,
+         runtime_ref: runtime_ref,
+         runtime_spec: runtime_spec,
+         runtime_status: :running,
+         runtime_managed?: true
+     }}
   end
 
   @impl true
@@ -149,8 +203,7 @@ defmodule JidoCode.Conversations.ChildWorker do
       when terminal_kind in [:completed, :failed] and is_map(payload) do
     with {:ok, updated_child_work} <- apply_runtime_terminal_update(state.child_work, payload),
          :ok <- dispatch_runtime_payload(updated_child_work, payload) do
-      {:stop, :normal,
-       clear_runtime(%{state | child_work: updated_child_work, runtime_status: :idle})}
+      {:stop, :normal, clear_runtime(%{state | child_work: updated_child_work, runtime_status: :idle})}
     else
       _other ->
         {:stop, :normal, clear_runtime(%{state | runtime_status: :idle})}
@@ -161,8 +214,7 @@ defmodule JidoCode.Conversations.ChildWorker do
       when is_map(payload) do
     with {:ok, updated_child_work} <- apply_runtime_update(child_work, payload),
          :ok <- dispatch_runtime_payload(updated_child_work, payload) do
-      {:noreply,
-       clear_runtime(%{state | child_work: updated_child_work, runtime_status: :idle})}
+      {:noreply, clear_runtime(%{state | child_work: updated_child_work, runtime_status: :idle})}
     else
       _other ->
         {:noreply, clear_runtime(%{state | runtime_status: :idle})}

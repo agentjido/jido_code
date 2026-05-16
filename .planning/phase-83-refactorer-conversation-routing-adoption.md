@@ -29,6 +29,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 ## Implementation Notes
 - Phase 83.1 adds `:refactor` to `WorkflowRouter.workflows/0`, normalization, default scores, metadata, and deterministic cues for explicit behavior-preserving refactor intent.
 - Execute routing keeps generic implementation, fix, edit, update, and patch cues; refactor-specific scoring is separated so broad implementation requests do not silently move to the Refactorer.
+- Phase 83.2 routes refactor runtime requests through `AgentWorkspace.refactor_work/4`, projects `:refactoring` results, includes refactor in governed work resolution, and adds refactor-aware memory workflow policy.
 
 [ ] 83 Phase 83 - Refactorer Conversation Routing Adoption
   Adopt the existing Refactorer specialist into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without weakening execute, review, explain, or full-workflow semantics.
@@ -50,22 +51,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 83.1.2.2 Subtask - Preserve active work-item workflow continuity for refactor turns unless the operator explicitly changes workflow.
       [x] 83.1.2.3 Subtask - Clarify ambiguous requests when refactor and execute or review signals are tied or weak.
 
-  [ ] 83.2 Section - Runtime Dispatch And Result Projection
+  [x] 83.2 Section - Runtime Dispatch And Result Projection
     Route refactor decisions through the same conversation runtime, governed work, and workspace boundaries as other productive workflows.
 
-    [ ] 83.2.1 Task - Dispatch refactor workflow through `AgentWorkspace.refactor_work/4`
+    [x] 83.2.1 Task - Dispatch refactor workflow through `AgentWorkspace.refactor_work/4`
       Make the conversation runtime call the public workspace refactor API rather than addressing the pod or specialist directly.
 
-      [ ] 83.2.1.1 Subtask - Add runtime dispatch for `:refactor` that passes managed repo id, work item id, bounded instruction, workspace path, LLM selection, semantic context, memory context, and provenance options.
-      [ ] 83.2.1.2 Subtask - Preserve typed unavailable or degraded states when workspace path, CodingPod runtime, graph context, or specialist execution cannot run.
-      [ ] 83.2.1.3 Subtask - Ensure refactor runtime results project the `:refactoring` payload into conversation output without disrupting existing plan, execute, review, and explain projections.
+      [x] 83.2.1.1 Subtask - Add runtime dispatch for `:refactor` that passes managed repo id, work item id, bounded instruction, workspace path, LLM selection, semantic context, memory context, and provenance options.
+      [x] 83.2.1.2 Subtask - Preserve typed unavailable or degraded states when workspace path, CodingPod runtime, graph context, or specialist execution cannot run.
+      [x] 83.2.1.3 Subtask - Ensure refactor runtime results project the `:refactoring` payload into conversation output without disrupting existing plan, execute, review, and explain projections.
 
-    [ ] 83.2.2 Task - Align governed work resolution with refactor conversations
+    [x] 83.2.2 Task - Align governed work resolution with refactor conversations
       Keep work-item identity and admission rules coherent when a conversation turn requests behavior-preserving refactoring.
 
-      [ ] 83.2.2.1 Subtask - Include `:refactor` in productive work-resolution workflows that require governed work attachment.
-      [ ] 83.2.2.2 Subtask - Preserve one active productive conversation per WorkItem and allow parallel refactor conversations across different work items.
-      [ ] 83.2.2.3 Subtask - Keep refactor conversation provenance and prompt-memory behavior bounded by the same work-item scope as other specialist workflows.
+      [x] 83.2.2.1 Subtask - Include `:refactor` in productive work-resolution workflows that require governed work attachment.
+      [x] 83.2.2.2 Subtask - Preserve one active productive conversation per WorkItem and allow parallel refactor conversations across different work items.
+      [x] 83.2.2.3 Subtask - Keep refactor conversation provenance and prompt-memory behavior bounded by the same work-item scope as other specialist workflows.
 
   [ ] 83.3 Section - Surface Guidance And Current-Truth Convergence
     Make refactor routing understandable to operators and contributors while preserving the current product-owned boundaries.

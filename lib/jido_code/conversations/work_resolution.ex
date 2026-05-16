@@ -10,7 +10,7 @@ defmodule JidoCode.Conversations.WorkResolution do
   alias JidoCode.Conversations.{Conversation, Turn}
   alias JidoCode.Conversations.WorkflowRouter
 
-  @governed_workflows [:plan, :execute, :review, :explain]
+  @governed_workflows [:plan, :execute, :refactor, :review, :explain]
 
   @type resolution_summary :: map()
 
@@ -142,6 +142,7 @@ defmodule JidoCode.Conversations.WorkResolution do
   defp workflow_label(nil), do: "governed"
   defp workflow_label(:plan), do: "planning"
   defp workflow_label(:execute), do: "implementation"
+  defp workflow_label(:refactor), do: "refactoring"
   defp workflow_label(:review), do: "review"
   defp workflow_label(:explain), do: "follow-up"
   defp workflow_label(_workflow), do: "governed"
@@ -151,6 +152,9 @@ defmodule JidoCode.Conversations.WorkResolution do
 
   defp workflow_resolution_reason(:execute),
     do: "Implementation work must continue through the canonical governed WorkItem loop."
+
+  defp workflow_resolution_reason(:refactor),
+    do: "Behavior-preserving refactoring work must remain attached to canonical governed WorkItem scope."
 
   defp workflow_resolution_reason(:review),
     do: "Review work must remain attached to canonical governed WorkItem scope."

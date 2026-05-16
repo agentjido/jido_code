@@ -1,7 +1,7 @@
 defmodule JidoCode.MemoryGraph.RetrievalPolicy do
   @moduledoc false
 
-  @type workflow_kind :: :plan | :execute | :review | :explain
+  @type workflow_kind :: :plan | :execute | :refactor | :review | :explain
   @type freshness_mode :: :ready_only | :allow_stale
   @type provenance_scope :: :none | :workflow_history | :workflow_and_governed_history
   @type policy :: %{
@@ -19,6 +19,7 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
   @default_limits %{
     plan: 8,
     execute: 8,
+    refactor: 8,
     review: 10,
     explain: 6
   }
@@ -39,6 +40,14 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
       freshness: :ready_only,
       provenance_scope: :workflow_and_governed_history,
       follow_up_intent: :work_item
+    },
+    refactor: %{
+      intent: :refactoring_constraints,
+      memory_kinds: [:decision, :invariant, :convention, :known_issue, :pattern, :anti_pattern],
+      provenance_kinds: [:plan, :review, :patch, :agent_run],
+      freshness: :ready_only,
+      provenance_scope: :workflow_and_governed_history,
+      follow_up_intent: :refactor
     },
     review: %{
       intent: :review_risks,
@@ -83,23 +92,25 @@ defmodule JidoCode.MemoryGraph.RetrievalPolicy do
   @intent_map %{
     "planning_constraints" => :planning_constraints,
     "implementation_constraints" => :implementation_constraints,
+    "refactoring_constraints" => :refactoring_constraints,
     "review_risks" => :review_risks,
     "explanation_context" => :explanation_context,
     "work_item" => :work_item,
+    "refactor" => :refactor,
     "review_support" => :review_support,
     "explanation" => :explanation
   }
 
   @spec normalize(workflow_kind(), keyword() | map() | nil) :: {:ok, policy()} | {:error, atom()}
-  def normalize(workflow, nil) when workflow in [:plan, :execute, :review, :explain] do
+  def normalize(workflow, nil) when workflow in [:plan, :execute, :refactor, :review, :explain] do
     {:ok, default_policy(workflow)}
   end
 
-  def normalize(workflow, opts) when workflow in [:plan, :execute, :review, :explain] and is_list(opts) do
+  def normalize(workflow, opts) when workflow in [:plan, :execute, :refactor, :review, :explain] and is_list(opts) do
     normalize(workflow, Map.new(opts))
   end
 
-  def normalize(workflow, attrs) when workflow in [:plan, :execute, :review, :explain] and is_map(attrs) do
+  def normalize(workflow, attrs) when workflow in [:plan, :execute, :refactor, :review, :explain] and is_map(attrs) do
     defaults = default_policy(workflow)
 
     with {:ok, intent} <- normalize_atom(Map.get(attrs, :intent) || Map.get(attrs, "intent"), defaults.intent),

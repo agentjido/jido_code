@@ -126,7 +126,7 @@ defmodule JidoCode.PhaseFiftyTwoIntegrationTest do
       eventually_snapshot!(conversation.id, fn snapshot ->
         match?(%{state: :awaiting_input}, snapshot.active_turn) and
           get_in(snapshot, [:shared_context, "pending_clarification", "prompt", "prompt"]) ==
-            "Do you want me to plan, implement, review, or explain this request?" and
+            "Do you want me to plan, implement, refactor, review, or explain this request?" and
           snapshot.work_item_id == nil and
           get_in(snapshot.active_turn, [:payload, "conversation_runtime", "routing", "ambiguous"]) == true
       end)

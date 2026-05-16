@@ -146,11 +146,16 @@ Use the workspace entrypoint rather than direct pod or specialist calls. It:
 `full_workflow/3,4` still remains plan -> code -> review. Refactoring is an
 explicit stage until a later phase changes default workflow orchestration.
 
-Conversation routing does not currently infer a dedicated refactor workflow.
-If conversation or workflow surfaces adopt refactorer dispatch later, they
-should map explicit refactor intent to `AgentWorkspace.refactor_work/3,4` and
-return typed product-facing unavailable or degraded states when the refactorer
-cannot run.
+Conversation routing now treats explicit behavior-preserving refactor intent as
+the `:refactor` workflow and dispatches it through
+`AgentWorkspace.refactor_work/3,4`. Generic fix, edit, update, and patch
+requests still route to `:execute`; use refactor when the requested change is
+structural cleanup, extraction, rename, deduplication, or simplification that
+should preserve behavior.
+
+Conversation and workflow surfaces should keep this as a product-owned
+workspace route. They should not expose pod-local details such as node names,
+process ids, or specialist internals when refactor startup degrades.
 
 ## Pod Teardown
 

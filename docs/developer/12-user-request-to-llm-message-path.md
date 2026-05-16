@@ -126,16 +126,20 @@ That value is still visible as the request later in
 
 - `:plan`
 - `:execute`
+- `:refactor`
 - `:review`
 - `:explain`
 
 For words like `fix`, `change`, `edit`, or `patch`, it usually infers
 `:execute`.
 
-The `refactorer` specialist is exposed through `AgentWorkspace.refactor_work/3,4`,
-but conversation workflow inference does not currently choose a dedicated
-`:refactor` workflow. Conversation adoption should be explicit if it is added
-later.
+For explicit behavior-preserving refactor requests, such as extracting shared
+logic, renaming structure, deduplicating code, or simplifying code without
+changing behavior, it infers `:refactor` and later dispatches through
+`AgentWorkspace.refactor_work/3,4`.
+
+If refactor and execute or review signals are mixed without clear intent, the
+runtime should ask for clarification instead of silently choosing a specialist.
 
 This matters because it decides:
 
@@ -295,6 +299,14 @@ Memory context:
 ```
 
 Then the `coder` system prompt is added above it as the `system` message.
+
+For a request like:
+
+`Refactor the parser helpers to extract duplication while preserving behavior`
+
+the same path preserves that text, infers workflow `:refactor`, attaches
+governed work, and routes the bounded instruction to the Refactorer specialist
+through `AgentWorkspace.refactor_work/3,4`.
 
 ## What Actually Reaches The Model
 

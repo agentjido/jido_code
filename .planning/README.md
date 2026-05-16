@@ -178,9 +178,10 @@ encounter an unavailable `Conversations.ChildSupervisor` even though the
 involved test files pass individually.
 
 Refactorer conversation routing note: Phase 83 is the follow-on to Phase 81.
-Phase 81 exposes the workspace API; Phase 83 decides how explicit refactor
-intent enters deterministic conversation routing while keeping generic
-implementation requests on execute and `full_workflow/3,4` unchanged.
+Phase 81 exposes the workspace API; Phase 83 routes explicit
+behavior-preserving refactor intent through deterministic conversation routing
+while keeping generic implementation requests on execute and
+`full_workflow/3,4` unchanged.
 
 ## Shared Conventions
 - Numbering:

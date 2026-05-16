@@ -30,6 +30,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Phase 83.1 adds `:refactor` to `WorkflowRouter.workflows/0`, normalization, default scores, metadata, and deterministic cues for explicit behavior-preserving refactor intent.
 - Execute routing keeps generic implementation, fix, edit, update, and patch cues; refactor-specific scoring is separated so broad implementation requests do not silently move to the Refactorer.
 - Phase 83.2 routes refactor runtime requests through `AgentWorkspace.refactor_work/4`, projects `:refactoring` results, includes refactor in governed work resolution, and adds refactor-aware memory workflow policy.
+- Phase 83.3 updates developer guidance and current-truth notes so conversation-level refactor routing is discoverable while `full_workflow/3,4` remains plan -> execute -> review.
 
 [ ] 83 Phase 83 - Refactorer Conversation Routing Adoption
   Adopt the existing Refactorer specialist into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without weakening execute, review, explain, or full-workflow semantics.
@@ -68,22 +69,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 83.2.2.2 Subtask - Preserve one active productive conversation per WorkItem and allow parallel refactor conversations across different work items.
       [x] 83.2.2.3 Subtask - Keep refactor conversation provenance and prompt-memory behavior bounded by the same work-item scope as other specialist workflows.
 
-  [ ] 83.3 Section - Surface Guidance And Current-Truth Convergence
+  [x] 83.3 Section - Surface Guidance And Current-Truth Convergence
     Make refactor routing understandable to operators and contributors while preserving the current product-owned boundaries.
 
-    [ ] 83.3.1 Task - Update developer guidance for conversation-level refactor routing
+    [x] 83.3.1 Task - Update developer guidance for conversation-level refactor routing
       Align docs with the new workflow path so future contributors know when to use refactor instead of execute.
 
-      [ ] 83.3.1.1 Subtask - Update the user-request-to-LLM path guide to list `:refactor` as a conversation-routed workflow once implemented.
-      [ ] 83.3.1.2 Subtask - Update CodingPod and specialist prompt guides to distinguish workspace API exposure from conversation runtime adoption.
-      [ ] 83.3.1.3 Subtask - Document that `full_workflow/3,4` still remains plan -> execute -> review unless a later phase changes that orchestration contract.
+      [x] 83.3.1.1 Subtask - Update the user-request-to-LLM path guide to list `:refactor` as a conversation-routed workflow once implemented.
+      [x] 83.3.1.2 Subtask - Update CodingPod and specialist prompt guides to distinguish workspace API exposure from conversation runtime adoption.
+      [x] 83.3.1.3 Subtask - Document that `full_workflow/3,4` still remains plan -> execute -> review unless a later phase changes that orchestration contract.
 
-    [ ] 83.3.2 Task - Update product-facing routing metadata and degraded states
+    [x] 83.3.2 Task - Update product-facing routing metadata and degraded states
       Keep refactor workflow status observable and typed at the same level as other conversation workflows.
 
-      [ ] 83.3.2.1 Subtask - Include refactor workflow names and labels wherever conversation workflow metadata is surfaced to operators.
-      [ ] 83.3.2.2 Subtask - Preserve route-owned recovery copy when refactor routing cannot start because runtime, workspace, or graph context is unavailable.
-      [ ] 83.3.2.3 Subtask - Keep product surfaces from exposing pod-local details such as node names, process ids, or specialist internals.
+      [x] 83.3.2.1 Subtask - Include refactor workflow names and labels wherever conversation workflow metadata is surfaced to operators.
+      [x] 83.3.2.2 Subtask - Preserve route-owned recovery copy when refactor routing cannot start because runtime, workspace, or graph context is unavailable.
+      [x] 83.3.2.3 Subtask - Keep product surfaces from exposing pod-local details such as node names, process ids, or specialist internals.
 
   [ ] 83.4 Section - Integration Tests
     End the phase by proving explicit refactor conversations route through the Refactorer while existing workflows keep their current behavior.

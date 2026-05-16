@@ -246,6 +246,11 @@ sequentially, but prompt chaining is not the main contract.
 explicit workspace entrypoint, not a default stage in full workflow
 orchestration.
 
+Conversation runtime may route explicit behavior-preserving refactor requests
+to `refactor_work/3,4`. That is specialist selection, not prompt rewriting:
+the original operator request is still wrapped as bounded conversation context
+before it reaches the Refactorer.
+
 ### Relatedness Is Not Semantic Today
 
 If you send two unrelated prompts to the same specialist on the same work item,

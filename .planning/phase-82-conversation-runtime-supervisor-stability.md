@@ -52,22 +52,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 82.1.2.2 Subtask - Trace how tests start, stop, or replace conversation supervisors across async and sync files.
       [x] 82.1.2.3 Subtask - Document the intended supervisor ownership in the phase implementation notes or developer guidance before broadening behavior.
 
-  [ ] 82.2 Section - Supervisor Availability Contract
+  [x] 82.2 Section - Supervisor Availability Contract
     Make child-work startup fail closed or recover through a product-owned path instead of crashing the coordinator when the child supervisor is unavailable.
 
-    [ ] 82.2.1 Task - Harden coordinator child-work startup
+    [x] 82.2.1 Task - Harden coordinator child-work startup
       Ensure queued work activation handles unavailable supervision in a typed, recoverable way.
 
-      [ ] 82.2.1.1 Subtask - Replace raw `GenServer.call/3` assumptions to `Conversations.ChildSupervisor` with a bounded helper that normalizes `:noproc`, `:shutdown`, timeout, and start-child errors.
-      [ ] 82.2.1.2 Subtask - Keep coordinator state consistent when child-work activation cannot start, including active turn, active child work, lifecycle events, and operator-visible error state.
-      [ ] 82.2.1.3 Subtask - Preserve successful activation semantics for normal queued tool calls and runtime child work.
+      [x] 82.2.1.1 Subtask - Replace raw `GenServer.call/3` assumptions to `Conversations.ChildSupervisor` with a bounded helper that normalizes `:noproc`, `:shutdown`, timeout, and start-child errors.
+      [x] 82.2.1.2 Subtask - Keep coordinator state consistent when child-work activation cannot start, including active turn, active child work, lifecycle events, and operator-visible error state.
+      [x] 82.2.1.3 Subtask - Preserve successful activation semantics for normal queued tool calls and runtime child work.
 
-    [ ] 82.2.2 Task - Normalize test supervision setup
+    [x] 82.2.2 Task - Normalize test supervision setup
       Remove hidden order dependence from the conversation tests so each file can run alone or as part of the batch.
 
-      [ ] 82.2.2.1 Subtask - Ensure conversation tests that require `ChildSupervisor` start from a known supervised application state.
-      [ ] 82.2.2.2 Subtask - Remove or isolate test cleanup that shuts down shared conversation runtime processes needed by later files.
-      [ ] 82.2.2.3 Subtask - Keep forced failure tests scoped to their fixture process rather than leaking global supervisor state.
+      [x] 82.2.2.1 Subtask - Ensure conversation tests that require `ChildSupervisor` start from a known supervised application state.
+      [x] 82.2.2.2 Subtask - Remove or isolate test cleanup that shuts down shared conversation runtime processes needed by later files.
+      [x] 82.2.2.3 Subtask - Keep forced failure tests scoped to their fixture process rather than leaking global supervisor state.
 
   [ ] 82.3 Section - Runtime State And Contributor Convergence
     Preserve the conversation runtime mental model while making supervisor failure modes explicit for future work.

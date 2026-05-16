@@ -328,24 +328,28 @@ defmodule JidoCode.Conversations.Coordinator do
     with {:ok, prepared_state} <- maybe_prepare_runtime_scope(state, next_turn_id),
          %Turn{} = next_turn <- Map.fetch!(prepared_state.turns, next_turn_id),
          {:ok, running_turn} <- Turn.transition(next_turn, :running),
-         child_work <- ChildWork.new(prepared_state.conversation, running_turn),
-         {:ok, pid} <- ChildWorker.start(child_work),
-         {:ok, running_child_work} <- ChildWorker.snapshot(pid) do
-      running_turn = %{running_turn | child_work_id: running_child_work.id}
+         child_work <- ChildWork.new(prepared_state.conversation, running_turn) do
+      case start_child_worker(child_work) do
+        {:ok, pid, running_child_work} ->
+          running_turn = %{running_turn | child_work_id: running_child_work.id}
 
-      next_state =
-        prepared_state
-        |> Map.put(:active_turn_id, next_turn_id)
-        |> Map.put(:work_queue, remaining_turn_ids)
-        |> update_in([:child_work_order], &(&1 ++ [running_child_work.id]))
-        |> put_in([:child_worker_pids, running_child_work.id], pid)
-        |> store_turn(running_turn, actor: running_turn.actor, message_id: running_turn.command_id)
-        |> store_child_work(running_child_work,
-          actor: running_child_work.actor,
-          message_id: running_turn.command_id
-        )
+          next_state =
+            prepared_state
+            |> Map.put(:active_turn_id, next_turn_id)
+            |> Map.put(:work_queue, remaining_turn_ids)
+            |> update_in([:child_work_order], &(&1 ++ [running_child_work.id]))
+            |> put_in([:child_worker_pids, running_child_work.id], pid)
+            |> store_turn(running_turn, actor: running_turn.actor, message_id: running_turn.command_id)
+            |> store_child_work(running_child_work,
+              actor: running_child_work.actor,
+              message_id: running_turn.command_id
+            )
 
-      maybe_schedule_runtime_for_turn(next_state, running_turn.id)
+          maybe_schedule_runtime_for_turn(next_state, running_turn.id)
+
+        {:error, reason} ->
+          {:ok, append_turn_activation_failed_event(prepared_state, next_turn, reason)}
+      end
     end
   end
 
@@ -419,12 +423,37 @@ defmodule JidoCode.Conversations.Coordinator do
   defp restart_child_worker_for_runtime(state, child_work_id) do
     case Map.fetch(state.child_works, child_work_id) do
       {:ok, %ChildWork{} = child_work} ->
-        with {:ok, pid} <- ChildWorker.start(child_work) do
+        with {:ok, pid, _running_child_work} <- start_child_worker(child_work) do
           {:ok, pid, put_in(state, [:child_worker_pids, child_work_id], pid)}
         end
 
       :error ->
         {:error, :child_work_not_found}
+    end
+  end
+
+  defp start_child_worker(%ChildWork{} = child_work) do
+    case ChildWorker.start(child_work) do
+      {:ok, pid} when is_pid(pid) ->
+        case child_worker_snapshot(pid) do
+          {:ok, %ChildWork{} = running_child_work} ->
+            {:ok, pid, running_child_work}
+
+          {:error, _reason} = error ->
+            maybe_terminate_child_worker(pid)
+            error
+        end
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp child_worker_snapshot(pid) when is_pid(pid) do
+    try do
+      ChildWorker.snapshot(pid)
+    catch
+      :exit, reason -> {:error, {:child_worker_snapshot_failed, reason}}
     end
   end
 
@@ -829,7 +858,7 @@ defmodule JidoCode.Conversations.Coordinator do
       {:ok, pid} ->
         child_work = Map.fetch!(state.child_works, child_work_id)
         {:ok, settled_child_work} = ChildWork.settle(child_work, turn_state)
-        _ = DynamicSupervisor.terminate_child(JidoCode.Conversations.ChildSupervisor, pid)
+        maybe_terminate_child_worker(pid)
 
         state
         |> store_child_work(settled_child_work, actor: actor)
@@ -1267,6 +1296,20 @@ defmodule JidoCode.Conversations.Coordinator do
     })
   end
 
+  defp append_turn_activation_failed_event(state, %Turn{} = turn, reason) do
+    append_event(state, "turn.activation_failed", %{
+      actor: turn.actor,
+      message_id: turn.command_id,
+      turn_id: turn.id,
+      correlation: turn_correlation(turn),
+      payload: %{
+        "state" => Atom.to_string(turn.state),
+        "command_type" => turn.command_type,
+        "error" => child_worker_start_error(reason)
+      }
+    })
+  end
+
   defp append_status_event(state, normalized_command) do
     append_event(state, "conversation.status_changed", %{
       actor: normalized_command.actor,
@@ -1474,24 +1517,37 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   defp maybe_terminate_child_worker(pid) when is_pid(pid) do
-    case Process.whereis(JidoCode.Conversations.ChildSupervisor) do
-      supervisor when is_pid(supervisor) ->
-        if Process.alive?(pid) do
+    if Process.alive?(pid) do
+      case Process.whereis(JidoCode.Conversations.ChildSupervisor) do
+        supervisor when is_pid(supervisor) ->
           try do
-            _ = DynamicSupervisor.terminate_child(JidoCode.Conversations.ChildSupervisor, pid)
+            case DynamicSupervisor.terminate_child(JidoCode.Conversations.ChildSupervisor, pid) do
+              :ok -> :ok
+              {:error, :not_found} -> terminate_child_worker_process(pid)
+              {:error, _reason} -> terminate_child_worker_process(pid)
+            end
           catch
-            :exit, _reason -> :ok
+            :exit, _reason -> terminate_child_worker_process(pid)
           end
-        else
-          :ok
-        end
 
-      _other ->
-        :ok
+        _other ->
+          terminate_child_worker_process(pid)
+      end
+    else
+      :ok
     end
   end
 
   defp maybe_terminate_child_worker(_pid), do: :ok
+
+  defp terminate_child_worker_process(pid) when is_pid(pid) do
+    if Process.alive?(pid) do
+      Process.exit(pid, :shutdown)
+      :ok
+    else
+      :ok
+    end
+  end
 
   defp maybe_allow_test_sandbox(sandbox_owner, starter_pid) do
     [sandbox_owner, starter_pid]
@@ -1559,6 +1615,24 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp child_work_event_name(_previous_child_work, %ChildWork{state: :failed}), do: "tool.failed"
   defp child_work_event_name(_previous_child_work, _updated_child_work), do: nil
+
+  defp child_worker_start_error({:child_supervisor_unavailable, reason}) do
+    %{
+      "error_type" => "conversation_child_supervisor_unavailable",
+      "detail" => "Conversation child work could not start because the child supervisor was unavailable.",
+      "reason" => inspect(reason),
+      "remediation" => "Retry or resume the conversation turn after conversation runtime supervision recovers."
+    }
+  end
+
+  defp child_worker_start_error(reason) do
+    %{
+      "error_type" => "conversation_child_worker_start_failed",
+      "detail" => "Conversation child work could not start.",
+      "reason" => inspect(reason),
+      "remediation" => "Retry or resume the conversation turn after conversation runtime services recover."
+    }
+  end
 
   defp turn_correlation(%Turn{} = turn) do
     %{}

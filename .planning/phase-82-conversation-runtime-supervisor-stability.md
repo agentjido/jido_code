@@ -33,8 +33,10 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The failing stack shows `DynamicSupervisor.start_child/2` exiting with `:shutdown`, which means the coordinator currently lets child-supervisor unavailability escape as a coordinator crash instead of preserving the settled state and leaving queued work recoverable.
 - Phase 82.2 now routes child-work startup through `ChildWorker.start/1` and `Coordinator.start_child_worker/1`, normalizing supervisor unavailability and preserving coordinator state with a `turn.activation_failed` event if startup cannot begin.
 - Phase 82.3 records the shared application-supervisor contract in `docs/developer/06-conversation-orchestration.md` and adds the historical seeded batch to `docs/developer/10-development-workflow-and-quality-gates.md`.
+- Phase 82.4 adds focused coordinator coverage for supervisor-backed child-worker startup, normal queued child-work activation, and the steer/supersession activation path while the child-supervisor name is temporarily unavailable.
+- Verified with `mix test test/jido_code/conversations_coordinator_test.exs --max-cases 1 --max-failures 1` and the historical seeded combined conversation batch.
 
-[ ] 82 Phase 82 - Conversation Runtime Supervisor Stability
+[x] 82 Phase 82 - Conversation Runtime Supervisor Stability
   Stabilize the conversation runtime child-work supervision contract so combined conversation suites are deterministic, queued work activation is resilient, and supervisor lifecycle assumptions are explicit in both runtime code and tests.
 
   [x] 82.1 Section - Failure Reproduction And Lifecycle Diagnosis
@@ -88,19 +90,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 82.3.2.2 Subtask - Document the expected behavior when child-work startup cannot begin.
       [x] 82.3.2.3 Subtask - Update planning or developer notes with the combined-suite command that protects this boundary.
 
-  [ ] 82.4 Section - Integration Tests
+  [x] 82.4 Section - Integration Tests
     End the phase with regression coverage that proves the full conversation-runtime batch is stable, not only the individual failing test.
 
-    [ ] 82.4.1 Task - Add focused regression coverage for child-supervisor availability
+    [x] 82.4.1 Task - Add focused regression coverage for child-supervisor availability
       Exercise the unavailable-supervisor path and the normal queued-child-work path without relying on cross-file ordering.
 
-      [ ] 82.4.1.1 Subtask - Add coverage for typed coordinator behavior when `ChildSupervisor` is unavailable during queued child-work activation.
-      [ ] 82.4.1.2 Subtask - Add coverage proving the steer-overtakes-queued-work scenario still preserves supersession links.
-      [ ] 82.4.1.3 Subtask - Add coverage proving normal queued child work still starts under the expected supervisor.
+      [x] 82.4.1.1 Subtask - Add coverage for typed coordinator behavior when `ChildSupervisor` is unavailable during queued child-work activation.
+      [x] 82.4.1.2 Subtask - Add coverage proving the steer-overtakes-queued-work scenario still preserves supersession links.
+      [x] 82.4.1.3 Subtask - Add coverage proving normal queued child work still starts under the expected supervisor.
 
-    [ ] 82.4.2 Task - Run the relevant conversation-runtime suites
+    [x] 82.4.2 Task - Run the relevant conversation-runtime suites
       Verify the historical failure is closed across individual and combined execution modes.
 
-      [ ] 82.4.2.1 Subtask - Run `mix test test/jido_code/conversations_coordinator_test.exs --max-cases 1 --max-failures 1`.
-      [ ] 82.4.2.2 Subtask - Run the combined conversation batch covering coordinator, driver, persistence, PubSub, and context-memory tests.
-      [ ] 82.4.2.3 Subtask - Run any affected broader verification command required by touched conversation, memory, or workflow-provenance boundaries.
+      [x] 82.4.2.1 Subtask - Run `mix test test/jido_code/conversations_coordinator_test.exs --max-cases 1 --max-failures 1`.
+      [x] 82.4.2.2 Subtask - Run the combined conversation batch covering coordinator, driver, persistence, PubSub, and context-memory tests.
+      [x] 82.4.2.3 Subtask - Run any affected broader verification command required by touched conversation, memory, or workflow-provenance boundaries.

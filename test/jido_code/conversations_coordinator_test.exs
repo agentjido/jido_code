@@ -506,6 +506,112 @@ defmodule JidoCode.ConversationsCoordinatorTest do
     assert superseded_snapshot.queued_turn_ids == [queued_turn_id]
   end
 
+  test "child worker start uses child supervisor when available" do
+    conversation = conversation_fixture()
+    assert_child_supervisor_accepts_child!(conversation)
+  end
+
+  test "queued child work starts during normal activation" do
+    conversation = conversation_fixture()
+    assert_child_supervisor_accepts_child!(conversation)
+    start_coordinator!(conversation)
+
+    actor = %{"id" => "operator-supervised-child-work", "actor_class" => "operator"}
+
+    assert {:ok, first_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the current branch."}},
+               actor
+             )
+
+    assert {:ok, queued_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Prepare the follow-up work."}},
+               actor
+             )
+
+    queued_turn_id = List.first(queued_snapshot.queued_turn_ids)
+
+    assert {:ok, activated_snapshot} =
+             Coordinator.settle_child_work(
+               conversation.id,
+               first_snapshot.active_child_work_id,
+               :completed,
+               %{result: %{summary: "First child work completed."}},
+               actor
+             )
+
+    assert activated_snapshot.active_turn.id == queued_turn_id
+    assert activated_snapshot.active_child_work.state == :running
+    refute Enum.any?(activated_snapshot.events, &(&1.name == "turn.activation_failed"))
+
+    pid = coordinator_child_worker_pid(conversation.id, activated_snapshot.active_child_work_id)
+    assert Process.alive?(pid)
+  end
+
+  test "queued replacement turn activates while child supervisor name is temporarily unavailable" do
+    conversation = conversation_fixture()
+    start_coordinator!(conversation)
+
+    actor = %{"id" => "operator-child-supervisor-unavailable", "actor_class" => "operator"}
+
+    assert {:ok, first_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Inspect the failing workflow."}},
+               actor
+             )
+
+    assert {:ok, second_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{type: "turn.submit", payload: %{instruction: "Prepare the old follow-up plan."}},
+               actor
+             )
+
+    queued_turn_id = List.first(second_snapshot.queued_turn_ids)
+
+    assert {:ok, steering_snapshot} =
+             Coordinator.admit_command(
+               conversation.id,
+               %{
+                 type: "turn.steer",
+                 payload: %{instruction: "Narrow the scope to the failing test only."}
+               },
+               actor
+             )
+
+    replacement_turn = List.last(steering_snapshot.turns)
+
+    assert {:ok, superseded_snapshot} =
+             with_unregistered_child_supervisor(fn ->
+               Coordinator.settle_child_work(
+                 conversation.id,
+                 first_snapshot.active_child_work_id,
+                 :cancelled,
+                 %{result: %{reason: "Steering replaced the previous turn."}},
+                 actor
+               )
+             end)
+
+    superseded_turn =
+      Enum.find(superseded_snapshot.turns, &(&1.id == first_snapshot.active_turn.id))
+
+    replacement_turn = Enum.find(superseded_snapshot.turns, &(&1.id == replacement_turn.id))
+
+    assert superseded_turn.state == :superseded
+    assert superseded_turn.superseded_by_turn_id == replacement_turn.id
+    assert superseded_snapshot.active_turn.id == replacement_turn.id
+    assert superseded_snapshot.active_turn.state == :running
+    assert superseded_snapshot.active_child_work.state == :running
+    assert superseded_snapshot.queued_turn_ids == [queued_turn_id]
+
+    pid = coordinator_child_worker_pid(conversation.id, superseded_snapshot.active_child_work_id)
+    assert Process.alive?(pid)
+  end
+
   test "turn transition keeps lifecycle history explicit" do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
@@ -594,11 +700,61 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
   defp start_coordinator!(conversation) do
     start_supervised!(
-      {Coordinator,
-       {conversation,
-        starter_pid: self(),
-        sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner})}}
+      {Coordinator, {conversation, starter_pid: self(), sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner})}}
     )
+  end
+
+  defp coordinator_child_worker_pid(conversation_id, child_work_id) do
+    Coordinator.via_tuple(conversation_id)
+    |> :sys.get_state()
+    |> Map.fetch!(:child_worker_pids)
+    |> Map.fetch!(child_work_id)
+  end
+
+  defp supervised_child_worker?(pid) when is_pid(pid) do
+    JidoCode.Conversations.ChildSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.any?(fn {_id, child_pid, _type, _modules} -> child_pid == pid end)
+  end
+
+  defp assert_child_supervisor_accepts_child!(conversation) do
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    turn =
+      Turn.new(conversation.id, %{
+        id: Ecto.UUID.generate(),
+        raw_type: "turn.submit",
+        payload: %{},
+        admitted_at: now
+      })
+
+    child_work = ChildWork.new(conversation, turn)
+
+    assert {:ok, pid} =
+             DynamicSupervisor.start_child(
+               JidoCode.Conversations.ChildSupervisor,
+               {JidoCode.Conversations.ChildWorker, child_work}
+             )
+
+    assert supervised_child_worker?(pid)
+    assert :ok = DynamicSupervisor.terminate_child(JidoCode.Conversations.ChildSupervisor, pid)
+  end
+
+  defp with_unregistered_child_supervisor(fun) when is_function(fun, 0) do
+    supervisor_name = JidoCode.Conversations.ChildSupervisor
+    supervisor_pid = Process.whereis(supervisor_name)
+
+    assert is_pid(supervisor_pid)
+    assert Process.unregister(supervisor_name)
+
+    try do
+      assert Process.whereis(supervisor_name) == nil
+      fun.()
+    after
+      if Process.whereis(supervisor_name) == nil and Process.alive?(supervisor_pid) do
+        Process.register(supervisor_pid, supervisor_name)
+      end
+    end
   end
 
   defp managed_repo_fixture!(suffix) do

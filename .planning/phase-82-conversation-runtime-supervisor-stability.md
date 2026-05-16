@@ -31,6 +31,8 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The same combined batch can pass with other seeds, and `test/jido_code/conversations_coordinator_test.exs:448` passes in isolation, so this is an order-sensitive supervisor lifecycle issue.
 - The crash occurs while `Coordinator.settle_child_work/5` settles a superseded active turn and immediately activates the queued replacement turn. That path calls `ChildWorker.start/1`, which directly calls the named `JidoCode.Conversations.ChildSupervisor`.
 - The failing stack shows `DynamicSupervisor.start_child/2` exiting with `:shutdown`, which means the coordinator currently lets child-supervisor unavailability escape as a coordinator crash instead of preserving the settled state and leaving queued work recoverable.
+- Phase 82.2 now routes child-work startup through `ChildWorker.start/1` and `Coordinator.start_child_worker/1`, normalizing supervisor unavailability and preserving coordinator state with a `turn.activation_failed` event if startup cannot begin.
+- Phase 82.3 records the shared application-supervisor contract in `docs/developer/06-conversation-orchestration.md` and adds the historical seeded batch to `docs/developer/10-development-workflow-and-quality-gates.md`.
 
 [ ] 82 Phase 82 - Conversation Runtime Supervisor Stability
   Stabilize the conversation runtime child-work supervision contract so combined conversation suites are deterministic, queued work activation is resilient, and supervisor lifecycle assumptions are explicit in both runtime code and tests.
@@ -69,22 +71,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 82.2.2.2 Subtask - Remove or isolate test cleanup that shuts down shared conversation runtime processes needed by later files.
       [x] 82.2.2.3 Subtask - Keep forced failure tests scoped to their fixture process rather than leaking global supervisor state.
 
-  [ ] 82.3 Section - Runtime State And Contributor Convergence
+  [x] 82.3 Section - Runtime State And Contributor Convergence
     Preserve the conversation runtime mental model while making supervisor failure modes explicit for future work.
 
-    [ ] 82.3.1 Task - Keep turn supersession and queued work semantics stable
+    [x] 82.3.1 Task - Keep turn supersession and queued work semantics stable
       Verify the stability fix does not change the core stop, steer, and queued child-work behavior that Phase 40 introduced.
 
-      [ ] 82.3.1.1 Subtask - Preserve supersession links when steering overtakes queued work.
-      [ ] 82.3.1.2 Subtask - Preserve cancellation and settlement behavior for active and queued child work.
-      [ ] 82.3.1.3 Subtask - Preserve event publication and persistence side effects around child-work state changes.
+      [x] 82.3.1.1 Subtask - Preserve supersession links when steering overtakes queued work.
+      [x] 82.3.1.2 Subtask - Preserve cancellation and settlement behavior for active and queued child work.
+      [x] 82.3.1.3 Subtask - Preserve event publication and persistence side effects around child-work state changes.
 
-    [ ] 82.3.2 Task - Update contributor guidance for conversation supervisor lifecycle
+    [x] 82.3.2 Task - Update contributor guidance for conversation supervisor lifecycle
       Make the stable test and runtime contract discoverable for future conversation-runtime changes.
 
-      [ ] 82.3.2.1 Subtask - Document which supervisor processes are shared application infrastructure versus per-test fixtures.
-      [ ] 82.3.2.2 Subtask - Document the expected behavior when child-work startup cannot begin.
-      [ ] 82.3.2.3 Subtask - Update planning or developer notes with the combined-suite command that protects this boundary.
+      [x] 82.3.2.1 Subtask - Document which supervisor processes are shared application infrastructure versus per-test fixtures.
+      [x] 82.3.2.2 Subtask - Document the expected behavior when child-work startup cannot begin.
+      [x] 82.3.2.3 Subtask - Update planning or developer notes with the combined-suite command that protects this boundary.
 
   [ ] 82.4 Section - Integration Tests
     End the phase with regression coverage that proves the full conversation-runtime batch is stable, not only the individual failing test.

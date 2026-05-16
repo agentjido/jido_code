@@ -45,6 +45,7 @@ before editing:
 | `mix source_graph.verify` | verify semantic source-code graph stack |
 | `mix memory.verify` | verify memory graph and capture-plane behavior |
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs` | verify prompt context memory adapter and runtime integration |
+| `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1` | verify the historical conversation child-supervisor lifecycle regression |
 | `mix semantic.verify` | verify product-facing semantic behavior |
 | `mix docs` | build repo docs surface |
 
@@ -57,6 +58,8 @@ Run the narrower verification commands when you touch those boundaries:
 - memory graph or capture boundaries -> `mix memory.verify`
 - prompt context memory adapter or conversation prompt recall changes -> run the
   focused prompt-memory tests listed above
+- conversation coordinator, child-work supervision, or conversation runtime
+  startup changes -> run the historical seeded conversation batch listed above
 - product-facing semantic surfaces or services -> `mix semantic.verify`
 
 ## Branching And Collaboration

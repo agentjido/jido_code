@@ -31,6 +31,8 @@ It is not intended to be a free-floating page-local chat buffer.
 | `Conversations` | top-level product-facing API for reads and persistence lookups |
 | `Driver` | product-owned runtime boundary for opening conversations and handling commands |
 | `Coordinator` | active process that owns command admission, turn state, sequencing, and cancellation |
+| `Conversations.ChildSupervisor` | application-owned dynamic supervisor for cancellable child-work processes |
+| `ChildWorker` | runtime wrapper for one active unit of cancellable child work |
 | `WorkResolution` | promotes productive repo conversation turns into canonical governed `WorkItem` scope before durable specialist execution continues |
 | `Command` | typed control and work commands |
 | `Event` / `EventRecord` | append-only event stream and durable event persistence |
@@ -84,6 +86,37 @@ Each active conversation has a coordinator process because someone has to own:
 - snapshots
 
 That ownership makes interruption and reconnect behavior explainable.
+
+## Child Work Supervision
+
+The coordinator owns conversation state. `Conversations.ChildSupervisor` owns
+the normal OTP supervision path for cancellable child work. Tests and features
+should treat it as shared application infrastructure, not as a per-test fixture
+to stop or replace casually.
+
+When the coordinator starts queued child work, it goes through `ChildWorker`
+rather than calling the dynamic supervisor directly. That boundary normalizes
+short supervisor shutdown windows and missing-supervisor failures into typed
+start results. If supervised startup is temporarily unavailable, the child
+worker may use a bounded coordinator-owned fallback so existing queued turn
+semantics continue without crashing the coordinator. If startup still cannot
+begin, the coordinator preserves recoverable state, leaves the queued turn out
+of the active slot, and appends a `turn.activation_failed` event with an
+operator-facing remediation payload.
+
+Do not write tests that depend on conversation test files running in a specific
+order. When changing child work, the coordinator, runtime startup, or
+conversation supervisor ownership, include the seeded combined batch in the
+verification set:
+
+```bash
+mix test test/jido_code/conversations_driver_test.exs \
+  test/jido_code/conversations_coordinator_test.exs \
+  test/jido_code/conversations_test.exs \
+  test/jido_code/conversations_pubsub_test.exs \
+  test/jido_code/conversations/context_memory_test.exs \
+  --seed 871949 --max-cases 1 --max-failures 1
+```
 
 ## Event-Driven Delivery
 

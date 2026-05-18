@@ -132,6 +132,7 @@ The plan aligns to:
 75. [Phase 81 - CodingPod Refactorer API Exposure](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-81-coding-pod-refactorer-api-exposure.md): expose the existing lazy `Refactorer` specialist through a first-class `AgentWorkspace.refactor_work/3,4` API while preserving CodingPod isolation, task-board visibility, workflow provenance, and deterministic product-owned specialist routing.
 76. [Phase 82 - Conversation Runtime Supervisor Stability](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-82-conversation-runtime-supervisor-stability.md): stabilize the conversation runtime child-work supervision contract so combined conversation suites are deterministic and queued work activation does not crash when the child supervisor is unavailable.
 77. [Phase 83 - Refactorer Conversation Routing Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-83-refactorer-conversation-routing-adoption.md): adopt the exposed Refactorer into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without changing full-workflow orchestration.
+78. [Phase 84 - Context Memory Test Isolation And Suite Stability](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-84-context-memory-test-isolation-and-suite-stability.md): make prompt-context memory tests hermetic enough that conversation runtime, workflow routing, and context-memory suites can run together without ETS cleanup races.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -161,6 +162,11 @@ bounded retrieval and explicit capture into the real conversation runtime, and
 Phase 79 hardens lifecycle, provider behavior, and contributor guidance while
 preserving the provenance-first and explicit-adoption split for long-term
 memory.
+
+Context-memory suite-stability note: Phase 84 follows the Phase 83 refactor
+routing rollout by isolating prompt-memory test store lifecycle so mixed
+conversation runtime, workflow routing, and context-memory suites can run
+together without order-sensitive ETS cleanup failures.
 
 Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery

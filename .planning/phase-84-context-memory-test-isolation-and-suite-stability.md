@@ -42,8 +42,11 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Phase 84.2 adds `JidoCode.PromptMemoryTestStore`, a test-support fixture that gives each prompt-memory test a unique ETS table family, restores global `:conversation_context_memory` config before cleanup, and treats missing ETS tables as an idempotent cleanup outcome.
 - `ContextMemoryTest` and the Phase 78 prompt-recall integration test now use the shared fixture instead of fixed table names, preserving production `ContextMemory` behavior while removing order-sensitive table deletion.
 - Phase 84.3 documents the stable verification split: Phase 79 prompt-memory lifecycle tests use the focused prompt-memory command, Phase 82 conversation supervision changes use the historical seeded batch, and Phase 83 routing changes use the mixed context-memory plus routing integration command.
+- Phase 84.4 adds focused fixture regression coverage for repeated cleanup, fixture isolation, and bounded disabled/degraded projections after cleanup.
+- Verified with `mix test test/jido_code/conversations/context_memory_test.exs --max-cases 1 --max-failures 1`, the historical Phase 82 seeded conversation batch, the mixed context-memory plus Phase 52 and Phase 83 routing command, `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs --max-cases 1 --max-failures 1`, and `mix memory.verify`.
+- `mix format --check-formatted` still reports unrelated pre-existing formatting drift outside this phase; the touched Elixir files pass `mix format --check-formatted test/support/prompt_memory_test_store.ex test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs`.
 
-[ ] 84 Phase 84 - Context Memory Test Isolation And Suite Stability
+[x] 84 Phase 84 - Context Memory Test Isolation And Suite Stability
   Make prompt-context memory tests hermetic enough that conversation runtime, workflow routing, and context-memory suites can run together without ETS cleanup races, while preserving the product boundary between short-term prompt memory, conversation provenance, and durable memory.
 
   [x] 84.1 Section - Failure Reproduction And Test-Lifecycle Diagnosis
@@ -97,20 +100,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 84.3.2.2 Subtask - Update `.planning/README.md` with the Phase 84 entry and chronology note.
       [x] 84.3.2.3 Subtask - Cross-reference Phase 79, Phase 82, and Phase 83 where their verification boundaries overlap this suite-stability work.
 
-  [ ] 84.4 Section - Integration Tests
+  [x] 84.4 Section - Integration Tests
     End the phase with regression coverage that proves context-memory tests can run with conversation runtime and refactor-routing suites without order-sensitive ETS failures.
 
-    [ ] 84.4.1 Task - Add focused context-memory isolation coverage
+    [x] 84.4.1 Task - Add focused context-memory isolation coverage
       Exercise the exact fixture behavior that failed so the test harness remains safe under repeated setup and cleanup.
 
-      [ ] 84.4.1.1 Subtask - Add coverage proving repeated context-memory setup and teardown does not raise when the ETS table is missing or already removed.
-      [ ] 84.4.1.2 Subtask - Add coverage proving two context-memory fixtures cannot accidentally share and delete each other's active store.
-      [ ] 84.4.1.3 Subtask - Add coverage proving disabled and degraded prompt-memory projections still return bounded non-fatal results after fixture cleanup.
+      [x] 84.4.1.1 Subtask - Add coverage proving repeated context-memory setup and teardown does not raise when the ETS table is missing or already removed.
+      [x] 84.4.1.2 Subtask - Add coverage proving two context-memory fixtures cannot accidentally share and delete each other's active store.
+      [x] 84.4.1.3 Subtask - Add coverage proving disabled and degraded prompt-memory projections still return bounded non-fatal results after fixture cleanup.
 
-    [ ] 84.4.2 Task - Run mixed conversation and routing verification
+    [x] 84.4.2 Task - Run mixed conversation and routing verification
       Verify the original over-broad command and the narrower intended gates are both stable after the isolation fix.
 
-      [ ] 84.4.2.1 Subtask - Run `mix test test/jido_code/conversations/context_memory_test.exs --max-cases 1 --max-failures 1`.
-      [ ] 84.4.2.2 Subtask - Run the historical Phase 82 conversation batch with seed `871949`.
-      [ ] 84.4.2.3 Subtask - Run the Phase 52 and Phase 83 routing integration tests with context-memory tests in the same command.
-      [ ] 84.4.2.4 Subtask - Run `mix memory.verify` or any narrower prompt-memory verification command required by the final touched boundaries.
+      [x] 84.4.2.1 Subtask - Run `mix test test/jido_code/conversations/context_memory_test.exs --max-cases 1 --max-failures 1`.
+      [x] 84.4.2.2 Subtask - Run the historical Phase 82 conversation batch with seed `871949`.
+      [x] 84.4.2.3 Subtask - Run the Phase 52 and Phase 83 routing integration tests with context-memory tests in the same command.
+      [x] 84.4.2.4 Subtask - Run `mix memory.verify` or any narrower prompt-memory verification command required by the final touched boundaries.

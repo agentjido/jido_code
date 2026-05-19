@@ -252,6 +252,104 @@ defmodule JidoCode.Conversations.ContextMemoryTest do
     end
   end
 
+  describe "Phase 84 - hermetic prompt-memory test fixtures" do
+    test "fixture cleanup is idempotent when ETS tables are missing or already removed", %{
+      prompt_memory_store: prompt_memory_store
+    } do
+      enable_context_memory!(prompt_memory_store)
+
+      scope = %{
+        managed_repo_id: "repo-84",
+        work_item_id: "work-84-cleanup",
+        conversation_id: "conversation-84-cleanup"
+      }
+
+      assert {:ok, %{state: :ready}} =
+               ContextMemory.remember(scope, %{
+                 kind: :next_step,
+                 text: "Cleanup can run more than once."
+               })
+
+      assert Enum.any?(JidoCode.PromptMemoryTestStore.table_names(prompt_memory_store.table), fn table ->
+               :ets.whereis(table) != :undefined
+             end)
+
+      assert :ok = JidoCode.PromptMemoryTestStore.cleanup_store!(prompt_memory_store)
+      assert :ok = JidoCode.PromptMemoryTestStore.cleanup_store!(prompt_memory_store)
+    end
+
+    test "one fixture cleanup does not delete another fixture's active store" do
+      first =
+        JidoCode.PromptMemoryTestStore.setup!(
+          prefix: :jido_code_context_memory_isolation_test,
+          config: [enabled?: true]
+        )
+
+      first_scope = %{
+        managed_repo_id: "repo-84",
+        work_item_id: "work-84-first",
+        conversation_id: "conversation-84-first"
+      }
+
+      assert {:ok, %{state: :ready}} =
+               ContextMemory.remember(first_scope, %{
+                 kind: :next_step,
+                 text: "First fixture memory."
+               })
+
+      second =
+        JidoCode.PromptMemoryTestStore.setup!(
+          prefix: :jido_code_context_memory_isolation_test,
+          config: [enabled?: true]
+        )
+
+      second_scope = %{
+        managed_repo_id: "repo-84",
+        work_item_id: "work-84-second",
+        conversation_id: "conversation-84-second"
+      }
+
+      assert first.table != second.table
+
+      assert {:ok, %{state: :ready}} =
+               ContextMemory.remember(second_scope, %{
+                 kind: :next_step,
+                 text: "Second fixture memory."
+               })
+
+      assert :ok = JidoCode.PromptMemoryTestStore.cleanup_store!(first)
+
+      assert {:ok, %{state: :ready, items: [%{text: "Second fixture memory."}]}} =
+               ContextMemory.retrieve(second_scope)
+    end
+
+    test "disabled and degraded projections stay bounded after fixture cleanup", %{
+      prompt_memory_store: prompt_memory_store
+    } do
+      assert :ok = JidoCode.PromptMemoryTestStore.cleanup_store!(prompt_memory_store)
+
+      assert {:ok, %{state: :disabled, items: [], instruction_lines: []}} =
+               ContextMemory.retrieve(%{
+                 managed_repo_id: "repo-84",
+                 work_item_id: "work-84-disabled"
+               })
+
+      Application.put_env(:jido_code, :conversation_context_memory,
+        enabled?: true,
+        provider: :basic,
+        store: {JidoCode.Conversations.MissingPromptMemoryStore, []}
+      )
+
+      assert {:ok, %{state: :degraded, items: [], instruction_lines: [], diagnostics: %{reason: reason}}} =
+               ContextMemory.retrieve(%{
+                 managed_repo_id: "repo-84",
+                 work_item_id: "work-84-degraded"
+               })
+
+      assert reason =~ "store_not_loaded"
+    end
+  end
+
   defp enable_context_memory!(prompt_memory_store) do
     JidoCode.PromptMemoryTestStore.configure!(prompt_memory_store,
       enabled?: true,

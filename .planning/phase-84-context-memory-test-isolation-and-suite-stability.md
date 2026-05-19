@@ -29,25 +29,36 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Prompt memory remains short-term prompt context only; this phase should improve test isolation and suite reliability without changing prompt-memory product semantics.
 - The fix should not rely on test file ordering, sleeps, or ambient process lifetime assumptions.
 
+## Implementation Notes
+- Reproduced the current context-memory cleanup race with the historical Phase 82 conversation batch:
+  `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1`
+- Confirmed the isolated context-memory suite passes with:
+  `mix test test/jido_code/conversations/context_memory_test.exs --max-cases 1 --max-failures 1`
+- Confirmed the Phase 52 and Phase 83 routing integration tests can run with context-memory tests in the same command:
+  `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_fifty_two_integration_test.exs test/jido_code/phase_eighty_three_integration_test.exs --max-cases 1 --max-failures 1`
+- The failing stack is in `ContextMemoryTest.reset_store!/0` during `on_exit`, where cleanup checks a fixed named ETS table and then calls `:ets.delete/1`; the table can disappear between those operations.
+- `ContextMemoryTest` owns global application config for `:conversation_context_memory` and points every test at the same fixed ETS base table, while `Jido.Memory.Store.ETS` derives four named public tables from that base table.
+- The prompt-memory production adapter behavior is not the failure boundary. The unstable boundary is the test fixture lifecycle around global app config restoration and named ETS table cleanup.
+
 [ ] 84 Phase 84 - Context Memory Test Isolation And Suite Stability
   Make prompt-context memory tests hermetic enough that conversation runtime, workflow routing, and context-memory suites can run together without ETS cleanup races, while preserving the product boundary between short-term prompt memory, conversation provenance, and durable memory.
 
-  [ ] 84.1 Section - Failure Reproduction And Test-Lifecycle Diagnosis
+  [x] 84.1 Section - Failure Reproduction And Test-Lifecycle Diagnosis
     Capture the mixed-suite failure as a bounded test isolation problem before changing memory runtime behavior.
 
-    [ ] 84.1.1 Task - Reproduce and minimize the context-memory cleanup race
+    [x] 84.1.1 Task - Reproduce and minimize the context-memory cleanup race
       Identify the smallest deterministic command that proves the ETS table lifecycle can be invalidated by mixed conversation and routing test execution.
 
-      [ ] 84.1.1.1 Subtask - Record the over-broad mixed test command, seed behavior, failure stack, and involved test modules.
-      [ ] 84.1.1.2 Subtask - Confirm `test/jido_code/conversations/context_memory_test.exs` passes alone and the intended Phase 82 conversation batch still passes.
-      [ ] 84.1.1.3 Subtask - Determine whether the failure comes from shared ETS table names, repeated `on_exit` cleanup, application env restoration, provider startup, or cross-test process ownership.
+      [x] 84.1.1.1 Subtask - Record the over-broad mixed test command, seed behavior, failure stack, and involved test modules.
+      [x] 84.1.1.2 Subtask - Confirm `test/jido_code/conversations/context_memory_test.exs` passes alone and the historical Phase 82 conversation batch still exposes the context-memory cleanup race.
+      [x] 84.1.1.3 Subtask - Determine whether the failure comes from shared ETS table names, repeated `on_exit` cleanup, application env restoration, provider startup, or cross-test process ownership.
 
-    [ ] 84.1.2 Task - Trace prompt-memory test ownership boundaries
+    [x] 84.1.2 Task - Trace prompt-memory test ownership boundaries
       Make test lifecycle ownership explicit enough that the fix lands in the test harness or adapter boundary instead of masking a product behavior.
 
-      [ ] 84.1.2.1 Subtask - Trace how `ContextMemoryTest` configures `:conversation_context_memory`, store table names, store options, and provider state.
-      [ ] 84.1.2.2 Subtask - Trace how runtime and routing integration tests retrieve or write prompt memory during asynchronous child-work execution.
-      [ ] 84.1.2.3 Subtask - Document which resources are global application config, which are per-test fixtures, and which are runtime-owned state.
+      [x] 84.1.2.1 Subtask - Trace how `ContextMemoryTest` configures `:conversation_context_memory`, store table names, store options, and provider state.
+      [x] 84.1.2.2 Subtask - Trace how runtime and routing integration tests retrieve or write prompt memory during asynchronous child-work execution.
+      [x] 84.1.2.3 Subtask - Document which resources are global application config, which are per-test fixtures, and which are runtime-owned state.
 
   [ ] 84.2 Section - Hermetic Context-Memory Test Store Contract
     Replace shared test-store assumptions with an explicit per-test lifecycle that survives mixed suite execution.

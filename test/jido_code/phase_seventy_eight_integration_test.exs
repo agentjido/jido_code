@@ -10,38 +10,20 @@ defmodule JidoCode.PhaseSeventyEightIntegrationTest do
   alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
 
-  @store_table :jido_code_phase_78_prompt_memory_test
-  @store {Jido.Memory.Store.ETS, [table: @store_table]}
-
   setup do
-    previous_prompt_memory = Application.get_env(:jido_code, :conversation_context_memory, [])
     previous_memory_graph = Application.get_env(:jido_code, :memory_graph_enabled, false)
     previous_source_graph = Application.get_env(:jido_code, :source_code_graph_enabled, false)
-
-    reset_prompt_memory_store!()
+    prompt_memory_store = phase_seventy_eight_prompt_memory_store!()
 
     Application.put_env(:jido_code, :memory_graph_enabled, false)
     Application.put_env(:jido_code, :source_code_graph_enabled, false)
 
-    Application.put_env(:jido_code, :conversation_context_memory,
-      enabled?: true,
-      provider: :basic,
-      store: @store,
-      store_opts: [],
-      retrieval_limit: 10,
-      max_instruction_lines: 10,
-      max_instruction_bytes: 2_000,
-      ttl_ms: 60_000
-    )
-
     on_exit(fn ->
-      Application.put_env(:jido_code, :conversation_context_memory, previous_prompt_memory)
       Application.put_env(:jido_code, :memory_graph_enabled, previous_memory_graph)
       Application.put_env(:jido_code, :source_code_graph_enabled, previous_source_graph)
-      reset_prompt_memory_store!()
     end)
 
-    :ok
+    {:ok, prompt_memory_store: prompt_memory_store}
   end
 
   test "runtime retrieves prompt memory into bounded instruction assembly and progress diagnostics" do
@@ -147,8 +129,8 @@ defmodule JidoCode.PhaseSeventyEightIntegrationTest do
     assert accepted_tool_result.metadata["previous_prompt_memory_namespaces"] == ["repo:#{managed_repo.id}:intake"]
   end
 
-  test "disabled prompt memory falls back to the existing runtime path" do
-    Application.put_env(:jido_code, :conversation_context_memory, enabled?: false, store: @store)
+  test "disabled prompt memory falls back to the existing runtime path", %{prompt_memory_store: prompt_memory_store} do
+    JidoCode.PromptMemoryTestStore.configure!(prompt_memory_store, enabled?: false)
 
     {managed_repo, work_item} = managed_repo_and_work_item_fixture!("disabled")
 
@@ -286,16 +268,16 @@ defmodule JidoCode.PhaseSeventyEightIntegrationTest do
     workspace_path
   end
 
-  defp reset_prompt_memory_store! do
-    for table <- [
-          :jido_code_phase_78_prompt_memory_test_records,
-          :jido_code_phase_78_prompt_memory_test_ns_time,
-          :jido_code_phase_78_prompt_memory_test_ns_class_time,
-          :jido_code_phase_78_prompt_memory_test_ns_tag
-        ] do
-      if :ets.whereis(table) != :undefined do
-        :ets.delete(table)
-      end
-    end
+  defp phase_seventy_eight_prompt_memory_store! do
+    JidoCode.PromptMemoryTestStore.setup!(
+      prefix: :jido_code_phase_78_prompt_memory_test,
+      config: [
+        enabled?: true,
+        retrieval_limit: 10,
+        max_instruction_lines: 10,
+        max_instruction_bytes: 2_000,
+        ttl_ms: 60_000
+      ]
+    )
   end
 end

@@ -46,6 +46,7 @@ before editing:
 | `mix memory.verify` | verify memory graph and capture-plane behavior |
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs` | verify prompt context memory adapter and runtime integration |
 | `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1` | verify the historical conversation child-supervisor lifecycle regression |
+| `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_fifty_two_integration_test.exs test/jido_code/phase_eighty_three_integration_test.exs --max-cases 1 --max-failures 1` | verify prompt-memory fixture isolation with deterministic routing and refactor-routing integration |
 | `mix semantic.verify` | verify product-facing semantic behavior |
 | `mix docs` | build repo docs surface |
 
@@ -60,7 +61,28 @@ Run the narrower verification commands when you touch those boundaries:
   focused prompt-memory tests listed above
 - conversation coordinator, child-work supervision, or conversation runtime
   startup changes -> run the historical seeded conversation batch listed above
+- workflow routing, refactor routing, or prompt-memory fixture changes -> run
+  the mixed context-memory plus Phase 52 and Phase 83 routing command listed
+  above
 - product-facing semantic surfaces or services -> `mix semantic.verify`
+
+## Prompt Context Memory Verification
+
+Prompt context memory is short-term runtime help for assembling the next
+conversation turn. It is not durable repository memory, transcript storage, or
+an operator-facing memory surface.
+
+Use the focused context-memory command when changing
+`JidoCode.Conversations.ContextMemory`, provider config, namespace policy,
+fallback behavior, or lifecycle cleanup. Use the historical seeded conversation
+batch when changing conversation runtime startup or shared child-work
+supervision. Use the mixed Phase 52 and Phase 83 routing command when changing
+workflow routing, refactor routing, prompt-memory fixtures, or any path where
+routing integration and prompt-memory setup run in the same VM.
+
+Prompt-memory tests use `JidoCode.PromptMemoryTestStore` for per-test ETS table
+families. New prompt-memory tests should use that fixture instead of fixed ETS
+table names or raw `:ets.delete/1` cleanup.
 
 ## Branching And Collaboration
 

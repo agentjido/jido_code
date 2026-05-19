@@ -39,6 +39,8 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The failing stack is in `ContextMemoryTest.reset_store!/0` during `on_exit`, where cleanup checks a fixed named ETS table and then calls `:ets.delete/1`; the table can disappear between those operations.
 - `ContextMemoryTest` owns global application config for `:conversation_context_memory` and points every test at the same fixed ETS base table, while `Jido.Memory.Store.ETS` derives four named public tables from that base table.
 - The prompt-memory production adapter behavior is not the failure boundary. The unstable boundary is the test fixture lifecycle around global app config restoration and named ETS table cleanup.
+- Phase 84.2 adds `JidoCode.PromptMemoryTestStore`, a test-support fixture that gives each prompt-memory test a unique ETS table family, restores global `:conversation_context_memory` config before cleanup, and treats missing ETS tables as an idempotent cleanup outcome.
+- `ContextMemoryTest` and the Phase 78 prompt-recall integration test now use the shared fixture instead of fixed table names, preserving production `ContextMemory` behavior while removing order-sensitive table deletion.
 
 [ ] 84 Phase 84 - Context Memory Test Isolation And Suite Stability
   Make prompt-context memory tests hermetic enough that conversation runtime, workflow routing, and context-memory suites can run together without ETS cleanup races, while preserving the product boundary between short-term prompt memory, conversation provenance, and durable memory.
@@ -60,22 +62,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 84.1.2.2 Subtask - Trace how runtime and routing integration tests retrieve or write prompt memory during asynchronous child-work execution.
       [x] 84.1.2.3 Subtask - Document which resources are global application config, which are per-test fixtures, and which are runtime-owned state.
 
-  [ ] 84.2 Section - Hermetic Context-Memory Test Store Contract
+  [x] 84.2 Section - Hermetic Context-Memory Test Store Contract
     Replace shared test-store assumptions with an explicit per-test lifecycle that survives mixed suite execution.
 
-    [ ] 84.2.1 Task - Isolate context-memory store resources per test
+    [x] 84.2.1 Task - Isolate context-memory store resources per test
       Ensure every prompt-memory test owns its configured store without colliding with later or earlier test cleanup.
 
-      [ ] 84.2.1.1 Subtask - Use unique ETS table identifiers or a supervised fixture-owned store for each context-memory test.
-      [ ] 84.2.1.2 Subtask - Restore `:conversation_context_memory` application config in a way that cannot point later tests at a deleted table.
-      [ ] 84.2.1.3 Subtask - Make cleanup idempotent when a table was already removed, never created, or replaced by another fixture.
+      [x] 84.2.1.1 Subtask - Use unique ETS table identifiers or a supervised fixture-owned store for each context-memory test.
+      [x] 84.2.1.2 Subtask - Restore `:conversation_context_memory` application config in a way that cannot point later tests at a deleted table.
+      [x] 84.2.1.3 Subtask - Make cleanup idempotent when a table was already removed, never created, or replaced by another fixture.
 
-    [ ] 84.2.2 Task - Keep prompt-memory adapter behavior unchanged for production callers
+    [x] 84.2.2 Task - Keep prompt-memory adapter behavior unchanged for production callers
       Fix the test lifecycle without widening product semantics or making prompt memory ambient product truth.
 
-      [ ] 84.2.2.1 Subtask - Keep `ContextMemory.retrieve/2`, `remember/2`, and namespace behavior unchanged for disabled, degraded, and ready states.
-      [ ] 84.2.2.2 Subtask - Avoid adding test-only branches to runtime prompt assembly or durable-memory adoption paths.
-      [ ] 84.2.2.3 Subtask - Preserve prompt-memory fallback behavior when provider configuration is missing, disabled, invalid, or unavailable.
+      [x] 84.2.2.1 Subtask - Keep `ContextMemory.retrieve/2`, `remember/2`, and namespace behavior unchanged for disabled, degraded, and ready states.
+      [x] 84.2.2.2 Subtask - Avoid adding test-only branches to runtime prompt assembly or durable-memory adoption paths.
+      [x] 84.2.2.3 Subtask - Preserve prompt-memory fallback behavior when provider configuration is missing, disabled, invalid, or unavailable.
 
   [ ] 84.3 Section - Contributor Guidance And Quality-Gate Convergence
     Make the stable mixed-suite contract discoverable so future conversation-memory changes do not reintroduce order dependence.

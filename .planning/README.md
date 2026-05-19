@@ -164,9 +164,11 @@ preserving the provenance-first and explicit-adoption split for long-term
 memory.
 
 Context-memory suite-stability note: Phase 84 follows the Phase 83 refactor
-routing rollout by isolating prompt-memory test store lifecycle so mixed
-conversation runtime, workflow routing, and context-memory suites can run
-together without order-sensitive ETS cleanup failures.
+routing rollout by isolating prompt-memory test store lifecycle with per-test
+ETS table families and idempotent cleanup. It protects the Phase 79
+prompt-memory lifecycle tests, the Phase 82 historical conversation batch, and
+the Phase 83 routing integration boundary from order-sensitive cleanup
+failures.
 
 Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery

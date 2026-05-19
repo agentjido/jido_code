@@ -118,6 +118,11 @@ mix test test/jido_code/conversations_driver_test.exs \
   --seed 871949 --max-cases 1 --max-failures 1
 ```
 
+That batch also exercises the prompt-memory test fixture lifecycle. Prompt
+memory tests should use `JidoCode.PromptMemoryTestStore` for unique ETS table
+families and idempotent cleanup instead of sharing fixed table names across
+test cases.
+
 ## Event-Driven Delivery
 
 Live updates are expected to flow through conversation events and PubSub.

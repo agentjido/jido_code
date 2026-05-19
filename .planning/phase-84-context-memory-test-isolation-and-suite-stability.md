@@ -41,6 +41,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The prompt-memory production adapter behavior is not the failure boundary. The unstable boundary is the test fixture lifecycle around global app config restoration and named ETS table cleanup.
 - Phase 84.2 adds `JidoCode.PromptMemoryTestStore`, a test-support fixture that gives each prompt-memory test a unique ETS table family, restores global `:conversation_context_memory` config before cleanup, and treats missing ETS tables as an idempotent cleanup outcome.
 - `ContextMemoryTest` and the Phase 78 prompt-recall integration test now use the shared fixture instead of fixed table names, preserving production `ContextMemory` behavior while removing order-sensitive table deletion.
+- Phase 84.3 documents the stable verification split: Phase 79 prompt-memory lifecycle tests use the focused prompt-memory command, Phase 82 conversation supervision changes use the historical seeded batch, and Phase 83 routing changes use the mixed context-memory plus routing integration command.
 
 [ ] 84 Phase 84 - Context Memory Test Isolation And Suite Stability
   Make prompt-context memory tests hermetic enough that conversation runtime, workflow routing, and context-memory suites can run together without ETS cleanup races, while preserving the product boundary between short-term prompt memory, conversation provenance, and durable memory.
@@ -79,22 +80,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 84.2.2.2 Subtask - Avoid adding test-only branches to runtime prompt assembly or durable-memory adoption paths.
       [x] 84.2.2.3 Subtask - Preserve prompt-memory fallback behavior when provider configuration is missing, disabled, invalid, or unavailable.
 
-  [ ] 84.3 Section - Contributor Guidance And Quality-Gate Convergence
+  [x] 84.3 Section - Contributor Guidance And Quality-Gate Convergence
     Make the stable mixed-suite contract discoverable so future conversation-memory changes do not reintroduce order dependence.
 
-    [ ] 84.3.1 Task - Update prompt-memory verification guidance
+    [x] 84.3.1 Task - Update prompt-memory verification guidance
       Align developer docs with the new stable verification boundary for context-memory tests and conversation routing tests.
 
-      [ ] 84.3.1.1 Subtask - Add the minimized mixed-suite command to `docs/developer/10-development-workflow-and-quality-gates.md`.
-      [ ] 84.3.1.2 Subtask - Explain when contributors should run context-memory-only tests, the historical conversation batch, and mixed routing/runtime tests.
-      [ ] 84.3.1.3 Subtask - Keep guidance clear that prompt memory is a bounded runtime enhancement, not durable repository memory or transcript storage.
+      [x] 84.3.1.1 Subtask - Add the minimized mixed-suite command to `docs/developer/10-development-workflow-and-quality-gates.md`.
+      [x] 84.3.1.2 Subtask - Explain when contributors should run context-memory-only tests, the historical conversation batch, and mixed routing/runtime tests.
+      [x] 84.3.1.3 Subtask - Keep guidance clear that prompt memory is a bounded runtime enhancement, not durable repository memory or transcript storage.
 
-    [ ] 84.3.2 Task - Update planning and implementation notes
+    [x] 84.3.2 Task - Update planning and implementation notes
       Preserve the diagnosis and final verification commands as current truth for later prompt-memory work.
 
-      [ ] 84.3.2.1 Subtask - Record the root cause and final fixture contract in this phase document.
-      [ ] 84.3.2.2 Subtask - Update `.planning/README.md` with the Phase 84 entry and chronology note.
-      [ ] 84.3.2.3 Subtask - Cross-reference Phase 79, Phase 82, and Phase 83 where their verification boundaries overlap this suite-stability work.
+      [x] 84.3.2.1 Subtask - Record the root cause and final fixture contract in this phase document.
+      [x] 84.3.2.2 Subtask - Update `.planning/README.md` with the Phase 84 entry and chronology note.
+      [x] 84.3.2.3 Subtask - Cross-reference Phase 79, Phase 82, and Phase 83 where their verification boundaries overlap this suite-stability work.
 
   [ ] 84.4 Section - Integration Tests
     End the phase with regression coverage that proves context-memory tests can run with conversation runtime and refactor-routing suites without order-sensitive ETS failures.

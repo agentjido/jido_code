@@ -255,10 +255,127 @@ defmodule JidoCode.ContextManagement do
 
   def observation(_attrs), do: {:error, :invalid_observation}
 
+  @doc "Normalizes and validates a compaction summary record."
+  @spec compaction_summary(map() | compaction_summary(), keyword() | map()) ::
+          {:ok, compaction_summary()} | {:error, term()}
+  def compaction_summary(attrs, opts \\ [])
+
+  def compaction_summary(%CompactionSummary{} = summary, opts) do
+    compaction_summary(Map.from_struct(summary), opts)
+  end
+
+  def compaction_summary(attrs, opts) when is_map(attrs) do
+    policy = policy(opts)
+
+    with :ok <- reject_raw_context_metadata(attrs),
+         {:ok, managed_repo_id} <- required_string(attrs, :managed_repo_id),
+         {:ok, work_item_id} <- required_string(attrs, :work_item_id),
+         {:ok, workflow} <- required_string(attrs, :workflow),
+         {:ok, specialist_role} <- required_string(attrs, :specialist_role),
+         {:ok, summary_text} <- required_string(attrs, :summary_text),
+         {:ok, source_span_ids} <- source_span_ids(attrs),
+         :ok <- validate_summary_size(summary_text, policy) do
+      summary_estimate = ContextBudget.estimate(summary_text)
+      original_estimate = estimate_from_attrs(attrs, :original_estimate)
+      now = DateTime.utc_now()
+
+      {:ok,
+       %CompactionSummary{
+         id: optional_string(attrs, :id) || summary_id(work_item_id, workflow, specialist_role, source_span_ids),
+         managed_repo_id: managed_repo_id,
+         work_item_id: work_item_id,
+         workflow: workflow,
+         specialist_role: specialist_role,
+         conversation_id: optional_string(attrs, :conversation_id),
+         turn_id: optional_string(attrs, :turn_id),
+         summary_text: summary_text,
+         source_span_ids: source_span_ids,
+         retention: normalize_retention(Map.get(attrs, :retention, Map.get(attrs, "retention", :important))),
+         policy_id: optional_string(attrs, :policy_id) || policy.id,
+         created_at: Map.get(attrs, :created_at, Map.get(attrs, "created_at", now)),
+         superseded_at: Map.get(attrs, :superseded_at, Map.get(attrs, "superseded_at")),
+         original_estimate: original_estimate,
+         summary_estimate: summary_estimate,
+         replacement:
+           attrs
+           |> Map.get(:replacement, Map.get(attrs, "replacement", %{}))
+           |> normalize_replacement(source_span_ids),
+         diagnostics:
+           attrs
+           |> Map.get(:diagnostics, Map.get(attrs, "diagnostics", %{}))
+           |> redact_diagnostics()
+       }}
+    end
+  end
+
+  def compaction_summary(_attrs, _opts), do: {:error, :invalid_compaction_summary}
+
+  @doc """
+  Adds a compaction summary to pod metadata and marks prior same-span summaries
+  as superseded.
+  """
+  @spec add_summary(metadata(), map() | compaction_summary(), keyword() | map()) ::
+          {:ok, metadata()} | {:error, term()}
+  def add_summary(metadata, summary_attrs, opts \\ [])
+
+  def add_summary(metadata, summary_attrs, opts) when is_map(metadata) do
+    with {:ok, summary} <- compaction_summary(summary_attrs, opts) do
+      existing =
+        metadata
+        |> Map.get(:summaries, Map.get(metadata, "summaries", []))
+        |> Enum.map(&public_payload/1)
+
+      summary_payload = public_payload(summary)
+      superseded = supersede_replaced_summaries(existing, summary_payload, DateTime.utc_now())
+
+      {:ok,
+       metadata
+       |> Map.put(:summaries, superseded ++ [summary_payload])
+       |> Map.put(:latest_compaction, compaction_event(summary_payload, :stored))
+       |> Map.put(:context_management_status, :healthy)
+       |> Map.put(:updated_at, DateTime.utc_now())}
+    end
+  end
+
+  def add_summary(_metadata, _summary_attrs, _opts), do: {:error, :invalid_compaction_store}
+
+  @doc "Returns active prompt-eligible summaries from pod metadata."
+  @spec active_summaries(metadata() | nil, keyword() | map()) :: [map()]
+  def active_summaries(metadata, opts \\ [])
+
+  def active_summaries(nil, _opts), do: []
+
+  def active_summaries(metadata, opts) when is_map(metadata) do
+    opts = normalize_opts(opts)
+    workflow = normalize_optional_string(Map.get(opts, :workflow))
+    specialist_role = normalize_optional_string(Map.get(opts, :specialist_role))
+    limit = positive_integer(Map.get(opts, :limit), 8)
+
+    metadata
+    |> Map.get(:summaries, Map.get(metadata, "summaries", []))
+    |> Enum.map(&public_payload/1)
+    |> Enum.filter(&(Map.get(&1, "superseded_at") in [nil, ""]))
+    |> Enum.filter(fn summary ->
+      (is_nil(workflow) or Map.get(summary, "workflow") == workflow) and
+        (is_nil(specialist_role) or Map.get(summary, "specialist_role") == specialist_role)
+    end)
+    |> Enum.sort_by(&normalize_sort_datetime(Map.get(&1, "created_at")), {:desc, DateTime})
+    |> Enum.take(limit)
+  end
+
+  def active_summaries(_metadata, _opts), do: []
+
   @doc "Converts a struct or map to metadata-safe public data."
   @spec public_payload(map() | struct() | nil) :: map() | nil
   def public_payload(nil), do: nil
-  def public_payload(%module{} = struct) when is_atom(module), do: struct |> Map.from_struct() |> public_payload()
+
+  def public_payload(%module{} = struct)
+      when module in [BudgetObservation, Recommendation, CompactionSummary] do
+    struct
+    |> Map.from_struct()
+    |> public_payload()
+  end
+
   def public_payload(%{} = map), do: map |> redact_diagnostics() |> stringify_keys()
 
   @doc "Returns the public policy shape stored in pod metadata."
@@ -281,8 +398,20 @@ defmodule JidoCode.ContextManagement do
   @spec raw_context_metadata?(term()) :: boolean()
   def raw_context_metadata?(value), do: contains_raw_key?(value)
 
+  @doc "Returns :ok when metadata avoids raw prompt and raw tool-output keys."
+  @spec reject_raw_context_metadata(term()) :: :ok | {:error, term()}
+  def reject_raw_context_metadata(value) do
+    if raw_context_metadata?(value) do
+      {:error, :raw_context_metadata_rejected}
+    else
+      :ok
+    end
+  end
+
   @doc "Redacts diagnostics and rejects raw prompt/tool-output keys."
   @spec redact_diagnostics(term()) :: term()
+  def redact_diagnostics(%_module{} = struct), do: struct
+
   def redact_diagnostics(%{} = map) do
     map
     |> Enum.reject(fn {key, _value} -> raw_key?(key) end)
@@ -331,6 +460,132 @@ defmodule JidoCode.ContextManagement do
     |> Map.get(key, Map.get(attrs, Atom.to_string(key)))
     |> normalize_optional_string()
   end
+
+  defp source_span_ids(attrs) do
+    attrs
+    |> Map.get(:source_span_ids, Map.get(attrs, "source_span_ids", []))
+    |> normalize_string_list()
+    |> case do
+      [] -> {:error, :missing_source_span_ids}
+      span_ids -> {:ok, span_ids}
+    end
+  end
+
+  defp normalize_string_list(values) when is_list(values) do
+    values
+    |> Enum.map(&normalize_optional_string/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_string_list(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> []
+      string -> [string]
+    end
+  end
+
+  defp validate_summary_size(summary_text, policy) do
+    estimate = ContextBudget.estimate(summary_text)
+
+    if estimate.approximate_tokens <= policy.max_summary_tokens do
+      :ok
+    else
+      {:error,
+       {:summary_exceeds_policy,
+        %{max_summary_tokens: policy.max_summary_tokens, approximate_tokens: estimate.approximate_tokens}}}
+    end
+  end
+
+  defp estimate_from_attrs(attrs, key) do
+    attrs
+    |> Map.get(key, Map.get(attrs, Atom.to_string(key), %{}))
+    |> normalize_map()
+    |> case do
+      estimate when map_size(estimate) > 0 ->
+        estimate
+
+      _estimate ->
+        source_text = Map.get(attrs, :source_text, Map.get(attrs, "source_text", ""))
+        ContextBudget.estimate(source_text)
+    end
+  end
+
+  defp normalize_replacement(replacement, source_span_ids) do
+    replacement
+    |> normalize_map()
+    |> Map.put(:source_span_ids, source_span_ids)
+    |> Map.put_new(:mode, :summary)
+    |> redact_diagnostics()
+  end
+
+  defp normalize_retention(retention) when retention in [:required, :important, :useful, :optional], do: retention
+
+  defp normalize_retention(retention) when is_binary(retention) do
+    retention
+    |> String.trim()
+    |> String.downcase()
+    |> String.to_existing_atom()
+    |> normalize_retention()
+  rescue
+    ArgumentError -> :important
+  end
+
+  defp normalize_retention(_retention), do: :important
+
+  defp summary_id(work_item_id, workflow, specialist_role, source_span_ids) do
+    digest =
+      :crypto.hash(:sha256, Enum.join([work_item_id, workflow, specialist_role | source_span_ids], "|"))
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 16)
+
+    "summary_#{digest}"
+  end
+
+  defp supersede_replaced_summaries(existing, summary_payload, superseded_at) do
+    replacement_key = span_key(Map.get(summary_payload, "source_span_ids", []))
+
+    Enum.map(existing, fn existing_summary ->
+      if span_key(Map.get(existing_summary, "source_span_ids", [])) == replacement_key do
+        Map.put(existing_summary, "superseded_at", superseded_at)
+      else
+        existing_summary
+      end
+    end)
+  end
+
+  defp span_key(source_span_ids) do
+    source_span_ids
+    |> normalize_string_list()
+    |> Enum.sort()
+    |> Enum.join("|")
+  end
+
+  defp compaction_event(summary_payload, state) do
+    %{
+      id: Map.get(summary_payload, "id"),
+      state: state,
+      workflow: Map.get(summary_payload, "workflow"),
+      specialist_role: Map.get(summary_payload, "specialist_role"),
+      source_span_count: summary_payload |> Map.get("source_span_ids", []) |> length(),
+      summary_estimate: Map.get(summary_payload, "summary_estimate", %{}),
+      policy_id: Map.get(summary_payload, "policy_id"),
+      updated_at: DateTime.utc_now()
+    }
+  end
+
+  defp normalize_sort_datetime(%DateTime{} = datetime), do: datetime
+
+  defp normalize_sort_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      _other -> DateTime.from_unix!(0)
+    end
+  end
+
+  defp normalize_sort_datetime(_value), do: DateTime.from_unix!(0)
 
   defp normalize_optional_string(nil), do: nil
 
@@ -409,12 +664,16 @@ defmodule JidoCode.ContextManagement do
 
   defp raw_key?(_key), do: false
 
+  defp contains_raw_key?(%_module{}), do: false
+
   defp contains_raw_key?(%{} = map) do
     Enum.any?(map, fn {key, value} -> raw_key?(key) or contains_raw_key?(value) end)
   end
 
   defp contains_raw_key?(list) when is_list(list), do: Enum.any?(list, &contains_raw_key?/1)
   defp contains_raw_key?(_value), do: false
+
+  defp stringify_keys(%_module{} = struct), do: struct
 
   defp stringify_keys(%{} = map) do
     Map.new(map, fn {key, value} -> {stringify_key(key), stringify_keys(value)} end)

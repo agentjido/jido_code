@@ -46,22 +46,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 89.1.2.2 Subtask - Define request and response structs for budget observations, compaction recommendations, and compaction summaries.
       [x] 89.1.2.3 Subtask - Keep all public entrypoints scoped by `managed_repo_id`, `work_item_id`, and specialist role.
 
-  [ ] 89.2 Section - Compaction Store And Summary Data Model
+  [x] 89.2 Section - Compaction Store And Summary Data Model
     Add a deterministic store boundary for summaries and replacement metadata before any LLM compactor writes are accepted.
 
-    [ ] 89.2.1 Task - Model compaction summaries
+    [x] 89.2.1 Task - Model compaction summaries
       Define the summary record shape that can be safely reused as bounded prompt context.
 
-      [ ] 89.2.1.1 Subtask - Include summary id, workflow, specialist role, work item id, source span identifiers, and token estimates.
-      [ ] 89.2.1.2 Subtask - Include summary text, retention class, created-at timestamp, policy id, and diagnostics.
-      [ ] 89.2.1.3 Subtask - Reject records that contain raw prompt bodies or raw tool output in diagnostics.
+      [x] 89.2.1.1 Subtask - Include summary id, workflow, specialist role, work item id, source span identifiers, and token estimates.
+      [x] 89.2.1.2 Subtask - Include summary text, retention class, created-at timestamp, policy id, and diagnostics.
+      [x] 89.2.1.3 Subtask - Reject records that contain raw prompt bodies or raw tool output in diagnostics.
 
-    [ ] 89.2.2 Task - Define replacement metadata
+    [x] 89.2.2 Task - Define replacement metadata
       Track what older context a summary replaces without mutating conversation history or workflow provenance.
 
-      [ ] 89.2.2.1 Subtask - Store source message ids or stable span keys separate from summary text.
-      [ ] 89.2.2.2 Subtask - Mark summaries superseded when a newer summary covers the same span.
-      [ ] 89.2.2.3 Subtask - Keep original durable conversation events and provenance records append-only.
+      [x] 89.2.2.1 Subtask - Store source message ids or stable span keys separate from summary text.
+      [x] 89.2.2.2 Subtask - Mark summaries superseded when a newer summary covers the same span.
+      [x] 89.2.2.3 Subtask - Keep original durable conversation events and provenance records append-only.
 
   [ ] 89.3 Section - Request-Time Guard Preservation
     Make the new topology explicitly additive so the existing request-time budget guard remains the final provider boundary.

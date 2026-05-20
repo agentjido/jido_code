@@ -283,6 +283,48 @@ defmodule JidoCode.AgentWorkspace do
     complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
   end
 
+  @doc """
+  Stores a validated compaction summary for a work item.
+  """
+  @spec store_context_compaction_summary(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def store_context_compaction_summary(managed_repo_id, work_item_id, summary_attrs, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(summary_attrs) and is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    with %{metadata: metadata} <- Manager.pod_status(managed_repo_id, pod_id),
+         {:ok, updated_metadata} <-
+           ContextManagement.add_summary(
+             metadata,
+             Map.merge(summary_attrs, %{
+               managed_repo_id: managed_repo_id,
+               work_item_id: work_item_id
+             }),
+             context_management_opts(opts)
+           ),
+         {:ok, pod_entry} <- Manager.update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
+      {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+    else
+      nil -> {:error, :context_management_pod_not_started}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Returns bounded active compaction summaries for prompt assembly.
+  """
+  @spec context_compaction_summaries(managed_repo_id(), work_item_id(), keyword()) :: [map()]
+  def context_compaction_summaries(managed_repo_id, work_item_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
+    case Manager.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id)) do
+      %{metadata: metadata} ->
+        ContextManagement.active_summaries(metadata, context_management_summary_opts(opts))
+
+      _other ->
+        []
+    end
+  end
+
   defp complete_runtime_pod(managed_repo_id, pod_id) do
     case Manager.pod_status(managed_repo_id, pod_id) do
       nil ->
@@ -1556,6 +1598,12 @@ defmodule JidoCode.AgentWorkspace do
       %{} = context_opts -> Map.to_list(context_opts)
       _other -> []
     end
+  end
+
+  defp context_management_summary_opts(opts) when is_list(opts) do
+    opts
+    |> context_management_opts()
+    |> Keyword.merge(Keyword.take(opts, [:workflow, :specialist_role, :limit]))
   end
 
   defp ensure_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do

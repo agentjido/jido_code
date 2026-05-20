@@ -68,7 +68,7 @@ defmodule JidoCode.Actions.RunTests do
   defp build_command(command, _test_path) when is_binary(command), do: command
   defp build_command(nil, test_path), do: "mix test #{test_path}"
 
-  defp execute_test_command(workspace_path, cmd, timeout_ms) do
+  defp execute_test_command(workspace_path, cmd, _timeout_ms) do
     cmd_parts = String.split(cmd, " ", trim: true)
 
     output =
@@ -82,8 +82,7 @@ defmodule JidoCode.Actions.RunTests do
               hd(cmd_parts),
               tl(cmd_parts),
               cd: workspace_path,
-              stderr_to_stdout: true,
-              timeout: timeout_ms
+              stderr_to_stdout: true
             )
 
           result

@@ -30,7 +30,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - `Jido.AI.Context.to_messages/2` supports a message-count limit, but the current ReAct runner request path projects full context without a budget limit.
 - Tool output caps are inconsistent and mostly local to individual actions.
 
-[ ] 87 Phase 87 - Specialist History And Tool Result Budget Adoption
+[x] 87 Phase 87 - Specialist History And Tool Result Budget Adoption
   Extend context budgeting into specialist ReAct history and tool-result handling so long-lived work-item specialists cannot accumulate unbounded request history or oversized tool outputs.
 
   [x] 87.1 Section - Specialist History Budget Contract
@@ -84,20 +84,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 87.3.2.2 Subtask - Drop older unrelated message groups only at safe boundaries.
       [x] 87.3.2.3 Subtask - Add tests for multi-tool turns, cancelled turns, superseded turns, and accepted tool-result reuse.
 
-  [ ] 87.4 Section - Integration Tests
+  [x] 87.4 Section - Integration Tests
     Prove long-lived specialists, large tool results, and multi-turn tool protocols remain bounded without losing the active request or corrupting tool-call history.
 
-    [ ] 87.4.1 Task - Add specialist history and tool-output regression coverage
+    [x] 87.4.1 Task - Add specialist history and tool-output regression coverage
       Exercise realistic long-running specialist sessions and oversized tool outputs.
 
-      [ ] 87.4.1.1 Subtask - Add coverage proving old specialist history is trimmed while the current request and required scope remain.
-      [ ] 87.4.1.2 Subtask - Add coverage proving large `git_diff`, file-read, search, list, and test outputs are capped before history append.
-      [ ] 87.4.1.3 Subtask - Add coverage proving tool-call and tool-result pairs remain valid after history packing.
+      [x] 87.4.1.1 Subtask - Add coverage proving old specialist history is trimmed while the current request and required scope remain.
+      [x] 87.4.1.2 Subtask - Add coverage proving large `git_diff`, file-read, search, list, and test outputs are capped before history append.
+      [x] 87.4.1.3 Subtask - Add coverage proving tool-call and tool-result pairs remain valid after history packing.
 
-    [ ] 87.4.2 Task - Run specialist and conversation verification gates
+    [x] 87.4.2 Task - Run specialist and conversation verification gates
       Verify history and tool-result budgeting across direct specialist calls and conversation-routed work.
 
-      [ ] 87.4.2.1 Subtask - Run focused `AgentWorkspace` and specialist-runner tests.
-      [ ] 87.4.2.2 Subtask - Run conversation coordinator and driver tests that cover tool result acceptance, steering, and supersession.
-      [ ] 87.4.2.3 Subtask - Run Phase 83 refactor routing integration tests to ensure refactor specialists follow the same budget contract.
-      [ ] 87.4.2.4 Subtask - Run any `jido_ai` focused tests required if upstream request projection behavior changes.
+      [x] 87.4.2.1 Subtask - Run focused `AgentWorkspace` and specialist-runner tests.
+      [x] 87.4.2.2 Subtask - Run conversation coordinator and driver tests that cover tool result acceptance, steering, and supersession.
+      [x] 87.4.2.3 Subtask - Run Phase 83 refactor routing integration tests to ensure refactor specialists follow the same budget contract.
+      [x] 87.4.2.4 Subtask - Run any `jido_ai` focused tests required if upstream request projection behavior changes.

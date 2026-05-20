@@ -64,22 +64,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 85.2.2.2 Subtask - Emit typed diagnostics when required sections exceed budget and the packer must enter degraded mode.
       [x] 85.2.2.3 Subtask - Avoid lossy changes to durable memory, provenance, or conversation records; packing affects only prompt assembly.
 
-  [ ] 85.3 Section - Conversation Runtime Prompt Boundary Adoption
+  [x] 85.3 Section - Conversation Runtime Prompt Boundary Adoption
     Route the conversation runtime's bounded instruction through the new packer while preserving existing prompt-memory semantics.
 
-    [ ] 85.3.1 Task - Convert runtime instruction assembly to structured sections
+    [x] 85.3.1 Task - Convert runtime instruction assembly to structured sections
       Replace ad hoc string assembly with section construction at the final runtime instruction boundary.
 
-      [ ] 85.3.1.1 Subtask - Express objective, workflow, current request, repository scope, referenced files, accepted tool results, clarification context, prompt memory, and guidance as budgeted sections.
-      [ ] 85.3.1.2 Subtask - Keep existing prompt-memory item, line, byte, and capture caps as upstream section limits.
-      [ ] 85.3.1.3 Subtask - Include prompt-packing diagnostics in runtime progress metadata without exposing raw prompt text unnecessarily.
+      [x] 85.3.1.1 Subtask - Express objective, workflow, current request, repository scope, referenced files, accepted tool results, clarification context, prompt memory, and guidance as budgeted sections.
+      [x] 85.3.1.2 Subtask - Keep existing prompt-memory item, line, byte, and capture caps as upstream section limits.
+      [x] 85.3.1.3 Subtask - Include prompt-packing diagnostics in runtime progress metadata without exposing raw prompt text unnecessarily.
 
-    [ ] 85.3.2 Task - Preserve conversation fallback behavior
+    [x] 85.3.2 Task - Preserve conversation fallback behavior
       Ensure disabled, degraded, or over-budget context does not break deterministic workflow routing or child-work execution.
 
-      [ ] 85.3.2.1 Subtask - Keep ambiguous workflow clarification independent from optional context availability.
-      [ ] 85.3.2.2 Subtask - Preserve disabled and degraded prompt-memory projections as non-fatal packed sections.
-      [ ] 85.3.2.3 Subtask - Keep existing Phase 52, Phase 78, Phase 83, and Phase 84 verification commands stable.
+      [x] 85.3.2.1 Subtask - Keep ambiguous workflow clarification independent from optional context availability.
+      [x] 85.3.2.2 Subtask - Preserve disabled and degraded prompt-memory projections as non-fatal packed sections.
+      [x] 85.3.2.3 Subtask - Keep existing Phase 52, Phase 78, Phase 83, and Phase 84 verification commands stable.
 
   [ ] 85.4 Section - Integration Tests
     Prove the new budget layer protects conversation runtime prompts without changing workflow routing, prompt-memory boundaries, or current-request fidelity.

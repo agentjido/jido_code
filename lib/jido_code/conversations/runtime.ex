@@ -12,6 +12,7 @@ defmodule JidoCode.Conversations.Runtime do
   """
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.ContextBudget
   alias JidoCode.Conversations.ContextMemory
   alias JidoCode.Conversations.LongTermProvenance
   alias JidoCode.Conversations.RuntimeReadiness
@@ -90,7 +91,8 @@ defmodule JidoCode.Conversations.Runtime do
                 "kind" => "delta",
                 "text" => summary,
                 "workflow" => Atom.to_string(request.workflow),
-                "context_source" => context_source_name(request.context_source)
+                "context_source" => context_source_name(request.context_source),
+                "context_budget" => ContextBudget.summary(request.context_budget)
               })
 
               {:completed,
@@ -102,6 +104,7 @@ defmodule JidoCode.Conversations.Runtime do
                    "context_source" => context_source_name(request.context_source),
                    "instruction" => request.user_instruction,
                    "llm_selection" => llm_selection_payload(request.llm_selection),
+                   "context_budget" => ContextBudget.summary(request.context_budget),
                    "prompt_memory" => prompt_memory_event(request.prompt_memory)
                  }
                }}
@@ -191,6 +194,20 @@ defmodule JidoCode.Conversations.Runtime do
         prompt_memory_scope = prompt_memory_scope(runtime_spec, managed_repo_id, work_item_id, workflow)
         prompt_memory = retrieve_prompt_memory(prompt_memory_scope, workflow)
 
+        runtime_instruction =
+          bounded_instruction(
+            runtime_spec,
+            workflow,
+            managed_repo_id,
+            work_item_id,
+            readiness.workspace_path,
+            shared_context,
+            referenced_files,
+            clarification_resume,
+            prompt_memory,
+            readiness.llm_selection
+          )
+
         {:ok,
          %{
            managed_repo_id: managed_repo_id,
@@ -206,18 +223,8 @@ defmodule JidoCode.Conversations.Runtime do
            clarification_resume: clarification_resume,
            prompt_memory: prompt_memory,
            llm_selection: readiness.llm_selection,
-           instruction:
-             bounded_instruction(
-               runtime_spec,
-               workflow,
-               managed_repo_id,
-               work_item_id,
-               readiness.workspace_path,
-               shared_context,
-               referenced_files,
-               clarification_resume,
-               prompt_memory
-             )
+           context_budget: runtime_instruction.context_budget,
+           instruction: runtime_instruction.text
          }}
       end
     end
@@ -235,6 +242,7 @@ defmodule JidoCode.Conversations.Runtime do
        "prompt" => workflow_clarification_prompt(),
        "workflow" => "clarify",
        "context_source" => context_source_name(context_source),
+       "context_budget" => ContextBudget.summary(request.context_budget),
        "prompt_memory" => prompt_memory_event(request.prompt_memory),
        "required_context" => %{
          "workflow_choices" => Enum.map(WorkflowRouter.workflows(), &Atom.to_string/1)
@@ -262,6 +270,7 @@ defmodule JidoCode.Conversations.Runtime do
          "prompt" => clarification_prompt(workflow),
          "workflow" => Atom.to_string(workflow),
          "context_source" => context_source_name(request.context_source),
+         "context_budget" => ContextBudget.summary(request.context_budget),
          "prompt_memory" => prompt_memory_event(request.prompt_memory),
          "required_context" => %{"referenced_files" => referenced_files}
        }}
@@ -663,7 +672,8 @@ defmodule JidoCode.Conversations.Runtime do
          shared_context,
          referenced_files,
          clarification_resume,
-         prompt_memory
+         prompt_memory,
+         llm_selection
        ) do
     accepted_tool_results =
       shared_context
@@ -671,26 +681,57 @@ defmodule JidoCode.Conversations.Runtime do
       |> normalize_list_of_maps()
       |> Enum.take(-3)
 
-    [
-      "Repository conversation objective: #{normalize_optional_string(map_get(runtime_spec, :objective)) || "Coordinate managed repository work."}",
-      "Workflow: #{workflow_name(workflow)}",
-      "Current request: #{normalize_optional_string(map_get(runtime_spec, :instruction)) || "Continue the repository conversation."}",
-      "Repository scope:",
-      "- managed_repo_id: #{managed_repo_id}",
-      "- work_item_id: #{work_item_id}",
-      "- workspace_path: #{workspace_path}",
-      "- source: #{normalize_optional_string(map_get(runtime_spec, :source)) || "conversation"}"
+    policy =
+      runtime_spec
+      |> runtime_context_budget_opts(shared_context)
+      |> Keyword.put(:llm_selection, llm_selection)
+      |> ContextBudget.policy()
+
+    sections = [
+      ContextBudget.section(
+        :system_prompt,
+        "Repository conversation objective: #{normalize_optional_string(map_get(runtime_spec, :objective)) || "Coordinate managed repository work."}",
+        retention: :required
+      ),
+      ContextBudget.section(:workflow, "Workflow: #{workflow_name(workflow)}", retention: :important),
+      ContextBudget.section(
+        :current_request,
+        "Current request: #{normalize_optional_string(map_get(runtime_spec, :instruction)) || "Continue the repository conversation."}",
+        retention: :required
+      ),
+      ContextBudget.section(
+        :repository_scope,
+        [
+          "- managed_repo_id: #{managed_repo_id}",
+          "- work_item_id: #{work_item_id}",
+          "- workspace_path: #{workspace_path}",
+          "- source: #{normalize_optional_string(map_get(runtime_spec, :source)) || "conversation"}"
+        ],
+        retention: :required
+      ),
+      ContextBudget.section(:referenced_files, referenced_files, retention: :useful),
+      ContextBudget.section(:accepted_tool_results, accepted_result_lines(accepted_tool_results), retention: :useful),
+      ContextBudget.section(:clarification_context, clarification_lines(clarification_resume), retention: :important),
+      ContextBudget.section(:prompt_memory, prompt_memory_lines(prompt_memory, accepted_tool_results),
+        retention: :useful,
+        metadata: prompt_memory_event(prompt_memory)
+      ),
+      ContextBudget.section(
+        :guidance,
+        [
+          "- Stay within the current repository and governed work item unless the conversation explicitly changes scope.",
+          "- Treat referenced files and accepted tool results as bounded context, and confirm details against the current source before making claims."
+        ],
+        retention: :important
+      )
     ]
-    |> maybe_append_section("Referenced files", referenced_files)
-    |> maybe_append_section("Accepted tool results", accepted_result_lines(accepted_tool_results))
-    |> maybe_append_section("Clarification context", clarification_lines(clarification_resume))
-    |> maybe_append_section("Prompt memory", prompt_memory_lines(prompt_memory, accepted_tool_results))
-    |> Kernel.++([
-      "Guidance:",
-      "- Stay within the current repository and governed work item unless the conversation explicitly changes scope.",
-      "- Treat referenced files and accepted tool results as bounded context, and confirm details against the current source before making claims."
-    ])
-    |> Enum.join("\n")
+
+    packed = ContextBudget.pack(sections, policy: policy)
+
+    %{
+      text: packed.text,
+      context_budget: packed
+    }
   end
 
   defp runtime_progress_event(request) do
@@ -702,6 +743,7 @@ defmodule JidoCode.Conversations.Runtime do
         "workflow" => "clarify",
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
+        "context_budget" => ContextBudget.summary(request.context_budget),
         "prompt_memory" => prompt_memory_event(request.prompt_memory),
         "routing" => WorkflowRouter.metadata(request.routing)
       }
@@ -714,10 +756,51 @@ defmodule JidoCode.Conversations.Runtime do
         "context_source" => context_source_name(request.context_source),
         "referenced_files" => request.referenced_files,
         "llm_selection" => llm_selection_payload(request.llm_selection),
+        "context_budget" => ContextBudget.summary(request.context_budget),
         "prompt_memory" => prompt_memory_event(request.prompt_memory)
       }
     end
   end
+
+  defp runtime_context_budget_opts(runtime_spec, shared_context) do
+    conversation_budget =
+      runtime_spec
+      |> map_get(:conversation_metadata)
+      |> normalize_map()
+      |> Map.get("context_budget")
+
+    shared_budget = Map.get(shared_context, "context_budget")
+
+    []
+    |> Keyword.merge(context_budget_keyword(conversation_budget))
+    |> Keyword.merge(context_budget_keyword(shared_budget))
+  end
+
+  defp context_budget_keyword(%{} = budget) do
+    budget
+    |> Enum.flat_map(fn {key, value} ->
+      case context_budget_key(key) do
+        nil -> []
+        atom -> [{atom, value}]
+      end
+    end)
+  end
+
+  defp context_budget_keyword(_budget), do: []
+
+  defp context_budget_key(key) when is_atom(key), do: key
+
+  defp context_budget_key(key) when is_binary(key) do
+    key
+    |> String.trim()
+    |> String.downcase()
+    |> String.replace("-", "_")
+    |> String.to_existing_atom()
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp context_budget_key(_key), do: nil
 
   defp prompt_memory_scope(runtime_spec, managed_repo_id, work_item_id, workflow) do
     %{
@@ -1151,12 +1234,6 @@ defmodule JidoCode.Conversations.Runtime do
   end
 
   defp contains_any?(_text, _phrases), do: false
-
-  defp maybe_append_section(lines, _title, []), do: lines
-
-  defp maybe_append_section(lines, title, entries) when is_list(entries) do
-    lines ++ [title <> ":"] ++ Enum.map(entries, &"- #{&1}")
-  end
 
   defp maybe_append_line(lines, _label, nil), do: lines
   defp maybe_append_line(lines, label, value), do: lines ++ ["- #{label}: #{value}"]

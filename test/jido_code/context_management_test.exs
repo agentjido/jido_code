@@ -76,4 +76,22 @@ defmodule JidoCode.ContextManagementTest do
     refute second["superseded_at"]
     assert second_metadata.latest_compaction.source_span_count == 2
   end
+
+  test "disabled status is explicit and independent from context budget policy" do
+    status =
+      "Context management disabled for this request."
+      |> ContextManagement.disabled_metadata()
+      |> ContextManagement.status_summary()
+
+    assert status["enabled?"] == false
+    assert status["state"] == "disabled"
+    assert get_in(status, ["latest_monitor_decision", "state"]) == "skipped"
+  end
+
+  test "invalid context-management tuning is reported as degraded diagnostics" do
+    policy = ContextManagement.policy(high_water_mark: "not-a-number", repeated_trim_threshold: -1)
+
+    assert policy.enabled?
+    assert Enum.count(policy.diagnostics, &(&1.kind == :invalid_context_management_config)) == 2
+  end
 end

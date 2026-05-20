@@ -63,22 +63,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 89.2.2.2 Subtask - Mark summaries superseded when a newer summary covers the same span.
       [x] 89.2.2.3 Subtask - Keep original durable conversation events and provenance records append-only.
 
-  [ ] 89.3 Section - Request-Time Guard Preservation
+  [x] 89.3 Section - Request-Time Guard Preservation
     Make the new topology explicitly additive so the existing request-time budget guard remains the final provider boundary.
 
-    [ ] 89.3.1 Task - Preserve `ContextBudget` as the hard safety net
+    [x] 89.3.1 Task - Preserve `ContextBudget` as the hard safety net
       Ensure every specialist request still flows through request-time packing regardless of proactive compaction state.
 
-      [ ] 89.3.1.1 Subtask - Keep `JidoCode.ContextBudget.ReActRequestTransformer` installed by default for CodingPod specialists.
-      [ ] 89.3.1.2 Subtask - Add tests proving disabled context management still sends packed provider requests.
-      [ ] 89.3.1.3 Subtask - Add diagnostics that identify proactive compaction as skipped, unavailable, or healthy without changing provider safety.
+      [x] 89.3.1.1 Subtask - Keep `JidoCode.ContextBudget.ReActRequestTransformer` installed by default for CodingPod specialists.
+      [x] 89.3.1.2 Subtask - Add tests proving disabled context management still sends packed provider requests.
+      [x] 89.3.1.3 Subtask - Add diagnostics that identify proactive compaction as skipped, unavailable, or healthy without changing provider safety.
 
-    [ ] 89.3.2 Task - Add feature configuration
+    [x] 89.3.2 Task - Add feature configuration
       Expose conservative controls for enabling, disabling, and tuning the new pod.
 
-      [ ] 89.3.2.1 Subtask - Add runtime config for context-management enablement and default thresholds.
-      [ ] 89.3.2.2 Subtask - Add per-request override hooks for tests and explicit operator workflows.
-      [ ] 89.3.2.3 Subtask - Validate invalid config as degraded context-management configuration rather than disabling request-time budgeting.
+      [x] 89.3.2.1 Subtask - Add runtime config for context-management enablement and default thresholds.
+      [x] 89.3.2.2 Subtask - Add per-request override hooks for tests and explicit operator workflows.
+      [x] 89.3.2.3 Subtask - Validate invalid config as degraded context-management configuration rather than disabling request-time budgeting.
 
   [ ] 89.4 Section - Integration Tests
     Prove the pod topology can be created, addressed, disabled, and degraded without affecting existing specialist execution.

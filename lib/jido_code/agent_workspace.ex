@@ -513,7 +513,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -581,7 +581,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -649,7 +649,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -717,7 +717,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -776,7 +776,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -1591,13 +1591,27 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp context_management_opts(opts) when is_list(opts) do
-    opts
-    |> Keyword.get(:context_management, [])
-    |> case do
-      context_opts when is_list(context_opts) -> context_opts
-      %{} = context_opts -> Map.to_list(context_opts)
-      _other -> []
-    end
+    nested =
+      opts
+      |> Keyword.get(:context_management, [])
+      |> case do
+        context_opts when is_list(context_opts) -> context_opts
+        %{} = context_opts -> Map.to_list(context_opts)
+        _other -> []
+      end
+
+    direct =
+      Keyword.take(opts, [
+        :enabled?,
+        :compaction_enabled?,
+        :high_water_mark,
+        :repeated_trim_threshold,
+        :debounce_window_ms,
+        :max_summary_tokens,
+        :max_candidate_tokens
+      ])
+
+    Keyword.merge(nested, direct)
   end
 
   defp context_management_summary_opts(opts) when is_list(opts) do

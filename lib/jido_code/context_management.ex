@@ -219,6 +219,7 @@ defmodule JidoCode.ContextManagement do
   def disabled_metadata(reason \\ "Context management is disabled for this request.") do
     %{
       context_management_status: :disabled,
+      policy: %{id: @default_policy_id, enabled?: false, compaction_enabled?: false},
       latest_monitor_decision: %{
         state: :skipped,
         reason: reason,
@@ -680,6 +681,8 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp stringify_keys(list) when is_list(list), do: Enum.map(list, &stringify_keys/1)
+  defp stringify_keys(nil), do: nil
+  defp stringify_keys(value) when is_atom(value), do: Atom.to_string(value)
   defp stringify_keys(value), do: value
 
   defp stringify_key(key) when is_atom(key), do: Atom.to_string(key)

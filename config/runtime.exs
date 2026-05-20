@@ -109,6 +109,22 @@ if context_budget_overrides != [] or context_budget_history_overrides != [] or
   config :jido_code, :context_budget, context_budget_runtime_config
 end
 
+context_management_overrides =
+  [
+    enabled?: System.get_env("JIDO_CODE_CONTEXT_MANAGEMENT_ENABLED"),
+    compaction_enabled?: System.get_env("JIDO_CODE_CONTEXT_COMPACTION_ENABLED"),
+    high_water_mark: System.get_env("JIDO_CODE_CONTEXT_MANAGEMENT_HIGH_WATER_MARK"),
+    repeated_trim_threshold: System.get_env("JIDO_CODE_CONTEXT_REPEATED_TRIM_THRESHOLD"),
+    debounce_window_ms: System.get_env("JIDO_CODE_CONTEXT_COMPACTION_DEBOUNCE_MS"),
+    max_summary_tokens: System.get_env("JIDO_CODE_CONTEXT_SUMMARY_MAX_TOKENS"),
+    max_candidate_tokens: System.get_env("JIDO_CODE_CONTEXT_COMPACTION_CANDIDATE_MAX_TOKENS")
+  ]
+  |> Enum.reject(fn {_key, value} -> is_nil(value) or String.trim(value) == "" end)
+
+if context_management_overrides != [] do
+  config :jido_code, :context_management, context_management_overrides
+end
+
 # Source code graph configuration from environment
 # These can be set to override defaults for production deployment
 if source_code_graph_enabled = System.get_env("SOURCE_CODE_GRAPH_ENABLED") do

@@ -143,6 +143,16 @@ config :jido_code, :context_budget,
     max_results: 1_000
   ]
 
+config :jido_code, :context_management,
+  id: "context-management:v1",
+  enabled?: true,
+  compaction_enabled?: true,
+  high_water_mark: 0.80,
+  repeated_trim_threshold: 2,
+  debounce_window_ms: 300_000,
+  max_summary_tokens: 1_000,
+  max_candidate_tokens: 4_000
+
 # Configure the endpoint
 config :jido_code, JidoCodeWeb.Endpoint,
   url: [host: "localhost"],

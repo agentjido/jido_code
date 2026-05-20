@@ -64,22 +64,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 86.2.2.2 Subtask - Avoid duplicating large structured `tool_context` values into prompt sections unless explicitly projected.
       [x] 86.2.2.3 Subtask - Add diagnostics that show prompt context was trimmed without implying tool context was lost.
 
-  [ ] 86.3 Section - Workflow Consistency And Degraded States
+  [x] 86.3 Section - Workflow Consistency And Degraded States
     Make budgeted semantic and memory context behave consistently across specialist workflows and fallback paths.
 
-    [ ] 86.3.1 Task - Align workflow-specific context selection
+    [x] 86.3.1 Task - Align workflow-specific context selection
       Preserve the current workflow routing behavior while making context size management explicit.
 
-      [ ] 86.3.1.1 Subtask - Keep execute and refactor workflows preferring memory context when memory workflows are enabled.
-      [ ] 86.3.1.2 Subtask - Keep plan, review, and explain workflows preferring semantic context when source graph workflows are enabled.
-      [ ] 86.3.1.3 Subtask - Ensure budget diagnostics explain whether context was missing, degraded, stale, trimmed, or fully packed.
+      [x] 86.3.1.1 Subtask - Keep execute and refactor workflows preferring memory context when memory workflows are enabled.
+      [x] 86.3.1.2 Subtask - Keep plan, review, and explain workflows preferring semantic context when source graph workflows are enabled.
+      [x] 86.3.1.3 Subtask - Ensure budget diagnostics explain whether context was missing, degraded, stale, trimmed, or fully packed.
 
-    [ ] 86.3.2 Task - Preserve governed memory and semantic product boundaries
+    [x] 86.3.2 Task - Preserve governed memory and semantic product boundaries
       Keep compact prompt context from becoming a substitute for governed records, graph truth, or durable memory adoption.
 
-      [ ] 86.3.2.1 Subtask - Keep semantic findings and memory findings as governed product records before they influence durable product behavior.
-      [ ] 86.3.2.2 Subtask - Keep prompt-facing memory projections separate from durable memory graph writes.
-      [ ] 86.3.2.3 Subtask - Update developer docs to distinguish prompt projection, `tool_context`, workflow provenance, and durable graph state.
+      [x] 86.3.2.1 Subtask - Keep semantic findings and memory findings as governed product records before they influence durable product behavior.
+      [x] 86.3.2.2 Subtask - Keep prompt-facing memory projections separate from durable memory graph writes.
+      [x] 86.3.2.3 Subtask - Update developer docs to distinguish prompt projection, `tool_context`, workflow provenance, and durable graph state.
 
   [ ] 86.4 Section - Integration Tests
     Prove workspace specialist prompts stay within budget while graph-backed workflow context remains useful and structured tools still receive full request context.

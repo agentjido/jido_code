@@ -20,6 +20,7 @@ The current answer is:
 Useful implementation sources:
 
 - [`../../lib/jido_code/conversations/runtime.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/runtime.ex)
+- [`../../lib/jido_code/context_budget.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/context_budget.ex)
 - [`../../lib/jido_code/conversations/work_resolution.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/work_resolution.ex)
 - [`../../lib/jido_code/conversations/coordinator.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/conversations/coordinator.ex)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
@@ -39,8 +40,8 @@ What changes around it are:
 
 - governed work attachment and `WorkItem` creation
 - workflow inference such as `:execute`
-- bounded repo and work-item scope wrapping
-- optional semantic and memory context injection
+- bounded repo and work-item scope wrapping through context-budget sections
+- optional semantic and memory prompt projections
 - the specialist's own system prompt
 
 What does **not** happen is:
@@ -175,7 +176,7 @@ The runtime keeps the original request as:
 - `user_instruction`
 - and also embeds it into the bounded instruction as `Current request: ...`
 
-The bounded instruction currently adds:
+The bounded instruction is packed from context-budget sections:
 
 - repository conversation objective
 - workflow
@@ -190,17 +191,20 @@ The bounded instruction currently adds:
 - bounded guidance
 
 So this is a transformation, but it is an additive wrapper, not a substitution.
+If optional sections are too large, the runtime trims them and records compact
+budget diagnostics. The current request and governed repository/work-item scope
+remain required.
 
 ### Stage 5: AgentWorkspace may wrap the instruction again
 
-`AgentWorkspace` may further transform the instruction through
-`agent_instruction/4`.
+`AgentWorkspace` may further transform the instruction through the same context
+budget boundary.
 
 If no semantic or memory context exist, the instruction can pass through almost
 unchanged.
 
-If semantic or memory context exist, the workspace turns it into a bigger user
-message shaped like:
+If semantic or memory context exists, the workspace projects it into compact
+prompt lines shaped like:
 
 ```text
 Workflow: execute
@@ -210,10 +214,14 @@ Semantic context:
 %{...}
 
 Memory context:
-%{...}
+freshness: Memory graph ready
+policy_intent: implementation_constraints
+memory: Decision: ...
 ```
 
 This is the main prompt-level transformation after conversation runtime.
+The full graph context remains available to tools through `tool_context`; the
+prompt projection is only the bounded text the model sees directly.
 
 ### Stage 6: The specialist adds the system prompt
 
@@ -249,9 +257,8 @@ The messages come from:
 - prior specialist-local history
 - the current transformed user message
 
-There is no custom request transformer currently configured for the `CodingPod`
-specialists, so the ReAct runner uses the request as-is when
-`request_transformer` is `nil`.
+The `CodingPod` specialists receive budgeted current-turn instructions. The
+ReAct history projection is still handled by the specialist runtime layer.
 
 ## Concrete Example
 
@@ -295,7 +302,9 @@ Workflow: execute
 Instruction: <the bounded instruction above>
 
 Memory context:
-%{...}
+freshness: Memory graph ready
+policy_intent: implementation_constraints
+memory: Decision: ...
 ```
 
 Then the `coder` system prompt is added above it as the `system` message.
@@ -365,7 +374,7 @@ When debugging a bad result, inspect these layers in order:
 1. The original `turn.submit` payload
 2. `WorkResolution` workflow inference
 3. `Conversations.Runtime` bounded instruction
-4. `AgentWorkspace.agent_instruction/4`
+4. `AgentWorkspace` prompt projection and context-budget summary
 5. specialist choice
 6. specialist system prompt
 7. tool list and tool results

@@ -99,6 +99,12 @@ That is why `AgentWorkspace` accepts semantic workflow options instead of
 assuming graph context is always present. The semantic path is an enhancement,
 not a hidden dependency.
 
+When semantic context is passed to a specialist prompt, `AgentWorkspace` first
+projects it into compact budgeted lines: readiness, revision, selected
+module/function/query results, and degraded-state notes. The full graph status
+and query context stay structured in `tool_context` for tools; the prompt
+projection is only a bounded hint for the model.
+
 ## Freshness, Stale State, And Recovery
 
 Product-facing semantic surfaces should expose:
@@ -132,6 +138,8 @@ Prefer ordinary file reads and code inspection when you need:
 - it is product-owned through bounded services
 - it should enrich managed-repo and governed surfaces, not replace them
 - its findings matter only after they rejoin governed records
+- its prompt projections are not graph truth and may be trimmed when the context
+  budget is tight
 - write-capable tools should emit the normalized source-change notification
   after successful saves instead of calling refresh directly
 

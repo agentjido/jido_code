@@ -464,9 +464,14 @@ defmodule JidoCode.ContextBudget do
       original_entries: length(section.entries),
       packed_entries: max(length(section.entries) - dropped_entries, 0),
       dropped_entries: dropped_entries,
-      reason: Map.get(opts, :reason)
+      reason: Map.get(opts, :reason),
+      metadata: section.metadata
     }
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Enum.reject(fn
+      {_key, nil} -> true
+      {_key, %{} = value} -> map_size(value) == 0
+      _other -> false
+    end)
     |> Map.new()
   end
 

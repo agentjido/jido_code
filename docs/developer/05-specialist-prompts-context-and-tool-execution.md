@@ -6,6 +6,8 @@ what actually reaches the LLM.
 Useful implementation sources:
 
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
+- [`../../lib/jido_code/agent_workspace/prompt_projection.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace/prompt_projection.ex)
+- [`../../lib/jido_code/context_budget.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/context_budget.ex)
 - [`../../lib/jido_code/agents/`](https://github.com/mikehostetler/jido_code/tree/main/lib/jido_code/agents)
 - [`../../deps/jido_ai/lib/jido_ai/reasoning/react/strategy.ex`](https://github.com/agentjido/jido_ai/blob/5601aa5eec5341a3cd62c951c029e53cd584a110/lib/jido_ai/reasoning/react/strategy.ex)
 - [`../../deps/jido_ai/lib/jido_ai/reasoning/react/runner.ex`](https://github.com/agentjido/jido_ai/blob/5601aa5eec5341a3cd62c951c029e53cd584a110/lib/jido_ai/reasoning/react/runner.ex)
@@ -28,7 +30,7 @@ This distinction is the most important thing to keep straight.
 flowchart TD
   A["AgentWorkspace.plan/execute/review/refactor/explain"]
   B["Build semantic context and memory context"]
-  C["Build user instruction text"]
+  C["Build budgeted user instruction text"]
   D["Build tool_context map"]
   E["Specialist.ask_sync"]
   F["ReAct strategy"]
@@ -59,26 +61,31 @@ For `plan_work`, `execute_work`, `review_work`, `refactor_work`, and
 
 ### 1. User Instruction Text
 
-The workspace builds the actual user prompt text with `agent_instruction`.
+The workspace builds the actual user prompt text through the context budget
+boundary. The raw operator instruction is a required section. Semantic and
+memory graph context are optional prompt-facing projections, not raw graph maps.
 
-If semantic and memory context are empty, the instruction can be just the raw
-instruction string.
-
-If semantic or memory context exist, the workspace turns them into prompt text
-like:
+If semantic or memory context exists, the workspace turns it into compact prompt
+text like:
 
 ```text
 Workflow: review
 Instruction: Review the login implementation
 
 Semantic context:
-%{...}
+graph_ready?: true
+graph_revision: ...
+functions: ...
 
 Memory context:
-%{...}
+freshness: Memory graph ready
+policy_intent: implementation_constraints
+memory: Decision: ...
 ```
 
-So semantic and memory context become part of the user message.
+The packer may trim or drop optional projection lines when the context budget is
+tight. It keeps diagnostics for original size, packed size, dropped entries,
+and projection state without exposing raw prompt bodies as product metadata.
 
 ### 2. Tool Context Map
 
@@ -88,8 +95,11 @@ The workspace separately builds a `tool_context` map that can include:
 - `workspace_path`
 - source-code graph readiness and revision info
 - memory graph context
+- context-budget diagnostics
 
 This map is not automatically appended to the prompt. It is mainly for tools.
+Keeping `tool_context` structured is what lets tools use graph state even when
+the prompt-facing projection was trimmed.
 
 ### 3. Provenance Wrapping
 
@@ -161,6 +171,7 @@ When `ask_sync` is called:
 
 The actual LLM request is built from:
 
+- budgeted specialist instructions appended into `AIContext`
 - `AIContext.to_messages(state.context)`
 - the specialist's configured tool registry
 - request-scoped `llm_opts`
@@ -216,6 +227,8 @@ Today the real bridges are:
 - the workspace explicitly seeding project bindings into `project_context`
 - the workspace carrying `workspace_path` and related values into `tool_context`
 - the workspace recording task-board artifacts and events around specialist runs
+- the workspace packing semantic and memory prompt projections before each
+  specialist request
 
 So the pod has coordination state, but prompt injection is still mostly
 workspace-authored rather than pod-state-derived.

@@ -193,6 +193,8 @@ defmodule JidoCode.ContextManagement do
 
   def status_summary(metadata) when is_map(metadata) do
     policy = normalize_map(Map.get(metadata, :policy, Map.get(metadata, "policy", %{})))
+    summaries = Map.get(metadata, :summaries, Map.get(metadata, "summaries", []))
+    active_summaries = active_summaries(metadata)
 
     %{
       "enabled?" => Map.get(policy, "enabled?", Map.get(policy, :enabled?, true)),
@@ -204,7 +206,12 @@ defmodule JidoCode.ContextManagement do
       "observation_count" => metadata |> Map.get(:observations, Map.get(metadata, "observations", [])) |> length(),
       "recommendation_count" =>
         metadata |> Map.get(:recommendations, Map.get(metadata, "recommendations", [])) |> length(),
-      "summary_count" => metadata |> Map.get(:summaries, Map.get(metadata, "summaries", [])) |> length(),
+      "summary_count" => length(summaries),
+      "active_summary_ids" => Enum.map(active_summaries, &Map.get(&1, "id")),
+      "active_summary_source_span_count" =>
+        Enum.reduce(active_summaries, 0, fn summary, count ->
+          count + (summary |> Map.get("source_span_ids", []) |> length())
+        end),
       "latest_monitor_decision" =>
         stringify_keys(Map.get(metadata, :latest_monitor_decision, Map.get(metadata, "latest_monitor_decision"))),
       "latest_compaction" => stringify_keys(Map.get(metadata, :latest_compaction, Map.get(metadata, "latest_compaction"))),

@@ -2433,6 +2433,13 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp maybe_put_context_management_metadata(metadata, managed_repo_id, work_item_id)
+       when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    Map.put(metadata, :context_management, context_management_status(managed_repo_id, work_item_id))
+  end
+
+  defp maybe_put_context_management_metadata(metadata, _managed_repo_id, _work_item_id), do: metadata
+
   defp maybe_put_map_value(map, _key, nil), do: map
   defp maybe_put_map_value(map, key, value), do: Map.put(map, key, value)
 
@@ -2556,6 +2563,7 @@ defmodule JidoCode.AgentWorkspace do
           provenance_metadata(provenance_context)
           |> Map.put(:stage, stage)
           |> maybe_put_context_budget_metadata(opts)
+          |> maybe_put_context_management_metadata(managed_repo_id, provenance_context.work_item_id)
       )
 
     tool_capture =
@@ -2577,6 +2585,7 @@ defmodule JidoCode.AgentWorkspace do
           provenance_metadata(provenance_context)
           |> Map.put(:stage, stage)
           |> maybe_put_context_budget_metadata(opts)
+          |> maybe_put_context_management_metadata(managed_repo_id, provenance_context.work_item_id)
       )
 
     artifact_capture =
@@ -2647,6 +2656,7 @@ defmodule JidoCode.AgentWorkspace do
           |> Map.put(:stage, stage)
           |> Map.put(:failure, inspect(reason))
           |> maybe_put_context_budget_metadata(opts)
+          |> maybe_put_context_management_metadata(managed_repo_id, provenance_context.work_item_id)
       )
 
     capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)

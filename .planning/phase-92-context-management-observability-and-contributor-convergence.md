@@ -30,22 +30,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 92 Phase 92 - Context Management Observability And Contributor Convergence
   Make proactive context management visible, configurable, documented, and covered by quality gates without exposing raw prompt or tool-output dumps.
 
-  [ ] 92.1 Section - Runtime Observability And Product Metadata
+  [x] 92.1 Section - Runtime Observability And Product Metadata
     Surface context-management state where contributors and operators already inspect runtime behavior.
 
-    [ ] 92.1.1 Task - Add context-management summaries to runtime metadata
+    [x] 92.1.1 Task - Add context-management summaries to runtime metadata
       Expose concise lifecycle state without turning compaction internals into a transcript browser.
 
-      [ ] 92.1.1.1 Subtask - Add latest monitor decision and compaction state to conversation snapshots.
-      [ ] 92.1.1.2 Subtask - Add compaction summary ids and source span counts to specialist result metadata.
-      [ ] 92.1.1.3 Subtask - Keep raw source messages and raw tool output out of events, snapshots, and operator surfaces.
+      [x] 92.1.1.1 Subtask - Add latest monitor decision and compaction state to conversation snapshots.
+      [x] 92.1.1.2 Subtask - Add compaction summary ids and source span counts to specialist result metadata.
+      [x] 92.1.1.3 Subtask - Keep raw source messages and raw tool output out of events, snapshots, and operator surfaces.
 
-    [ ] 92.1.2 Task - Capture provenance-safe lifecycle evidence
+    [x] 92.1.2 Task - Capture provenance-safe lifecycle evidence
       Preserve enough evidence to debug compaction behavior without adopting summaries as durable memory.
 
-      [ ] 92.1.2.1 Subtask - Record monitor recommendations and compaction outcomes as workflow-provenance metadata.
-      [ ] 92.1.2.2 Subtask - Link lifecycle evidence to governed work item, conversation id, specialist role, and policy id.
-      [ ] 92.1.2.3 Subtask - Keep durable-memory adoption behind the existing explicit governed memory boundary.
+      [x] 92.1.2.1 Subtask - Record monitor recommendations and compaction outcomes as workflow-provenance metadata.
+      [x] 92.1.2.2 Subtask - Link lifecycle evidence to governed work item, conversation id, specialist role, and policy id.
+      [x] 92.1.2.3 Subtask - Keep durable-memory adoption behind the existing explicit governed memory boundary.
 
   [ ] 92.2 Section - Configuration And Degraded Recovery
     Make context management tunable and safe under failed monitor, compactor, or summary-store conditions.

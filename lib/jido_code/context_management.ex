@@ -256,6 +256,44 @@ defmodule JidoCode.ContextManagement do
 
   def observation(_attrs), do: {:error, :invalid_observation}
 
+  @doc "Adds a metadata-only budget observation to pod metadata."
+  @spec add_observation(metadata(), map() | budget_observation(), keyword() | map()) ::
+          {:ok, metadata()} | {:error, term()}
+  def add_observation(metadata, observation_attrs, opts \\ [])
+
+  def add_observation(metadata, %BudgetObservation{} = observation, opts) when is_map(metadata) do
+    add_observation(metadata, Map.from_struct(observation), opts)
+  end
+
+  def add_observation(metadata, observation_attrs, _opts) when is_map(metadata) and is_map(observation_attrs) do
+    with :ok <- reject_raw_context_metadata(observation_attrs),
+         {:ok, observation} <- observation(observation_attrs) do
+      observation_payload = public_payload(observation)
+      observations = Map.get(metadata, :observations, Map.get(metadata, "observations", []))
+
+      decision = %{
+        id: observation_decision_id(observation_payload),
+        state: :healthy,
+        reason: :observation_recorded,
+        workflow: observation.workflow,
+        specialist_role: observation.specialist_role,
+        source: observation.source,
+        policy_id: get_in(observation_payload, ["context_budget", "policy_id"]),
+        created_at: DateTime.utc_now(),
+        diagnostics: %{kind: :budget_observation, state: :healthy}
+      }
+
+      {:ok,
+       metadata
+       |> Map.put(:observations, observations ++ [observation_payload])
+       |> Map.put(:latest_monitor_decision, decision)
+       |> Map.put(:context_management_status, :healthy)
+       |> Map.put(:updated_at, DateTime.utc_now())}
+    end
+  end
+
+  def add_observation(_metadata, _observation_attrs, _opts), do: {:error, :invalid_budget_observation_store}
+
   @doc "Normalizes and validates a compaction summary record."
   @spec compaction_summary(map() | compaction_summary(), keyword() | map()) ::
           {:ok, compaction_summary()} | {:error, term()}
@@ -543,6 +581,27 @@ defmodule JidoCode.ContextManagement do
       |> binary_part(0, 16)
 
     "summary_#{digest}"
+  end
+
+  defp observation_decision_id(observation_payload) do
+    digest =
+      :crypto.hash(
+        :sha256,
+        Enum.join(
+          [
+            Map.get(observation_payload, "managed_repo_id"),
+            Map.get(observation_payload, "work_item_id"),
+            Map.get(observation_payload, "workflow"),
+            Map.get(observation_payload, "specialist_role"),
+            Map.get(observation_payload, "observed_at") |> inspect()
+          ],
+          "|"
+        )
+      )
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 16)
+
+    "context_observation_#{digest}"
   end
 
   defp supersede_replaced_summaries(existing, summary_payload, superseded_at) do

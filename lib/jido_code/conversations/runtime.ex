@@ -67,6 +67,7 @@ defmodule JidoCode.Conversations.Runtime do
       _ = capture_prompt_memory_turn_inputs(runtime_spec, request)
 
       emit.(runtime_progress_event(request))
+      _ = record_context_observation(request, runtime_spec, :progress)
 
       case maybe_request_clarification(request) do
         {:awaiting_input, payload} ->
@@ -94,6 +95,8 @@ defmodule JidoCode.Conversations.Runtime do
                 "context_source" => context_source_name(request.context_source),
                 "context_budget" => ContextBudget.summary(request.context_budget)
               })
+
+              _ = record_context_observation(request, runtime_spec, :completed)
 
               {:completed,
                %{
@@ -760,6 +763,27 @@ defmodule JidoCode.Conversations.Runtime do
         "prompt_memory" => prompt_memory_event(request.prompt_memory)
       }
     end
+  end
+
+  defp record_context_observation(%{work_item_id: nil}, _runtime_spec, _state), do: :ok
+
+  defp record_context_observation(request, runtime_spec, state) do
+    AgentWorkspace.record_context_observation(
+      request.managed_repo_id,
+      request.work_item_id,
+      %{
+        workflow: request.workflow,
+        specialist_role: request.workflow,
+        conversation_id: normalize_optional_string(map_get(runtime_spec, :conversation_id)),
+        turn_id: normalize_optional_string(map_get(runtime_spec, :turn_id)),
+        source: "conversation_runtime",
+        context_budget: request.context_budget,
+        diagnostics: %{
+          state: state,
+          context_source: context_source_name(request.context_source)
+        }
+      }
+    )
   end
 
   defp runtime_context_budget_opts(runtime_spec, shared_context) do

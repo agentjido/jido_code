@@ -26,22 +26,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 90 Phase 90 - Budget Monitor Runtime Adoption
   Wire context-budget diagnostics into a work-item-scoped `BudgetMonitor` that can recommend compaction without mutating specialist history.
 
-  [ ] 90.1 Section - Budget Observation Ingestion
+  [x] 90.1 Section - Budget Observation Ingestion
     Connect existing budget diagnostics to the monitor through explicit runtime signals or product-owned calls.
 
-    [ ] 90.1.1 Task - Capture specialist budget observations
+    [x] 90.1.1 Task - Capture specialist budget observations
       Feed prompt, history, and tool-output diagnostics into the monitor after specialist runs.
 
-      [ ] 90.1.1.1 Subtask - Capture context-budget summaries from AgentWorkspace specialist results.
-      [ ] 90.1.1.2 Subtask - Capture ReAct history packing diagnostics from request transformer output or runner metadata.
-      [ ] 90.1.1.3 Subtask - Capture tool-output truncation diagnostics from workspace actions without storing raw tool output.
+      [x] 90.1.1.1 Subtask - Capture context-budget summaries from AgentWorkspace specialist results.
+      [x] 90.1.1.2 Subtask - Capture ReAct history packing diagnostics from request transformer output or runner metadata.
+      [x] 90.1.1.3 Subtask - Capture tool-output truncation diagnostics from workspace actions without storing raw tool output.
 
-    [ ] 90.1.2 Task - Capture conversation-runtime budget observations
+    [x] 90.1.2 Task - Capture conversation-runtime budget observations
       Let conversation turns contribute budget state when runtime instruction packing trims optional context.
 
-      [ ] 90.1.2.1 Subtask - Feed runtime progress context-budget summaries into the monitor when a turn is attached to a work item.
-      [ ] 90.1.2.2 Subtask - Link observations to conversation id, turn id, workflow, work item id, and specialist role when known.
-      [ ] 90.1.2.3 Subtask - Ignore repo-scoped nonproductive turns that do not have governed work-item context.
+      [x] 90.1.2.1 Subtask - Feed runtime progress context-budget summaries into the monitor when a turn is attached to a work item.
+      [x] 90.1.2.2 Subtask - Link observations to conversation id, turn id, workflow, work item id, and specialist role when known.
+      [x] 90.1.2.3 Subtask - Ignore repo-scoped nonproductive turns that do not have governed work-item context.
 
   [ ] 90.2 Section - Threshold Policy And Recommendations
     Implement deterministic monitor policy that decides when compaction is useful and when it is unsafe.

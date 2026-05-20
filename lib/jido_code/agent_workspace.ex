@@ -325,6 +325,40 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  @doc """
+  Records a metadata-only context-budget observation for a work item.
+
+  Missing or disabled context management degrades to an unavailable summary and
+  never blocks active specialist or conversation work.
+  """
+  @spec record_context_observation(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def record_context_observation(managed_repo_id, work_item_id, observation_attrs, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(observation_attrs) and is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: %{context_management_status: :disabled}} ->
+        {:ok, ContextManagement.status_summary(ContextManagement.disabled_metadata())}
+
+      %{metadata: metadata} ->
+        observation_attrs =
+          Map.merge(observation_attrs, %{
+            managed_repo_id: managed_repo_id,
+            work_item_id: work_item_id
+          })
+
+        with {:ok, updated_metadata} <-
+               ContextManagement.add_observation(metadata, observation_attrs, context_management_opts(opts)),
+             {:ok, pod_entry} <- Manager.update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
+          {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+        end
+
+      _other ->
+        {:ok, ContextManagement.status_summary(nil)}
+    end
+  end
+
   defp complete_runtime_pod(managed_repo_id, pod_id) do
     case Manager.pod_status(managed_repo_id, pod_id) do
       nil ->
@@ -1808,6 +1842,17 @@ defmodule JidoCode.AgentWorkspace do
           opts
         )
 
+      _ =
+        record_specialist_context_observation(
+          managed_repo_id,
+          work_item_id,
+          stage,
+          agent_module,
+          opts,
+          tool_context,
+          :success
+        )
+
       {:ok, response}
     else
       {:error, reason} = error ->
@@ -1829,8 +1874,50 @@ defmodule JidoCode.AgentWorkspace do
             opts
           )
 
+        _ =
+          record_specialist_context_observation(
+            managed_repo_id,
+            work_item_id,
+            stage,
+            agent_module,
+            opts,
+            tool_context,
+            :failed
+          )
+
         error
     end
+  end
+
+  defp record_specialist_context_observation(
+         managed_repo_id,
+         work_item_id,
+         stage,
+         agent_module,
+         opts,
+         tool_context,
+         outcome
+       ) do
+    context_budget =
+      Keyword.get(opts, :context_budget) ||
+        Map.get(tool_context, :context_budget) ||
+        Map.get(tool_context, "context_budget")
+
+    record_context_observation(
+      managed_repo_id,
+      work_item_id,
+      %{
+        workflow: stage,
+        specialist_role: agent_module |> agent_name() |> Macro.underscore(),
+        source: "agent_workspace.specialist",
+        context_budget: context_budget,
+        diagnostics: %{
+          outcome: outcome,
+          tool_context_keys: Map.keys(tool_context)
+        }
+      },
+      opts
+    )
   end
 
   defp specialist_stage(Planner), do: :planning

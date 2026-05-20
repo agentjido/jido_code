@@ -218,6 +218,7 @@ defmodule JidoCode.Conversations.Snapshot do
     |> maybe_put("latest_turn_id", latest_turn_id(turns))
     |> maybe_put("latest_instruction", latest_instruction(turns))
     |> maybe_put("latest_context_budget", latest_context_budget(state))
+    |> maybe_put("latest_context_management", latest_context_management(state))
     |> maybe_put("pending_clarification", pending_clarification(turns, state))
   end
 
@@ -342,6 +343,53 @@ defmodule JidoCode.Conversations.Snapshot do
 
   defp budget_or_nil(%{} = budget) when map_size(budget) > 0, do: budget
   defp budget_or_nil(_budget), do: nil
+
+  defp latest_context_management(state) do
+    event_context_management =
+      state.events
+      |> Enum.reverse()
+      |> Enum.find_value(fn event ->
+        event.payload
+        |> normalize_map()
+        |> Map.get("context_management")
+        |> context_management_or_nil()
+      end)
+
+    event_context_management || latest_child_work_context_management(state)
+  end
+
+  defp latest_child_work_context_management(state) do
+    state.child_work_order
+    |> Enum.reverse()
+    |> Enum.find_value(fn child_work_id ->
+      child_work = Map.get(state.child_works, child_work_id)
+
+      case child_work do
+        %ChildWork{result: %{} = result} ->
+          result = normalize_map(result)
+
+          result
+          |> Map.get("latest_progress")
+          |> normalize_map()
+          |> Map.get("context_management")
+          |> context_management_or_nil()
+          |> Kernel.||(
+            result
+            |> Map.get("context_management")
+            |> context_management_or_nil()
+          )
+
+        _other ->
+          nil
+      end
+    end)
+  end
+
+  defp context_management_or_nil(%{} = context_management) when map_size(context_management) > 0 do
+    context_management
+  end
+
+  defp context_management_or_nil(_context_management), do: nil
 
   defp pending_clarification(turns, state) do
     case Enum.find(Enum.reverse(turns), &(&1.state == :awaiting_input)) do

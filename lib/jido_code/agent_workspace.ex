@@ -582,6 +582,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -650,6 +651,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -718,6 +720,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -786,6 +789,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -845,6 +849,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }

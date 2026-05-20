@@ -178,6 +178,20 @@ The actual LLM request is built from:
 - the specialist's configured tool registry
 - request-scoped `llm_opts`
 
+## Context Management Monitoring
+
+Each work-item `CodingPod` owns a work-item-scoped `ContextManagementPod`.
+The monitor records metadata-only budget observations from specialist runs and
+work-item conversation runtime turns. Those observations include policy ids,
+section states, token estimates, workflow, specialist role, and conversation or
+turn ids when available.
+
+The monitor never stores raw prompt bodies or raw tool output. If context
+management is disabled or unavailable, specialist execution continues through
+the same request-time `ContextBudget` packing and ReAct request transformer.
+Monitor state is surfaced as `context_management` metadata beside existing
+`context_budget` diagnostics.
+
 ## What The Model Sees Directly vs Indirectly
 
 ### Directly

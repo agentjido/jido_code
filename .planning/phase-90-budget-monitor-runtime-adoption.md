@@ -60,22 +60,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 90.2.2.2 Subtask - Block recommendations when only required context exceeds budget.
       [x] 90.2.2.3 Subtask - Emit clear degraded diagnostics when compaction is unsafe or unavailable.
 
-  [ ] 90.3 Section - Monitor Diagnostics And Product Metadata
+  [x] 90.3 Section - Monitor Diagnostics And Product Metadata
     Make monitor decisions visible without leaking raw prompt bodies or tool output.
 
-    [ ] 90.3.1 Task - Surface monitor state
+    [x] 90.3.1 Task - Surface monitor state
       Add concise monitor state to the same surfaces that already expose context-budget diagnostics.
 
-      [ ] 90.3.1.1 Subtask - Add monitor state to context-management pod metadata.
-      [ ] 90.3.1.2 Subtask - Add latest recommendation summaries to conversation snapshots when attached to work-item context.
-      [ ] 90.3.1.3 Subtask - Add provenance-safe metadata for observations and recommendations.
+      [x] 90.3.1.1 Subtask - Add monitor state to context-management pod metadata.
+      [x] 90.3.1.2 Subtask - Add latest recommendation summaries to conversation snapshots when attached to work-item context.
+      [x] 90.3.1.3 Subtask - Add provenance-safe metadata for observations and recommendations.
 
-    [ ] 90.3.2 Task - Keep diagnostics metadata-only
+    [x] 90.3.2 Task - Keep diagnostics metadata-only
       Enforce the rule that monitor records never become transcript or tool-output storage.
 
-      [ ] 90.3.2.1 Subtask - Add redaction or validation around monitor observation payloads.
-      [ ] 90.3.2.2 Subtask - Add tests proving prompt sentinels do not appear in monitor metadata.
-      [ ] 90.3.2.3 Subtask - Document monitor diagnostics in developer guides.
+      [x] 90.3.2.1 Subtask - Add redaction or validation around monitor observation payloads.
+      [x] 90.3.2.2 Subtask - Add tests proving prompt sentinels do not appear in monitor metadata.
+      [x] 90.3.2.3 Subtask - Document monitor diagnostics in developer guides.
 
   [ ] 90.4 Section - Integration Tests
     Prove the monitor recommends compaction deterministically and safely based on structured budget diagnostics.

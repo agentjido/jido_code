@@ -30,22 +30,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 85 Phase 85 - Context Budget Policy And Prompt Packing Foundation
   Establish the product-owned policy and prompt-packing boundary that turns scattered local caps into a coherent model-aware budget contract for conversation runtime and specialist requests.
 
-  [ ] 85.1 Section - Context Budget Policy Model
+  [x] 85.1 Section - Context Budget Policy Model
     Define the durable vocabulary for context sections, priority, budget ownership, and model defaults before changing prompt assembly.
 
-    [ ] 85.1.1 Task - Introduce section and priority contracts
+    [x] 85.1.1 Task - Introduce section and priority contracts
       Model prompt context as typed sections so packers can preserve required material and trim optional context predictably.
 
-      [ ] 85.1.1.1 Subtask - Define canonical section kinds for system prompt, current request, repository scope, conversation history, prompt memory, semantic context, memory context, accepted tool results, referenced files, and tool output.
-      [ ] 85.1.1.2 Subtask - Define retention classes such as required, important, useful, and optional, with current request and governed scope always required.
-      [ ] 85.1.1.3 Subtask - Define section diagnostics for original size, packed size, dropped entries, truncation reason, and degradation state.
+      [x] 85.1.1.1 Subtask - Define canonical section kinds for system prompt, current request, repository scope, conversation history, prompt memory, semantic context, memory context, accepted tool results, referenced files, and tool output.
+      [x] 85.1.1.2 Subtask - Define retention classes such as required, important, useful, and optional, with current request and governed scope always required.
+      [x] 85.1.1.3 Subtask - Define section diagnostics for original size, packed size, dropped entries, truncation reason, and degradation state.
 
-    [ ] 85.1.2 Task - Resolve model and provider budget defaults
+    [x] 85.1.2 Task - Resolve model and provider budget defaults
       Connect context budget policy to the existing LLM selection boundary without hard-coding one provider's context window into runtime code.
 
-      [ ] 85.1.2.1 Subtask - Add product-owned defaults for known provider/model context windows, output-token reserves, and conservative fallback budgets.
-      [ ] 85.1.2.2 Subtask - Let managed-repo or request options override input budget, output reserve, and per-section budget ratios through a validated policy shape.
-      [ ] 85.1.2.3 Subtask - Keep missing model metadata safe by using conservative defaults and explicit diagnostics instead of disabling the turn.
+      [x] 85.1.2.1 Subtask - Add product-owned defaults for known provider/model context windows, output-token reserves, and conservative fallback budgets.
+      [x] 85.1.2.2 Subtask - Let managed-repo or request options override input budget, output reserve, and per-section budget ratios through a validated policy shape.
+      [x] 85.1.2.3 Subtask - Keep missing model metadata safe by using conservative defaults and explicit diagnostics instead of disabling the turn.
 
   [ ] 85.2 Section - Prompt Packing Service Foundation
     Add one bounded service that accepts structured sections and returns packed prompt text plus diagnostics.

@@ -30,22 +30,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 86 Phase 86 - AgentWorkspace Semantic And Memory Context Budget Adoption
   Adopt context budgeting at the workspace specialist boundary so semantic and memory context enter prompts as compact, budgeted projections instead of raw unbounded maps.
 
-  [ ] 86.1 Section - Prompt-Facing Semantic And Memory Projection Contracts
+  [x] 86.1 Section - Prompt-Facing Semantic And Memory Projection Contracts
     Define compact context shapes for prompt text while preserving richer graph state in `tool_context`.
 
-    [ ] 86.1.1 Task - Add semantic prompt projection shaping
+    [x] 86.1.1 Task - Add semantic prompt projection shaping
       Convert source-code graph workflow output into section-ready summaries sized for prompt use.
 
-      [ ] 86.1.1.1 Subtask - Define prompt-facing semantic fields for graph readiness, revision, selected modules/functions, findings, and degraded-state notes.
-      [ ] 86.1.1.2 Subtask - Cap semantic projection item counts and per-item text before the packer receives the section.
-      [ ] 86.1.1.3 Subtask - Preserve full graph status and query context in `tool_context` where tools need structured data.
+      [x] 86.1.1.1 Subtask - Define prompt-facing semantic fields for graph readiness, revision, selected modules/functions, findings, and degraded-state notes.
+      [x] 86.1.1.2 Subtask - Cap semantic projection item counts and per-item text before the packer receives the section.
+      [x] 86.1.1.3 Subtask - Preserve full graph status and query context in `tool_context` where tools need structured data.
 
-    [ ] 86.1.2 Task - Add memory prompt projection shaping
+    [x] 86.1.2 Task - Add memory prompt projection shaping
       Convert memory workflow context into compact prompt sections that do not expose raw graph internals.
 
-      [ ] 86.1.2.1 Subtask - Define prompt-facing memory fields for freshness, retrieval policy, selected memories, selected provenance, conversation recall, and governed references.
-      [ ] 86.1.2.2 Subtask - Apply existing retrieval-policy limits before prompt packing and add per-item byte caps for selected items.
-      [ ] 86.1.2.3 Subtask - Preserve structured memory graph context in `tool_context` without treating it as automatically prompt-visible.
+      [x] 86.1.2.1 Subtask - Define prompt-facing memory fields for freshness, retrieval policy, selected memories, selected provenance, conversation recall, and governed references.
+      [x] 86.1.2.2 Subtask - Apply existing retrieval-policy limits before prompt packing and add per-item byte caps for selected items.
+      [x] 86.1.2.3 Subtask - Preserve structured memory graph context in `tool_context` without treating it as automatically prompt-visible.
 
   [ ] 86.2 Section - AgentWorkspace Prompt Packing Adoption
     Replace unbounded prompt rendering in specialist instructions with Phase 85 section packing.

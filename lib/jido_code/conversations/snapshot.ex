@@ -217,6 +217,7 @@ defmodule JidoCode.Conversations.Snapshot do
     |> maybe_put("intake_handoff", latest_intake_handoff(state.conversation))
     |> maybe_put("latest_turn_id", latest_turn_id(turns))
     |> maybe_put("latest_instruction", latest_instruction(turns))
+    |> maybe_put("latest_context_budget", latest_context_budget(state))
     |> maybe_put("pending_clarification", pending_clarification(turns, state))
   end
 
@@ -295,6 +296,52 @@ defmodule JidoCode.Conversations.Snapshot do
       normalize_optional_string(instruction)
     end)
   end
+
+  defp latest_context_budget(state) do
+    event_budget =
+      state.events
+      |> Enum.reverse()
+      |> Enum.find_value(fn event ->
+        event.payload
+        |> normalize_map()
+        |> Map.get("context_budget")
+        |> budget_or_nil()
+      end)
+
+    event_budget || latest_child_work_context_budget(state)
+  end
+
+  defp latest_child_work_context_budget(state) do
+    state.child_work_order
+    |> Enum.reverse()
+    |> Enum.find_value(fn child_work_id ->
+      child_work =
+        state.child_works
+        |> Map.get(child_work_id)
+
+      child_work
+      |> case do
+        %ChildWork{result: %{} = result} ->
+          normalize_map(result)
+          |> Map.get("latest_progress")
+          |> normalize_map()
+          |> Map.get("context_budget")
+          |> budget_or_nil()
+          |> Kernel.||(
+            result
+            |> normalize_map()
+            |> Map.get("context_budget")
+            |> budget_or_nil()
+          )
+
+        _other ->
+          nil
+      end
+    end)
+  end
+
+  defp budget_or_nil(%{} = budget) when map_size(budget) > 0, do: budget
+  defp budget_or_nil(_budget), do: nil
 
   defp pending_clarification(turns, state) do
     case Enum.find(Enum.reverse(turns), &(&1.state == :awaiting_input)) do

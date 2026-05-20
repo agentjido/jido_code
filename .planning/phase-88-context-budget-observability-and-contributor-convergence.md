@@ -31,22 +31,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 88 Phase 88 - Context Budget Observability And Contributor Convergence
   Make context budget behavior observable, testable, and documented across conversation runtime, specialist execution, workflow provenance, and contributor quality gates.
 
-  [ ] 88.1 Section - Runtime Diagnostics And Product Metadata
+  [x] 88.1 Section - Runtime Diagnostics And Product Metadata
     Surface budget outcomes where operators and developers already inspect conversation and run behavior.
 
-    [ ] 88.1.1 Task - Add conversation-visible budget diagnostics
+    [x] 88.1.1 Task - Add conversation-visible budget diagnostics
       Include concise budget state in events and snapshots without exposing raw prompt contents.
 
-      [ ] 88.1.1.1 Subtask - Add budget summary metadata to runtime progress events, including state, model budget, estimated input size, and trimmed section count.
-      [ ] 88.1.1.2 Subtask - Add budget summary to conversation snapshots and shared context summaries where it helps debug degraded turns.
-      [ ] 88.1.1.3 Subtask - Keep raw packed prompt text out of operator surfaces unless an explicit debug-only boundary is later accepted.
+      [x] 88.1.1.1 Subtask - Add budget summary metadata to runtime progress events, including state, model budget, estimated input size, and trimmed section count.
+      [x] 88.1.1.2 Subtask - Add budget summary to conversation snapshots and shared context summaries where it helps debug degraded turns.
+      [x] 88.1.1.3 Subtask - Keep raw packed prompt text out of operator surfaces unless an explicit debug-only boundary is later accepted.
 
-    [ ] 88.1.2 Task - Capture budget diagnostics in provenance
+    [x] 88.1.2 Task - Capture budget diagnostics in provenance
       Preserve enough context-budget evidence for later review without treating prompt text as durable memory.
 
-      [ ] 88.1.2.1 Subtask - Record budget policy id, model budget, section diagnostics, and degradation state in specialist run provenance.
-      [ ] 88.1.2.2 Subtask - Link budget diagnostics to governed work item, conversation id, turn id, and specialist workflow.
-      [ ] 88.1.2.3 Subtask - Avoid storing raw prompt bodies or raw tool outputs as durable memory through budget diagnostics.
+      [x] 88.1.2.1 Subtask - Record budget policy id, model budget, section diagnostics, and degradation state in specialist run provenance.
+      [x] 88.1.2.2 Subtask - Link budget diagnostics to governed work item, conversation id, turn id, and specialist workflow.
+      [x] 88.1.2.3 Subtask - Avoid storing raw prompt bodies or raw tool outputs as durable memory through budget diagnostics.
 
   [ ] 88.2 Section - Configuration, Controls, And Degraded Recovery
     Make context budget behavior configurable enough for development and safe enough for production defaults.

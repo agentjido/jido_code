@@ -338,9 +338,10 @@ defmodule JidoCode.AgentWorkspaceTest do
              ]
 
       assert result.changes =~ "Memory context:"
-      assert result.changes =~ "workflow: :execute"
-      assert result.changes =~ "\"intent\" => \"implementation_constraints\""
+      assert result.changes =~ "workflow: execute"
+      assert result.changes =~ "policy_intent: implementation_constraints"
       assert result.changes =~ "Keep greet/1 behavior stable."
+      assert result.context_budget["state"] in ["packed", "trimmed", "degraded"]
     end
 
     test "review_work returns ok with feedback map" do
@@ -430,6 +431,7 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert result.refactoring =~ "deterministic refactorer response"
       assert result.refactoring =~ "Workflow: refactor"
       assert result.refactoring =~ "Memory context:"
+      assert result.refactoring =~ "policy_intent: implementation_constraints"
       assert result.instruction == "Extract shared validation without changing behavior"
       assert result.semantic_context == %{}
       assert result.memory_context.workflow == :refactor

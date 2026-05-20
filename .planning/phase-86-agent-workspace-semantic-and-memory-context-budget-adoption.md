@@ -47,22 +47,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 86.1.2.2 Subtask - Apply existing retrieval-policy limits before prompt packing and add per-item byte caps for selected items.
       [x] 86.1.2.3 Subtask - Preserve structured memory graph context in `tool_context` without treating it as automatically prompt-visible.
 
-  [ ] 86.2 Section - AgentWorkspace Prompt Packing Adoption
+  [x] 86.2 Section - AgentWorkspace Prompt Packing Adoption
     Replace unbounded prompt rendering in specialist instructions with Phase 85 section packing.
 
-    [ ] 86.2.1 Task - Pack specialist instructions with semantic and memory sections
+    [x] 86.2.1 Task - Pack specialist instructions with semantic and memory sections
       Ensure `plan_work/3,4`, `execute_work/3,4`, `review_work/3,4`, `refactor_work/3,4`, and explain paths use the same budgeted instruction contract.
 
-      [ ] 86.2.1.1 Subtask - Replace raw `inspect(..., limit: :infinity)` prompt sections with budgeted semantic and memory sections.
-      [ ] 86.2.1.2 Subtask - Preserve the raw operator instruction as required context when semantic or memory sections are trimmed.
-      [ ] 86.2.1.3 Subtask - Carry packing diagnostics into specialist run metadata and workflow provenance capture.
+      [x] 86.2.1.1 Subtask - Replace raw `inspect(..., limit: :infinity)` prompt sections with budgeted semantic and memory sections.
+      [x] 86.2.1.2 Subtask - Preserve the raw operator instruction as required context when semantic or memory sections are trimmed.
+      [x] 86.2.1.3 Subtask - Carry packing diagnostics into specialist run metadata and workflow provenance capture.
 
-    [ ] 86.2.2 Task - Keep tool context structured and non-prompt by default
+    [x] 86.2.2 Task - Keep tool context structured and non-prompt by default
       Maintain the distinction between prompt text and request-scoped tool execution data.
 
-      [ ] 86.2.2.1 Subtask - Keep `managed_repo_id`, `workspace_path`, graph status, and memory graph context available to tools through `tool_context`.
-      [ ] 86.2.2.2 Subtask - Avoid duplicating large structured `tool_context` values into prompt sections unless explicitly projected.
-      [ ] 86.2.2.3 Subtask - Add diagnostics that show prompt context was trimmed without implying tool context was lost.
+      [x] 86.2.2.1 Subtask - Keep `managed_repo_id`, `workspace_path`, graph status, and memory graph context available to tools through `tool_context`.
+      [x] 86.2.2.2 Subtask - Avoid duplicating large structured `tool_context` values into prompt sections unless explicitly projected.
+      [x] 86.2.2.3 Subtask - Add diagnostics that show prompt context was trimmed without implying tool context was lost.
 
   [ ] 86.3 Section - Workflow Consistency And Degraded States
     Make budgeted semantic and memory context behave consistently across specialist workflows and fallback paths.

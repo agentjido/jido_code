@@ -210,6 +210,7 @@ defmodule JidoCode.AgentWorkspace.PromptProjection do
 
   defp normalize_map(_map), do: %{}
 
+  defp normalize_value(%DateTime{} = value), do: DateTime.to_iso8601(value)
   defp normalize_value(%{} = value), do: normalize_map(value)
   defp normalize_value(value) when is_list(value), do: Enum.map(value, &normalize_value/1)
   defp normalize_value(nil), do: nil

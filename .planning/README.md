@@ -133,6 +133,10 @@ The plan aligns to:
 76. [Phase 82 - Conversation Runtime Supervisor Stability](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-82-conversation-runtime-supervisor-stability.md): stabilize the conversation runtime child-work supervision contract so combined conversation suites are deterministic and queued work activation does not crash when the child supervisor is unavailable.
 77. [Phase 83 - Refactorer Conversation Routing Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-83-refactorer-conversation-routing-adoption.md): adopt the exposed Refactorer into deterministic conversation workflow routing so explicit behavior-preserving refactor requests reach `AgentWorkspace.refactor_work/3,4` without changing full-workflow orchestration.
 78. [Phase 84 - Context Memory Test Isolation And Suite Stability](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-84-context-memory-test-isolation-and-suite-stability.md): make prompt-context memory tests hermetic enough that conversation runtime, workflow routing, and context-memory suites can run together without ETS cleanup races.
+79. [Phase 85 - Context Budget Policy And Prompt Packing Foundation](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-85-context-budget-policy-and-prompt-packing-foundation.md): establish the product-owned context budget policy and prompt-packing boundary that protects current requests, governed scope, prompt memory, and conversation runtime instruction assembly from unbounded context growth.
+80. [Phase 86 - AgentWorkspace Semantic And Memory Context Budget Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-86-agent-workspace-semantic-and-memory-context-budget-adoption.md): replace unbounded semantic and memory prompt rendering in `AgentWorkspace` with compact budgeted projections while preserving richer graph state in request-scoped `tool_context`.
+81. [Phase 87 - Specialist History And Tool Result Budget Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-87-specialist-history-and-tool-result-budget-adoption.md): extend context budgeting into specialist ReAct history and tool-result handling so long-lived specialists and large tool outputs cannot accumulate unbounded prompt history.
+82. [Phase 88 - Context Budget Observability And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-88-context-budget-observability-and-contributor-convergence.md): surface context budget diagnostics through events, snapshots, provenance, configuration, and developer guidance so trimmed or degraded context is visible without storing raw prompt dumps.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -169,6 +173,12 @@ ETS table families and idempotent cleanup. It protects the Phase 79
 prompt-memory lifecycle tests, the Phase 82 historical conversation batch, and
 the Phase 83 routing integration boundary from order-sensitive cleanup
 failures.
+
+Context-budget rollout note: Phase 85 introduces the central budget policy and
+prompt-packing boundary, Phase 86 adopts it for AgentWorkspace semantic and
+memory prompt projections, Phase 87 extends it to specialist history and tool
+results, and Phase 88 makes budget behavior observable, configurable, and
+documented across conversation and specialist workflows.
 
 Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery

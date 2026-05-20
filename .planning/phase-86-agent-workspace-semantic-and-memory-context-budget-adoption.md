@@ -27,7 +27,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Structured `tool_context` can remain richer than prompt-facing text because tools consume it out-of-band.
 - Semantic and memory graph contexts are enhancements; specialist execution must remain legible when they are trimmed, stale, degraded, or unavailable.
 
-[ ] 86 Phase 86 - AgentWorkspace Semantic And Memory Context Budget Adoption
+[x] 86 Phase 86 - AgentWorkspace Semantic And Memory Context Budget Adoption
   Adopt context budgeting at the workspace specialist boundary so semantic and memory context enter prompts as compact, budgeted projections instead of raw unbounded maps.
 
   [x] 86.1 Section - Prompt-Facing Semantic And Memory Projection Contracts
@@ -81,20 +81,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 86.3.2.2 Subtask - Keep prompt-facing memory projections separate from durable memory graph writes.
       [x] 86.3.2.3 Subtask - Update developer docs to distinguish prompt projection, `tool_context`, workflow provenance, and durable graph state.
 
-  [ ] 86.4 Section - Integration Tests
+  [x] 86.4 Section - Integration Tests
     Prove workspace specialist prompts stay within budget while graph-backed workflow context remains useful and structured tools still receive full request context.
 
-    [ ] 86.4.1 Task - Add workspace prompt-packing integration coverage
+    [x] 86.4.1 Task - Add workspace prompt-packing integration coverage
       Exercise each specialist entrypoint with oversized semantic and memory context.
 
-      [ ] 86.4.1.1 Subtask - Add coverage proving semantic context is compacted before prompt injection.
-      [ ] 86.4.1.2 Subtask - Add coverage proving memory context is compacted before prompt injection.
-      [ ] 86.4.1.3 Subtask - Add coverage proving `tool_context` still contains structured graph and workspace fields after prompt trimming.
+      [x] 86.4.1.1 Subtask - Add coverage proving semantic context is compacted before prompt injection.
+      [x] 86.4.1.2 Subtask - Add coverage proving memory context is compacted before prompt injection.
+      [x] 86.4.1.3 Subtask - Add coverage proving `tool_context` still contains structured graph and workspace fields after prompt trimming.
 
-    [ ] 86.4.2 Task - Run semantic, memory, and workspace verification gates
+    [x] 86.4.2 Task - Run semantic, memory, and workspace verification gates
       Verify the adoption across the graph workflow and specialist boundaries.
 
-      [ ] 86.4.2.1 Subtask - Run focused `AgentWorkspace` specialist prompt tests.
-      [ ] 86.4.2.2 Subtask - Run `mix source_graph.verify` if semantic workflow projections are touched.
-      [ ] 86.4.2.3 Subtask - Run `mix memory.verify` if memory workflow projections are touched.
-      [ ] 86.4.2.4 Subtask - Run conversation routing integration tests that exercise execute, refactor, review, and explain context paths.
+      [x] 86.4.2.1 Subtask - Run focused `AgentWorkspace` specialist prompt tests.
+      [x] 86.4.2.2 Subtask - Run `mix source_graph.verify` if semantic workflow projections are touched.
+      [x] 86.4.2.3 Subtask - Run `mix memory.verify` if memory workflow projections are touched.
+      [x] 86.4.2.4 Subtask - Run conversation routing integration tests that exercise execute, refactor, review, and explain context paths.

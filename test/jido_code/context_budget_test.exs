@@ -174,4 +174,73 @@ defmodule JidoCode.ContextBudgetTest do
       assert Enum.all?(packed.diagnostics, &Map.has_key?(&1, :original_approximate_tokens))
     end
   end
+
+  describe "Phase 87.1 - specialist history budget contract" do
+    test "packs old ReAct history while preserving current user turn" do
+      messages =
+        [
+          %{role: :system, content: "system prompt"},
+          %{role: :user, content: "old user " <> String.duplicate("x", 200)},
+          %{role: :assistant, content: "old assistant " <> String.duplicate("y", 200)}
+        ] ++
+          Enum.map(1..12, fn index ->
+            %{role: :user, content: "old turn #{index} " <> String.duplicate("z", 120)}
+          end) ++
+          [%{role: :user, content: "current request must survive"}]
+
+      packed = ContextBudget.pack_messages(messages, token_budget: 80, max_messages: 5)
+
+      assert List.first(packed.messages).content == "system prompt"
+      assert List.last(packed.messages).content == "current request must survive"
+      assert packed.diagnostics.state == :trimmed
+      assert packed.diagnostics.dropped_messages > 0
+      assert length(packed.messages) <= 6
+    end
+
+    test "keeps assistant tool-call groups paired with tool results" do
+      messages = [
+        %{role: :system, content: "system"},
+        %{role: :user, content: "old request " <> String.duplicate("a", 300)},
+        %{
+          role: :assistant,
+          content: nil,
+          tool_calls: [%{id: "call-1", name: "read_file", arguments: %{path: "lib/a.ex"}}]
+        },
+        %{role: :tool, tool_call_id: "call-1", name: "read_file", content: "file output"},
+        %{role: :user, content: "current request"}
+      ]
+
+      packed = ContextBudget.pack_messages(messages, token_budget: 40, max_messages: 4)
+
+      roles = Enum.map(packed.messages, & &1.role)
+
+      assert roles == [:system, :assistant, :tool, :user]
+      assert Enum.any?(packed.messages, &(Map.get(&1, :tool_call_id) == "call-1"))
+      assert packed.diagnostics.dropped_messages == 1
+    end
+
+    test "ReAct request transformer delegates message packing through policy" do
+      request = %{
+        messages: [
+          %{role: :system, content: "system"},
+          %{role: :user, content: "old " <> String.duplicate("x", 200)},
+          %{role: :user, content: "current"}
+        ],
+        llm_opts: [],
+        tools: %{}
+      }
+
+      policy = ContextBudget.policy(input_token_budget: 120, history: %{token_budget: 20, max_messages: 2})
+
+      assert {:ok, %{messages: messages}} =
+               JidoCode.ContextBudget.ReActRequestTransformer.transform_request(
+                 request,
+                 %{},
+                 %{model: "deterministic:deterministic"},
+                 %{context_budget_policy: policy}
+               )
+
+      assert Enum.map(messages, & &1.content) == ["system", "current"]
+    end
+  end
 end

@@ -119,6 +119,12 @@ defmodule JidoCode.ContextBudget do
           summary: map(),
           policy: policy()
         }
+  @type packed_messages :: %{
+          messages: [map()],
+          diagnostics: map(),
+          summary: map(),
+          policy: policy()
+        }
 
   @doc "Returns the canonical prompt section kinds understood by the budget layer."
   @spec section_kinds() :: [section_kind()]
@@ -261,6 +267,53 @@ defmodule JidoCode.ContextBudget do
   def render(%{text: text}) when is_binary(text), do: text
   def render(sections) when is_list(sections), do: render_sections(sections)
   def render(_other), do: ""
+
+  @doc """
+  Packs ReAct message history at request time.
+
+  Messages are packed at protocol-safe group boundaries. Assistant messages with
+  tool calls stay paired with following tool-result messages when either side is
+  retained.
+  """
+  @spec pack_messages([map()], keyword() | map()) :: packed_messages()
+  def pack_messages(messages, opts \\ []) when is_list(messages) do
+    opts = normalize_opts(opts)
+    policy = normalize_policy(Map.get(opts, :policy), opts)
+    history_policy = Map.get(policy, :history, %{})
+    max_messages = positive_integer(Map.get(opts, :max_messages), Map.get(history_policy, :max_messages, 24))
+    token_budget = positive_integer(Map.get(opts, :token_budget), Map.get(history_policy, :token_budget, 8_000))
+
+    {system_messages, body_messages} = Enum.split_with(messages, &(message_role(&1) == :system))
+    groups = message_groups(body_messages)
+
+    {selected_groups, dropped_groups, dropped_messages, forced_groups} =
+      pack_message_groups(groups, token_budget, max_messages)
+
+    packed_messages = system_messages ++ List.flatten(selected_groups)
+
+    diagnostics = %{
+      kind: :conversation_history,
+      state: if(dropped_messages > 0, do: :trimmed, else: :packed),
+      original_messages: length(messages),
+      packed_messages: length(packed_messages),
+      dropped_messages: dropped_messages,
+      original_groups: length(groups),
+      packed_groups: length(selected_groups),
+      dropped_groups: dropped_groups,
+      forced_groups: forced_groups,
+      token_budget: token_budget,
+      max_messages: max_messages,
+      packed_approximate_tokens: estimate_messages(packed_messages).approximate_tokens,
+      original_approximate_tokens: estimate_messages(messages).approximate_tokens
+    }
+
+    %{
+      messages: packed_messages,
+      diagnostics: diagnostics,
+      summary: stringify_keys(diagnostics),
+      policy: policy
+    }
+  end
 
   @doc "Builds a compact public summary from a policy or packed result."
   @spec summary(map() | nil) :: map() | nil
@@ -506,6 +559,107 @@ defmodule JidoCode.ContextBudget do
       "#{section.label}:\n#{section.text}"
     end)
   end
+
+  defp pack_message_groups(groups, token_budget, max_messages) do
+    groups
+    |> Enum.reverse()
+    |> Enum.reduce_while({[], 0, 0, 0}, fn group, {selected, spent_tokens, selected_count, forced_groups} ->
+      group_tokens = estimate_messages(group).approximate_tokens
+      group_count = length(group)
+      required_tail? = selected == []
+
+      fits? =
+        spent_tokens + group_tokens <= token_budget and selected_count + group_count <= max_messages
+
+      cond do
+        fits? ->
+          {:cont, {[group | selected], spent_tokens + group_tokens, selected_count + group_count, forced_groups}}
+
+        required_tail? ->
+          {:cont, {[group | selected], spent_tokens + group_tokens, selected_count + group_count, forced_groups + 1}}
+
+        true ->
+          {:halt, {selected, spent_tokens, selected_count, forced_groups}}
+      end
+    end)
+    |> case do
+      {selected, _spent_tokens, _selected_count, forced_groups} ->
+        dropped_groups = max(length(groups) - length(selected), 0)
+        dropped_messages = groups |> Enum.take(dropped_groups) |> List.flatten() |> length()
+        {selected, dropped_groups, dropped_messages, forced_groups}
+    end
+  end
+
+  defp message_groups(messages) do
+    messages
+    |> Enum.reduce([], fn message, groups ->
+      role = message_role(message)
+
+      cond do
+        role == :tool and groups != [] and assistant_tool_group?(List.last(groups)) ->
+          List.update_at(groups, -1, &(&1 ++ [message]))
+
+        true ->
+          groups ++ [[message]]
+      end
+    end)
+  end
+
+  defp assistant_tool_group?([]), do: false
+
+  defp assistant_tool_group?(group) when is_list(group) do
+    group
+    |> List.first()
+    |> assistant_tool_message?()
+  end
+
+  defp assistant_tool_message?(message) do
+    message_role(message) == :assistant and
+      message
+      |> message_tool_calls()
+      |> case do
+        calls when is_list(calls) -> calls != []
+        _other -> false
+      end
+  end
+
+  defp estimate_messages(messages) when is_list(messages) do
+    messages
+    |> Enum.map(&message_content_text/1)
+    |> Enum.join("\n")
+    |> estimate()
+  end
+
+  defp message_role(%{} = message) do
+    message
+    |> Map.get(:role, Map.get(message, "role"))
+    |> normalize_role()
+  end
+
+  defp message_role(_message), do: :unknown
+
+  defp normalize_role(role) when is_atom(role), do: role
+
+  defp normalize_role(role) when is_binary(role) do
+    role
+    |> String.downcase()
+    |> String.to_existing_atom()
+  rescue
+    ArgumentError -> :unknown
+  end
+
+  defp normalize_role(_role), do: :unknown
+
+  defp message_tool_calls(%{} = message), do: Map.get(message, :tool_calls, Map.get(message, "tool_calls"))
+  defp message_tool_calls(_message), do: nil
+
+  defp message_content_text(%{} = message) do
+    message
+    |> Map.get(:content, Map.get(message, "content", ""))
+    |> render_estimate_text()
+  end
+
+  defp message_content_text(message), do: render_estimate_text(message)
 
   defp model_defaults(provider, model) when is_binary(provider) and is_binary(model) do
     key = {String.downcase(provider), String.downcase(model)}

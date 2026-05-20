@@ -4,6 +4,8 @@ defmodule JidoCode.AgentWorkspace.RuntimeSpecialistRunner do
 
   @behaviour JidoCode.AgentWorkspace.SpecialistRunner
 
+  alias JidoCode.ContextBudget
+  alias JidoCode.ContextBudget.ReActRequestTransformer
   alias JidoCode.LLMSelection
 
   @impl true
@@ -12,11 +14,18 @@ defmodule JidoCode.AgentWorkspace.RuntimeSpecialistRunner do
     llm_selection = Keyword.get(opts, :llm_selection)
 
     with :ok <- LLMSelection.apply_to_agent(agent_module, pid, llm_selection) do
+      tool_context =
+        opts
+        |> Keyword.get(:tool_context, %{})
+        |> Map.put_new(:context_budget_policy, ContextBudget.policy(llm_selection: llm_selection))
+
       agent_module.ask_sync(
         pid,
         instruction,
         opts
         |> Keyword.drop([:llm_selection])
+        |> Keyword.put(:tool_context, tool_context)
+        |> Keyword.put_new(:request_transformer, ReActRequestTransformer)
         |> maybe_put(:llm_opts, llm_selection && Map.get(llm_selection, :llm_opts, []))
         |> maybe_put(
           :req_http_options,

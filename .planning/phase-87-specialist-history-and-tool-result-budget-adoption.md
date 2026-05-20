@@ -33,22 +33,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 87 Phase 87 - Specialist History And Tool Result Budget Adoption
   Extend context budgeting into specialist ReAct history and tool-result handling so long-lived work-item specialists cannot accumulate unbounded request history or oversized tool outputs.
 
-  [ ] 87.1 Section - Specialist History Budget Contract
+  [x] 87.1 Section - Specialist History Budget Contract
     Make retained AI context explicitly bounded while preserving useful work-item continuity.
 
-    [ ] 87.1.1 Task - Add request-time history packing
+    [x] 87.1.1 Task - Add request-time history packing
       Apply the context budget before the final LLM request is sent from the ReAct runner or through a product-owned request transformer.
 
-      [ ] 87.1.1.1 Subtask - Decide whether the first implementation belongs in a `jido_code` request transformer, a `RuntimeSpecialistRunner` adapter, or a small upstream `jido_ai` extension.
-      [ ] 87.1.1.2 Subtask - Pack projected ReAct messages with current user turn, active tool-call protocol requirements, and recent assistant/tool messages preserved first.
-      [ ] 87.1.1.3 Subtask - Emit diagnostics for original history size, packed history size, dropped messages, and any protocol-preserving forced inclusions.
+      [x] 87.1.1.1 Subtask - Decide whether the first implementation belongs in a `jido_code` request transformer, a `RuntimeSpecialistRunner` adapter, or a small upstream `jido_ai` extension.
+      [x] 87.1.1.2 Subtask - Pack projected ReAct messages with current user turn, active tool-call protocol requirements, and recent assistant/tool messages preserved first.
+      [x] 87.1.1.3 Subtask - Emit diagnostics for original history size, packed history size, dropped messages, and any protocol-preserving forced inclusions.
 
-    [ ] 87.1.2 Task - Define specialist retention and reset policy
+    [x] 87.1.2 Task - Define specialist retention and reset policy
       Keep same-work-item specialist continuity useful without assuming every later request belongs to the same subtask.
 
-      [ ] 87.1.2.1 Subtask - Add per-specialist defaults for maximum retained turns, maximum packed history budget, and reset conditions.
-      [ ] 87.1.2.2 Subtask - Support explicit reset or new-topic signals from conversation runtime without guessing from free text alone.
-      [ ] 87.1.2.3 Subtask - Preserve pod lifetime semantics: different work items still use different CodingPods and different specialists still keep separate histories.
+      [x] 87.1.2.1 Subtask - Add per-specialist defaults for maximum retained turns, maximum packed history budget, and reset conditions.
+      [x] 87.1.2.2 Subtask - Support explicit reset or new-topic signals from conversation runtime without guessing from free text alone.
+      [x] 87.1.2.3 Subtask - Preserve pod lifetime semantics: different work items still use different CodingPods and different specialists still keep separate histories.
 
   [ ] 87.2 Section - Tool Output Budgeting And Summarization
     Make tool outputs consistently bounded before they are appended into specialist history or reused as accepted conversation context.

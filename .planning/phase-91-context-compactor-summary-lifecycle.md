@@ -62,22 +62,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 91.2.2.2 Subtask - Reject output that includes raw full tool output or raw transcript dumps.
       [x] 91.2.2.3 Subtask - Store accepted summaries through `CompactionStore` with replacement metadata.
 
-  [ ] 91.3 Section - Summary Injection And History Lifecycle
+  [x] 91.3 Section - Summary Injection And History Lifecycle
     Reuse accepted summaries in prompt assembly while keeping raw history recoverable only through governed records.
 
-    [ ] 91.3.1 Task - Inject summaries as budgeted prompt sections
+    [x] 91.3.1 Task - Inject summaries as budgeted prompt sections
       Make compacted context available to specialists without bypassing `ContextBudget`.
 
-      [ ] 91.3.1.1 Subtask - Add a typed compaction summary section to AgentWorkspace prompt assembly.
-      [ ] 91.3.1.2 Subtask - Let `ContextBudget` trim or drop compaction summaries like other non-required sections.
-      [ ] 91.3.1.3 Subtask - Include summary diagnostics in specialist budget metadata.
+      [x] 91.3.1.1 Subtask - Add a typed compaction summary section to AgentWorkspace prompt assembly.
+      [x] 91.3.1.2 Subtask - Let `ContextBudget` trim or drop compaction summaries like other non-required sections.
+      [x] 91.3.1.3 Subtask - Include summary diagnostics in specialist budget metadata.
 
-    [ ] 91.3.2 Task - Manage compacted history state
+    [x] 91.3.2 Task - Manage compacted history state
       Avoid repeatedly resending raw old history after a summary supersedes it.
 
-      [ ] 91.3.2.1 Subtask - Mark compacted spans as summarized in context-management state.
-      [ ] 91.3.2.2 Subtask - Prefer summaries over raw eligible spans in future prompt construction.
-      [ ] 91.3.2.3 Subtask - Preserve original conversation events and workflow provenance as append-only recovery records.
+      [x] 91.3.2.1 Subtask - Mark compacted spans as summarized in context-management state.
+      [x] 91.3.2.2 Subtask - Prefer summaries over raw eligible spans in future prompt construction.
+      [x] 91.3.2.3 Subtask - Preserve original conversation events and workflow provenance as append-only recovery records.
 
   [ ] 91.4 Section - Integration Tests
     Prove compaction produces valid summaries, preserves protocol integrity, and improves prompt continuity without replacing request-time packing.

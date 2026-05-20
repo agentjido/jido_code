@@ -11,6 +11,7 @@ defmodule JidoCode.ContextBudgetTest do
       assert :prompt_memory in ContextBudget.section_kinds()
       assert :semantic_context in ContextBudget.section_kinds()
       assert :memory_context in ContextBudget.section_kinds()
+      assert :compaction_summary in ContextBudget.section_kinds()
       assert :tool_output in ContextBudget.section_kinds()
 
       assert ContextBudget.retention_classes() == [:required, :important, :useful, :optional]
@@ -99,6 +100,25 @@ defmodule JidoCode.ContextBudgetTest do
       assert %{bytes: bytes, approximate_tokens: tokens} = ContextBudget.estimate(["one", "two"])
       assert bytes > 0
       assert tokens > 0
+    end
+
+    test "packs compaction summaries as non-required prompt context" do
+      packed =
+        ContextBudget.pack(
+          [
+            ContextBudget.section(:current_request, "Continue implementation.", retention: :required),
+            ContextBudget.section(
+              :compaction_summary,
+              Enum.map(1..20, &("summary #{&1}: " <> String.duplicate("older context ", 30))),
+              retention: :useful
+            )
+          ],
+          input_token_budget: 120
+        )
+
+      summary_diagnostics = Enum.find(packed.diagnostics, &(&1.kind == :compaction_summary))
+      assert summary_diagnostics.state in [:trimmed, :dropped]
+      assert summary_diagnostics.retention == :useful
     end
   end
 

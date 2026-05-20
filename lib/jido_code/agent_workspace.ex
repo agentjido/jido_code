@@ -571,6 +571,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
          {:ok, memory_context} <- workflow_memory_context(:plan, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :plan, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:plan, instruction, semantic_context, memory_context, opts),
          {:ok, planner_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :planner),
          {:ok, response} <-
@@ -640,6 +641,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :execute, opts),
          {:ok, memory_context} <- workflow_memory_context(:execute, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :execute, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:execute, instruction, semantic_context, memory_context, opts),
          {:ok, coder_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :coder),
          {:ok, response} <-
@@ -709,6 +711,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
          {:ok, memory_context} <- workflow_memory_context(:review, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :review, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:review, instruction, semantic_context, memory_context, opts),
          {:ok, reviewer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :reviewer),
          {:ok, response} <-
@@ -778,6 +781,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :refactor, opts),
          {:ok, memory_context} <- workflow_memory_context(:refactor, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :refactor, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:refactor, instruction, semantic_context, memory_context, opts),
          {:ok, refactorer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :refactorer),
          {:ok, response} <-
@@ -838,6 +842,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
          {:ok, memory_context} <- workflow_memory_context(:explain, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :explain, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:explain, instruction, semantic_context, memory_context, opts),
          {:ok, explainer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :explainer),
          {:ok, response} <-
@@ -2174,9 +2179,20 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp put_compaction_summaries(managed_repo_id, work_item_id, workflow, opts) do
+    summaries =
+      context_compaction_summaries(managed_repo_id, work_item_id,
+        workflow: workflow,
+        limit: 6
+      )
+
+    Keyword.put(opts, :compaction_summaries, summaries)
+  end
+
   defp specialist_prompt(workflow, instruction, semantic_context, memory_context, opts) do
     semantic_projection = PromptProjection.semantic(semantic_context)
     memory_projection = PromptProjection.memory(normalize_workflow_memory_context(memory_context))
+    compaction_summaries = Keyword.get(opts, :compaction_summaries, [])
 
     policy =
       opts
@@ -2197,6 +2213,16 @@ defmodule JidoCode.AgentWorkspace do
         metadata: memory_projection.diagnostics
       ),
       ContextBudget.section(
+        :compaction_summary,
+        compaction_summary_lines(compaction_summaries),
+        retention: :useful,
+        metadata: %{
+          kind: :compaction_summary,
+          summary_count: length(compaction_summaries),
+          summary_ids: Enum.map(compaction_summaries, &Map.get(&1, "id"))
+        }
+      ),
+      ContextBudget.section(
         :guidance,
         [
           "- Treat semantic and memory context as bounded prompt projections, not product truth.",
@@ -2213,8 +2239,24 @@ defmodule JidoCode.AgentWorkspace do
        text: packed.text,
        context_budget: packed,
        semantic_projection: semantic_projection,
-       memory_projection: memory_projection
+       memory_projection: memory_projection,
+       compaction_summaries: compaction_summaries
      }}
+  end
+
+  defp compaction_summary_lines([]), do: []
+
+  defp compaction_summary_lines(summaries) when is_list(summaries) do
+    summaries
+    |> Enum.map(fn summary ->
+      summary_text = Map.get(summary, "summary_text", "")
+      summary_id = Map.get(summary, "id", "unknown-summary")
+      workflow = Map.get(summary, "workflow", "unknown-workflow")
+      specialist_role = Map.get(summary, "specialist_role", "unknown-specialist")
+      span_count = summary |> Map.get("source_span_ids", []) |> length()
+
+      "- #{summary_id} (#{workflow}/#{specialist_role}, #{span_count} span(s)): #{summary_text}"
+    end)
   end
 
   defp context_budget_opts(%{} = budget) do

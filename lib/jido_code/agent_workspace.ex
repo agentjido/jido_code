@@ -81,8 +81,9 @@ defmodule JidoCode.AgentWorkspace do
   }
 
   alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
+  alias JidoCode.AgentWorkspace.PromptProjection
   alias JidoCode.Pods.{MemoryGraphPod, SourceCodeGraphPod}
-  alias JidoCode.{MemoryGraph, SourceCodeGraph}
+  alias JidoCode.{ContextBudget, MemoryGraph, SourceCodeGraph}
   alias Jido.AgentOS.ManagerSupervisor
   alias Jido.AgentOS.Naming
   alias Jido.AgentOS.Persistence
@@ -410,25 +411,29 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
          {:ok, memory_context} <- workflow_memory_context(:plan, opts),
+         {:ok, specialist_prompt} <- specialist_prompt(:plan, instruction, semantic_context, memory_context, opts),
          {:ok, planner_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :planner),
          {:ok, response} <-
            run_specialist(
              Planner,
              planner_pid,
-             agent_instruction(:plan, instruction, semantic_context, memory_context),
+             specialist_prompt.text,
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
              memory_context,
              provenance_context,
-             Keyword.put(opts, :work_item_id, work_item_id)
+             opts
+             |> Keyword.put(:work_item_id, work_item_id)
+             |> Keyword.put(:context_budget, specialist_prompt.context_budget)
            ) do
       result = %{
         plan: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
+        context_budget: ContextBudget.summary(specialist_prompt.context_budget),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -474,25 +479,29 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :execute, opts),
          {:ok, memory_context} <- workflow_memory_context(:execute, opts),
+         {:ok, specialist_prompt} <- specialist_prompt(:execute, instruction, semantic_context, memory_context, opts),
          {:ok, coder_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :coder),
          {:ok, response} <-
            run_specialist(
              Coder,
              coder_pid,
-             agent_instruction(:execute, instruction, semantic_context, memory_context),
+             specialist_prompt.text,
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
              memory_context,
              provenance_context,
-             Keyword.put(opts, :work_item_id, work_item_id)
+             opts
+             |> Keyword.put(:work_item_id, work_item_id)
+             |> Keyword.put(:context_budget, specialist_prompt.context_budget)
            ) do
       result = %{
         changes: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
+        context_budget: ContextBudget.summary(specialist_prompt.context_budget),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -538,25 +547,29 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
          {:ok, memory_context} <- workflow_memory_context(:review, opts),
+         {:ok, specialist_prompt} <- specialist_prompt(:review, instruction, semantic_context, memory_context, opts),
          {:ok, reviewer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :reviewer),
          {:ok, response} <-
            run_specialist(
              Reviewer,
              reviewer_pid,
-             agent_instruction(:review, instruction, semantic_context, memory_context),
+             specialist_prompt.text,
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
              memory_context,
              provenance_context,
-             Keyword.put(opts, :work_item_id, work_item_id)
+             opts
+             |> Keyword.put(:work_item_id, work_item_id)
+             |> Keyword.put(:context_budget, specialist_prompt.context_budget)
            ) do
       result = %{
         feedback: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
+        context_budget: ContextBudget.summary(specialist_prompt.context_budget),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -602,25 +615,29 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :refactor, opts),
          {:ok, memory_context} <- workflow_memory_context(:refactor, opts),
+         {:ok, specialist_prompt} <- specialist_prompt(:refactor, instruction, semantic_context, memory_context, opts),
          {:ok, refactorer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :refactorer),
          {:ok, response} <-
            run_specialist(
              Refactorer,
              refactorer_pid,
-             agent_instruction(:refactor, instruction, semantic_context, memory_context),
+             specialist_prompt.text,
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
              memory_context,
              provenance_context,
-             Keyword.put(opts, :work_item_id, work_item_id)
+             opts
+             |> Keyword.put(:work_item_id, work_item_id)
+             |> Keyword.put(:context_budget, specialist_prompt.context_budget)
            ) do
       result = %{
         refactoring: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
+        context_budget: ContextBudget.summary(specialist_prompt.context_budget),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -657,25 +674,29 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
          {:ok, memory_context} <- workflow_memory_context(:explain, opts),
+         {:ok, specialist_prompt} <- specialist_prompt(:explain, instruction, semantic_context, memory_context, opts),
          {:ok, explainer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :explainer),
          {:ok, response} <-
            run_specialist(
              Explainer,
              explainer_pid,
-             agent_instruction(:explain, instruction, semantic_context, memory_context),
+             specialist_prompt.text,
              managed_repo_id,
              work_item_id,
              workspace_path,
              semantic_context,
              memory_context,
              provenance_context,
-             Keyword.put(opts, :work_item_id, work_item_id)
+             opts
+             |> Keyword.put(:work_item_id, work_item_id)
+             |> Keyword.put(:context_budget, specialist_prompt.context_budget)
            ) do
       result = %{
         explanation: normalize_specialist_result(response),
         instruction: instruction,
         semantic_context: semantic_context,
         memory_context: memory_context,
+        context_budget: ContextBudget.summary(specialist_prompt.context_budget),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -1822,10 +1843,12 @@ defmodule JidoCode.AgentWorkspace do
   defp stringify_artifact_content(content), do: inspect(content, pretty: true, limit: :infinity)
 
   defp specialist_tool_context(managed_repo_id, workspace_path, semantic_context, memory_context, opts) do
-    base = %{
-      managed_repo_id: managed_repo_id,
-      workspace_path: workspace_path
-    }
+    base =
+      %{
+        managed_repo_id: managed_repo_id,
+        workspace_path: workspace_path
+      }
+      |> maybe_put_context_budget(opts)
 
     base =
       case Keyword.get(opts, :source_code_graph) do
@@ -1855,30 +1878,91 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
-  defp agent_instruction(_workflow, instruction, semantic_context, memory_context)
-       when semantic_context == %{} and (memory_context == %{} or is_nil(memory_context)),
-       do: instruction
-
-  defp agent_instruction(workflow, instruction, semantic_context, memory_context) do
-    sections =
-      []
-      |> maybe_add_instruction_section("Semantic context", semantic_context)
-      |> maybe_add_instruction_section("Memory context", normalize_workflow_memory_context(memory_context))
-
-    """
-    Workflow: #{workflow}
-    Instruction: #{instruction}
-
-    #{Enum.join(sections, "\n\n")}
-    """
+  defp maybe_put_context_budget(base, opts) do
+    case Keyword.get(opts, :context_budget) do
+      nil -> base
+      context_budget -> Map.put(base, :context_budget, ContextBudget.summary(context_budget))
+    end
   end
 
-  defp maybe_add_instruction_section(sections, _label, nil), do: sections
-  defp maybe_add_instruction_section(sections, _label, %{} = context) when map_size(context) == 0, do: sections
+  defp specialist_prompt(workflow, instruction, semantic_context, memory_context, opts) do
+    semantic_projection = PromptProjection.semantic(semantic_context)
+    memory_projection = PromptProjection.memory(normalize_workflow_memory_context(memory_context))
 
-  defp maybe_add_instruction_section(sections, label, context) do
-    sections ++ ["#{label}:\n#{inspect(context, pretty: true, limit: :infinity)}"]
+    policy =
+      opts
+      |> Keyword.get(:context_budget, [])
+      |> context_budget_opts()
+      |> Keyword.put(:llm_selection, Keyword.get(opts, :llm_selection))
+      |> ContextBudget.policy()
+
+    sections = [
+      ContextBudget.section(:workflow, "Workflow: #{workflow}", retention: :important),
+      ContextBudget.section(:current_request, "Instruction: #{instruction}", retention: :required),
+      ContextBudget.section(:semantic_context, semantic_projection.lines,
+        retention: :useful,
+        metadata: semantic_projection.diagnostics
+      ),
+      ContextBudget.section(:memory_context, memory_projection.lines,
+        retention: :important,
+        metadata: memory_projection.diagnostics
+      ),
+      ContextBudget.section(
+        :guidance,
+        [
+          "- Treat semantic and memory context as bounded prompt projections, not product truth.",
+          "- Use structured tool context and current source inspection before relying on graph-derived summaries."
+        ],
+        retention: :important
+      )
+    ]
+
+    packed = ContextBudget.pack(sections, policy: policy)
+
+    {:ok,
+     %{
+       text: packed.text,
+       context_budget: packed,
+       semantic_projection: semantic_projection,
+       memory_projection: memory_projection
+     }}
   end
+
+  defp context_budget_opts(%{} = budget) do
+    case Map.get(budget, "policy", Map.get(budget, :policy)) do
+      %{} = policy ->
+        context_budget_opts(policy)
+
+      policy when is_list(policy) ->
+        policy
+
+      _other ->
+        budget
+        |> Enum.flat_map(fn {key, value} ->
+          case context_budget_key(key) do
+            nil -> []
+            atom -> [{atom, value}]
+          end
+        end)
+    end
+  end
+
+  defp context_budget_opts(opts) when is_list(opts), do: opts
+  defp context_budget_opts(_opts), do: []
+
+  defp context_budget_key(key) when is_atom(key), do: key
+
+  defp context_budget_key(key) when is_binary(key) do
+    key
+    |> String.trim()
+    |> String.downcase()
+    |> String.replace("-", "_")
+    |> String.to_existing_atom()
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp context_budget_key(_key), do: nil
 
   defp workflow_memory_context(_workflow, opts) when opts == [] do
     {:ok, %{}}
@@ -2011,6 +2095,13 @@ defmodule JidoCode.AgentWorkspace do
     |> maybe_put_map_value(:llm_selection_source, get_in(provenance_context, [:llm_selection, :source]))
   end
 
+  defp maybe_put_context_budget_metadata(metadata, opts) do
+    case Keyword.get(opts, :context_budget) do
+      nil -> metadata
+      context_budget -> Map.put(metadata, :context_budget, ContextBudget.summary(context_budget))
+    end
+  end
+
   defp maybe_put_map_value(map, _key, nil), do: map
   defp maybe_put_map_value(map, key, value), do: Map.put(map, key, value)
 
@@ -2129,7 +2220,11 @@ defmodule JidoCode.AgentWorkspace do
         model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
-        related_resources: provenance_context.related_resources
+        related_resources: provenance_context.related_resources,
+        metadata:
+          provenance_metadata(provenance_context)
+          |> Map.put(:stage, stage)
+          |> maybe_put_context_budget_metadata(opts)
       )
 
     tool_capture =
@@ -2146,7 +2241,11 @@ defmodule JidoCode.AgentWorkspace do
         model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
-        related_resources: provenance_context.related_resources
+        related_resources: provenance_context.related_resources,
+        metadata:
+          provenance_metadata(provenance_context)
+          |> Map.put(:stage, stage)
+          |> maybe_put_context_budget_metadata(opts)
       )
 
     artifact_capture =
@@ -2216,6 +2315,7 @@ defmodule JidoCode.AgentWorkspace do
           provenance_metadata(provenance_context)
           |> Map.put(:stage, stage)
           |> Map.put(:failure, inspect(reason))
+          |> maybe_put_context_budget_metadata(opts)
       )
 
     capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)

@@ -15,27 +15,25 @@ defmodule JidoCode.Actions.ReadFile do
       max_chars: [type: :integer, default: 50_000]
     ]
 
+  alias JidoCode.ContextBudget
+
   @impl true
   def run(%{path: path, max_chars: max_chars}, context) do
     with {:ok, workspace_path} <- workspace_path(context),
          full_path = Path.expand(path, workspace_path),
          :ok <- validate_path_within_workspace(full_path, workspace_path),
          {:ok, content} <- File.read(full_path) do
-      truncated =
-        if String.length(content) > max_chars do
-          {content, _} = String.split_at(content, max_chars)
-          content <> "\n\n... (truncated at #{max_chars} chars)"
-        else
-          content
-        end
+      max_bytes = ContextBudget.clamp_tool_limit(max_chars, :max_bytes)
+      bounded = ContextBudget.bound_tool_text(content, max_bytes: max_bytes)
 
       {:ok,
        %{
          path: path,
          full_path: full_path,
-         content: truncated,
+         content: bounded.text,
          size: String.length(content),
-         truncated?: String.length(content) > max_chars
+         truncated?: bounded.diagnostics.state == :truncated,
+         budget: bounded.diagnostics
        }}
     else
       {:error, :enoent} -> {:error, :file_not_found, "File not found: #{path}"}

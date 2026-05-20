@@ -17,6 +17,8 @@ defmodule JidoCode.Actions.ListFiles do
       max_results: [type: :integer, default: 1000]
     ]
 
+  alias JidoCode.ContextBudget
+
   @impl true
   def run(params, context) do
     %{
@@ -27,19 +29,24 @@ defmodule JidoCode.Actions.ListFiles do
       max_results: max_results
     } = params
 
+    max_results = ContextBudget.clamp_tool_limit(max_results, :max_results)
+
     with {:ok, workspace_path} <- workspace_path(context),
          full_path = Path.expand(path, workspace_path),
          :ok <- validate_path_within_workspace(full_path, workspace_path),
          {:ok, files} <- list_directory(full_path, recursive, extensions, include_hidden, max_results) do
       relative_paths = Enum.map(files, &Path.relative_to(&1, full_path))
+      bounded = ContextBudget.bound_tool_results(relative_paths, max_results: max_results)
+      budget = mark_action_truncation(bounded.diagnostics, length(files) >= max_results and max_results > 0)
 
       {:ok,
        %{
          path: path,
          full_path: full_path,
-         files: relative_paths,
-         count: length(relative_paths),
-         truncated?: length(files) >= max_results and max_results > 0
+         files: bounded.results,
+         count: length(bounded.results),
+         truncated?: budget.state == :truncated,
+         budget: budget
        }}
     else
       {:error, :enoent} -> {:error, :directory_not_found, "Directory not found: #{path}"}
@@ -97,5 +104,15 @@ defmodule JidoCode.Actions.ListFiles do
   defp extension_match?(path, extensions) when is_list(extensions) do
     ext = Path.extname(path)
     ext in extensions or ext == ""
+  end
+
+  defp mark_action_truncation(diagnostics, true) do
+    diagnostics
+    |> Map.put(:state, :truncated)
+    |> Map.put(:truncated_by_action_limit?, true)
+  end
+
+  defp mark_action_truncation(diagnostics, false) do
+    Map.put(diagnostics, :truncated_by_action_limit?, false)
   end
 end

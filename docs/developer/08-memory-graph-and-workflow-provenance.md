@@ -146,6 +146,13 @@ runtime layer. It can make the next prompt more coherent, but the runtime still
 routes deterministically and falls back to the existing bounded prompt shape
 when the prompt-memory provider is disabled, degraded, or misconfigured.
 
+When memory workflow context is sent to a specialist, `AgentWorkspace` keeps the
+structured memory graph context in `tool_context` and sends only a compact
+prompt projection through the context budget packer. That projection can include
+freshness, retrieval policy, selected memories, selected provenance, and
+governed references, but it is not durable memory and it is not a substitute for
+workflow-provenance capture or governed memory adoption.
+
 ## Freshness And Recovery
 
 Operator-facing memory and provenance surfaces should expose:
@@ -168,6 +175,8 @@ These are important non-goals:
 - conversation state is not durable memory by default
 - prompt context memory is not durable memory just because it helped assemble a
   later prompt
+- memory prompt projections are not durable memory just because they reached a
+  specialist
 - graph-local facts are not product truth on their own
 
 ## Conversation Recall Rule

@@ -16,12 +16,15 @@ defmodule JidoCode.Actions.RunTests do
       timeout_ms: [type: :integer, default: 60_000]
     ]
 
+  alias JidoCode.ContextBudget
+
   @impl true
   def run(%{test_path: test_path, command: command, timeout_ms: timeout_ms}, context) do
     with {:ok, workspace_path} <- workspace_path(context),
          :ok <- validate_workspace(workspace_path) do
       cmd = build_command(command, test_path)
       {output, exit_code} = execute_test_command(workspace_path, cmd, timeout_ms)
+      bounded = ContextBudget.bound_tool_text(output)
 
       passed = exit_code == 0
       failed = not passed
@@ -34,7 +37,8 @@ defmodule JidoCode.Actions.RunTests do
          exit_code: exit_code,
          passed: passed,
          failed: failed,
-         output: truncate_output(output)
+         output: bounded.text,
+         budget: bounded.diagnostics
        }}
     else
       {:error, :missing_workspace_path} -> {:error, :invalid_context, "Missing workspace_path in context"}
@@ -64,7 +68,7 @@ defmodule JidoCode.Actions.RunTests do
   defp build_command(command, _test_path) when is_binary(command), do: command
   defp build_command(nil, test_path), do: "mix test #{test_path}"
 
-  defp execute_test_command(workspace_path, cmd, timeout_ms) do
+  defp execute_test_command(workspace_path, cmd, _timeout_ms) do
     cmd_parts = String.split(cmd, " ", trim: true)
 
     output =
@@ -78,8 +82,7 @@ defmodule JidoCode.Actions.RunTests do
               hd(cmd_parts),
               tl(cmd_parts),
               cd: workspace_path,
-              stderr_to_stdout: true,
-              timeout: timeout_ms
+              stderr_to_stdout: true
             )
 
           result
@@ -101,11 +104,4 @@ defmodule JidoCode.Actions.RunTests do
       true -> 0
     end
   end
-
-  defp truncate_output(output) when byte_size(output) > 10_000 do
-    {truncated, _} = String.split_at(output, 10_000)
-    truncated <> "\n\n... (output truncated)"
-  end
-
-  defp truncate_output(output), do: output
 end

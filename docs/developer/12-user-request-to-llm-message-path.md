@@ -211,7 +211,9 @@ Workflow: execute
 Instruction: <bounded instruction from conversation runtime>
 
 Semantic context:
-%{...}
+graph_ready?: true
+graph_revision: ...
+functions: ...
 
 Memory context:
 freshness: Memory graph ready
@@ -222,6 +224,9 @@ memory: Decision: ...
 This is the main prompt-level transformation after conversation runtime.
 The full graph context remains available to tools through `tool_context`; the
 prompt projection is only the bounded text the model sees directly.
+`AgentWorkspace` records a compact context-budget summary with the specialist
+run so developers can see whether optional graph projection lines were retained,
+trimmed, or dropped.
 
 ### Stage 6: The specialist adds the system prompt
 
@@ -241,7 +246,9 @@ the specialist contributes:
 - its existing specialist-local turn history
 
 That system prompt is prepended as the `system` message through
-`AIContext.to_messages/2`.
+the ReAct request-building path. The retained specialist-local history is later
+packed by `JidoCode.ContextBudget.ReActRequestTransformer` before it reaches
+the provider.
 
 ### Stage 7: Final provider request
 
@@ -254,11 +261,14 @@ The final provider request is built from:
 The messages come from:
 
 - specialist `system_prompt`
-- prior specialist-local history
+- packed prior specialist-local history
 - the current transformed user message
 
 The `CodingPod` specialists receive budgeted current-turn instructions. The
-ReAct history projection is still handled by the specialist runtime layer.
+specialist runtime installs `JidoCode.ContextBudget.ReActRequestTransformer`
+so retained ReAct history is also budgeted. Tool actions apply their own output
+ceilings before large file reads, search results, diffs, or test output are
+returned to the model.
 
 ## Concrete Example
 
@@ -301,13 +311,19 @@ Then `AgentWorkspace` may wrap that again as:
 Workflow: execute
 Instruction: <the bounded instruction above>
 
+Semantic context:
+graph_ready?: true
+functions: ...
+
 Memory context:
 freshness: Memory graph ready
 policy_intent: implementation_constraints
 memory: Decision: ...
 ```
 
-Then the `coder` system prompt is added above it as the `system` message.
+Then the `coder` system prompt is added above it as the `system` message, and
+the specialist runtime packs retained history before sending the provider
+request.
 
 For a request like:
 
@@ -334,8 +350,8 @@ Current request: Fix failing tests in test/jido_code/agent_workspace_test.exs
 
 Potentially followed by:
 
-- prior specialist-local history
-- tool result messages from the same specialist thread
+- retained specialist-local history
+- bounded tool result messages from the same specialist thread
 
 ## What Can Meaningfully Change The LLM Outcome
 
@@ -347,6 +363,8 @@ These things can change how the request is interpreted:
 - memory context injection
 - specialist system prompt
 - tool availability
+- context-budget trimming of optional sections, retained history, or tool
+  output
 
 These things do **not** by themselves replace the request:
 
@@ -362,6 +380,7 @@ If the model seems not to be "hearing" the request, the likely causes are:
 - the wrong workflow was inferred
 - the wrong specialist was selected
 - semantic or memory context wrapped the prompt in a distracting way
+- optional context was trimmed more aggressively than expected
 - the system prompt is steering behavior strongly
 - the request lacked enough concrete file/module scope and triggered clarification
 
@@ -377,7 +396,9 @@ When debugging a bad result, inspect these layers in order:
 4. `AgentWorkspace` prompt projection and context-budget summary
 5. specialist choice
 6. specialist system prompt
-7. tool list and tool results
+7. ReAct context-budget summary for retained history
+8. tool list, tool result budget diagnostics, and actual source files when
+   needed
 
 That order usually finds the bug much faster than starting at the provider edge.
 

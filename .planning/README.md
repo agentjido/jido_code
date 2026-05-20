@@ -174,11 +174,12 @@ prompt-memory lifecycle tests, the Phase 82 historical conversation batch, and
 the Phase 83 routing integration boundary from order-sensitive cleanup
 failures.
 
-Context-budget rollout note: Phase 85 introduces the central budget policy and
-prompt-packing boundary, Phase 86 adopts it for AgentWorkspace semantic and
-memory prompt projections, Phase 87 extends it to specialist history and tool
-results, and Phase 88 makes budget behavior observable, configurable, and
-documented across conversation and specialist workflows.
+Context-budget rollout note: Phases 85 through 88 establish the central budget
+policy and prompt-packing boundary, adopt it in conversation runtime and
+AgentWorkspace graph prompt projections, extend it to specialist ReAct history
+and tool-result handling, and surface budget behavior through diagnostics,
+runtime configuration, provenance, snapshots, developer guidance, and focused
+quality gates.
 
 Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery

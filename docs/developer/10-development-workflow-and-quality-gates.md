@@ -47,6 +47,8 @@ before editing:
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs` | verify prompt context memory adapter and runtime integration |
 | `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1` | verify the historical conversation child-supervisor lifecycle regression |
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_fifty_two_integration_test.exs test/jido_code/phase_eighty_three_integration_test.exs --max-cases 1 --max-failures 1` | verify prompt-memory fixture isolation with deterministic routing and refactor-routing integration |
+| `mix test test/jido_code/context_budget_test.exs test/jido_code/phase_eighty_five_integration_test.exs test/jido_code/phase_eighty_six_integration_test.exs test/jido_code/phase_eighty_seven_integration_test.exs --max-cases 1 --max-failures 1` | verify context-budget policy, prompt packing, graph prompt projections, specialist history packing, and tool-output caps |
+| `mix test test/jido_code/agent_os/actions_test.exs test/jido_code/agent_workspace/prompt_projection_test.exs --max-failures 1` | verify workspace tool budget diagnostics and graph prompt projection shaping |
 | `mix semantic.verify` | verify product-facing semantic behavior |
 | `mix docs` | build repo docs surface |
 
@@ -64,7 +66,29 @@ Run the narrower verification commands when you touch those boundaries:
 - workflow routing, refactor routing, or prompt-memory fixture changes -> run
   the mixed context-memory plus Phase 52 and Phase 83 routing command listed
   above
+- context budget policy, prompt packing, specialist ReAct history, or
+  tool-output budget changes -> run the focused context-budget and action test
+  commands listed above
+- AgentWorkspace semantic or memory prompt projection changes -> run the
+  focused context-budget commands plus `mix source_graph.verify` and
+  `mix memory.verify`
 - product-facing semantic surfaces or services -> `mix semantic.verify`
+
+## Context Budget Verification
+
+Context budget changes can affect more than one prompt boundary. Use
+`test/jido_code/context_budget_test.exs` for the policy and packer rules,
+Phase 85 for conversation-runtime packing, Phase 86 for AgentWorkspace graph
+projection adoption, and Phase 87 for specialist history and tool-output caps.
+
+Run `test/jido_code/agent_os/actions_test.exs` when changing workspace actions
+that return file content, search results, diffs, or test output. Run the Phase
+52 and Phase 83 routing command when budget changes alter conversation routing
+inputs or specialist selection.
+
+Budget diagnostics must stay metadata-only. They can report policy id, token
+estimates, retained or dropped sections, and remediation hints, but they should
+not persist raw prompt bodies or raw tool output as durable memory.
 
 ## Prompt Context Memory Verification
 

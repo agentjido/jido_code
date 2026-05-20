@@ -65,22 +65,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 88.2.2.2 Subtask - Preserve deterministic retry behavior when a user narrows requested files, lowers tool result limits, or changes model selection.
       [x] 88.2.2.3 Subtask - Keep context budget failures non-fatal unless required sections cannot fit after all safe trimming.
 
-  [ ] 88.3 Section - Contributor Guidance And Quality Gates
+  [x] 88.3 Section - Contributor Guidance And Quality Gates
     Converge docs and verification commands so future LLM-context work follows the budgeted architecture.
 
-    [ ] 88.3.1 Task - Update prompt and context developer guides
+    [x] 88.3.1 Task - Update prompt and context developer guides
       Make the final context flow easy to trace from user request to provider request.
 
-      [ ] 88.3.1.1 Subtask - Update the specialist prompts guide with context sections, packing order, `tool_context` separation, and specialist history limits.
-      [ ] 88.3.1.2 Subtask - Update the user-request-to-LLM path guide with budget diagnostics and failure modes.
-      [ ] 88.3.1.3 Subtask - Update memory and semantic docs so prompt projection is not confused with durable graph state.
+      [x] 88.3.1.1 Subtask - Update the specialist prompts guide with context sections, packing order, `tool_context` separation, and specialist history limits.
+      [x] 88.3.1.2 Subtask - Update the user-request-to-LLM path guide with budget diagnostics and failure modes.
+      [x] 88.3.1.3 Subtask - Update memory and semantic docs so prompt projection is not confused with durable graph state.
 
-    [ ] 88.3.2 Task - Add quality-gate guidance
+    [x] 88.3.2 Task - Add quality-gate guidance
       Make the right verification commands discoverable for context budget changes.
 
-      [ ] 88.3.2.1 Subtask - Add context-budget focused commands to `docs/developer/10-development-workflow-and-quality-gates.md`.
-      [ ] 88.3.2.2 Subtask - Explain when to run conversation runtime, AgentWorkspace, source graph, memory graph, and `jido_ai` tests.
-      [ ] 88.3.2.3 Subtask - Update planning README chronology notes for the Phase 85 through Phase 88 rollout.
+      [x] 88.3.2.1 Subtask - Add context-budget focused commands to `docs/developer/10-development-workflow-and-quality-gates.md`.
+      [x] 88.3.2.2 Subtask - Explain when to run conversation runtime, AgentWorkspace, source graph, memory graph, and `jido_ai` tests.
+      [x] 88.3.2.3 Subtask - Update planning README chronology notes for the Phase 85 through Phase 88 rollout.
 
   [ ] 88.4 Section - Integration Tests
     End the rollout with cross-boundary tests proving budget behavior is visible, recoverable, and stable across conversation, specialist, memory, and semantic paths.

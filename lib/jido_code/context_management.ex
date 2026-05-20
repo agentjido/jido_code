@@ -560,6 +560,28 @@ defmodule JidoCode.ContextManagement do
 
   def compact_candidate(_candidate, _opts), do: {:error, :invalid_compaction_candidate}
 
+  @doc "Builds metadata updates for a failed compaction attempt."
+  @spec compaction_failure_metadata(term(), map() | nil, keyword() | map()) :: metadata()
+  def compaction_failure_metadata(reason, candidate \\ nil, opts \\ []) do
+    policy = policy(opts)
+    candidate = if is_map(candidate), do: candidate, else: %{}
+    span_count = candidate |> Map.get(:source_span_ids, Map.get(candidate, "source_span_ids", [])) |> length()
+
+    %{
+      context_management_status: :degraded,
+      latest_compaction: %{
+        state: :failed,
+        reason: inspect(reason),
+        retryable?: true,
+        remediation: "Retry compaction after narrowing context, selecting a smaller span, or changing model selection.",
+        source_span_count: span_count,
+        policy_id: policy.id,
+        updated_at: DateTime.utc_now()
+      },
+      updated_at: DateTime.utc_now()
+    }
+  end
+
   @doc "Converts a struct or map to metadata-safe public data."
   @spec public_payload(map() | struct() | nil) :: map() | nil
   def public_payload(nil), do: nil

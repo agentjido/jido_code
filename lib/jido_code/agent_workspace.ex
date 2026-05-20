@@ -317,8 +317,13 @@ defmodule JidoCode.AgentWorkspace do
           {:ok, map()} | {:error, term()}
   def compact_context(managed_repo_id, work_item_id, candidate, opts \\ [])
       when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(candidate) and is_list(opts) do
-    with {:ok, summary} <- ContextManagement.compact_candidate(candidate, context_management_opts(opts)) do
-      store_context_compaction_summary(managed_repo_id, work_item_id, Map.from_struct(summary), opts)
+    case ContextManagement.compact_candidate(candidate, context_management_opts(opts)) do
+      {:ok, summary} ->
+        store_context_compaction_summary(managed_repo_id, work_item_id, Map.from_struct(summary), opts)
+
+      {:error, reason} = error ->
+        _ = persist_context_compaction_failure(managed_repo_id, work_item_id, reason, candidate, opts)
+        error
     end
   end
 
@@ -387,6 +392,25 @@ defmodule JidoCode.AgentWorkspace do
             latest_failure: nil
           })
 
+        :ok
+    end
+  end
+
+  defp persist_context_compaction_failure(managed_repo_id, work_item_id, reason, candidate, opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: metadata} ->
+        Manager.update_pod_metadata(
+          managed_repo_id,
+          pod_id,
+          Map.merge(
+            metadata,
+            ContextManagement.compaction_failure_metadata(reason, candidate, context_management_opts(opts))
+          )
+        )
+
+      _other ->
         :ok
     end
   end

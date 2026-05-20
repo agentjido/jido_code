@@ -47,22 +47,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 92.1.2.2 Subtask - Link lifecycle evidence to governed work item, conversation id, specialist role, and policy id.
       [x] 92.1.2.3 Subtask - Keep durable-memory adoption behind the existing explicit governed memory boundary.
 
-  [ ] 92.2 Section - Configuration And Degraded Recovery
+  [x] 92.2 Section - Configuration And Degraded Recovery
     Make context management tunable and safe under failed monitor, compactor, or summary-store conditions.
 
-    [ ] 92.2.1 Task - Add runtime configuration controls
+    [x] 92.2.1 Task - Add runtime configuration controls
       Expose conservative defaults and environment overrides for proactive context management.
 
-      [ ] 92.2.1.1 Subtask - Add config for enablement, high-water marks, repeated-trim thresholds, debounce windows, and summary size limits.
-      [ ] 92.2.1.2 Subtask - Add local-development env overrides with validation diagnostics.
-      [ ] 92.2.1.3 Subtask - Add deterministic test overrides for monitor and compactor behavior.
+      [x] 92.2.1.1 Subtask - Add config for enablement, high-water marks, repeated-trim thresholds, debounce windows, and summary size limits.
+      [x] 92.2.1.2 Subtask - Add local-development env overrides with validation diagnostics.
+      [x] 92.2.1.3 Subtask - Add deterministic test overrides for monitor and compactor behavior.
 
-    [ ] 92.2.2 Task - Define degraded recovery behavior
+    [x] 92.2.2 Task - Define degraded recovery behavior
       Keep active coding work moving when context management cannot run.
 
-      [ ] 92.2.2.1 Subtask - Degrade monitor failures to request-time packing only.
-      [ ] 92.2.2.2 Subtask - Degrade compactor failures to skipped summary injection with remediation metadata.
-      [ ] 92.2.2.3 Subtask - Add retry behavior for operator-requested compaction after narrowing context or changing model selection.
+      [x] 92.2.2.1 Subtask - Degrade monitor failures to request-time packing only.
+      [x] 92.2.2.2 Subtask - Degrade compactor failures to skipped summary injection with remediation metadata.
+      [x] 92.2.2.3 Subtask - Add retry behavior for operator-requested compaction after narrowing context or changing model selection.
 
   [ ] 92.3 Section - Developer Guides And Quality Gates
     Converge docs so contributors can reason about proactive compaction and existing budget boundaries.

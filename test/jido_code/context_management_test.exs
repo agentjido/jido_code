@@ -94,4 +94,119 @@ defmodule JidoCode.ContextManagementTest do
     assert policy.enabled?
     assert Enum.count(policy.diagnostics, &(&1.kind == :invalid_context_management_config)) == 2
   end
+
+  test "budget monitor recommends compaction at the high-water mark" do
+    metadata =
+      ContextManagement.initial_metadata(
+        "repo-90",
+        "work-90",
+        "/tmp/workspace",
+        "coding-pod-work-90",
+        high_water_mark: 0.75
+      )
+
+    assert {:ok, updated} =
+             ContextManagement.add_observation(metadata, %{
+               managed_repo_id: "repo-90",
+               work_item_id: "work-90",
+               workflow: :execute,
+               specialist_role: :coder,
+               context_budget: %{
+                 "policy_id" => "context-budget:v1",
+                 "state" => "packed",
+                 "model_budget" => 1_000,
+                 "estimated_input_tokens" => 800,
+                 "diagnostics" => []
+               }
+             })
+
+    assert updated.context_management_status == :recommend_compaction
+    assert updated.latest_monitor_decision["state"] == "recommend"
+    assert updated.latest_monitor_decision["reason"] == "history_high_water_mark"
+    assert length(updated.recommendations) == 1
+  end
+
+  test "budget monitor debounces repeated trim recommendations for unchanged spans" do
+    metadata =
+      ContextManagement.initial_metadata(
+        "repo-90",
+        "work-90",
+        "/tmp/workspace",
+        "coding-pod-work-90",
+        repeated_trim_threshold: 2
+      )
+
+    observation = %{
+      managed_repo_id: "repo-90",
+      work_item_id: "work-90",
+      workflow: :review,
+      specialist_role: :reviewer,
+      context_budget: trimmed_budget(),
+      diagnostics: %{source_span_ids: ["span-a", "span-b"]}
+    }
+
+    assert {:ok, first} = ContextManagement.add_observation(metadata, observation)
+    assert {:ok, second} = ContextManagement.add_observation(first, observation)
+    assert {:ok, third} = ContextManagement.add_observation(second, observation)
+
+    assert third.latest_monitor_decision["state"] == "recommend"
+    assert third.latest_monitor_decision["debounced?"]
+    assert length(third.recommendations) == 1
+  end
+
+  test "budget monitor blocks compaction for required overflow and unresolved tool groups" do
+    metadata =
+      ContextManagement.initial_metadata(
+        "repo-90",
+        "work-90",
+        "/tmp/workspace",
+        "coding-pod-work-90"
+      )
+
+    assert {:ok, required_overflow} =
+             ContextManagement.add_observation(metadata, %{
+               managed_repo_id: "repo-90",
+               work_item_id: "work-90",
+               workflow: :plan,
+               specialist_role: :planner,
+               context_budget: %{
+                 "policy_id" => "context-budget:v1",
+                 "state" => "degraded",
+                 "degraded?" => true,
+                 "model_budget" => 100,
+                 "estimated_input_tokens" => 250,
+                 "diagnostics" => [
+                   %{"kind" => "current_request", "retention" => "required", "state" => "degraded"}
+                 ]
+               }
+             })
+
+    assert required_overflow.context_management_status == :blocked
+    assert required_overflow.latest_monitor_decision["reason"] == "required_context_overflow"
+
+    assert {:ok, unresolved_tool_group} =
+             ContextManagement.add_observation(metadata, %{
+               managed_repo_id: "repo-90",
+               work_item_id: "work-90",
+               workflow: :execute,
+               specialist_role: :coder,
+               context_budget: trimmed_budget(),
+               diagnostics: %{"unresolved_tool_call_group?" => true}
+             })
+
+    assert unresolved_tool_group.context_management_status == :blocked
+    assert unresolved_tool_group.latest_monitor_decision["reason"] == "unresolved_tool_call_group"
+  end
+
+  defp trimmed_budget do
+    %{
+      "policy_id" => "context-budget:v1",
+      "state" => "trimmed",
+      "model_budget" => 1_000,
+      "estimated_input_tokens" => 500,
+      "diagnostics" => [
+        %{"kind" => "conversation_history", "state" => "trimmed", "dropped_entries" => 2}
+      ]
+    }
+  end
 end

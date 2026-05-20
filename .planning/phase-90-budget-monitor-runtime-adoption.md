@@ -43,22 +43,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 90.1.2.2 Subtask - Link observations to conversation id, turn id, workflow, work item id, and specialist role when known.
       [x] 90.1.2.3 Subtask - Ignore repo-scoped nonproductive turns that do not have governed work-item context.
 
-  [ ] 90.2 Section - Threshold Policy And Recommendations
+  [x] 90.2 Section - Threshold Policy And Recommendations
     Implement deterministic monitor policy that decides when compaction is useful and when it is unsafe.
 
-    [ ] 90.2.1 Task - Add trigger evaluation
+    [x] 90.2.1 Task - Add trigger evaluation
       Convert accumulated observations into explicit no-op, recommend, or blocked decisions.
 
-      [ ] 90.2.1.1 Subtask - Add high-water mark checks for retained history token estimates.
-      [ ] 90.2.1.2 Subtask - Add repeated-trim checks for conversation history and optional context sections.
-      [ ] 90.2.1.3 Subtask - Add debounce keys so unchanged spans do not generate duplicate compaction recommendations.
+      [x] 90.2.1.1 Subtask - Add high-water mark checks for retained history token estimates.
+      [x] 90.2.1.2 Subtask - Add repeated-trim checks for conversation history and optional context sections.
+      [x] 90.2.1.3 Subtask - Add debounce keys so unchanged spans do not generate duplicate compaction recommendations.
 
-    [ ] 90.2.2 Task - Add safety checks
+    [x] 90.2.2 Task - Add safety checks
       Prevent compaction recommendations when active context is not safe to summarize.
 
-      [ ] 90.2.2.1 Subtask - Block recommendations while a tool-call group is unresolved.
-      [ ] 90.2.2.2 Subtask - Block recommendations when only required context exceeds budget.
-      [ ] 90.2.2.3 Subtask - Emit clear degraded diagnostics when compaction is unsafe or unavailable.
+      [x] 90.2.2.1 Subtask - Block recommendations while a tool-call group is unresolved.
+      [x] 90.2.2.2 Subtask - Block recommendations when only required context exceeds budget.
+      [x] 90.2.2.3 Subtask - Emit clear degraded diagnostics when compaction is unsafe or unavailable.
 
   [ ] 90.3 Section - Monitor Diagnostics And Product Metadata
     Make monitor decisions visible without leaking raw prompt bodies or tool output.

@@ -270,29 +270,48 @@ defmodule JidoCode.ContextManagement do
          {:ok, observation} <- observation(observation_attrs) do
       observation_payload = public_payload(observation)
       observations = Map.get(metadata, :observations, Map.get(metadata, "observations", []))
-
-      decision = %{
-        id: observation_decision_id(observation_payload),
-        state: :healthy,
-        reason: :observation_recorded,
-        workflow: observation.workflow,
-        specialist_role: observation.specialist_role,
-        source: observation.source,
-        policy_id: get_in(observation_payload, ["context_budget", "policy_id"]),
-        created_at: DateTime.utc_now(),
-        diagnostics: %{kind: :budget_observation, state: :healthy}
-      }
+      next_observations = observations ++ [observation_payload]
+      policy = policy_from_metadata(metadata)
+      existing_recommendations = Map.get(metadata, :recommendations, Map.get(metadata, "recommendations", []))
+      decision = evaluate_observations(next_observations, policy)
+      {recommendations, decision} = maybe_append_recommendation(existing_recommendations, decision)
 
       {:ok,
        metadata
-       |> Map.put(:observations, observations ++ [observation_payload])
+       |> Map.put(:observations, next_observations)
+       |> Map.put(:recommendations, recommendations)
        |> Map.put(:latest_monitor_decision, decision)
-       |> Map.put(:context_management_status, :healthy)
+       |> Map.put(:context_management_status, monitor_status(decision))
        |> Map.put(:updated_at, DateTime.utc_now())}
     end
   end
 
   def add_observation(_metadata, _observation_attrs, _opts), do: {:error, :invalid_budget_observation_store}
+
+  @doc "Evaluates budget observations into a deterministic monitor decision."
+  @spec evaluate_observations([map()], policy()) :: map()
+  def evaluate_observations(observations, policy \\ policy()) when is_list(observations) and is_map(policy) do
+    latest = List.last(observations) || %{}
+    context_budget = Map.get(latest, "context_budget", %{})
+    diagnostics = Map.get(context_budget, "diagnostics", [])
+
+    cond do
+      unresolved_tool_group?(latest) ->
+        monitor_decision(latest, policy, :blocked, :unresolved_tool_call_group)
+
+      required_context_overflow?(context_budget, diagnostics) ->
+        monitor_decision(latest, policy, :blocked, :required_context_overflow)
+
+      high_water_exceeded?(context_budget, policy) ->
+        monitor_decision(latest, policy, :recommend, :history_high_water_mark)
+
+      repeated_trim?(observations, policy) ->
+        monitor_decision(latest, policy, :recommend, :repeated_context_trimming)
+
+      true ->
+        monitor_decision(latest, policy, :healthy, :within_budget)
+    end
+  end
 
   @doc "Normalizes and validates a compaction summary record."
   @spec compaction_summary(map() | compaction_summary(), keyword() | map()) ::
@@ -485,6 +504,158 @@ defmodule JidoCode.ContextManagement do
           []
       end
     end)
+  end
+
+  defp policy_from_metadata(metadata) do
+    metadata
+    |> Map.get(:policy, Map.get(metadata, "policy", %{}))
+    |> case do
+      %{} = stored_policy ->
+        policy(Map.merge(config(), normalize_map(stored_policy)))
+
+      _other ->
+        policy()
+    end
+  end
+
+  defp unresolved_tool_group?(observation) do
+    observation
+    |> Map.get("diagnostics", %{})
+    |> get_in_any([["unresolved_tool_call_group?"], [:unresolved_tool_call_group?]])
+    |> case do
+      true -> true
+      "true" -> true
+      _other -> false
+    end
+  end
+
+  defp required_context_overflow?(context_budget, diagnostics) do
+    degraded? =
+      Map.get(context_budget, "degraded?", Map.get(context_budget, :degraded?, false)) in [true, "true"]
+
+    required_degraded? =
+      Enum.any?(diagnostics, fn diagnostic ->
+        diagnostic_state(diagnostic) == "degraded" and diagnostic_retention(diagnostic) == "required"
+      end)
+
+    degraded? or required_degraded?
+  end
+
+  defp high_water_exceeded?(context_budget, policy) do
+    budget = numeric_value(Map.get(context_budget, "model_budget", Map.get(context_budget, :model_budget)), 0)
+    estimated =
+      numeric_value(Map.get(context_budget, "estimated_input_tokens", Map.get(context_budget, :estimated_input_tokens)), 0)
+
+    budget > 0 and estimated / budget >= policy.high_water_mark
+  end
+
+  defp repeated_trim?(observations, policy) do
+    trim_count =
+      observations
+      |> Enum.take(-policy.repeated_trim_threshold)
+      |> Enum.count(&trimmed_observation?/1)
+
+    trim_count >= policy.repeated_trim_threshold
+  end
+
+  defp trimmed_observation?(observation) do
+    context_budget = Map.get(observation, "context_budget", %{})
+
+    Map.get(context_budget, "state") in ["trimmed", :trimmed] or
+      Enum.any?(Map.get(context_budget, "diagnostics", []), fn diagnostic ->
+        diagnostic_state(diagnostic) in ["trimmed", "dropped", "truncated"]
+      end)
+  end
+
+  defp monitor_decision(observation, policy, state, reason) do
+    workflow = Map.get(observation, "workflow")
+    specialist_role = Map.get(observation, "specialist_role")
+    debounce_key = monitor_debounce_key(observation, reason)
+
+    %{
+      id: observation_decision_id(observation),
+      state: state,
+      reason: reason,
+      managed_repo_id: Map.get(observation, "managed_repo_id"),
+      work_item_id: Map.get(observation, "work_item_id"),
+      workflow: workflow,
+      specialist_role: specialist_role,
+      source: Map.get(observation, "source"),
+      debounce_key: debounce_key,
+      policy_id: policy.id,
+      created_at: DateTime.utc_now(),
+      diagnostics: %{
+        kind: :budget_monitor_decision,
+        state: state,
+        reason: reason,
+        observation_count: 1,
+        high_water_mark: policy.high_water_mark,
+        repeated_trim_threshold: policy.repeated_trim_threshold
+      }
+    }
+  end
+
+  defp monitor_debounce_key(observation, reason) do
+    [
+      Map.get(observation, "work_item_id"),
+      Map.get(observation, "workflow"),
+      Map.get(observation, "specialist_role"),
+      reason,
+      observation_span_key(observation)
+    ]
+    |> Enum.map(&to_string/1)
+    |> Enum.join(":")
+  end
+
+  defp observation_span_key(observation) do
+    observation
+    |> Map.get("diagnostics", %{})
+    |> get_in_any([["source_span_ids"], [:source_span_ids]])
+    |> normalize_string_list()
+    |> case do
+      [] -> Map.get(observation, "turn_id") || Map.get(observation, "source") || "latest"
+      span_ids -> span_key(span_ids)
+    end
+  end
+
+  defp maybe_append_recommendation(recommendations, %{state: state} = decision)
+       when state in [:recommend, "recommend", :blocked, "blocked", :degraded, "degraded"] do
+    public_decision = public_payload(decision)
+    debounce_key = Map.get(public_decision, "debounce_key")
+
+    if Enum.any?(recommendations, &(Map.get(&1, "debounce_key") == debounce_key)) do
+      {recommendations, Map.put(public_decision, "debounced?", true)}
+    else
+      {recommendations ++ [public_decision], public_decision}
+    end
+  end
+
+  defp maybe_append_recommendation(recommendations, decision), do: {recommendations, public_payload(decision)}
+
+  defp monitor_status(%{"state" => "healthy"}), do: :healthy
+  defp monitor_status(%{"state" => "recommend"}), do: :recommend_compaction
+  defp monitor_status(%{"state" => "blocked"}), do: :blocked
+  defp monitor_status(%{"state" => "degraded"}), do: :degraded
+  defp monitor_status(%{state: :healthy}), do: :healthy
+  defp monitor_status(%{state: :recommend}), do: :recommend_compaction
+  defp monitor_status(%{state: :blocked}), do: :blocked
+  defp monitor_status(%{state: :degraded}), do: :degraded
+  defp monitor_status(_decision), do: :healthy
+
+  defp diagnostic_state(diagnostic) do
+    diagnostic
+    |> Map.get("state", Map.get(diagnostic, :state))
+    |> normalize_optional_string()
+  end
+
+  defp diagnostic_retention(diagnostic) do
+    diagnostic
+    |> Map.get("retention", Map.get(diagnostic, :retention))
+    |> normalize_optional_string()
+  end
+
+  defp get_in_any(map, paths) do
+    Enum.find_value(paths, fn path -> get_in(map, path) end)
   end
 
   defp required_string(attrs, key) do
@@ -712,6 +883,18 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp positive_integer(_value, default), do: default
+
+  defp numeric_value(value, _default) when is_integer(value), do: value
+  defp numeric_value(value, _default) when is_float(value), do: value
+
+  defp numeric_value(value, default) when is_binary(value) do
+    case Float.parse(value) do
+      {parsed, ""} -> parsed
+      _other -> default
+    end
+  end
+
+  defp numeric_value(_value, default), do: default
 
   defp raw_key?(key) when is_atom(key), do: raw_key?(Atom.to_string(key))
 

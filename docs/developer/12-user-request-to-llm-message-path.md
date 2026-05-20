@@ -42,6 +42,7 @@ What changes around it are:
 - workflow inference such as `:execute`
 - bounded repo and work-item scope wrapping through context-budget sections
 - optional semantic and memory prompt projections
+- optional compaction summaries from older specialist-local history
 - the specialist's own system prompt
 
 What does **not** happen is:
@@ -228,6 +229,12 @@ prompt projection is only the bounded text the model sees directly.
 run so developers can see whether optional graph projection lines were retained,
 trimmed, or dropped.
 
+`AgentWorkspace` may also add a `compaction_summary` section when the
+work-item `ContextManagementPod` has accepted summaries for older specialist
+history. That summary section is an additive continuity aid. It does not
+replace the current request, does not expand old raw tool output, and still
+passes through request-time `ContextBudget` packing.
+
 ### Stage 6: The specialist adds the system prompt
 
 Once the request reaches the chosen specialist:
@@ -249,6 +256,10 @@ That system prompt is prepended as the `system` message through
 the ReAct request-building path. The retained specialist-local history is later
 packed by `JidoCode.ContextBudget.ReActRequestTransformer` before it reaches
 the provider.
+
+If proactive context management is disabled, unavailable, or failed, this stage
+continues without injected summaries. The final provider request is still
+guarded by request-time packing.
 
 ### Stage 7: Final provider request
 

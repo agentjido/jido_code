@@ -192,6 +192,15 @@ the same request-time `ContextBudget` packing and ReAct request transformer.
 Monitor state is surfaced as `context_management` metadata beside existing
 `context_budget` diagnostics.
 
+When compaction is accepted, `AgentWorkspace` may inject active summaries as a
+typed `compaction_summary` prompt section. That section is useful context, not
+required context, so the same `ContextBudget` packer can trim or drop it. The
+original conversation events and workflow provenance remain append-only
+recovery records; compaction summaries are not durable repository memory.
+
+If compaction fails, the context-management pod records retryable remediation
+metadata and the active specialist turn continues with request-time packing.
+
 ## What The Model Sees Directly vs Indirectly
 
 ### Directly

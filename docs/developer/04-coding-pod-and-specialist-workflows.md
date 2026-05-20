@@ -6,6 +6,7 @@ specialist work.
 Useful implementation sources:
 
 - [`../../lib/jido_code/pods/coding_pod.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/pods/coding_pod.ex)
+- [`../../lib/jido_code/pods/context_management_pod.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/pods/context_management_pod.ex)
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 
 ## Scope
@@ -30,6 +31,10 @@ flowchart TD
   POD --> RV["reviewer<br/>lazy"]
   POD --> RF["refactorer<br/>lazy"]
   POD --> EX["explainer<br/>lazy"]
+  POD --> CMP["ContextManagementPod<br/>work-item scoped"]
+  CMP --> BM["budget_monitor<br/>eager"]
+  CMP --> CS["compaction_store<br/>eager"]
+  CMP --> CC["context_compactor<br/>lazy"]
 ```
 
 ## Eager Agents
@@ -56,6 +61,23 @@ The project context holds pod-local repository bindings such as:
 
 It is explicitly seeded by `AgentWorkspace` when the runtime pod is created or
 restored.
+
+## Context Management Pod
+
+Each work-item `CodingPod` owns one `ContextManagementPod`. It is not
+repository-scoped because specialist history is specialist-local and
+work-item-local.
+
+The context-management pod contains:
+
+- `budget_monitor`, an eager metadata-only observer for context-budget
+  diagnostics
+- `compaction_store`, an eager deterministic store for accepted summaries
+- `context_compactor`, a lazy bounded compaction boundary
+
+The pod can recommend or perform proactive compaction, but it does not replace
+request-time `ContextBudget` packing. Disabled, degraded, or failed context
+management falls back to the existing provider-request budget guard.
 
 ## Lazy Specialists
 
@@ -162,6 +184,7 @@ process ids, or specialist internals when refactor startup degrades.
 When work is completed:
 
 - the runtime pod is shut down
+- the context-management pod for the work item is shut down
 - metadata is marked `:completed`
 - specialist histories for that work item stop persisting in memory
 

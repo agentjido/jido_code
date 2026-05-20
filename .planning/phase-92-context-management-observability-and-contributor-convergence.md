@@ -64,22 +64,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 92.2.2.2 Subtask - Degrade compactor failures to skipped summary injection with remediation metadata.
       [x] 92.2.2.3 Subtask - Add retry behavior for operator-requested compaction after narrowing context or changing model selection.
 
-  [ ] 92.3 Section - Developer Guides And Quality Gates
+  [x] 92.3 Section - Developer Guides And Quality Gates
     Converge docs so contributors can reason about proactive compaction and existing budget boundaries.
 
-    [ ] 92.3.1 Task - Update architecture guides
+    [x] 92.3.1 Task - Update architecture guides
       Explain the final context lifecycle from user request through monitoring, compaction, prompt assembly, and provider request.
 
-      [ ] 92.3.1.1 Subtask - Update CodingPod docs with context-management pod topology and ownership.
-      [ ] 92.3.1.2 Subtask - Update specialist prompt docs with monitor, compactor, summary injection, and request-time budget guard behavior.
-      [ ] 92.3.1.3 Subtask - Update user-request-to-LLM docs with compaction failure modes and debugging order.
+      [x] 92.3.1.1 Subtask - Update CodingPod docs with context-management pod topology and ownership.
+      [x] 92.3.1.2 Subtask - Update specialist prompt docs with monitor, compactor, summary injection, and request-time budget guard behavior.
+      [x] 92.3.1.3 Subtask - Update user-request-to-LLM docs with compaction failure modes and debugging order.
 
-    [ ] 92.3.2 Task - Add quality-gate guidance
+    [x] 92.3.2 Task - Add quality-gate guidance
       Make the correct verification commands discoverable for context-management work.
 
-      [ ] 92.3.2.1 Subtask - Add focused context-management test commands to the quality-gates guide.
-      [ ] 92.3.2.2 Subtask - Explain when to run context budget, AgentWorkspace, conversation runtime, source graph, and memory graph verification.
-      [ ] 92.3.2.3 Subtask - Update `.planning/README.md` chronology notes for the Phase 89 through Phase 92 track.
+      [x] 92.3.2.1 Subtask - Add focused context-management test commands to the quality-gates guide.
+      [x] 92.3.2.2 Subtask - Explain when to run context budget, AgentWorkspace, conversation runtime, source graph, and memory graph verification.
+      [x] 92.3.2.3 Subtask - Update `.planning/README.md` chronology notes for the Phase 89 through Phase 92 track.
 
   [ ] 92.4 Section - Integration Tests
     End the track with cross-boundary tests proving proactive compaction is observable, recoverable, and still guarded by request-time budgeting.

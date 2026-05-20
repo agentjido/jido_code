@@ -48,6 +48,7 @@ before editing:
 | `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1` | verify the historical conversation child-supervisor lifecycle regression |
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_fifty_two_integration_test.exs test/jido_code/phase_eighty_three_integration_test.exs --max-cases 1 --max-failures 1` | verify prompt-memory fixture isolation with deterministic routing and refactor-routing integration |
 | `mix test test/jido_code/context_budget_test.exs test/jido_code/phase_eighty_five_integration_test.exs test/jido_code/phase_eighty_six_integration_test.exs test/jido_code/phase_eighty_seven_integration_test.exs --max-cases 1 --max-failures 1` | verify context-budget policy, prompt packing, graph prompt projections, specialist history packing, and tool-output caps |
+| `mix test test/jido_code/context_management_test.exs test/jido_code/phase_eighty_nine_integration_test.exs test/jido_code/phase_ninety_integration_test.exs test/jido_code/phase_ninety_one_integration_test.exs --max-cases 1 --max-failures 1` | verify context-management pod topology, monitor decisions, compactor lifecycle, and summary injection |
 | `mix test test/jido_code/agent_os/actions_test.exs test/jido_code/agent_workspace/prompt_projection_test.exs --max-failures 1` | verify workspace tool budget diagnostics and graph prompt projection shaping |
 | `mix semantic.verify` | verify product-facing semantic behavior |
 | `mix docs` | build repo docs surface |
@@ -69,6 +70,10 @@ Run the narrower verification commands when you touch those boundaries:
 - context budget policy, prompt packing, specialist ReAct history, or
   tool-output budget changes -> run the focused context-budget and action test
   commands listed above
+- context-management pod, monitor, compactor, summary store, or summary
+  injection changes -> run the focused context-management command plus
+  `test/jido_code/context_budget_test.exs` and
+  `test/jido_code/agent_workspace_test.exs --max-cases 1 --max-failures 1`
 - AgentWorkspace semantic or memory prompt projection changes -> run the
   focused context-budget commands plus `mix source_graph.verify` and
   `mix memory.verify`
@@ -89,6 +94,18 @@ inputs or specialist selection.
 Budget diagnostics must stay metadata-only. They can report policy id, token
 estimates, retained or dropped sections, and remediation hints, but they should
 not persist raw prompt bodies or raw tool output as durable memory.
+
+## Context Management Verification
+
+Context management is the proactive layer on top of request-time budgeting.
+Use `test/jido_code/context_management_test.exs` for policy, observation,
+candidate, and summary-store rules. Use Phases 89 through 91 for pod topology,
+monitor observation, compactor lifecycle, and prompt injection.
+
+Run AgentWorkspace regression tests when changing lifecycle wiring, because the
+context-management pod is created and stopped with the work-item `CodingPod`.
+Run context-budget tests when changing summary injection because
+`compaction_summary` sections remain non-required prompt context.
 
 ## Prompt Context Memory Verification
 

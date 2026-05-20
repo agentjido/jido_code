@@ -60,7 +60,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
-  alias JidoCode.Pods.{CodingPod, RepoPod}
+  alias JidoCode.Pods.{CodingPod, ContextManagementPod, RepoPod}
 
   alias JidoCode.Actions.{
     AnalyzeSourceCodeGraph,
@@ -83,7 +83,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
   alias JidoCode.AgentWorkspace.PromptProjection
   alias JidoCode.Pods.{MemoryGraphPod, SourceCodeGraphPod}
-  alias JidoCode.{ContextBudget, MemoryGraph, SourceCodeGraph}
+  alias JidoCode.{ContextBudget, ContextManagement, MemoryGraph, SourceCodeGraph}
   alias Jido.AgentOS.ManagerSupervisor
   alias Jido.AgentOS.Naming
   alias Jido.AgentOS.Persistence
@@ -189,12 +189,20 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t()) :: {:ok, pod_name()} | {:error, term()}
   def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path) do
+    ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, [])
+  end
+
+  @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, pod_name()} | {:error, term()}
+  def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts) when is_list(opts) do
     with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          :ok <- admit_work_item(managed_repo_id, work_item_id),
          {:ok, resolved_workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, workspace_path),
          {:ok, _pod_entry, _pod_pid} <-
-           ensure_runtime_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path) do
+           ensure_runtime_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path),
+         {:ok, _context_management} <-
+           ensure_context_management_pod(managed_repo_id, work_item_id, resolved_workspace_path, opts) do
       {:ok, pod_name(work_item_id)}
     end
   end
@@ -210,8 +218,72 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec complete_work(managed_repo_id(), work_item_id()) :: :ok
   def complete_work(managed_repo_id, work_item_id) do
-    pod_id = coding_pod_id(work_item_id)
+    :ok = complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
+    :ok = complete_runtime_pod(managed_repo_id, coding_pod_id(work_item_id))
+  end
 
+  @doc """
+  Returns the stable context-management pod id for a WorkItem.
+  """
+  @spec context_management_pod_id(work_item_id()) :: String.t()
+  def context_management_pod_id(work_item_id), do: ContextManagement.pod_id(work_item_id)
+
+  @doc """
+  Ensures the work-item-scoped context-management pod is running when enabled.
+
+  Disabled context management returns a metadata-only skipped status. The
+  request-time `ContextBudget` path remains independent and still protects
+  provider requests.
+  """
+  @spec ensure_context_management_pod(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
+    context_opts = context_management_opts(opts)
+
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, resolved_workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) do
+      if ContextManagement.enabled?(context_opts) do
+        with {:ok, pod_entry, _pod_pid} <-
+               ensure_runtime_context_management_pod(
+                 managed_repo_id,
+                 work_item_id,
+                 resolved_workspace_path,
+                 context_opts
+               ) do
+          {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+        end
+      else
+        {:ok, ContextManagement.status_summary(ContextManagement.disabled_metadata())}
+      end
+    end
+  end
+
+  @doc """
+  Returns context-management state for a work item without exposing pod internals.
+  """
+  @spec context_management_status(managed_repo_id(), work_item_id()) :: map()
+  def context_management_status(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    managed_repo_id
+    |> Manager.pod_status(ContextManagement.pod_id(work_item_id))
+    |> case do
+      %{metadata: metadata} -> ContextManagement.status_summary(metadata)
+      _other -> ContextManagement.status_summary(nil)
+    end
+  end
+
+  @doc """
+  Stops a context-management pod for a work item, if present.
+  """
+  @spec shutdown_context_management_pod(managed_repo_id(), work_item_id()) :: :ok
+  def shutdown_context_management_pod(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
+  end
+
+  defp complete_runtime_pod(managed_repo_id, pod_id) do
     case Manager.pod_status(managed_repo_id, pod_id) do
       nil ->
         :ok
@@ -1383,6 +1455,29 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp ensure_runtime_context_management_pod(managed_repo_id, work_item_id, workspace_path, opts) do
+    policy = ContextManagement.policy(opts)
+
+    ensure_runtime_pod(
+      managed_repo_id,
+      ContextManagement.pod_id(work_item_id),
+      ContextManagementPod,
+      ContextManagement.initial_metadata(
+        managed_repo_id,
+        work_item_id,
+        workspace_path,
+        coding_pod_id(work_item_id),
+        opts
+      ),
+      %{
+        managed_repo_id: managed_repo_id,
+        work_item_id: work_item_id,
+        workspace_path: workspace_path,
+        policy: ContextManagement.public_policy(policy)
+      }
+    )
+  end
+
   defp restore_persisted_runtime_pods(managed_repo_id) do
     managed_repo_id
     |> Manager.list_pods()
@@ -1392,8 +1487,12 @@ defmodule JidoCode.AgentWorkspace do
         %{module: CodingPod, metadata: %{work_item_id: work_item_id, workspace_path: workspace_path} = metadata}
         when is_binary(work_item_id) and is_binary(workspace_path) ->
           if restorable_coding_pod?(metadata) do
-            case ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path) do
-              {:ok, _pod_entry, _pod_pid} -> {:cont, :ok}
+            with {:ok, _pod_entry, _pod_pid} <-
+                   ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path),
+                 {:ok, _context_entry, _context_pid} <-
+                   ensure_runtime_context_management_pod(managed_repo_id, work_item_id, workspace_path, []) do
+              {:cont, :ok}
+            else
               {:error, reason} -> {:halt, {:error, reason}}
             end
           else
@@ -1446,6 +1545,16 @@ defmodule JidoCode.AgentWorkspace do
     case Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items, :infinity) do
       limit when is_integer(limit) and limit > 0 -> limit
       _other -> :infinity
+    end
+  end
+
+  defp context_management_opts(opts) when is_list(opts) do
+    opts
+    |> Keyword.get(:context_management, [])
+    |> case do
+      context_opts when is_list(context_opts) -> context_opts
+      %{} = context_opts -> Map.to_list(context_opts)
+      _other -> []
     end
   end
 

@@ -29,22 +29,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 89 Phase 89 - Context Management Pod Foundation
   Establish the CodingPod-owned context-management topology and deterministic storage boundary before adding proactive monitoring or AI-backed compaction.
 
-  [ ] 89.1 Section - Pod Topology And Ownership Contracts
+  [x] 89.1 Section - Pod Topology And Ownership Contracts
     Define where context management lives in the AgentOS runtime and how other specialists address it.
 
-    [ ] 89.1.1 Task - Define the `ContextManagementPod` runtime shape
+    [x] 89.1.1 Task - Define the `ContextManagementPod` runtime shape
       Add the pod contract as a work-item-scoped CodingPod child so context state cannot bleed across governed work.
 
-      [ ] 89.1.1.1 Subtask - Define the pod id, metadata shape, and lifecycle relationship to `CodingPod`.
-      [ ] 89.1.1.2 Subtask - Define child agent names for `BudgetMonitor`, `ContextCompactor`, and deterministic store access.
-      [ ] 89.1.1.3 Subtask - Document that repository-scoped pods may observe aggregate health but cannot own specialist history compaction.
+      [x] 89.1.1.1 Subtask - Define the pod id, metadata shape, and lifecycle relationship to `CodingPod`.
+      [x] 89.1.1.2 Subtask - Define child agent names for `BudgetMonitor`, `ContextCompactor`, and deterministic store access.
+      [x] 89.1.1.3 Subtask - Document that repository-scoped pods may observe aggregate health but cannot own specialist history compaction.
 
-    [ ] 89.1.2 Task - Add product-owned API seams
+    [x] 89.1.2 Task - Add product-owned API seams
       Introduce entrypoints that let `AgentWorkspace` and specialist runners interact with context management without knowing internal agent details.
 
-      [ ] 89.1.2.1 Subtask - Add ensure/get/shutdown helpers for the context-management pod under the same managed-repo kernel as `CodingPod`.
-      [ ] 89.1.2.2 Subtask - Define request and response structs for budget observations, compaction recommendations, and compaction summaries.
-      [ ] 89.1.2.3 Subtask - Keep all public entrypoints scoped by `managed_repo_id`, `work_item_id`, and specialist role.
+      [x] 89.1.2.1 Subtask - Add ensure/get/shutdown helpers for the context-management pod under the same managed-repo kernel as `CodingPod`.
+      [x] 89.1.2.2 Subtask - Define request and response structs for budget observations, compaction recommendations, and compaction summaries.
+      [x] 89.1.2.3 Subtask - Keep all public entrypoints scoped by `managed_repo_id`, `work_item_id`, and specialist role.
 
   [ ] 89.2 Section - Compaction Store And Summary Data Model
     Add a deterministic store boundary for summaries and replacement metadata before any LLM compactor writes are accepted.

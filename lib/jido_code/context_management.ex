@@ -1,0 +1,428 @@
+defmodule JidoCode.ContextManagement do
+  # covers: architecture.context_management_pod.coding_pod_owns_context_management
+  # covers: architecture.context_management_pod.compaction_store_is_product_owned
+  # covers: architecture.context_management_pod.request_time_budgeting_remains_hard_guard
+  @moduledoc """
+  Product-owned context-management boundary for work-item CodingPods.
+
+  This module keeps pod identity, policy normalization, and metadata shaping out
+  of `AgentWorkspace` so monitoring and compaction can evolve without exposing
+  internal agent details to product callers.
+  """
+
+  alias JidoCode.ContextBudget
+
+  @default_policy_id "context-management:v1"
+  @default_high_water_mark 0.80
+  @default_repeated_trim_threshold 2
+  @default_debounce_window_ms 300_000
+  @default_max_summary_tokens 1_000
+  @default_max_candidate_tokens 4_000
+
+  defmodule BudgetObservation do
+    @moduledoc "Metadata-only budget observation accepted by the BudgetMonitor."
+    @enforce_keys [:managed_repo_id, :work_item_id, :workflow, :specialist_role]
+    defstruct [
+      :managed_repo_id,
+      :work_item_id,
+      :workflow,
+      :specialist_role,
+      :conversation_id,
+      :turn_id,
+      :source,
+      :context_budget,
+      :tool_budget,
+      :observed_at,
+      diagnostics: %{}
+    ]
+  end
+
+  defmodule Recommendation do
+    @moduledoc "Deterministic monitor decision for proactive compaction."
+    @enforce_keys [:id, :state, :managed_repo_id, :work_item_id, :workflow, :specialist_role]
+    defstruct [
+      :id,
+      :state,
+      :managed_repo_id,
+      :work_item_id,
+      :workflow,
+      :specialist_role,
+      :reason,
+      :debounce_key,
+      :policy_id,
+      :created_at,
+      diagnostics: %{}
+    ]
+  end
+
+  defmodule CompactionSummary do
+    @moduledoc "Bounded prompt-context summary produced by the context compactor."
+    @enforce_keys [
+      :id,
+      :managed_repo_id,
+      :work_item_id,
+      :workflow,
+      :specialist_role,
+      :summary_text,
+      :source_span_ids,
+      :created_at,
+      :policy_id
+    ]
+    defstruct [
+      :id,
+      :managed_repo_id,
+      :work_item_id,
+      :workflow,
+      :specialist_role,
+      :conversation_id,
+      :turn_id,
+      :summary_text,
+      :source_span_ids,
+      :retention,
+      :policy_id,
+      :created_at,
+      :superseded_at,
+      original_estimate: %{},
+      summary_estimate: %{},
+      replacement: %{},
+      diagnostics: %{}
+    ]
+  end
+
+  @type policy :: map()
+  @type metadata :: map()
+  @type budget_observation :: %BudgetObservation{}
+  @type recommendation :: %Recommendation{}
+  @type compaction_summary :: %CompactionSummary{}
+
+  @doc "Returns the stable context-management pod id for a work item."
+  @spec pod_id(String.t()) :: String.t()
+  def pod_id(work_item_id) when is_binary(work_item_id), do: "context-management-pod-#{work_item_id}"
+
+  @doc "Returns whether context management is enabled for this request."
+  @spec enabled?(keyword() | map()) :: boolean()
+  def enabled?(opts \\ []) do
+    opts = normalize_opts(opts)
+    config = config()
+
+    case Map.get(opts, :enabled?, Map.get(config, :enabled?, true)) do
+      false -> false
+      "false" -> false
+      "0" -> false
+      _other -> true
+    end
+  end
+
+  @doc "Normalizes context-management policy from app config and request overrides."
+  @spec policy(keyword() | map()) :: policy()
+  def policy(opts \\ []) do
+    opts = normalize_opts(opts)
+    config = config()
+
+    %{
+      id: normalize_optional_string(Map.get(opts, :id, Map.get(config, :id))) || @default_policy_id,
+      enabled?: enabled?(opts),
+      compaction_enabled?:
+        boolean_value(Map.get(opts, :compaction_enabled?, Map.get(config, :compaction_enabled?, true)), true),
+      high_water_mark:
+        ratio_value(Map.get(opts, :high_water_mark, Map.get(config, :high_water_mark)), @default_high_water_mark),
+      repeated_trim_threshold:
+        positive_integer(
+          Map.get(opts, :repeated_trim_threshold, Map.get(config, :repeated_trim_threshold)),
+          @default_repeated_trim_threshold
+        ),
+      debounce_window_ms:
+        positive_integer(
+          Map.get(opts, :debounce_window_ms, Map.get(config, :debounce_window_ms)),
+          @default_debounce_window_ms
+        ),
+      max_summary_tokens:
+        positive_integer(
+          Map.get(opts, :max_summary_tokens, Map.get(config, :max_summary_tokens)),
+          @default_max_summary_tokens
+        ),
+      max_candidate_tokens:
+        positive_integer(
+          Map.get(opts, :max_candidate_tokens, Map.get(config, :max_candidate_tokens)),
+          @default_max_candidate_tokens
+        ),
+      diagnostics: config_diagnostics(opts, config)
+    }
+  end
+
+  @doc "Builds initial pod metadata for a work-item-scoped context-management pod."
+  @spec initial_metadata(String.t(), String.t(), String.t(), String.t(), keyword() | map()) :: metadata()
+  def initial_metadata(managed_repo_id, work_item_id, workspace_path, parent_pod_id, opts \\ []) do
+    now = DateTime.utc_now()
+    policy = policy(opts)
+
+    %{
+      scope: :work_item,
+      managed_repo_id: managed_repo_id,
+      work_item_id: work_item_id,
+      workspace_path: workspace_path,
+      parent_pod_id: parent_pod_id,
+      runtime_status: :running,
+      context_management_status: if(policy.enabled?, do: :healthy, else: :disabled),
+      policy: public_policy(policy),
+      observations: [],
+      recommendations: [],
+      summaries: [],
+      latest_monitor_decision: nil,
+      latest_compaction: nil,
+      diagnostics: policy.diagnostics,
+      updated_at: now
+    }
+  end
+
+  @doc "Returns a concise public summary for pod metadata."
+  @spec status_summary(metadata() | nil) :: map()
+  def status_summary(nil) do
+    %{
+      "enabled?" => false,
+      "state" => "unavailable",
+      "observation_count" => 0,
+      "recommendation_count" => 0,
+      "summary_count" => 0,
+      "latest_monitor_decision" => nil,
+      "latest_compaction" => nil,
+      "diagnostics" => [%{"kind" => "context_management_unavailable", "state" => "degraded"}]
+    }
+  end
+
+  def status_summary(metadata) when is_map(metadata) do
+    policy = normalize_map(Map.get(metadata, :policy, Map.get(metadata, "policy", %{})))
+
+    %{
+      "enabled?" => Map.get(policy, "enabled?", Map.get(policy, :enabled?, true)),
+      "state" =>
+        metadata
+        |> Map.get(:context_management_status, Map.get(metadata, "context_management_status", :healthy))
+        |> Atom.to_string(),
+      "policy_id" => Map.get(policy, "id", Map.get(policy, :id)),
+      "observation_count" => metadata |> Map.get(:observations, Map.get(metadata, "observations", [])) |> length(),
+      "recommendation_count" =>
+        metadata |> Map.get(:recommendations, Map.get(metadata, "recommendations", [])) |> length(),
+      "summary_count" => metadata |> Map.get(:summaries, Map.get(metadata, "summaries", [])) |> length(),
+      "latest_monitor_decision" =>
+        stringify_keys(Map.get(metadata, :latest_monitor_decision, Map.get(metadata, "latest_monitor_decision"))),
+      "latest_compaction" => stringify_keys(Map.get(metadata, :latest_compaction, Map.get(metadata, "latest_compaction"))),
+      "diagnostics" =>
+        metadata
+        |> Map.get(:diagnostics, Map.get(metadata, "diagnostics", []))
+        |> Enum.map(&stringify_keys/1)
+    }
+  end
+
+  @doc "Builds a disabled status update without affecting request-time budget packing."
+  @spec disabled_metadata(String.t()) :: metadata()
+  def disabled_metadata(reason \\ "Context management is disabled for this request.") do
+    %{
+      context_management_status: :disabled,
+      latest_monitor_decision: %{
+        state: :skipped,
+        reason: reason,
+        diagnostics: %{kind: :context_management_disabled, state: :skipped}
+      },
+      diagnostics: [%{kind: :context_management_disabled, state: :skipped, detail: reason}],
+      updated_at: DateTime.utc_now()
+    }
+  end
+
+  @doc "Returns a metadata-only observation struct."
+  @spec observation(map()) :: {:ok, budget_observation()} | {:error, term()}
+  def observation(attrs) when is_map(attrs) do
+    with {:ok, managed_repo_id} <- required_string(attrs, :managed_repo_id),
+         {:ok, work_item_id} <- required_string(attrs, :work_item_id),
+         {:ok, workflow} <- required_string(attrs, :workflow),
+         {:ok, specialist_role} <- required_string(attrs, :specialist_role) do
+      {:ok,
+       %BudgetObservation{
+         managed_repo_id: managed_repo_id,
+         work_item_id: work_item_id,
+         workflow: workflow,
+         specialist_role: specialist_role,
+         conversation_id: optional_string(attrs, :conversation_id),
+         turn_id: optional_string(attrs, :turn_id),
+         source: optional_string(attrs, :source) || "agent_workspace",
+         context_budget: ContextBudget.summary(Map.get(attrs, :context_budget, Map.get(attrs, "context_budget"))),
+         tool_budget: ContextBudget.summary(Map.get(attrs, :tool_budget, Map.get(attrs, "tool_budget"))),
+         diagnostics: redact_diagnostics(Map.get(attrs, :diagnostics, Map.get(attrs, "diagnostics", %{}))),
+         observed_at: Map.get(attrs, :observed_at, DateTime.utc_now())
+       }}
+    end
+  end
+
+  def observation(_attrs), do: {:error, :invalid_observation}
+
+  @doc "Converts a struct or map to metadata-safe public data."
+  @spec public_payload(map() | struct() | nil) :: map() | nil
+  def public_payload(nil), do: nil
+  def public_payload(%module{} = struct) when is_atom(module), do: struct |> Map.from_struct() |> public_payload()
+  def public_payload(%{} = map), do: map |> redact_diagnostics() |> stringify_keys()
+
+  @doc "Returns the public policy shape stored in pod metadata."
+  @spec public_policy(policy()) :: map()
+  def public_policy(policy) when is_map(policy) do
+    policy
+    |> Map.take([
+      :id,
+      :enabled?,
+      :compaction_enabled?,
+      :high_water_mark,
+      :repeated_trim_threshold,
+      :debounce_window_ms,
+      :max_summary_tokens,
+      :max_candidate_tokens
+    ])
+  end
+
+  @doc "Returns true when a metadata payload contains disallowed raw context keys."
+  @spec raw_context_metadata?(term()) :: boolean()
+  def raw_context_metadata?(value), do: contains_raw_key?(value)
+
+  @doc "Redacts diagnostics and rejects raw prompt/tool-output keys."
+  @spec redact_diagnostics(term()) :: term()
+  def redact_diagnostics(%{} = map) do
+    map
+    |> Enum.reject(fn {key, _value} -> raw_key?(key) end)
+    |> Enum.map(fn {key, value} -> {key, redact_diagnostics(value)} end)
+    |> Map.new()
+  end
+
+  def redact_diagnostics(list) when is_list(list), do: Enum.map(list, &redact_diagnostics/1)
+  def redact_diagnostics(value), do: value
+
+  defp config do
+    Application.get_env(:jido_code, :context_management, [])
+    |> normalize_opts()
+  end
+
+  defp config_diagnostics(opts, config) do
+    [:high_water_mark, :repeated_trim_threshold, :debounce_window_ms, :max_summary_tokens, :max_candidate_tokens]
+    |> Enum.flat_map(fn key ->
+      value = Map.get(opts, key, Map.get(config, key))
+
+      cond do
+        is_nil(value) ->
+          []
+
+        key == :high_water_mark and ratio_value(value, nil) == nil ->
+          [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+
+        key != :high_water_mark and positive_integer(value, nil) == nil ->
+          [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+
+        true ->
+          []
+      end
+    end)
+  end
+
+  defp required_string(attrs, key) do
+    case optional_string(attrs, key) do
+      nil -> {:error, {:missing_required_context_management_field, key}}
+      value -> {:ok, value}
+    end
+  end
+
+  defp optional_string(attrs, key) do
+    attrs
+    |> Map.get(key, Map.get(attrs, Atom.to_string(key)))
+    |> normalize_optional_string()
+  end
+
+  defp normalize_optional_string(nil), do: nil
+
+  defp normalize_optional_string(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp normalize_optional_string(value) when is_atom(value), do: Atom.to_string(value)
+  defp normalize_optional_string(value), do: inspect(value)
+
+  defp normalize_opts(opts) when is_list(opts), do: Map.new(opts)
+  defp normalize_opts(opts) when is_map(opts), do: normalize_map(opts)
+  defp normalize_opts(_opts), do: %{}
+
+  defp normalize_map(%{} = map) do
+    map
+    |> Enum.map(fn {key, value} -> {normalize_key(key), value} end)
+    |> Map.new()
+  end
+
+  defp normalize_map(_map), do: %{}
+
+  defp normalize_key(key) when is_atom(key), do: key
+
+  defp normalize_key(key) when is_binary(key) do
+    key
+    |> String.trim()
+    |> String.downcase()
+    |> String.replace("-", "_")
+    |> String.to_existing_atom()
+  rescue
+    ArgumentError -> key
+  end
+
+  defp normalize_key(key), do: key
+
+  defp boolean_value(value, _default) when value in [true, "true", "1"], do: true
+  defp boolean_value(value, _default) when value in [false, "false", "0"], do: false
+  defp boolean_value(_value, default), do: default
+
+  defp ratio_value(value, _default) when is_float(value) and value > 0 and value <= 1, do: value
+  defp ratio_value(value, _default) when is_integer(value) and value > 0 and value <= 100, do: value / 100
+
+  defp ratio_value(value, default) when is_binary(value) do
+    case Float.parse(value) do
+      {parsed, ""} -> ratio_value(parsed, default)
+      _other -> default
+    end
+  end
+
+  defp ratio_value(_value, default), do: default
+
+  defp positive_integer(nil, default), do: default
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+
+  defp positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _other -> default
+    end
+  end
+
+  defp positive_integer(_value, default), do: default
+
+  defp raw_key?(key) when is_atom(key), do: raw_key?(Atom.to_string(key))
+
+  defp raw_key?(key) when is_binary(key) do
+    key
+    |> String.downcase()
+    |> String.replace("-", "_")
+    |> then(&(&1 in ["prompt", "raw_prompt", "raw_tool_output", "tool_output", "messages", "transcript"]))
+  end
+
+  defp raw_key?(_key), do: false
+
+  defp contains_raw_key?(%{} = map) do
+    Enum.any?(map, fn {key, value} -> raw_key?(key) or contains_raw_key?(value) end)
+  end
+
+  defp contains_raw_key?(list) when is_list(list), do: Enum.any?(list, &contains_raw_key?/1)
+  defp contains_raw_key?(_value), do: false
+
+  defp stringify_keys(%{} = map) do
+    Map.new(map, fn {key, value} -> {stringify_key(key), stringify_keys(value)} end)
+  end
+
+  defp stringify_keys(list) when is_list(list), do: Enum.map(list, &stringify_keys/1)
+  defp stringify_keys(value), do: value
+
+  defp stringify_key(key) when is_atom(key), do: Atom.to_string(key)
+  defp stringify_key(key), do: key
+end

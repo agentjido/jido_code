@@ -48,22 +48,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 88.1.2.2 Subtask - Link budget diagnostics to governed work item, conversation id, turn id, and specialist workflow.
       [x] 88.1.2.3 Subtask - Avoid storing raw prompt bodies or raw tool outputs as durable memory through budget diagnostics.
 
-  [ ] 88.2 Section - Configuration, Controls, And Degraded Recovery
+  [x] 88.2 Section - Configuration, Controls, And Degraded Recovery
     Make context budget behavior configurable enough for development and safe enough for production defaults.
 
-    [ ] 88.2.1 Task - Add validated runtime configuration
+    [x] 88.2.1 Task - Add validated runtime configuration
       Expose budget defaults and overrides through the existing product configuration style.
 
-      [ ] 88.2.1.1 Subtask - Add config defaults for conservative budget policy, output-token reserve, history budget, tool-output ceilings, and section ratios.
-      [ ] 88.2.1.2 Subtask - Add environment overrides for local development and provider-specific tuning.
-      [ ] 88.2.1.3 Subtask - Validate invalid budget config as degraded configuration with clear diagnostics.
+      [x] 88.2.1.1 Subtask - Add config defaults for conservative budget policy, output-token reserve, history budget, tool-output ceilings, and section ratios.
+      [x] 88.2.1.2 Subtask - Add environment overrides for local development and provider-specific tuning.
+      [x] 88.2.1.3 Subtask - Validate invalid budget config as degraded configuration with clear diagnostics.
 
-    [ ] 88.2.2 Task - Define recovery and remediation behavior
+    [x] 88.2.2 Task - Define recovery and remediation behavior
       Give operators and contributors clear next steps when context was trimmed or required sections are too large.
 
-      [ ] 88.2.2.1 Subtask - Add typed remediation messages for over-budget current requests, oversized tool output, and unavailable model metadata.
-      [ ] 88.2.2.2 Subtask - Preserve deterministic retry behavior when a user narrows requested files, lowers tool result limits, or changes model selection.
-      [ ] 88.2.2.3 Subtask - Keep context budget failures non-fatal unless required sections cannot fit after all safe trimming.
+      [x] 88.2.2.1 Subtask - Add typed remediation messages for over-budget current requests, oversized tool output, and unavailable model metadata.
+      [x] 88.2.2.2 Subtask - Preserve deterministic retry behavior when a user narrows requested files, lowers tool result limits, or changes model selection.
+      [x] 88.2.2.3 Subtask - Keep context budget failures non-fatal unless required sections cannot fit after all safe trimming.
 
   [ ] 88.3 Section - Contributor Guidance And Quality Gates
     Converge docs and verification commands so future LLM-context work follows the budgeted architecture.

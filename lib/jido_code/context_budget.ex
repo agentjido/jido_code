@@ -152,7 +152,14 @@ defmodule JidoCode.ContextBudget do
     llm_selection = normalize_map(Map.get(opts, :llm_selection) || Map.get(config, :llm_selection) || %{})
     {provider, model, model_spec} = model_identity(llm_selection)
     model_defaults = model_defaults(provider, model)
-    diagnostics = model_diagnostics(provider, model, model_defaults)
+
+    diagnostics =
+      model_diagnostics(provider, model, model_defaults) ++
+        config_diagnostics(opts, config, [
+          :context_window_tokens,
+          :input_token_budget,
+          :output_token_reserve
+        ])
 
     context_window_tokens =
       positive_integer(
@@ -996,8 +1003,54 @@ defmodule JidoCode.ContextBudget do
 
   defp normalize_optional_string(value), do: value |> inspect() |> normalize_optional_string()
 
+  defp config_diagnostics(opts, config, keys) do
+    Enum.flat_map(keys, fn key ->
+      value = Map.get(opts, key, Map.get(config, key))
+
+      if present_invalid_integer?(value, non_negative?: key == :output_token_reserve) do
+        [
+          %{
+            kind: :invalid_context_budget_config,
+            state: :degraded,
+            field: key,
+            value: inspect(value),
+            detail: "Invalid context budget config was ignored and a safe default was used."
+          }
+        ]
+      else
+        []
+      end
+    end)
+  end
+
+  defp present_invalid_integer?(nil, _opts), do: false
+  defp present_invalid_integer?(value, opts) when is_binary(value), do: invalid_integer_string?(value, opts)
+  defp present_invalid_integer?(value, non_negative?: true), do: not (is_integer(value) and value >= 0)
+  defp present_invalid_integer?(value, _opts), do: not (is_integer(value) and value > 0)
+
+  defp invalid_integer_string?(value, opts) do
+    case Integer.parse(String.trim(value)) do
+      {integer, ""} -> present_invalid_integer?(integer, opts)
+      _other -> true
+    end
+  end
+
+  defp positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {integer, ""} when integer > 0 -> integer
+      _other -> default
+    end
+  end
+
   defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
   defp positive_integer(_value, default), do: default
+
+  defp non_negative_integer(value, default) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {integer, ""} when integer >= 0 -> integer
+      _other -> default
+    end
+  end
 
   defp non_negative_integer(value, _default) when is_integer(value) and value >= 0, do: value
   defp non_negative_integer(_value, default), do: default

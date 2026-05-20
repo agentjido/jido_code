@@ -131,6 +131,18 @@ config :jido_code, :conversation_context_memory,
   max_instruction_bytes: 2_000,
   ttl_ms: 86_400_000
 
+config :jido_code, :context_budget,
+  id: "context-budget:v1",
+  history: [
+    max_messages: 24,
+    token_budget: 8_000
+  ],
+  tool_output: [
+    max_bytes: 10_000,
+    max_lines: 500,
+    max_results: 1_000
+  ]
+
 # Configure the endpoint
 config :jido_code, JidoCodeWeb.Endpoint,
   url: [host: "localhost"],

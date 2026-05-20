@@ -82,6 +82,18 @@ defmodule JidoCode.ContextBudgetTest do
       assert policy.tool_output.max_results == 25
     end
 
+    test "invalid numeric budget overrides degrade to safe defaults" do
+      policy =
+        ContextBudget.policy(
+          input_token_budget: "not-an-integer",
+          output_token_reserve: "-1"
+        )
+
+      assert policy.input_token_budget == 14_000
+      assert policy.output_token_reserve == 2_000
+      assert Enum.any?(policy.diagnostics, &(&1.kind == :invalid_context_budget_config))
+    end
+
     test "estimates bytes and approximate tokens explicitly" do
       assert %{bytes: 8, approximate_tokens: 2} = ContextBudget.estimate("12345678")
       assert %{bytes: bytes, approximate_tokens: tokens} = ContextBudget.estimate(["one", "two"])

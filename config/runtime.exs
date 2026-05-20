@@ -64,6 +64,51 @@ cond do
     :ok
 end
 
+context_budget_overrides =
+  [
+    context_window_tokens: System.get_env("JIDO_CODE_CONTEXT_WINDOW_TOKENS"),
+    input_token_budget: System.get_env("JIDO_CODE_CONTEXT_INPUT_TOKEN_BUDGET"),
+    output_token_reserve: System.get_env("JIDO_CODE_CONTEXT_OUTPUT_TOKEN_RESERVE")
+  ]
+  |> Enum.reject(fn {_key, value} -> is_nil(value) or String.trim(value) == "" end)
+
+context_budget_history_overrides =
+  [
+    max_messages: System.get_env("JIDO_CODE_CONTEXT_HISTORY_MAX_MESSAGES"),
+    token_budget: System.get_env("JIDO_CODE_CONTEXT_HISTORY_TOKEN_BUDGET")
+  ]
+  |> Enum.reject(fn {_key, value} -> is_nil(value) or String.trim(value) == "" end)
+
+context_budget_tool_output_overrides =
+  [
+    max_bytes: System.get_env("JIDO_CODE_CONTEXT_TOOL_MAX_BYTES"),
+    max_lines: System.get_env("JIDO_CODE_CONTEXT_TOOL_MAX_LINES"),
+    max_results: System.get_env("JIDO_CODE_CONTEXT_TOOL_MAX_RESULTS")
+  ]
+  |> Enum.reject(fn {_key, value} -> is_nil(value) or String.trim(value) == "" end)
+
+if context_budget_overrides != [] or context_budget_history_overrides != [] or
+     context_budget_tool_output_overrides != [] do
+  context_budget_runtime_config =
+    context_budget_overrides
+    |> then(fn config ->
+      if context_budget_history_overrides == [] do
+        config
+      else
+        Keyword.put(config, :history, context_budget_history_overrides)
+      end
+    end)
+    |> then(fn config ->
+      if context_budget_tool_output_overrides == [] do
+        config
+      else
+        Keyword.put(config, :tool_output, context_budget_tool_output_overrides)
+      end
+    end)
+
+  config :jido_code, :context_budget, context_budget_runtime_config
+end
+
 # Source code graph configuration from environment
 # These can be set to override defaults for production deployment
 if source_code_graph_enabled = System.get_env("SOURCE_CODE_GRAPH_ENABLED") do

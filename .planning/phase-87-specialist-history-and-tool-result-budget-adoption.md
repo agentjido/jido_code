@@ -50,22 +50,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 87.1.2.2 Subtask - Support explicit reset or new-topic signals from conversation runtime without guessing from free text alone.
       [x] 87.1.2.3 Subtask - Preserve pod lifetime semantics: different work items still use different CodingPods and different specialists still keep separate histories.
 
-  [ ] 87.2 Section - Tool Output Budgeting And Summarization
+  [x] 87.2 Section - Tool Output Budgeting And Summarization
     Make tool outputs consistently bounded before they are appended into specialist history or reused as accepted conversation context.
 
-    [ ] 87.2.1 Task - Normalize tool action output budgets
+    [x] 87.2.1 Task - Normalize tool action output budgets
       Align existing file, search, diff, list, and test actions around shared budget defaults and diagnostics.
 
-      [ ] 87.2.1.1 Subtask - Add shared defaults for max lines, max bytes, max results, and truncation messages across workspace tools.
-      [ ] 87.2.1.2 Subtask - Preserve action-specific parameters such as `max_lines` and `max_results` while validating them against global safety ceilings.
-      [ ] 87.2.1.3 Subtask - Add diagnostics showing whether tool output was complete, truncated by action options, or truncated by global budget policy.
+      [x] 87.2.1.1 Subtask - Add shared defaults for max lines, max bytes, max results, and truncation messages across workspace tools.
+      [x] 87.2.1.2 Subtask - Preserve action-specific parameters such as `max_lines` and `max_results` while validating them against global safety ceilings.
+      [x] 87.2.1.3 Subtask - Add diagnostics showing whether tool output was complete, truncated by action options, or truncated by global budget policy.
 
-    [ ] 87.2.2 Task - Pack tool results before history append
+    [x] 87.2.2 Task - Pack tool results before history append
       Ensure large tool results do not poison later turns by entering ReAct history unbounded.
 
-      [ ] 87.2.2.1 Subtask - Route tool-result message content through the context budget layer before appending to `AIContext`.
-      [ ] 87.2.2.2 Subtask - Preserve enough structured result metadata for the specialist to reason about truncation and request narrower follow-up tools.
-      [ ] 87.2.2.3 Subtask - Keep raw full tool output out of prompt history unless a future artifact store explicitly supports out-of-band retrieval.
+      [x] 87.2.2.1 Subtask - Route tool-result message content through the context budget layer before appending to `AIContext`.
+      [x] 87.2.2.2 Subtask - Preserve enough structured result metadata for the specialist to reason about truncation and request narrower follow-up tools.
+      [x] 87.2.2.3 Subtask - Keep raw full tool output out of prompt history unless a future artifact store explicitly supports out-of-band retrieval.
 
   [ ] 87.3 Section - Cross-Turn Context Continuity And Recovery
     Make budget-related trimming visible and recoverable during multi-turn specialist work.

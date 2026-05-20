@@ -13,13 +13,16 @@ defmodule JidoCode.Actions.GitDiff do
       max_lines: [type: :integer, default: 500]
     ]
 
+  alias JidoCode.ContextBudget
+
   @impl true
   def run(%{path: path, cached: cached, max_lines: max_lines}, context) do
     with {:ok, workspace_path} <- workspace_path(context) do
+      max_lines = ContextBudget.clamp_tool_limit(max_lines, :max_lines)
       args = build_diff_args(path, cached)
       {output, exit_code} = execute_git_command(workspace_path, args)
 
-      diff_output = truncate_lines(output, max_lines)
+      bounded = ContextBudget.bound_tool_text(output, max_lines: max_lines)
 
       {:ok,
        %{
@@ -27,9 +30,10 @@ defmodule JidoCode.Actions.GitDiff do
          path: path,
          cached: cached,
          exit_code: exit_code,
-         diff: diff_output,
-         truncated: String.split(output, "\n") |> length() > max_lines,
-         lines: String.split(diff_output, "\n") |> length()
+         diff: bounded.text,
+         truncated: bounded.diagnostics.state == :truncated,
+         lines: bounded.text |> String.split("\n") |> length(),
+         budget: bounded.diagnostics
        }}
     else
       {:error, :missing_workspace_path} -> {:error, :invalid_context, "Missing workspace_path in context"}
@@ -58,16 +62,5 @@ defmodule JidoCode.Actions.GitDiff do
 
   defp execute_git_command(path, args) do
     System.cmd("git", args, cd: path, stderr_to_stdout: true)
-  end
-
-  defp truncate_lines(output, max_lines) do
-    lines = String.split(output, "\n")
-
-    if length(lines) > max_lines do
-      truncated = Enum.take(lines, max_lines)
-      Enum.join(truncated, "\n") <> "\n\n... (diff truncated at #{max_lines} lines)"
-    else
-      output
-    end
   end
 end

@@ -19,6 +19,8 @@ defmodule JidoCode.Actions.SearchCode do
       max_results: [type: :integer, default: 100]
     ]
 
+  alias JidoCode.ContextBudget
+
   @impl true
   def run(params, context) do
     %{
@@ -30,18 +32,23 @@ defmodule JidoCode.Actions.SearchCode do
       max_results: max_results
     } = params
 
+    max_results = ContextBudget.clamp_tool_limit(max_results, :max_results)
+
     with {:ok, workspace_path} <- workspace_path(context),
          full_path = Path.expand(path, workspace_path),
          :ok <- validate_path_within_workspace(full_path, workspace_path) do
       results = search_in_directory(full_path, query, case_sensitive, regex, file_pattern, max_results)
+      bounded = ContextBudget.bound_tool_results(results, max_results: max_results)
+      budget = mark_action_truncation(bounded.diagnostics, length(results) >= max_results and max_results > 0)
 
       {:ok,
        %{
          query: query,
          path: path,
-         results: results,
-         count: length(results),
-         truncated?: length(results) >= max_results and max_results > 0
+         results: bounded.results,
+         count: length(bounded.results),
+         truncated?: budget.state == :truncated,
+         budget: budget
        }}
     else
       {:error, :enoent} -> {:error, :directory_not_found, "Directory not found: #{path}"}
@@ -126,8 +133,6 @@ defmodule JidoCode.Actions.SearchCode do
     end)
   end
 
-  defp search_in_file(_file, _query, nil, _case_sensitive), do: []
-
   defp search_in_file(file, _query, regex, _case_sensitive) when is_struct(regex, Regex) do
     file
     |> File.read!()
@@ -138,6 +143,18 @@ defmodule JidoCode.Actions.SearchCode do
       nil -> []
       matches -> build_match_results(file, matches)
     end
+  end
+
+  defp search_in_file(_file, _query, nil, _case_sensitive), do: []
+
+  defp mark_action_truncation(diagnostics, true) do
+    diagnostics
+    |> Map.put(:state, :truncated)
+    |> Map.put(:truncated_by_action_limit?, true)
+  end
+
+  defp mark_action_truncation(diagnostics, false) do
+    Map.put(diagnostics, :truncated_by_action_limit?, false)
   end
 
   defp build_match_results(file, matches) do

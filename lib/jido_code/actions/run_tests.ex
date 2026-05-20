@@ -16,12 +16,15 @@ defmodule JidoCode.Actions.RunTests do
       timeout_ms: [type: :integer, default: 60_000]
     ]
 
+  alias JidoCode.ContextBudget
+
   @impl true
   def run(%{test_path: test_path, command: command, timeout_ms: timeout_ms}, context) do
     with {:ok, workspace_path} <- workspace_path(context),
          :ok <- validate_workspace(workspace_path) do
       cmd = build_command(command, test_path)
       {output, exit_code} = execute_test_command(workspace_path, cmd, timeout_ms)
+      bounded = ContextBudget.bound_tool_text(output)
 
       passed = exit_code == 0
       failed = not passed
@@ -34,7 +37,8 @@ defmodule JidoCode.Actions.RunTests do
          exit_code: exit_code,
          passed: passed,
          failed: failed,
-         output: truncate_output(output)
+         output: bounded.text,
+         budget: bounded.diagnostics
        }}
     else
       {:error, :missing_workspace_path} -> {:error, :invalid_context, "Missing workspace_path in context"}
@@ -101,11 +105,4 @@ defmodule JidoCode.Actions.RunTests do
       true -> 0
     end
   end
-
-  defp truncate_output(output) when byte_size(output) > 10_000 do
-    {truncated, _} = String.split_at(output, 10_000)
-    truncated <> "\n\n... (output truncated)"
-  end
-
-  defp truncate_output(output), do: output
 end

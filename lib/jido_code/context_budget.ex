@@ -268,6 +268,84 @@ defmodule JidoCode.ContextBudget do
   def render(sections) when is_list(sections), do: render_sections(sections)
   def render(_other), do: ""
 
+  @doc "Returns the normalized global tool-output budget."
+  @spec tool_output_policy(keyword() | map()) :: map()
+  def tool_output_policy(opts \\ []) do
+    opts
+    |> policy()
+    |> Map.fetch!(:tool_output)
+  end
+
+  @doc "Clamps an action-specific numeric limit against global tool-output ceilings."
+  @spec clamp_tool_limit(integer() | nil, :max_bytes | :max_lines | :max_results, keyword() | map()) :: pos_integer()
+  def clamp_tool_limit(value, kind, opts \\ []) when kind in [:max_bytes, :max_lines, :max_results] do
+    tool_policy = tool_output_policy(opts)
+    ceiling = Map.fetch!(tool_policy, kind)
+    requested = positive_integer(value, ceiling)
+    min(requested, ceiling)
+  end
+
+  @doc "Bounds text before it is returned as tool output or appended to history."
+  @spec bound_tool_text(String.t(), keyword() | map()) :: %{text: String.t(), diagnostics: map()}
+  def bound_tool_text(text, opts \\ [])
+
+  def bound_tool_text(text, opts) when is_binary(text) do
+    opts = normalize_opts(opts)
+    tool_policy = tool_output_policy(opts)
+    max_bytes = positive_integer(Map.get(opts, :max_bytes), tool_policy.max_bytes)
+    max_lines = positive_integer(Map.get(opts, :max_lines), tool_policy.max_lines)
+
+    {line_limited_text, line_truncated?} = take_lines(text, max_lines)
+    {byte_limited_text, byte_truncated?} = take_bytes(line_limited_text, max_bytes)
+    original_lines = text |> String.split("\n") |> length()
+    packed_lines = byte_limited_text |> String.split("\n") |> length()
+    truncated? = line_truncated? or byte_truncated?
+
+    %{
+      text: append_truncation_notice(byte_limited_text, truncated?, max_lines, max_bytes),
+      diagnostics: %{
+        kind: :tool_output,
+        state: if(truncated?, do: :truncated, else: :complete),
+        original_bytes: byte_size(text),
+        packed_bytes: byte_size(byte_limited_text),
+        original_lines: original_lines,
+        packed_lines: packed_lines,
+        max_bytes: max_bytes,
+        max_lines: max_lines,
+        truncated_by_line_limit?: line_truncated?,
+        truncated_by_byte_limit?: byte_truncated?
+      }
+    }
+  end
+
+  def bound_tool_text(_text, opts), do: bound_tool_text("", opts)
+
+  @doc "Bounds list-like tool results by count."
+  @spec bound_tool_results([term()], keyword() | map()) :: %{results: [term()], diagnostics: map()}
+  def bound_tool_results(results, opts \\ [])
+
+  def bound_tool_results(results, opts) when is_list(results) do
+    opts = normalize_opts(opts)
+    tool_policy = tool_output_policy(opts)
+    max_results = positive_integer(Map.get(opts, :max_results), tool_policy.max_results)
+    limited = Enum.take(results, max_results)
+    truncated? = length(results) > length(limited)
+
+    %{
+      results: limited,
+      diagnostics: %{
+        kind: :tool_output,
+        state: if(truncated?, do: :truncated, else: :complete),
+        original_results: length(results),
+        packed_results: length(limited),
+        max_results: max_results,
+        truncated_by_result_limit?: truncated?
+      }
+    }
+  end
+
+  def bound_tool_results(_results, opts), do: bound_tool_results([], opts)
+
   @doc """
   Packs ReAct message history at request time.
 
@@ -558,6 +636,28 @@ defmodule JidoCode.ContextBudget do
     |> Enum.map_join("\n\n", fn section ->
       "#{section.label}:\n#{section.text}"
     end)
+  end
+
+  defp take_lines(text, max_lines) do
+    lines = String.split(text, "\n")
+
+    if length(lines) > max_lines do
+      {lines |> Enum.take(max_lines) |> Enum.join("\n"), true}
+    else
+      {text, false}
+    end
+  end
+
+  defp take_bytes(text, max_bytes) when byte_size(text) > max_bytes do
+    {String.slice(text, 0, max_bytes), true}
+  end
+
+  defp take_bytes(text, _max_bytes), do: {text, false}
+
+  defp append_truncation_notice(text, false, _max_lines, _max_bytes), do: text
+
+  defp append_truncation_notice(text, true, max_lines, max_bytes) do
+    text <> "\n\n... (tool output truncated at #{max_lines} lines / #{max_bytes} bytes)"
   end
 
   defp pack_message_groups(groups, token_budget, max_messages) do

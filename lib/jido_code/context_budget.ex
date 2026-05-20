@@ -622,6 +622,7 @@ defmodule JidoCode.ContextBudget do
       trimmed_section_count: trimmed_count,
       dropped_entry_count: Enum.reduce(diagnostics, 0, &(&2 + Map.get(&1, :dropped_entries, 0))),
       degraded?: degraded?,
+      remediation: pack_remediation(degraded?, trimmed_count),
       diagnostics: diagnostics
     }
   end
@@ -629,6 +630,16 @@ defmodule JidoCode.ContextBudget do
   defp pack_state(true, _trimmed_count), do: "degraded"
   defp pack_state(false, trimmed_count) when trimmed_count > 0, do: "trimmed"
   defp pack_state(false, _trimmed_count), do: "packed"
+
+  defp pack_remediation(true, _trimmed_count) do
+    "Required context exceeded the configured budget. Narrow the request, reduce referenced context, or select a model with a larger context window."
+  end
+
+  defp pack_remediation(false, trimmed_count) when trimmed_count > 0 do
+    "Optional context was trimmed. Retry with narrower file references or lower tool result limits if more detail is needed."
+  end
+
+  defp pack_remediation(false, _trimmed_count), do: nil
 
   defp render_sections(sections) do
     sections

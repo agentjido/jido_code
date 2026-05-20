@@ -67,22 +67,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 87.2.2.2 Subtask - Preserve enough structured result metadata for the specialist to reason about truncation and request narrower follow-up tools.
       [x] 87.2.2.3 Subtask - Keep raw full tool output out of prompt history unless a future artifact store explicitly supports out-of-band retrieval.
 
-  [ ] 87.3 Section - Cross-Turn Context Continuity And Recovery
+  [x] 87.3 Section - Cross-Turn Context Continuity And Recovery
     Make budget-related trimming visible and recoverable during multi-turn specialist work.
 
-    [ ] 87.3.1 Task - Surface budget state in specialist runs
+    [x] 87.3.1 Task - Surface budget state in specialist runs
       Preserve operator and developer visibility when a specialist runs with trimmed history or tool context.
 
-      [ ] 87.3.1.1 Subtask - Add budget diagnostics to specialist run metadata captured by workflow provenance.
-      [ ] 87.3.1.2 Subtask - Include concise budget state in conversation progress events when history or tool output was trimmed.
-      [ ] 87.3.1.3 Subtask - Add clear remediation metadata when the current request exceeds budget even after optional context is dropped.
+      [x] 87.3.1.1 Subtask - Add budget diagnostics to specialist run metadata captured by workflow provenance.
+      [x] 87.3.1.2 Subtask - Include concise budget state in conversation progress events when history or tool output was trimmed.
+      [x] 87.3.1.3 Subtask - Add clear remediation metadata when the current request exceeds budget even after optional context is dropped.
 
-    [ ] 87.3.2 Task - Preserve correctness around tool-call protocols
+    [x] 87.3.2 Task - Preserve correctness around tool-call protocols
       Avoid breaking provider message requirements while trimming historical context.
 
-      [ ] 87.3.2.1 Subtask - Keep assistant tool-call messages paired with required tool-result messages when either side remains in packed history.
-      [ ] 87.3.2.2 Subtask - Drop older unrelated message groups only at safe boundaries.
-      [ ] 87.3.2.3 Subtask - Add tests for multi-tool turns, cancelled turns, superseded turns, and accepted tool-result reuse.
+      [x] 87.3.2.1 Subtask - Keep assistant tool-call messages paired with required tool-result messages when either side remains in packed history.
+      [x] 87.3.2.2 Subtask - Drop older unrelated message groups only at safe boundaries.
+      [x] 87.3.2.3 Subtask - Add tests for multi-tool turns, cancelled turns, superseded turns, and accepted tool-result reuse.
 
   [ ] 87.4 Section - Integration Tests
     Prove long-lived specialists, large tool results, and multi-turn tool protocols remain bounded without losing the active request or corrupting tool-call history.

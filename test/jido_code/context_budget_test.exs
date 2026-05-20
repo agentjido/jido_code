@@ -149,6 +149,7 @@ defmodule JidoCode.ContextBudgetTest do
       assert packed.text =~ "Must remain visible."
       assert packed.summary.state == "degraded"
       assert packed.summary.degraded? == true
+      assert packed.summary.remediation =~ "Required context exceeded"
 
       request_diag = Enum.find(packed.diagnostics, &(&1.kind == :current_request))
       memory_diag = Enum.find(packed.diagnostics, &(&1.kind == :prompt_memory))
@@ -216,6 +217,30 @@ defmodule JidoCode.ContextBudgetTest do
 
       assert roles == [:system, :assistant, :tool, :user]
       assert Enum.any?(packed.messages, &(Map.get(&1, :tool_call_id) == "call-1"))
+      assert packed.diagnostics.dropped_messages == 1
+    end
+
+    test "keeps multi-tool assistant groups intact when trimming history" do
+      messages = [
+        %{role: :system, content: "system"},
+        %{role: :user, content: "old request " <> String.duplicate("a", 400)},
+        %{
+          role: :assistant,
+          content: nil,
+          tool_calls: [
+            %{id: "call-1", name: "read_file", arguments: %{path: "a.ex"}},
+            %{id: "call-2", name: "search_code", arguments: %{query: "thing"}}
+          ]
+        },
+        %{role: :tool, tool_call_id: "call-1", name: "read_file", content: "file output"},
+        %{role: :tool, tool_call_id: "call-2", name: "search_code", content: "search output"},
+        %{role: :user, content: "current request"}
+      ]
+
+      packed = ContextBudget.pack_messages(messages, token_budget: 60, max_messages: 5)
+
+      assert Enum.map(packed.messages, & &1.role) == [:system, :assistant, :tool, :tool, :user]
+      assert Enum.count(packed.messages, &(&1.role == :tool)) == 2
       assert packed.diagnostics.dropped_messages == 1
     end
 

@@ -2095,6 +2095,13 @@ defmodule JidoCode.AgentWorkspace do
     |> maybe_put_map_value(:llm_selection_source, get_in(provenance_context, [:llm_selection, :source]))
   end
 
+  defp maybe_put_context_budget_metadata(metadata, opts) do
+    case Keyword.get(opts, :context_budget) do
+      nil -> metadata
+      context_budget -> Map.put(metadata, :context_budget, ContextBudget.summary(context_budget))
+    end
+  end
+
   defp maybe_put_map_value(map, _key, nil), do: map
   defp maybe_put_map_value(map, key, value), do: Map.put(map, key, value)
 
@@ -2213,7 +2220,11 @@ defmodule JidoCode.AgentWorkspace do
         model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
-        related_resources: provenance_context.related_resources
+        related_resources: provenance_context.related_resources,
+        metadata:
+          provenance_metadata(provenance_context)
+          |> Map.put(:stage, stage)
+          |> maybe_put_context_budget_metadata(opts)
       )
 
     tool_capture =
@@ -2230,7 +2241,11 @@ defmodule JidoCode.AgentWorkspace do
         model: provenance_model_name(provenance_context),
         revision: provenance_context.revision,
         governed_references: provenance_context.governed_references,
-        related_resources: provenance_context.related_resources
+        related_resources: provenance_context.related_resources,
+        metadata:
+          provenance_metadata(provenance_context)
+          |> Map.put(:stage, stage)
+          |> maybe_put_context_budget_metadata(opts)
       )
 
     artifact_capture =
@@ -2300,6 +2315,7 @@ defmodule JidoCode.AgentWorkspace do
           provenance_metadata(provenance_context)
           |> Map.put(:stage, stage)
           |> Map.put(:failure, inspect(reason))
+          |> maybe_put_context_budget_metadata(opts)
       )
 
     capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)

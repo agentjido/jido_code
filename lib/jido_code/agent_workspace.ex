@@ -311,6 +311,18 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Runs bounded compaction for an eligible candidate and stores the accepted summary.
+  """
+  @spec compact_context(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def compact_context(managed_repo_id, work_item_id, candidate, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(candidate) and is_list(opts) do
+    with {:ok, summary} <- ContextManagement.compact_candidate(candidate, context_management_opts(opts)) do
+      store_context_compaction_summary(managed_repo_id, work_item_id, Map.from_struct(summary), opts)
+    end
+  end
+
+  @doc """
   Returns bounded active compaction summaries for prompt assembly.
   """
   @spec context_compaction_summaries(managed_repo_id(), work_item_id(), keyword()) :: [map()]

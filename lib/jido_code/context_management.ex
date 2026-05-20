@@ -488,6 +488,71 @@ defmodule JidoCode.ContextManagement do
 
   def compaction_candidate(_messages, _attrs, _opts), do: {:error, :invalid_compaction_candidate}
 
+  @doc """
+  Produces a bounded compaction summary from an eligible candidate.
+
+  This deterministic boundary keeps the first implementation model-free while
+  preserving the same request-time budget guard that an AI-backed compactor will
+  use.
+  """
+  @spec compact_candidate(compaction_candidate(), keyword() | map()) ::
+          {:ok, compaction_summary()} | {:error, term()}
+  def compact_candidate(candidate, opts \\ [])
+
+  def compact_candidate(%{eligible?: true} = candidate, opts) do
+    policy = policy(opts)
+    source_text = normalize_optional_string(Map.get(candidate, :source_text, Map.get(candidate, "source_text"))) || ""
+
+    packed =
+      ContextBudget.pack(
+        [
+          ContextBudget.section(
+            :system_prompt,
+            "Summarize older specialist context faithfully. Preserve uncertainty and do not include raw tool-output dumps.",
+            retention: :required
+          ),
+          ContextBudget.section(:current_request, source_text, retention: :important)
+        ],
+        input_token_budget: policy.max_candidate_tokens
+      )
+
+    summary_text = deterministic_summary(candidate, packed.text, policy)
+
+    compaction_summary(
+      %{
+        id: Map.get(candidate, :summary_id, Map.get(candidate, "summary_id")),
+        managed_repo_id: Map.get(candidate, :managed_repo_id, Map.get(candidate, "managed_repo_id")),
+        work_item_id: Map.get(candidate, :work_item_id, Map.get(candidate, "work_item_id")),
+        workflow: Map.get(candidate, :workflow, Map.get(candidate, "workflow")),
+        specialist_role: Map.get(candidate, :specialist_role, Map.get(candidate, "specialist_role")),
+        conversation_id: Map.get(candidate, :conversation_id, Map.get(candidate, "conversation_id")),
+        turn_id: Map.get(candidate, :turn_id, Map.get(candidate, "turn_id")),
+        source_span_ids: Map.get(candidate, :source_span_ids, Map.get(candidate, "source_span_ids", [])),
+        original_estimate: Map.get(candidate, :original_estimate, Map.get(candidate, "original_estimate", %{})),
+        summary_text: summary_text,
+        retention: :important,
+        policy_id: policy.id,
+        diagnostics: %{
+          kind: :context_compaction,
+          state: :summarized,
+          compactor_context_budget: ContextBudget.summary(packed),
+          candidate_diagnostics: Map.get(candidate, :diagnostics, Map.get(candidate, "diagnostics", %{}))
+        }
+      },
+      opts
+    )
+  end
+
+  def compact_candidate(%{eligible?: false, diagnostics: diagnostics}, _opts) do
+    {:error, {:ineligible_compaction_candidate, diagnostics}}
+  end
+
+  def compact_candidate(%{"eligible?" => false, "diagnostics" => diagnostics}, _opts) do
+    {:error, {:ineligible_compaction_candidate, diagnostics}}
+  end
+
+  def compact_candidate(_candidate, _opts), do: {:error, :invalid_compaction_candidate}
+
   @doc "Converts a struct or map to metadata-safe public data."
   @spec public_payload(map() | struct() | nil) :: map() | nil
   def public_payload(nil), do: nil
@@ -979,6 +1044,41 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp message_tool_calls(_message), do: []
+
+  defp deterministic_summary(candidate, packed_text, policy) do
+    source_span_count =
+      candidate
+      |> Map.get(:source_span_ids, Map.get(candidate, "source_span_ids", []))
+      |> length()
+
+    workflow = Map.get(candidate, :workflow, Map.get(candidate, "workflow")) || "unknown"
+    specialist_role = Map.get(candidate, :specialist_role, Map.get(candidate, "specialist_role")) || "unknown"
+
+    context_line =
+      packed_text
+      |> String.split("\n", trim: true)
+      |> Enum.reject(&String.ends_with?(&1, ":"))
+      |> Enum.take(8)
+      |> Enum.join(" ")
+      |> then(&trim_summary_text(&1, policy.max_summary_tokens))
+
+    [
+      "Compacted #{source_span_count} older #{workflow}/#{specialist_role} context span(s).",
+      "Retained continuity: #{context_line}"
+    ]
+    |> Enum.join("\n")
+    |> trim_summary_text(policy.max_summary_tokens)
+  end
+
+  defp trim_summary_text(text, max_summary_tokens) do
+    max_bytes = max(max_summary_tokens * 4, 1)
+
+    if byte_size(text) > max_bytes do
+      String.slice(text, 0, max_bytes) <> "\n... (compaction summary truncated)"
+    else
+      text
+    end
+  end
 
   defp normalize_optional_string(nil), do: nil
 

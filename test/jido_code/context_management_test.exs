@@ -242,6 +242,38 @@ defmodule JidoCode.ContextManagementTest do
     assert candidate.diagnostics.reason == :unresolved_tool_call_group
   end
 
+  test "compactor creates validated summaries from eligible candidates" do
+    assert {:ok, candidate} =
+             ContextManagement.compaction_candidate(
+               [
+                 %{id: "user-1", role: "user", content: "older request about parser behavior"},
+                 %{id: "assistant-1", role: "assistant", content: "implemented parser helper"},
+                 %{id: "user-2", role: "user", content: "active request"}
+               ],
+               %{
+                 managed_repo_id: "repo-91",
+                 work_item_id: "work-91",
+                 workflow: :execute,
+                 specialist_role: :coder
+               }
+             )
+
+    assert {:ok, summary} = ContextManagement.compact_candidate(candidate)
+    assert summary.workflow == "execute"
+    assert summary.specialist_role == "coder"
+    assert summary.summary_text =~ "Compacted 2 older execute/coder context span"
+    assert summary.source_span_ids == ["user-1", "assistant-1"]
+    assert get_in(summary.diagnostics, [:compactor_context_budget, "policy_id"]) == "context-budget:v1"
+  end
+
+  test "compactor rejects ineligible candidates without storing summaries" do
+    assert {:error, {:ineligible_compaction_candidate, %{reason: :no_eligible_history}}} =
+             ContextManagement.compact_candidate(%{
+               eligible?: false,
+               diagnostics: %{reason: :no_eligible_history}
+             })
+  end
+
   defp trimmed_budget do
     %{
       "policy_id" => "context-budget:v1",

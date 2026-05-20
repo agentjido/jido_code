@@ -45,22 +45,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 91.1.2.2 Subtask - Include bounded source text or a deterministic fixture representation for AI compaction.
       [x] 91.1.2.3 Subtask - Reject candidates that exceed compactor input limits before invoking the model.
 
-  [ ] 91.2 Section - ContextCompactor Agent And Summary Validation
+  [x] 91.2 Section - ContextCompactor Agent And Summary Validation
     Implement the compactor as a bounded AI-backed specialist with strict output validation.
 
-    [ ] 91.2.1 Task - Add compactor agent behavior
+    [x] 91.2.1 Task - Add compactor agent behavior
       Create the specialist or action boundary that summarizes eligible history into compact prompt context.
 
-      [ ] 91.2.1.1 Subtask - Define the compactor system prompt around faithful summarization and explicit uncertainty.
-      [ ] 91.2.1.2 Subtask - Route compactor calls through existing LLM selection and request-time budget policy.
-      [ ] 91.2.1.3 Subtask - Ensure compactor failures return diagnostics and do not block the active specialist turn.
+      [x] 91.2.1.1 Subtask - Define the compactor system prompt around faithful summarization and explicit uncertainty.
+      [x] 91.2.1.2 Subtask - Route compactor calls through existing LLM selection and request-time budget policy.
+      [x] 91.2.1.3 Subtask - Ensure compactor failures return diagnostics and do not block the active specialist turn.
 
-    [ ] 91.2.2 Task - Validate compaction outputs
+    [x] 91.2.2 Task - Validate compaction outputs
       Accept only bounded summaries with required metadata and safe prompt shape.
 
-      [ ] 91.2.2.1 Subtask - Validate summary text length, retention class, source span ids, and token estimates.
-      [ ] 91.2.2.2 Subtask - Reject output that includes raw full tool output or raw transcript dumps.
-      [ ] 91.2.2.3 Subtask - Store accepted summaries through `CompactionStore` with replacement metadata.
+      [x] 91.2.2.1 Subtask - Validate summary text length, retention class, source span ids, and token estimates.
+      [x] 91.2.2.2 Subtask - Reject output that includes raw full tool output or raw transcript dumps.
+      [x] 91.2.2.3 Subtask - Store accepted summaries through `CompactionStore` with replacement metadata.
 
   [ ] 91.3 Section - Summary Injection And History Lifecycle
     Reuse accepted summaries in prompt assembly while keeping raw history recoverable only through governed records.

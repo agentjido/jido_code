@@ -28,7 +28,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Budget diagnostics should be visible as metadata and product records, not as raw prompt dumps.
 - Developer guidance should make the difference between prompt budget, prompt memory, durable memory, semantic graph context, and `tool_context` explicit.
 
-[ ] 88 Phase 88 - Context Budget Observability And Contributor Convergence
+[x] 88 Phase 88 - Context Budget Observability And Contributor Convergence
   Make context budget behavior observable, testable, and documented across conversation runtime, specialist execution, workflow provenance, and contributor quality gates.
 
   [x] 88.1 Section - Runtime Diagnostics And Product Metadata
@@ -82,20 +82,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 88.3.2.2 Subtask - Explain when to run conversation runtime, AgentWorkspace, source graph, memory graph, and `jido_ai` tests.
       [x] 88.3.2.3 Subtask - Update planning README chronology notes for the Phase 85 through Phase 88 rollout.
 
-  [ ] 88.4 Section - Integration Tests
+  [x] 88.4 Section - Integration Tests
     End the rollout with cross-boundary tests proving budget behavior is visible, recoverable, and stable across conversation, specialist, memory, and semantic paths.
 
-    [ ] 88.4.1 Task - Add end-to-end context budget observability coverage
+    [x] 88.4.1 Task - Add end-to-end context budget observability coverage
       Exercise a real conversation turn that trims optional context and records diagnostics.
 
-      [ ] 88.4.1.1 Subtask - Add coverage proving progress events include budget summaries when context is trimmed.
-      [ ] 88.4.1.2 Subtask - Add coverage proving provenance captures section diagnostics without raw prompt dumps.
-      [ ] 88.4.1.3 Subtask - Add coverage proving operator-visible degraded states distinguish trimmed optional context from required-context overflow.
+      [x] 88.4.1.1 Subtask - Add coverage proving progress events include budget summaries when context is trimmed.
+      [x] 88.4.1.2 Subtask - Add coverage proving provenance captures section diagnostics without raw prompt dumps.
+      [x] 88.4.1.3 Subtask - Add coverage proving operator-visible degraded states distinguish trimmed optional context from required-context overflow.
 
-    [ ] 88.4.2 Task - Run final context budget rollout verification
+    [x] 88.4.2 Task - Run final context budget rollout verification
       Verify the completed rollout across all touched boundaries.
 
-      [ ] 88.4.2.1 Subtask - Run focused context budget, conversation runtime, and AgentWorkspace tests.
-      [ ] 88.4.2.2 Subtask - Run Phase 52 and Phase 83 routing integration tests.
-      [ ] 88.4.2.3 Subtask - Run `mix source_graph.verify` and `mix memory.verify` if graph prompt projections or diagnostics are touched.
-      [ ] 88.4.2.4 Subtask - Run broader quality gates required by final touched files, documenting any unrelated pre-existing failures.
+      [x] 88.4.2.1 Subtask - Run focused context budget, conversation runtime, and AgentWorkspace tests.
+      [x] 88.4.2.2 Subtask - Run Phase 52 and Phase 83 routing integration tests.
+      [x] 88.4.2.3 Subtask - Run `mix source_graph.verify` and `mix memory.verify` if graph prompt projections or diagnostics are touched.
+      [x] 88.4.2.4 Subtask - Run broader quality gates required by final touched files, documenting any unrelated pre-existing failures.

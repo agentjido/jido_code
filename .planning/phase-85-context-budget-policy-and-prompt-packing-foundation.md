@@ -27,7 +27,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The budget layer should degrade context selection before failing a conversation turn.
 - Prompt memory remains short-term prompt context, not durable repository memory or transcript truth.
 
-[ ] 85 Phase 85 - Context Budget Policy And Prompt Packing Foundation
+[x] 85 Phase 85 - Context Budget Policy And Prompt Packing Foundation
   Establish the product-owned policy and prompt-packing boundary that turns scattered local caps into a coherent model-aware budget contract for conversation runtime and specialist requests.
 
   [x] 85.1 Section - Context Budget Policy Model
@@ -81,20 +81,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 85.3.2.2 Subtask - Preserve disabled and degraded prompt-memory projections as non-fatal packed sections.
       [x] 85.3.2.3 Subtask - Keep existing Phase 52, Phase 78, Phase 83, and Phase 84 verification commands stable.
 
-  [ ] 85.4 Section - Integration Tests
+  [x] 85.4 Section - Integration Tests
     Prove the new budget layer protects conversation runtime prompts without changing workflow routing, prompt-memory boundaries, or current-request fidelity.
 
-    [ ] 85.4.1 Task - Add context budget unit and runtime coverage
+    [x] 85.4.1 Task - Add context budget unit and runtime coverage
       Exercise the policy model, packer, and runtime integration with realistic oversized inputs.
 
-      [ ] 85.4.1.1 Subtask - Add tests proving required sections survive when optional prompt memory, tool results, and referenced files exceed budget.
-      [ ] 85.4.1.2 Subtask - Add tests proving per-section diagnostics report original size, packed size, dropped entries, and degraded state.
-      [ ] 85.4.1.3 Subtask - Add runtime tests proving a huge accepted-tool-result list is trimmed before reaching the specialist instruction.
+      [x] 85.4.1.1 Subtask - Add tests proving required sections survive when optional prompt memory, tool results, and referenced files exceed budget.
+      [x] 85.4.1.2 Subtask - Add tests proving per-section diagnostics report original size, packed size, dropped entries, and degraded state.
+      [x] 85.4.1.3 Subtask - Add runtime tests proving a huge accepted-tool-result list is trimmed before reaching the specialist instruction.
 
-    [ ] 85.4.2 Task - Run context-budget verification gates
+    [x] 85.4.2 Task - Run context-budget verification gates
       Verify the foundation with focused and existing conversation-memory commands.
 
-      [ ] 85.4.2.1 Subtask - Run focused context budget tests once introduced.
-      [ ] 85.4.2.2 Subtask - Run `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs --max-cases 1 --max-failures 1`.
-      [ ] 85.4.2.3 Subtask - Run the Phase 52 and Phase 83 routing integration tests with context-memory tests in the same command.
-      [ ] 85.4.2.4 Subtask - Run any broader `mix memory.verify` or conversation-runtime verification required by touched boundaries.
+      [x] 85.4.2.1 Subtask - Run focused context budget tests once introduced.
+      [x] 85.4.2.2 Subtask - Run `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs --max-cases 1 --max-failures 1`.
+      [x] 85.4.2.3 Subtask - Run the Phase 52 and Phase 83 routing integration tests with context-memory tests in the same command.
+      [x] 85.4.2.4 Subtask - Run any broader `mix memory.verify` or conversation-runtime verification required by touched boundaries.

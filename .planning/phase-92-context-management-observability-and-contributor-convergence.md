@@ -27,7 +27,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Contributor guidance must keep compaction, prompt memory, durable memory, workflow provenance, and request-time budgeting distinct.
 - Failed compaction must degrade to existing request-time packing.
 
-[ ] 92 Phase 92 - Context Management Observability And Contributor Convergence
+[x] 92 Phase 92 - Context Management Observability And Contributor Convergence
   Make proactive context management visible, configurable, documented, and covered by quality gates without exposing raw prompt or tool-output dumps.
 
   [x] 92.1 Section - Runtime Observability And Product Metadata
@@ -81,20 +81,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 92.3.2.2 Subtask - Explain when to run context budget, AgentWorkspace, conversation runtime, source graph, and memory graph verification.
       [x] 92.3.2.3 Subtask - Update `.planning/README.md` chronology notes for the Phase 89 through Phase 92 track.
 
-  [ ] 92.4 Section - Integration Tests
+  [x] 92.4 Section - Integration Tests
     End the track with cross-boundary tests proving proactive compaction is observable, recoverable, and still guarded by request-time budgeting.
 
-    [ ] 92.4.1 Task - Add end-to-end context-management coverage
+    [x] 92.4.1 Task - Add end-to-end context-management coverage
       Exercise monitor recommendation, compactor summary creation, prompt summary injection, and degraded fallback in realistic workflows.
 
-      [ ] 92.4.1.1 Subtask - Add coverage proving repeated trims lead to a compaction summary that appears as bounded prompt context.
-      [ ] 92.4.1.2 Subtask - Add coverage proving failed compaction falls back to request-time packing.
-      [ ] 92.4.1.3 Subtask - Add coverage proving observability metadata contains ids and diagnostics but no raw prompt dumps.
+      [x] 92.4.1.1 Subtask - Add coverage proving repeated trims lead to a compaction summary that appears as bounded prompt context.
+      [x] 92.4.1.2 Subtask - Add coverage proving failed compaction falls back to request-time packing.
+      [x] 92.4.1.3 Subtask - Add coverage proving observability metadata contains ids and diagnostics but no raw prompt dumps.
 
-    [ ] 92.4.2 Task - Run final context-management verification
+    [x] 92.4.2 Task - Run final context-management verification
       Verify the completed rollout across all touched boundaries.
 
-      [ ] 92.4.2.1 Subtask - Run focused Phase 89 through Phase 92 integration tests.
-      [ ] 92.4.2.2 Subtask - Run context budget and AgentWorkspace regression tests.
-      [ ] 92.4.2.3 Subtask - Run conversation routing and snapshot tests.
-      [ ] 92.4.2.4 Subtask - Run `mix source_graph.verify` and `mix memory.verify` if graph prompt projection, provenance, or memory boundaries are touched.
+      [x] 92.4.2.1 Subtask - Run focused Phase 89 through Phase 92 integration tests.
+      [x] 92.4.2.2 Subtask - Run context budget and AgentWorkspace regression tests.
+      [x] 92.4.2.3 Subtask - Run conversation routing and snapshot tests.
+      [x] 92.4.2.4 Subtask - Run `mix source_graph.verify` and `mix memory.verify` if graph prompt projection, provenance, or memory boundaries are touched.

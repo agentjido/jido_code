@@ -1054,17 +1054,23 @@ defmodule JidoCode.ContextManagement do
     workflow = Map.get(candidate, :workflow, Map.get(candidate, "workflow")) || "unknown"
     specialist_role = Map.get(candidate, :specialist_role, Map.get(candidate, "specialist_role")) || "unknown"
 
+    role_counts =
+      ~r/\b(user|assistant|tool):/
+      |> Regex.scan(packed_text)
+      |> Enum.map(&List.last/1)
+      |> Enum.frequencies()
+
+    original_tokens =
+      candidate
+      |> Map.get(:original_estimate, Map.get(candidate, "original_estimate", %{}))
+      |> Map.get(:approximate_tokens, 0)
+
     context_line =
-      packed_text
-      |> String.split("\n", trim: true)
-      |> Enum.reject(&String.ends_with?(&1, ":"))
-      |> Enum.take(8)
-      |> Enum.join(" ")
-      |> then(&trim_summary_text(&1, policy.max_summary_tokens))
+      "source roles user=#{Map.get(role_counts, "user", 0)}, assistant=#{Map.get(role_counts, "assistant", 0)}, tool=#{Map.get(role_counts, "tool", 0)}; original_tokens=#{original_tokens}"
 
     [
       "Compacted #{source_span_count} older #{workflow}/#{specialist_role} context span(s).",
-      "Retained continuity: #{context_line}"
+      "Retained continuity metadata: #{context_line}"
     ]
     |> Enum.join("\n")
     |> trim_summary_text(policy.max_summary_tokens)

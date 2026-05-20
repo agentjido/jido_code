@@ -25,7 +25,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Compaction candidates must be selected at protocol-safe group boundaries.
 - Request-time packing still runs after compaction summary injection.
 
-[ ] 91 Phase 91 - Context Compactor Summary Lifecycle
+[x] 91 Phase 91 - Context Compactor Summary Lifecycle
   Add the bounded compaction flow that turns eligible older specialist history into reusable summaries and injects those summaries into later prompts.
 
   [x] 91.1 Section - Compaction Candidate Selection
@@ -79,19 +79,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 91.3.2.2 Subtask - Prefer summaries over raw eligible spans in future prompt construction.
       [x] 91.3.2.3 Subtask - Preserve original conversation events and workflow provenance as append-only recovery records.
 
-  [ ] 91.4 Section - Integration Tests
+  [x] 91.4 Section - Integration Tests
     Prove compaction produces valid summaries, preserves protocol integrity, and improves prompt continuity without replacing request-time packing.
 
-    [ ] 91.4.1 Task - Add compactor lifecycle coverage
+    [x] 91.4.1 Task - Add compactor lifecycle coverage
       Exercise recommendation to candidate to summary to prompt injection.
 
-      [ ] 91.4.1.1 Subtask - Add tests proving old specialist history is summarized and no longer resent raw.
-      [ ] 91.4.1.2 Subtask - Add tests proving assistant/tool-result groups remain valid after compaction.
-      [ ] 91.4.1.3 Subtask - Add tests proving compaction summary sections can be trimmed by `ContextBudget`.
+      [x] 91.4.1.1 Subtask - Add tests proving old specialist history is summarized and no longer resent raw.
+      [x] 91.4.1.2 Subtask - Add tests proving assistant/tool-result groups remain valid after compaction.
+      [x] 91.4.1.3 Subtask - Add tests proving compaction summary sections can be trimmed by `ContextBudget`.
 
-    [ ] 91.4.2 Task - Run compactor verification
+    [x] 91.4.2 Task - Run compactor verification
       Verify the lifecycle across context budget, AgentWorkspace, and conversation routing boundaries.
 
-      [ ] 91.4.2.1 Subtask - Run focused compactor lifecycle tests.
-      [ ] 91.4.2.2 Subtask - Run context budget and AgentWorkspace tests.
-      [ ] 91.4.2.3 Subtask - Run memory verification if provenance or durable-memory boundaries are touched.
+      [x] 91.4.2.1 Subtask - Run focused compactor lifecycle tests.
+      [x] 91.4.2.2 Subtask - Run context budget and AgentWorkspace tests.
+      [x] 91.4.2.3 Subtask - Run memory verification if provenance or durable-memory boundaries are touched.

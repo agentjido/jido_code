@@ -241,7 +241,7 @@ defmodule JidoCode.AgentWorkspace do
       when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
     context_opts = context_management_opts(opts)
 
-    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+    with :ok <- ensure_kernel_available(managed_repo_id),
          {:ok, resolved_workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) do
       if ContextManagement.enabled?(context_opts) do
@@ -1457,6 +1457,19 @@ defmodule JidoCode.AgentWorkspace do
         runtime_status: :logical
       }
     )
+  end
+
+  defp ensure_kernel_available(managed_repo_id) do
+    case Manager.kernel_status(managed_repo_id) do
+      nil ->
+        case ensure_kernel(managed_repo_id) do
+          {:ok, _kernel_name} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      _status ->
+        :ok
+    end
   end
 
   defp ensure_repo_pod_runtime(managed_repo_id) do

@@ -1904,9 +1904,10 @@ defmodule JidoCode.AgentWorkspace do
          outcome
        ) do
     context_budget =
-      Keyword.get(opts, :context_budget) ||
-        Map.get(tool_context, :context_budget) ||
-        Map.get(tool_context, "context_budget")
+      (Keyword.get(opts, :context_budget) ||
+         Map.get(tool_context, :context_budget) ||
+         Map.get(tool_context, "context_budget"))
+      |> ContextBudget.summary()
 
     record_context_observation(
       managed_repo_id,

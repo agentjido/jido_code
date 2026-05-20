@@ -23,7 +23,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Monitor decisions are recommendations until Phase 91 adds actual summary compaction.
 - Repeated-trim and high-water triggers should be deterministic and debounced.
 
-[ ] 90 Phase 90 - Budget Monitor Runtime Adoption
+[x] 90 Phase 90 - Budget Monitor Runtime Adoption
   Wire context-budget diagnostics into a work-item-scoped `BudgetMonitor` that can recommend compaction without mutating specialist history.
 
   [x] 90.1 Section - Budget Observation Ingestion
@@ -77,19 +77,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 90.3.2.2 Subtask - Add tests proving prompt sentinels do not appear in monitor metadata.
       [x] 90.3.2.3 Subtask - Document monitor diagnostics in developer guides.
 
-  [ ] 90.4 Section - Integration Tests
+  [x] 90.4 Section - Integration Tests
     Prove the monitor recommends compaction deterministically and safely based on structured budget diagnostics.
 
-    [ ] 90.4.1 Task - Add monitor decision coverage
+    [x] 90.4.1 Task - Add monitor decision coverage
       Exercise high-water, repeated-trim, no-op, and blocked recommendation paths.
 
-      [ ] 90.4.1.1 Subtask - Add tests proving repeated history trimming produces one debounced recommendation.
-      [ ] 90.4.1.2 Subtask - Add tests proving required-section overflow is reported as degraded rather than compaction-ready.
-      [ ] 90.4.1.3 Subtask - Add tests proving unresolved tool-call groups block recommendations.
+      [x] 90.4.1.1 Subtask - Add tests proving repeated history trimming produces one debounced recommendation.
+      [x] 90.4.1.2 Subtask - Add tests proving required-section overflow is reported as degraded rather than compaction-ready.
+      [x] 90.4.1.3 Subtask - Add tests proving unresolved tool-call groups block recommendations.
 
-    [ ] 90.4.2 Task - Run monitor verification
+    [x] 90.4.2 Task - Run monitor verification
       Verify monitor integration across runtime, specialist, and conversation metadata paths.
 
-      [ ] 90.4.2.1 Subtask - Run focused context-management monitor tests.
-      [ ] 90.4.2.2 Subtask - Run Phase 88 context-budget observability tests.
-      [ ] 90.4.2.3 Subtask - Run conversation snapshot and AgentWorkspace tests touched by monitor integration.
+      [x] 90.4.2.1 Subtask - Run focused context-management monitor tests.
+      [x] 90.4.2.2 Subtask - Run Phase 88 context-budget observability tests.
+      [x] 90.4.2.3 Subtask - Run conversation snapshot and AgentWorkspace tests touched by monitor integration.

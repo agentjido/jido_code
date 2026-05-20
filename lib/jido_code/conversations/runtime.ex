@@ -781,7 +781,7 @@ defmodule JidoCode.Conversations.Runtime do
              conversation_id: normalize_optional_string(map_get(runtime_spec, :conversation_id)),
              turn_id: normalize_optional_string(map_get(runtime_spec, :turn_id)),
              source: "conversation_runtime",
-             context_budget: request.context_budget,
+             context_budget: ContextBudget.summary(request.context_budget),
              diagnostics: %{
                state: state,
                context_source: context_source_name(request.context_source)

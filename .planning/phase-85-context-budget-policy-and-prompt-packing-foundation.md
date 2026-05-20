@@ -47,22 +47,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 85.1.2.2 Subtask - Let managed-repo or request options override input budget, output reserve, and per-section budget ratios through a validated policy shape.
       [x] 85.1.2.3 Subtask - Keep missing model metadata safe by using conservative defaults and explicit diagnostics instead of disabling the turn.
 
-  [ ] 85.2 Section - Prompt Packing Service Foundation
+  [x] 85.2 Section - Prompt Packing Service Foundation
     Add one bounded service that accepts structured sections and returns packed prompt text plus diagnostics.
 
-    [ ] 85.2.1 Task - Implement size estimation and section packing
+    [x] 85.2.1 Task - Implement size estimation and section packing
       Provide a deterministic budget algorithm that can be used before provider-specific token counting is available.
 
-      [ ] 85.2.1.1 Subtask - Add approximate token and byte estimators with tests documenting the approximation.
-      [ ] 85.2.1.2 Subtask - Pack required sections first, then trim optional sections according to policy order and per-section caps.
-      [ ] 85.2.1.3 Subtask - Return a stable packed structure that keeps section labels, packed text, and diagnostics separate until final rendering.
+      [x] 85.2.1.1 Subtask - Add approximate token and byte estimators with tests documenting the approximation.
+      [x] 85.2.1.2 Subtask - Pack required sections first, then trim optional sections according to policy order and per-section caps.
+      [x] 85.2.1.3 Subtask - Return a stable packed structure that keeps section labels, packed text, and diagnostics separate until final rendering.
 
-    [ ] 85.2.2 Task - Define degradation and overflow behavior
+    [x] 85.2.2 Task - Define degradation and overflow behavior
       Make oversized context recoverable and explainable instead of silently sending an over-large request.
 
-      [ ] 85.2.2.1 Subtask - Preserve current request and repository/work-item scope even when all optional context must be dropped.
-      [ ] 85.2.2.2 Subtask - Emit typed diagnostics when required sections exceed budget and the packer must enter degraded mode.
-      [ ] 85.2.2.3 Subtask - Avoid lossy changes to durable memory, provenance, or conversation records; packing affects only prompt assembly.
+      [x] 85.2.2.1 Subtask - Preserve current request and repository/work-item scope even when all optional context must be dropped.
+      [x] 85.2.2.2 Subtask - Emit typed diagnostics when required sections exceed budget and the packer must enter degraded mode.
+      [x] 85.2.2.3 Subtask - Avoid lossy changes to durable memory, provenance, or conversation records; packing affects only prompt assembly.
 
   [ ] 85.3 Section - Conversation Runtime Prompt Boundary Adoption
     Route the conversation runtime's bounded instruction through the new packer while preserving existing prompt-memory semantics.

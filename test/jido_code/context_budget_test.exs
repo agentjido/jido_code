@@ -89,4 +89,89 @@ defmodule JidoCode.ContextBudgetTest do
       assert tokens > 0
     end
   end
+
+  describe "Phase 85.2 - prompt packing service foundation" do
+    test "preserves required sections while trimming optional context" do
+      policy = ContextBudget.policy(input_token_budget: 80)
+
+      packed =
+        ContextBudget.pack(
+          [
+            ContextBudget.section(:current_request, "Fix the currently failing save path.", retention: :required),
+            ContextBudget.section(
+              :repository_scope,
+              ["managed_repo_id: repo-85", "work_item_id: work-85"],
+              retention: :required
+            ),
+            ContextBudget.section(
+              :prompt_memory,
+              Enum.map(1..40, &("memory #{&1}: " <> String.duplicate("x", 40))),
+              retention: :useful
+            ),
+            ContextBudget.section(
+              :accepted_tool_results,
+              Enum.map(1..20, &("tool result #{&1}: " <> String.duplicate("y", 40))),
+              retention: :useful
+            )
+          ],
+          policy: policy
+        )
+
+      assert packed.text =~ "Current request:"
+      assert packed.text =~ "Fix the currently failing save path."
+      assert packed.text =~ "Repository scope:"
+      assert packed.text =~ "managed_repo_id: repo-85"
+      assert packed.summary.state in ["trimmed", "degraded"]
+
+      prompt_memory = Enum.find(packed.diagnostics, &(&1.kind == :prompt_memory))
+      accepted_tool_results = Enum.find(packed.diagnostics, &(&1.kind == :accepted_tool_results))
+
+      assert prompt_memory.state in [:trimmed, :dropped]
+      assert accepted_tool_results.state in [:trimmed, :dropped]
+      assert packed.summary.trimmed_section_count >= 1
+      assert packed.summary.dropped_entry_count > 0
+    end
+
+    test "reports degraded diagnostics when required context exceeds the budget" do
+      packed =
+        ContextBudget.pack(
+          [
+            ContextBudget.section(
+              :current_request,
+              "Must remain visible. " <> String.duplicate("required ", 100),
+              retention: :required
+            ),
+            ContextBudget.section(:prompt_memory, ["optional memory"], retention: :optional)
+          ],
+          input_token_budget: 20
+        )
+
+      assert packed.text =~ "Must remain visible."
+      assert packed.summary.state == "degraded"
+      assert packed.summary.degraded? == true
+
+      request_diag = Enum.find(packed.diagnostics, &(&1.kind == :current_request))
+      memory_diag = Enum.find(packed.diagnostics, &(&1.kind == :prompt_memory))
+
+      assert request_diag.state == :degraded
+      assert request_diag.reason == :required_section_exceeds_remaining_budget
+      assert memory_diag.state == :dropped
+      assert memory_diag.reason == :budget_exhausted
+    end
+
+    test "keeps section diagnostics separate from rendered prompt text" do
+      packed =
+        ContextBudget.pack(
+          [
+            ContextBudget.section(:current_request, "Explain the current graph state.", retention: :required),
+            ContextBudget.section(:semantic_context, ["module Example", "function greet/1"], retention: :useful)
+          ],
+          input_token_budget: 120
+        )
+
+      assert packed.text =~ "Semantic context:"
+      refute packed.text =~ "original_approximate_tokens"
+      assert Enum.all?(packed.diagnostics, &Map.has_key?(&1, :original_approximate_tokens))
+    end
+  end
 end

@@ -103,6 +103,22 @@ defmodule JidoCode.ContextBudget do
           tool_output: map(),
           diagnostics: [map()]
         }
+  @type packed_section :: %{
+          kind: section_kind(),
+          label: String.t(),
+          retention: retention_class(),
+          text: String.t(),
+          entries: [String.t()],
+          metadata: map(),
+          diagnostics: map()
+        }
+  @type packed_result :: %{
+          text: String.t(),
+          sections: [packed_section()],
+          diagnostics: [map()],
+          summary: map(),
+          policy: policy()
+        }
 
   @doc "Returns the canonical prompt section kinds understood by the budget layer."
   @spec section_kinds() :: [section_kind()]
@@ -201,6 +217,51 @@ defmodule JidoCode.ContextBudget do
     }
   end
 
+  @doc """
+  Packs structured prompt sections according to the resolved context budget.
+
+  Required sections are preserved first. Remaining sections are packed by
+  retention class and section order, with per-section ratios limiting how much
+  any optional context source can consume.
+  """
+  @spec pack([section() | map()], keyword() | map()) :: packed_result()
+  def pack(sections, opts \\ []) when is_list(sections) do
+    opts = normalize_opts(opts)
+    policy = normalize_policy(Map.get(opts, :policy), opts)
+    initial_budget = positive_integer(Map.get(opts, :input_token_budget), policy.input_token_budget)
+
+    sections =
+      sections
+      |> Enum.map(&normalize_section/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.sort_by(&section_sort_key(&1, policy))
+
+    {packed_sections, remaining_budget} =
+      Enum.reduce(sections, {[], initial_budget}, fn section, {acc, remaining} ->
+        {packed_section, spent} = pack_section(section, remaining, policy)
+        {[packed_section | acc], remaining - spent}
+      end)
+
+    packed_sections = Enum.reverse(packed_sections)
+    diagnostics = Enum.map(packed_sections, & &1.diagnostics)
+    text = render_sections(packed_sections)
+    summary = pack_summary(policy, diagnostics, text, initial_budget, remaining_budget)
+
+    %{
+      text: text,
+      sections: packed_sections,
+      diagnostics: diagnostics,
+      summary: summary,
+      policy: policy
+    }
+  end
+
+  @doc "Renders a packed result or packed sections to prompt text."
+  @spec render(packed_result() | [packed_section()] | nil) :: String.t()
+  def render(%{text: text}) when is_binary(text), do: text
+  def render(sections) when is_list(sections), do: render_sections(sections)
+  def render(_other), do: ""
+
   @doc "Builds a compact public summary from a policy or packed result."
   @spec summary(map() | nil) :: map() | nil
   def summary(nil), do: nil
@@ -221,6 +282,225 @@ defmodule JidoCode.ContextBudget do
 
   def summary(%{} = map), do: stringify_keys(map)
   def summary(_other), do: nil
+
+  defp normalize_policy(%{input_token_budget: _input_token_budget} = policy, _opts), do: policy
+  defp normalize_policy(_policy, opts), do: policy(opts)
+
+  defp normalize_section(%{kind: kind, text: text} = section) when is_atom(kind) do
+    entries =
+      section
+      |> Map.get(:entries, normalize_entries(text))
+      |> normalize_entries()
+
+    %{
+      kind: kind,
+      label: normalize_optional_string(Map.get(section, :label)) || humanize_kind(kind),
+      retention: retention_class(Map.get(section, :retention, default_retention(kind))),
+      text: Enum.join(entries, "\n"),
+      entries: entries,
+      metadata: normalize_map(Map.get(section, :metadata, %{}))
+    }
+  end
+
+  defp normalize_section(%{"kind" => kind} = section) do
+    kind = normalize_kind(kind)
+
+    if kind do
+      normalize_section(%{
+        kind: kind,
+        label: Map.get(section, "label"),
+        retention: Map.get(section, "retention"),
+        text: Map.get(section, "text"),
+        entries: Map.get(section, "entries"),
+        metadata: Map.get(section, "metadata", %{})
+      })
+    end
+  end
+
+  defp normalize_section(_section), do: nil
+
+  defp section_sort_key(section, policy) do
+    {retention_rank(section.retention), order_index(policy.section_order, section.kind)}
+  end
+
+  defp retention_rank(:required), do: 0
+  defp retention_rank(:important), do: 1
+  defp retention_rank(:useful), do: 2
+  defp retention_rank(:optional), do: 3
+  defp retention_rank(_retention), do: 4
+
+  defp order_index(order, kind) do
+    Enum.find_index(order, &(&1 == kind)) || length(order)
+  end
+
+  defp pack_section(%{retention: :required} = section, remaining_budget, _policy) do
+    original = estimate(section.text)
+
+    diagnostics =
+      section_diagnostics(section, original, original, 0,
+        state: if(original.approximate_tokens > max(remaining_budget, 0), do: :degraded, else: :packed),
+        reason:
+          if(original.approximate_tokens > max(remaining_budget, 0),
+            do: :required_section_exceeds_remaining_budget,
+            else: nil
+          )
+      )
+
+    {Map.put(section, :diagnostics, diagnostics), original.approximate_tokens}
+  end
+
+  defp pack_section(section, remaining_budget, policy) do
+    original = estimate(section.text)
+    section_budget = section_budget(section, remaining_budget, policy)
+
+    cond do
+      section.entries == [] ->
+        {Map.put(section, :diagnostics, section_diagnostics(section, original, original, 0, state: :empty)), 0}
+
+      section_budget <= 0 ->
+        diagnostics =
+          section_diagnostics(section, original, %{bytes: 0, approximate_tokens: 0}, length(section.entries),
+            state: :dropped,
+            reason: :budget_exhausted
+          )
+
+        {section |> Map.put(:text, "") |> Map.put(:entries, []) |> Map.put(:diagnostics, diagnostics), 0}
+
+      true ->
+        {packed_entries, dropped_entries, reason} = pack_entries(section.entries, section_budget)
+        packed_text = Enum.join(packed_entries, "\n")
+        packed = estimate(packed_text)
+
+        diagnostics =
+          section_diagnostics(section, original, packed, dropped_entries,
+            state: section_state(original, packed, dropped_entries),
+            reason: reason
+          )
+
+        {section
+         |> Map.put(:text, packed_text)
+         |> Map.put(:entries, packed_entries)
+         |> Map.put(:diagnostics, diagnostics), packed.approximate_tokens}
+    end
+  end
+
+  defp section_budget(section, remaining_budget, policy) do
+    ratio = Map.get(policy.section_ratios, section.kind, 1.0)
+    ratio_budget = ceil(policy.input_token_budget * ratio)
+
+    remaining_budget
+    |> max(0)
+    |> min(ratio_budget)
+  end
+
+  defp pack_entries(entries, token_budget) do
+    Enum.reduce_while(entries, {[], token_budget, 0, nil}, fn entry, {packed, remaining, dropped, reason} ->
+      entry_estimate = estimate(entry)
+
+      cond do
+        entry_estimate.approximate_tokens <= remaining ->
+          {:cont, {[entry | packed], remaining - entry_estimate.approximate_tokens, dropped, reason}}
+
+        packed == [] and remaining > 0 ->
+          truncated = trim_to_token_budget(entry, remaining)
+
+          {:halt,
+           {
+             [truncated | packed],
+             0,
+             dropped + length(entries) - 1,
+             :section_entry_truncated
+           }}
+
+        true ->
+          {:halt, {packed, remaining, dropped + 1 + trailing_count(entries, entry), reason || :section_budget_exceeded}}
+      end
+    end)
+    |> case do
+      {packed, _remaining, dropped, reason} ->
+        {Enum.reverse(packed), dropped, reason}
+    end
+  end
+
+  defp trailing_count(entries, entry) do
+    case Enum.find_index(entries, &(&1 == entry)) do
+      nil -> 0
+      index -> max(length(entries) - index - 1, 0)
+    end
+  end
+
+  defp trim_to_token_budget(text, token_budget) when token_budget > 0 do
+    max_chars = max(token_budget * @approx_bytes_per_token, 1)
+
+    if String.length(text) > max_chars do
+      String.slice(text, 0, max_chars) <> "\n... (context section truncated)"
+    else
+      text
+    end
+  end
+
+  defp trim_to_token_budget(_text, _token_budget), do: ""
+
+  defp section_state(_original, %{approximate_tokens: 0}, dropped_entries) when dropped_entries > 0, do: :dropped
+
+  defp section_state(original, packed, dropped_entries)
+       when dropped_entries > 0 or original.approximate_tokens > packed.approximate_tokens,
+       do: :trimmed
+
+  defp section_state(_original, _packed, _dropped_entries), do: :packed
+
+  defp section_diagnostics(section, original, packed, dropped_entries, opts) do
+    opts = normalize_opts(opts)
+
+    %{
+      kind: section.kind,
+      label: section.label,
+      retention: section.retention,
+      state: Map.get(opts, :state, :packed),
+      original_bytes: original.bytes,
+      original_approximate_tokens: original.approximate_tokens,
+      packed_bytes: packed.bytes,
+      packed_approximate_tokens: packed.approximate_tokens,
+      original_entries: length(section.entries),
+      packed_entries: max(length(section.entries) - dropped_entries, 0),
+      dropped_entries: dropped_entries,
+      reason: Map.get(opts, :reason)
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  defp pack_summary(policy, diagnostics, text, initial_budget, remaining_budget) do
+    estimated = estimate(text)
+    trimmed_count = Enum.count(diagnostics, &(Map.get(&1, :state) in [:trimmed, :dropped]))
+    degraded? = Enum.any?(diagnostics, &(Map.get(&1, :state) == :degraded))
+
+    %{
+      policy_id: policy.id,
+      state: pack_state(degraded?, trimmed_count),
+      model_budget: initial_budget,
+      estimated_input_tokens: estimated.approximate_tokens,
+      estimated_input_bytes: estimated.bytes,
+      remaining_budget: remaining_budget,
+      section_count: length(diagnostics),
+      trimmed_section_count: trimmed_count,
+      dropped_entry_count: Enum.reduce(diagnostics, 0, &(&2 + Map.get(&1, :dropped_entries, 0))),
+      degraded?: degraded?,
+      diagnostics: diagnostics
+    }
+  end
+
+  defp pack_state(true, _trimmed_count), do: "degraded"
+  defp pack_state(false, trimmed_count) when trimmed_count > 0, do: "trimmed"
+  defp pack_state(false, _trimmed_count), do: "packed"
+
+  defp render_sections(sections) do
+    sections
+    |> Enum.reject(&(normalize_optional_string(Map.get(&1, :text)) == nil))
+    |> Enum.map_join("\n\n", fn section ->
+      "#{section.label}:\n#{section.text}"
+    end)
+  end
 
   defp model_defaults(provider, model) when is_binary(provider) and is_binary(model) do
     key = {String.downcase(provider), String.downcase(model)}

@@ -94,6 +94,7 @@ defmodule JidoCode.ContextManagement do
   @type budget_observation :: %BudgetObservation{}
   @type recommendation :: %Recommendation{}
   @type compaction_summary :: %CompactionSummary{}
+  @type compaction_candidate :: map()
 
   @doc "Returns the stable context-management pod id for a work item."
   @spec pod_id(String.t()) :: String.t()
@@ -422,6 +423,70 @@ defmodule JidoCode.ContextManagement do
   end
 
   def active_summaries(_metadata, _opts), do: []
+
+  @doc """
+  Builds a protocol-safe compaction candidate from older specialist messages.
+
+  The latest non-system group is treated as active and excluded. Assistant
+  tool-call messages must stay paired with following tool-result messages; an
+  unresolved tool-call group is rejected as ineligible.
+  """
+  @spec compaction_candidate([map()], map() | keyword(), keyword() | map()) ::
+          {:ok, compaction_candidate()} | {:error, term()}
+  def compaction_candidate(messages, attrs, opts \\ [])
+
+  def compaction_candidate(messages, attrs, opts) when is_list(messages) do
+    policy = policy(opts)
+    attrs = normalize_opts(attrs)
+    body_messages = Enum.reject(messages, &(message_role(&1) == :system))
+    groups = message_groups(body_messages)
+
+    cond do
+      Enum.any?(groups, &unresolved_message_tool_group?/1) ->
+        {:ok, ineligible_candidate(attrs, policy, :unresolved_tool_call_group)}
+
+      length(groups) <= 1 ->
+        {:ok, ineligible_candidate(attrs, policy, :no_eligible_history)}
+
+      true ->
+        eligible_groups = Enum.drop(groups, -1)
+        source_span_ids = Enum.map(eligible_groups, &group_span_id/1)
+        source_text = render_candidate_source(eligible_groups)
+        estimate = ContextBudget.estimate(source_text)
+
+        if estimate.approximate_tokens > policy.max_candidate_tokens do
+          {:ok,
+           attrs
+           |> ineligible_candidate(policy, :candidate_exceeds_policy)
+           |> Map.put(:source_span_ids, source_span_ids)
+           |> Map.put(:original_estimate, estimate)}
+        else
+          {:ok,
+           %{
+             eligible?: true,
+             workflow: normalize_optional_string(Map.get(attrs, :workflow)),
+             specialist_role: normalize_optional_string(Map.get(attrs, :specialist_role)),
+             managed_repo_id: normalize_optional_string(Map.get(attrs, :managed_repo_id)),
+             work_item_id: normalize_optional_string(Map.get(attrs, :work_item_id)),
+             conversation_id: normalize_optional_string(Map.get(attrs, :conversation_id)),
+             turn_id: normalize_optional_string(Map.get(attrs, :turn_id)),
+             policy_id: policy.id,
+             source_span_ids: source_span_ids,
+             source_text: source_text,
+             original_estimate: estimate,
+             diagnostics: %{
+               kind: :compaction_candidate,
+               state: :eligible,
+               original_message_count: length(messages),
+               eligible_group_count: length(eligible_groups),
+               excluded_active_group_count: 1
+             }
+           }}
+        end
+    end
+  end
+
+  def compaction_candidate(_messages, _attrs, _opts), do: {:error, :invalid_compaction_candidate}
 
   @doc "Converts a struct or map to metadata-safe public data."
   @spec public_payload(map() | struct() | nil) :: map() | nil
@@ -817,6 +882,103 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp normalize_sort_datetime(_value), do: DateTime.from_unix!(0)
+
+  defp ineligible_candidate(attrs, policy, reason) do
+    %{
+      eligible?: false,
+      workflow: normalize_optional_string(Map.get(attrs, :workflow)),
+      specialist_role: normalize_optional_string(Map.get(attrs, :specialist_role)),
+      managed_repo_id: normalize_optional_string(Map.get(attrs, :managed_repo_id)),
+      work_item_id: normalize_optional_string(Map.get(attrs, :work_item_id)),
+      conversation_id: normalize_optional_string(Map.get(attrs, :conversation_id)),
+      turn_id: normalize_optional_string(Map.get(attrs, :turn_id)),
+      policy_id: policy.id,
+      source_span_ids: [],
+      source_text: "",
+      original_estimate: %{bytes: 0, approximate_tokens: 0},
+      diagnostics: %{kind: :compaction_candidate, state: :blocked, reason: reason}
+    }
+  end
+
+  defp message_groups(messages) do
+    messages
+    |> Enum.with_index()
+    |> Enum.reduce([], fn {message, index}, groups ->
+      indexed_message = Map.put(message, :__context_index__, index)
+
+      if message_role(indexed_message) == :tool and groups != [] and assistant_tool_group?(List.last(groups)) do
+        List.update_at(groups, -1, &(&1 ++ [indexed_message]))
+      else
+        groups ++ [[indexed_message]]
+      end
+    end)
+  end
+
+  defp assistant_tool_group?([]), do: false
+
+  defp assistant_tool_group?(group) when is_list(group) do
+    group
+    |> List.first()
+    |> assistant_tool_message?()
+  end
+
+  defp assistant_tool_message?(message) do
+    message_role(message) == :assistant and message_tool_calls(message) != []
+  end
+
+  defp unresolved_message_tool_group?(group) do
+    assistant_tool_group?(group) and not Enum.any?(group, &(message_role(&1) == :tool))
+  end
+
+  defp group_span_id(group) do
+    group
+    |> Enum.map(fn message ->
+      normalize_optional_string(Map.get(message, :id, Map.get(message, "id"))) ||
+        "message-#{Map.fetch!(message, :__context_index__)}"
+    end)
+    |> Enum.join("..")
+  end
+
+  defp render_candidate_source(groups) do
+    groups
+    |> List.flatten()
+    |> Enum.map_join("\n", fn message ->
+      role = message_role(message)
+      content = normalize_optional_string(Map.get(message, :content, Map.get(message, "content"))) || ""
+      "#{role}: #{content}"
+    end)
+  end
+
+  defp message_role(%{} = message) do
+    message
+    |> Map.get(:role, Map.get(message, "role"))
+    |> normalize_role()
+  end
+
+  defp message_role(_message), do: :unknown
+
+  defp normalize_role(role) when is_atom(role), do: role
+
+  defp normalize_role(role) when is_binary(role) do
+    role
+    |> String.downcase()
+    |> String.to_existing_atom()
+  rescue
+    ArgumentError -> :unknown
+  end
+
+  defp normalize_role(_role), do: :unknown
+
+  defp message_tool_calls(%{} = message) do
+    message
+    |> Map.get(:tool_calls, Map.get(message, "tool_calls", []))
+    |> case do
+      calls when is_list(calls) -> calls
+      _other -> []
+    end
+  end
+
+  defp message_tool_calls(_message), do: []
 
   defp normalize_optional_string(nil), do: nil
 

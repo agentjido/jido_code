@@ -28,22 +28,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 91 Phase 91 - Context Compactor Summary Lifecycle
   Add the bounded compaction flow that turns eligible older specialist history into reusable summaries and injects those summaries into later prompts.
 
-  [ ] 91.1 Section - Compaction Candidate Selection
+  [x] 91.1 Section - Compaction Candidate Selection
     Build deterministic candidate extraction before invoking any AI-backed compactor.
 
-    [ ] 91.1.1 Task - Select protocol-safe spans
+    [x] 91.1.1 Task - Select protocol-safe spans
       Identify older specialist history that can be summarized without breaking ReAct tool-call semantics.
 
-      [ ] 91.1.1.1 Subtask - Group assistant tool-call messages with their following tool-result messages.
-      [ ] 91.1.1.2 Subtask - Exclude current request, system messages, pending clarification, and unresolved tool-call groups.
-      [ ] 91.1.1.3 Subtask - Produce source span identifiers, estimates, and eligibility diagnostics.
+      [x] 91.1.1.1 Subtask - Group assistant tool-call messages with their following tool-result messages.
+      [x] 91.1.1.2 Subtask - Exclude current request, system messages, pending clarification, and unresolved tool-call groups.
+      [x] 91.1.1.3 Subtask - Produce source span identifiers, estimates, and eligibility diagnostics.
 
-    [ ] 91.1.2 Task - Define compaction request shape
+    [x] 91.1.2 Task - Define compaction request shape
       Pass only bounded, eligible context into the compactor with enough metadata to produce traceable summaries.
 
-      [ ] 91.1.2.1 Subtask - Include workflow, specialist role, work item id, conversation id, and policy id.
-      [ ] 91.1.2.2 Subtask - Include bounded source text or a deterministic fixture representation for AI compaction.
-      [ ] 91.1.2.3 Subtask - Reject candidates that exceed compactor input limits before invoking the model.
+      [x] 91.1.2.1 Subtask - Include workflow, specialist role, work item id, conversation id, and policy id.
+      [x] 91.1.2.2 Subtask - Include bounded source text or a deterministic fixture representation for AI compaction.
+      [x] 91.1.2.3 Subtask - Reject candidates that exceed compactor input limits before invoking the model.
 
   [ ] 91.2 Section - ContextCompactor Agent And Summary Validation
     Implement the compactor as a bounded AI-backed specialist with strict output validation.

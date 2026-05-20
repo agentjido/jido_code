@@ -198,6 +198,50 @@ defmodule JidoCode.ContextManagementTest do
     assert unresolved_tool_group.latest_monitor_decision["reason"] == "unresolved_tool_call_group"
   end
 
+  test "compaction candidate selection preserves assistant tool-result groups and excludes active tail" do
+    messages = [
+      %{id: "system-1", role: "system", content: "system prompt"},
+      %{id: "user-1", role: "user", content: "older request"},
+      %{id: "assistant-1", role: "assistant", content: "calling tool", tool_calls: [%{id: "tool-1"}]},
+      %{id: "tool-1", role: "tool", content: "bounded tool result"},
+      %{id: "user-2", role: "user", content: "active request"}
+    ]
+
+    assert {:ok, candidate} =
+             ContextManagement.compaction_candidate(messages, %{
+               managed_repo_id: "repo-91",
+               work_item_id: "work-91",
+               workflow: :execute,
+               specialist_role: :coder
+             })
+
+    assert candidate.eligible?
+    assert candidate.source_span_ids == ["user-1", "assistant-1..tool-1"]
+    assert candidate.source_text =~ "user: older request"
+    assert candidate.source_text =~ "assistant: calling tool"
+    assert candidate.source_text =~ "tool: bounded tool result"
+    refute candidate.source_text =~ "active request"
+  end
+
+  test "compaction candidate selection blocks unresolved tool groups" do
+    messages = [
+      %{id: "user-1", role: "user", content: "older request"},
+      %{id: "assistant-1", role: "assistant", content: "calling tool", tool_calls: [%{id: "tool-1"}]},
+      %{id: "user-2", role: "user", content: "active request"}
+    ]
+
+    assert {:ok, candidate} =
+             ContextManagement.compaction_candidate(messages, %{
+               managed_repo_id: "repo-91",
+               work_item_id: "work-91",
+               workflow: :execute,
+               specialist_role: :coder
+             })
+
+    refute candidate.eligible?
+    assert candidate.diagnostics.reason == :unresolved_tool_call_group
+  end
+
   defp trimmed_budget do
     %{
       "policy_id" => "context-budget:v1",

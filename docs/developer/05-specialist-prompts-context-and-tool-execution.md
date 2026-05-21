@@ -178,6 +178,29 @@ The actual LLM request is built from:
 - the specialist's configured tool registry
 - request-scoped `llm_opts`
 
+## Context Management Monitoring
+
+Each work-item `CodingPod` owns a work-item-scoped `ContextManagementPod`.
+The monitor records metadata-only budget observations from specialist runs and
+work-item conversation runtime turns. Those observations include policy ids,
+section states, token estimates, workflow, specialist role, and conversation or
+turn ids when available.
+
+The monitor never stores raw prompt bodies or raw tool output. If context
+management is disabled or unavailable, specialist execution continues through
+the same request-time `ContextBudget` packing and ReAct request transformer.
+Monitor state is surfaced as `context_management` metadata beside existing
+`context_budget` diagnostics.
+
+When compaction is accepted, `AgentWorkspace` may inject active summaries as a
+typed `compaction_summary` prompt section. That section is useful context, not
+required context, so the same `ContextBudget` packer can trim or drop it. The
+original conversation events and workflow provenance remain append-only
+recovery records; compaction summaries are not durable repository memory.
+
+If compaction fails, the context-management pod records retryable remediation
+metadata and the active specialist turn continues with request-time packing.
+
 ## What The Model Sees Directly vs Indirectly
 
 ### Directly

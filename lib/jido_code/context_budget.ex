@@ -33,6 +33,7 @@ defmodule JidoCode.ContextBudget do
     :tool_output,
     :clarification_context,
     :workflow,
+    :compaction_summary,
     :guidance
   ]
 
@@ -44,6 +45,7 @@ defmodule JidoCode.ContextBudget do
     :repository_scope,
     :workflow,
     :clarification_context,
+    :compaction_summary,
     :referenced_files,
     :accepted_tool_results,
     :prompt_memory,
@@ -60,6 +62,7 @@ defmodule JidoCode.ContextBudget do
     repository_scope: 0.08,
     workflow: 0.04,
     clarification_context: 0.08,
+    compaction_summary: 0.10,
     referenced_files: 0.08,
     accepted_tool_results: 0.12,
     prompt_memory: 0.10,

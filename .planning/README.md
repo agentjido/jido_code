@@ -193,7 +193,10 @@ to the Phase 85 through 88 request-time budget work. They specify a
 CodingPod-owned `ContextManagementPod` with a `BudgetMonitor`,
 `ContextCompactor`, and deterministic summary store so older specialist history
 can be compacted into bounded prompt context while request-time
-`ContextBudget` packing remains the mandatory hard guard.
+`ContextBudget` packing remains the mandatory hard guard. The rollout keeps
+monitor observations and compaction lifecycle evidence metadata-only, injects
+accepted summaries as trim/drop eligible prompt sections, and documents focused
+context-management verification beside the existing context-budget gates.
 
 Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery

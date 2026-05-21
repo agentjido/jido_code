@@ -66,7 +66,8 @@ defmodule JidoCode.Conversations.Runtime do
       _ = LongTermProvenance.capture_turn_started(runtime_spec, request, readiness)
       _ = capture_prompt_memory_turn_inputs(runtime_spec, request)
 
-      emit.(runtime_progress_event(request))
+      progress_context_management = record_context_observation(request, runtime_spec, :progress)
+      emit.(runtime_progress_event(request) |> maybe_put_context_management(progress_context_management))
 
       case maybe_request_clarification(request) do
         {:awaiting_input, payload} ->
@@ -87,13 +88,18 @@ defmodule JidoCode.Conversations.Runtime do
               _ = LongTermProvenance.capture_turn_completed(runtime_spec, request, readiness, summary)
               _ = capture_prompt_memory_turn_completed(runtime_spec, request, summary)
 
-              emit.(%{
-                "kind" => "delta",
-                "text" => summary,
-                "workflow" => Atom.to_string(request.workflow),
-                "context_source" => context_source_name(request.context_source),
-                "context_budget" => ContextBudget.summary(request.context_budget)
-              })
+              completed_context_management = record_context_observation(request, runtime_spec, :completed)
+
+              emit.(
+                %{
+                  "kind" => "delta",
+                  "text" => summary,
+                  "workflow" => Atom.to_string(request.workflow),
+                  "context_source" => context_source_name(request.context_source),
+                  "context_budget" => ContextBudget.summary(request.context_budget)
+                }
+                |> maybe_put_context_management(completed_context_management)
+              )
 
               {:completed,
                %{
@@ -105,6 +111,7 @@ defmodule JidoCode.Conversations.Runtime do
                    "instruction" => request.user_instruction,
                    "llm_selection" => llm_selection_payload(request.llm_selection),
                    "context_budget" => ContextBudget.summary(request.context_budget),
+                   "context_management" => completed_context_management,
                    "prompt_memory" => prompt_memory_event(request.prompt_memory)
                  }
                }}
@@ -761,6 +768,36 @@ defmodule JidoCode.Conversations.Runtime do
       }
     end
   end
+
+  defp record_context_observation(%{work_item_id: nil}, _runtime_spec, _state), do: :ok
+
+  defp record_context_observation(request, runtime_spec, state) do
+    case AgentWorkspace.record_context_observation(
+           request.managed_repo_id,
+           request.work_item_id,
+           %{
+             workflow: request.workflow,
+             specialist_role: request.workflow,
+             conversation_id: normalize_optional_string(map_get(runtime_spec, :conversation_id)),
+             turn_id: normalize_optional_string(map_get(runtime_spec, :turn_id)),
+             source: "conversation_runtime",
+             context_budget: ContextBudget.summary(request.context_budget),
+             diagnostics: %{
+               state: state,
+               context_source: context_source_name(request.context_source)
+             }
+           }
+         ) do
+      {:ok, summary} -> summary
+      {:error, reason} -> %{"state" => "degraded", "diagnostics" => [%{"reason" => inspect(reason)}]}
+    end
+  end
+
+  defp maybe_put_context_management(event, %{} = context_management) do
+    Map.put(event, "context_management", context_management)
+  end
+
+  defp maybe_put_context_management(event, _context_management), do: event
 
   defp runtime_context_budget_opts(runtime_spec, shared_context) do
     conversation_budget =

@@ -60,7 +60,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
-  alias JidoCode.Pods.{CodingPod, RepoPod}
+  alias JidoCode.Pods.{CodingPod, ContextManagementPod, RepoPod}
 
   alias JidoCode.Actions.{
     AnalyzeSourceCodeGraph,
@@ -83,7 +83,7 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
   alias JidoCode.AgentWorkspace.PromptProjection
   alias JidoCode.Pods.{MemoryGraphPod, SourceCodeGraphPod}
-  alias JidoCode.{ContextBudget, MemoryGraph, SourceCodeGraph}
+  alias JidoCode.{ContextBudget, ContextManagement, MemoryGraph, SourceCodeGraph}
   alias Jido.AgentOS.ManagerSupervisor
   alias Jido.AgentOS.Naming
   alias Jido.AgentOS.Persistence
@@ -189,12 +189,20 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t()) :: {:ok, pod_name()} | {:error, term()}
   def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path) do
+    ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, [])
+  end
+
+  @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, pod_name()} | {:error, term()}
+  def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts) when is_list(opts) do
     with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          :ok <- admit_work_item(managed_repo_id, work_item_id),
          {:ok, resolved_workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, workspace_path),
          {:ok, _pod_entry, _pod_pid} <-
-           ensure_runtime_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path) do
+           ensure_runtime_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path),
+         {:ok, _context_management} <-
+           ensure_context_management_pod(managed_repo_id, work_item_id, resolved_workspace_path, opts) do
       {:ok, pod_name(work_item_id)}
     end
   end
@@ -210,8 +218,165 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec complete_work(managed_repo_id(), work_item_id()) :: :ok
   def complete_work(managed_repo_id, work_item_id) do
-    pod_id = coding_pod_id(work_item_id)
+    :ok = complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
+    :ok = complete_runtime_pod(managed_repo_id, coding_pod_id(work_item_id))
+  end
 
+  @doc """
+  Returns the stable context-management pod id for a WorkItem.
+  """
+  @spec context_management_pod_id(work_item_id()) :: String.t()
+  def context_management_pod_id(work_item_id), do: ContextManagement.pod_id(work_item_id)
+
+  @doc """
+  Ensures the work-item-scoped context-management pod is running when enabled.
+
+  Disabled context management returns a metadata-only skipped status. The
+  request-time `ContextBudget` path remains independent and still protects
+  provider requests.
+  """
+  @spec ensure_context_management_pod(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
+    context_opts = context_management_opts(opts)
+
+    with :ok <- ensure_kernel_available(managed_repo_id),
+         {:ok, resolved_workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) do
+      if ContextManagement.enabled?(context_opts) do
+        with {:ok, pod_entry, _pod_pid} <-
+               ensure_runtime_context_management_pod(
+                 managed_repo_id,
+                 work_item_id,
+                 resolved_workspace_path,
+                 context_opts
+               ) do
+          {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+        end
+      else
+        {:ok, ContextManagement.status_summary(ContextManagement.disabled_metadata())}
+      end
+    end
+  end
+
+  @doc """
+  Returns context-management state for a work item without exposing pod internals.
+  """
+  @spec context_management_status(managed_repo_id(), work_item_id()) :: map()
+  def context_management_status(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    managed_repo_id
+    |> Manager.pod_status(ContextManagement.pod_id(work_item_id))
+    |> case do
+      %{metadata: metadata} -> ContextManagement.status_summary(metadata)
+      _other -> ContextManagement.status_summary(nil)
+    end
+  end
+
+  @doc """
+  Stops a context-management pod for a work item, if present.
+  """
+  @spec shutdown_context_management_pod(managed_repo_id(), work_item_id()) :: :ok
+  def shutdown_context_management_pod(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
+  end
+
+  @doc """
+  Stores a validated compaction summary for a work item.
+  """
+  @spec store_context_compaction_summary(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def store_context_compaction_summary(managed_repo_id, work_item_id, summary_attrs, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(summary_attrs) and is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    with %{metadata: metadata} <- Manager.pod_status(managed_repo_id, pod_id),
+         {:ok, updated_metadata} <-
+           ContextManagement.add_summary(
+             metadata,
+             Map.merge(summary_attrs, %{
+               managed_repo_id: managed_repo_id,
+               work_item_id: work_item_id
+             }),
+             context_management_opts(opts)
+           ),
+         {:ok, pod_entry} <- Manager.update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
+      {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+    else
+      nil -> {:error, :context_management_pod_not_started}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Runs bounded compaction for an eligible candidate and stores the accepted summary.
+  """
+  @spec compact_context(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def compact_context(managed_repo_id, work_item_id, candidate, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(candidate) and is_list(opts) do
+    case ContextManagement.compact_candidate(candidate, context_management_opts(opts)) do
+      {:ok, summary} ->
+        store_context_compaction_summary(managed_repo_id, work_item_id, Map.from_struct(summary), opts)
+
+      {:error, reason} = error ->
+        _ = persist_context_compaction_failure(managed_repo_id, work_item_id, reason, candidate, opts)
+        error
+    end
+  end
+
+  @doc """
+  Returns bounded active compaction summaries for prompt assembly.
+  """
+  @spec context_compaction_summaries(managed_repo_id(), work_item_id(), keyword()) :: [map()]
+  def context_compaction_summaries(managed_repo_id, work_item_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
+    case Manager.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id)) do
+      %{metadata: metadata} ->
+        ContextManagement.active_summaries(metadata, context_management_summary_opts(opts))
+
+      _other ->
+        []
+    end
+  end
+
+  @doc """
+  Records a metadata-only context-budget observation for a work item.
+
+  Missing or disabled context management degrades to an unavailable summary and
+  never blocks active specialist or conversation work.
+  """
+  @spec record_context_observation(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def record_context_observation(managed_repo_id, work_item_id, observation_attrs, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(observation_attrs) and is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: %{context_management_status: :disabled}} ->
+        {:ok, ContextManagement.status_summary(ContextManagement.disabled_metadata())}
+
+      %{metadata: metadata} ->
+        observation_attrs =
+          Map.merge(observation_attrs, %{
+            managed_repo_id: managed_repo_id,
+            work_item_id: work_item_id
+          })
+
+        with {:ok, updated_metadata} <-
+               ContextManagement.add_observation(metadata, observation_attrs, context_management_opts(opts)),
+             {:ok, pod_entry} <- Manager.update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
+          {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+        end
+
+      _other ->
+        {:ok, ContextManagement.status_summary(nil)}
+    end
+  end
+
+  defp complete_runtime_pod(managed_repo_id, pod_id) do
     case Manager.pod_status(managed_repo_id, pod_id) do
       nil ->
         :ok
@@ -227,6 +392,25 @@ defmodule JidoCode.AgentWorkspace do
             latest_failure: nil
           })
 
+        :ok
+    end
+  end
+
+  defp persist_context_compaction_failure(managed_repo_id, work_item_id, reason, candidate, opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: metadata} ->
+        Manager.update_pod_metadata(
+          managed_repo_id,
+          pod_id,
+          Map.merge(
+            metadata,
+            ContextManagement.compaction_failure_metadata(reason, candidate, context_management_opts(opts))
+          )
+        )
+
+      _other ->
         :ok
     end
   end
@@ -399,7 +583,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -411,6 +595,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
          {:ok, memory_context} <- workflow_memory_context(:plan, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :plan, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:plan, instruction, semantic_context, memory_context, opts),
          {:ok, planner_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :planner),
          {:ok, response} <-
@@ -434,6 +619,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -467,7 +653,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -479,6 +665,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :execute, opts),
          {:ok, memory_context} <- workflow_memory_context(:execute, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :execute, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:execute, instruction, semantic_context, memory_context, opts),
          {:ok, coder_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :coder),
          {:ok, response} <-
@@ -502,6 +689,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -535,7 +723,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -547,6 +735,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
          {:ok, memory_context} <- workflow_memory_context(:review, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :review, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:review, instruction, semantic_context, memory_context, opts),
          {:ok, reviewer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :reviewer),
          {:ok, response} <-
@@ -570,6 +759,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -603,7 +793,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -615,6 +805,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :refactor, opts),
          {:ok, memory_context} <- workflow_memory_context(:refactor, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :refactor, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:refactor, instruction, semantic_context, memory_context, opts),
          {:ok, refactorer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :refactorer),
          {:ok, response} <-
@@ -638,6 +829,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -662,7 +854,7 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
              managed_repo_id,
@@ -674,6 +866,7 @@ defmodule JidoCode.AgentWorkspace do
            ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
          {:ok, memory_context} <- workflow_memory_context(:explain, opts),
+         opts <- put_compaction_summaries(managed_repo_id, work_item_id, :explain, opts),
          {:ok, specialist_prompt} <- specialist_prompt(:explain, instruction, semantic_context, memory_context, opts),
          {:ok, explainer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :explainer),
          {:ok, response} <-
@@ -697,6 +890,7 @@ defmodule JidoCode.AgentWorkspace do
         semantic_context: semantic_context,
         memory_context: memory_context,
         context_budget: ContextBudget.summary(specialist_prompt.context_budget),
+        context_management: context_management_status(managed_repo_id, work_item_id),
         workflow_provenance: provenance_summary(provenance_context),
         llm_selection: llm_selection_summary(opts)
       }
@@ -1345,6 +1539,19 @@ defmodule JidoCode.AgentWorkspace do
     )
   end
 
+  defp ensure_kernel_available(managed_repo_id) do
+    case Manager.kernel_status(managed_repo_id) do
+      nil ->
+        case ensure_kernel(managed_repo_id) do
+          {:ok, _kernel_name} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      _status ->
+        :ok
+    end
+  end
+
   defp ensure_repo_pod_runtime(managed_repo_id) do
     ensure_runtime_pod(
       managed_repo_id,
@@ -1383,6 +1590,29 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp ensure_runtime_context_management_pod(managed_repo_id, work_item_id, workspace_path, opts) do
+    policy = ContextManagement.policy(opts)
+
+    ensure_runtime_pod(
+      managed_repo_id,
+      ContextManagement.pod_id(work_item_id),
+      ContextManagementPod,
+      ContextManagement.initial_metadata(
+        managed_repo_id,
+        work_item_id,
+        workspace_path,
+        coding_pod_id(work_item_id),
+        opts
+      ),
+      %{
+        managed_repo_id: managed_repo_id,
+        work_item_id: work_item_id,
+        workspace_path: workspace_path,
+        policy: ContextManagement.public_policy(policy)
+      }
+    )
+  end
+
   defp restore_persisted_runtime_pods(managed_repo_id) do
     managed_repo_id
     |> Manager.list_pods()
@@ -1392,8 +1622,12 @@ defmodule JidoCode.AgentWorkspace do
         %{module: CodingPod, metadata: %{work_item_id: work_item_id, workspace_path: workspace_path} = metadata}
         when is_binary(work_item_id) and is_binary(workspace_path) ->
           if restorable_coding_pod?(metadata) do
-            case ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path) do
-              {:ok, _pod_entry, _pod_pid} -> {:cont, :ok}
+            with {:ok, _pod_entry, _pod_pid} <-
+                   ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path),
+                 {:ok, _context_entry, _context_pid} <-
+                   ensure_runtime_context_management_pod(managed_repo_id, work_item_id, workspace_path, []) do
+              {:cont, :ok}
+            else
               {:error, reason} -> {:halt, {:error, reason}}
             end
           else
@@ -1447,6 +1681,36 @@ defmodule JidoCode.AgentWorkspace do
       limit when is_integer(limit) and limit > 0 -> limit
       _other -> :infinity
     end
+  end
+
+  defp context_management_opts(opts) when is_list(opts) do
+    nested =
+      opts
+      |> Keyword.get(:context_management, [])
+      |> case do
+        context_opts when is_list(context_opts) -> context_opts
+        %{} = context_opts -> Map.to_list(context_opts)
+        _other -> []
+      end
+
+    direct =
+      Keyword.take(opts, [
+        :enabled?,
+        :compaction_enabled?,
+        :high_water_mark,
+        :repeated_trim_threshold,
+        :debounce_window_ms,
+        :max_summary_tokens,
+        :max_candidate_tokens
+      ])
+
+    Keyword.merge(nested, direct)
+  end
+
+  defp context_management_summary_opts(opts) when is_list(opts) do
+    opts
+    |> context_management_opts()
+    |> Keyword.merge(Keyword.take(opts, [:workflow, :specialist_role, :limit]))
   end
 
   defp ensure_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do
@@ -1624,6 +1888,17 @@ defmodule JidoCode.AgentWorkspace do
           opts
         )
 
+      _ =
+        record_specialist_context_observation(
+          managed_repo_id,
+          work_item_id,
+          stage,
+          agent_module,
+          opts,
+          tool_context,
+          :success
+        )
+
       {:ok, response}
     else
       {:error, reason} = error ->
@@ -1645,8 +1920,51 @@ defmodule JidoCode.AgentWorkspace do
             opts
           )
 
+        _ =
+          record_specialist_context_observation(
+            managed_repo_id,
+            work_item_id,
+            stage,
+            agent_module,
+            opts,
+            tool_context,
+            :failed
+          )
+
         error
     end
+  end
+
+  defp record_specialist_context_observation(
+         managed_repo_id,
+         work_item_id,
+         stage,
+         agent_module,
+         opts,
+         tool_context,
+         outcome
+       ) do
+    context_budget =
+      (Keyword.get(opts, :context_budget) ||
+         Map.get(tool_context, :context_budget) ||
+         Map.get(tool_context, "context_budget"))
+      |> ContextBudget.summary()
+
+    record_context_observation(
+      managed_repo_id,
+      work_item_id,
+      %{
+        workflow: stage,
+        specialist_role: agent_module |> agent_name() |> Macro.underscore(),
+        source: "agent_workspace.specialist",
+        context_budget: context_budget,
+        diagnostics: %{
+          outcome: outcome,
+          tool_context_keys: Map.keys(tool_context)
+        }
+      },
+      opts
+    )
   end
 
   defp specialist_stage(Planner), do: :planning
@@ -1885,9 +2203,20 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp put_compaction_summaries(managed_repo_id, work_item_id, workflow, opts) do
+    summaries =
+      context_compaction_summaries(managed_repo_id, work_item_id,
+        workflow: workflow,
+        limit: 6
+      )
+
+    Keyword.put(opts, :compaction_summaries, summaries)
+  end
+
   defp specialist_prompt(workflow, instruction, semantic_context, memory_context, opts) do
     semantic_projection = PromptProjection.semantic(semantic_context)
     memory_projection = PromptProjection.memory(normalize_workflow_memory_context(memory_context))
+    compaction_summaries = Keyword.get(opts, :compaction_summaries, [])
 
     policy =
       opts
@@ -1908,6 +2237,16 @@ defmodule JidoCode.AgentWorkspace do
         metadata: memory_projection.diagnostics
       ),
       ContextBudget.section(
+        :compaction_summary,
+        compaction_summary_lines(compaction_summaries),
+        retention: :useful,
+        metadata: %{
+          kind: :compaction_summary,
+          summary_count: length(compaction_summaries),
+          summary_ids: Enum.map(compaction_summaries, &Map.get(&1, "id"))
+        }
+      ),
+      ContextBudget.section(
         :guidance,
         [
           "- Treat semantic and memory context as bounded prompt projections, not product truth.",
@@ -1924,8 +2263,24 @@ defmodule JidoCode.AgentWorkspace do
        text: packed.text,
        context_budget: packed,
        semantic_projection: semantic_projection,
-       memory_projection: memory_projection
+       memory_projection: memory_projection,
+       compaction_summaries: compaction_summaries
      }}
+  end
+
+  defp compaction_summary_lines([]), do: []
+
+  defp compaction_summary_lines(summaries) when is_list(summaries) do
+    summaries
+    |> Enum.map(fn summary ->
+      summary_text = Map.get(summary, "summary_text", "")
+      summary_id = Map.get(summary, "id", "unknown-summary")
+      workflow = Map.get(summary, "workflow", "unknown-workflow")
+      specialist_role = Map.get(summary, "specialist_role", "unknown-specialist")
+      span_count = summary |> Map.get("source_span_ids", []) |> length()
+
+      "- #{summary_id} (#{workflow}/#{specialist_role}, #{span_count} span(s)): #{summary_text}"
+    end)
   end
 
   defp context_budget_opts(%{} = budget) do
@@ -2102,6 +2457,13 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp maybe_put_context_management_metadata(metadata, managed_repo_id, work_item_id)
+       when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    Map.put(metadata, :context_management, context_management_status(managed_repo_id, work_item_id))
+  end
+
+  defp maybe_put_context_management_metadata(metadata, _managed_repo_id, _work_item_id), do: metadata
+
   defp maybe_put_map_value(map, _key, nil), do: map
   defp maybe_put_map_value(map, key, value), do: Map.put(map, key, value)
 
@@ -2225,6 +2587,7 @@ defmodule JidoCode.AgentWorkspace do
           provenance_metadata(provenance_context)
           |> Map.put(:stage, stage)
           |> maybe_put_context_budget_metadata(opts)
+          |> maybe_put_context_management_metadata(managed_repo_id, provenance_context.work_item_id)
       )
 
     tool_capture =
@@ -2246,6 +2609,7 @@ defmodule JidoCode.AgentWorkspace do
           provenance_metadata(provenance_context)
           |> Map.put(:stage, stage)
           |> maybe_put_context_budget_metadata(opts)
+          |> maybe_put_context_management_metadata(managed_repo_id, provenance_context.work_item_id)
       )
 
     artifact_capture =
@@ -2316,6 +2680,7 @@ defmodule JidoCode.AgentWorkspace do
           |> Map.put(:stage, stage)
           |> Map.put(:failure, inspect(reason))
           |> maybe_put_context_budget_metadata(opts)
+          |> maybe_put_context_management_metadata(managed_repo_id, provenance_context.work_item_id)
       )
 
     capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)

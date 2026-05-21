@@ -32,6 +32,7 @@ defmodule JidoCode.Conversations.Snapshot do
       last_event_sequence: 0,
       event_count: 0,
       events: [],
+      context_compaction_lifecycle: nil,
       shared_context: shared_context_for_conversation(conversation)
     }
   end
@@ -73,6 +74,7 @@ defmodule JidoCode.Conversations.Snapshot do
       last_event_sequence: state.event_sequence,
       event_count: length(state.events),
       events: Enum.map(state.events, &Event.summary/1),
+      context_compaction_lifecycle: context_compaction_lifecycle(state),
       shared_context: shared_context_from_state(state)
     }
   end
@@ -140,6 +142,7 @@ defmodule JidoCode.Conversations.Snapshot do
       child_works: child_works_by_id,
       child_work_order: Enum.map(child_works, & &1.id),
       child_worker_pids: %{},
+      pending_context_compaction: nil,
       event_sequence: max_event_sequence(snapshot, restored_events),
       events: restored_events
     }
@@ -206,20 +209,81 @@ defmodule JidoCode.Conversations.Snapshot do
       state.turn_order
       |> Enum.map(&Map.fetch!(state.turns, &1))
 
+    latest_reset = latest_context_reset(state)
+    prompt_turns = Enum.reject(turns, &reset_covered_turn?(&1, latest_reset))
+
     %{}
     |> Map.put("managed_repo_id", state.conversation.managed_repo_id)
     |> Map.put("work_item_id", state.conversation.work_item_id)
     |> Map.put("scope", Atom.to_string(state.conversation.scope))
     |> Map.put("attachment_mode", Atom.to_string(state.conversation.attachment_mode))
     |> Map.put("work_resolution", WorkResolution.summary(state.conversation))
-    |> Map.put("referenced_files", referenced_files(turns, state))
-    |> Map.put("accepted_tool_results", accepted_tool_results(state))
+    |> Map.put("referenced_files", referenced_files(prompt_turns, state, latest_reset))
+    |> Map.put("accepted_tool_results", accepted_tool_results(state, latest_reset))
     |> maybe_put("intake_handoff", latest_intake_handoff(state.conversation))
-    |> maybe_put("latest_turn_id", latest_turn_id(turns))
-    |> maybe_put("latest_instruction", latest_instruction(turns))
+    |> maybe_put("latest_turn_id", latest_turn_id(prompt_turns))
+    |> maybe_put("latest_instruction", latest_instruction(prompt_turns))
     |> maybe_put("latest_context_budget", latest_context_budget(state))
     |> maybe_put("latest_context_management", latest_context_management(state))
+    |> maybe_put("latest_context_reset", latest_reset)
+    |> maybe_put("active_compaction_summary_ids", active_compaction_summary_ids(latest_reset))
+    |> maybe_put("latest_context_compaction_failure", latest_context_compaction_failure(state))
     |> maybe_put("pending_clarification", pending_clarification(turns, state))
+  end
+
+  defp context_compaction_lifecycle(state) do
+    pending_context_compaction = state |> Map.get(:pending_context_compaction) |> normalize_map()
+    latest_reset = latest_context_reset(state)
+    latest_failure = latest_context_compaction_failure(state)
+
+    cond do
+      pending_context_compaction != %{} ->
+        pending_context_compaction
+        |> Map.take([
+          "recommendation_id",
+          "debounce_key",
+          "workflow",
+          "specialist_role",
+          "policy_id",
+          "turn_id",
+          "child_work_id"
+        ])
+        |> Map.merge(%{
+          "state" => if(context_compaction_unsafe?(state), do: "deferred", else: "pending"),
+          "reason" => Map.get(pending_context_compaction, "reason", "monitor_recommended_compaction")
+        })
+
+      is_map(latest_reset) ->
+        latest_reset
+        |> Map.take([
+          "summary_id",
+          "recommendation_id",
+          "debounce_key",
+          "source_span_ids",
+          "policy_id",
+          "workflow",
+          "specialist_role",
+          "reset_sequence",
+          "event_sequence"
+        ])
+        |> Map.merge(%{
+          "state" => "compacted",
+          "source_span_count" => latest_reset |> Map.get("source_span_ids", []) |> length()
+        })
+
+      is_map(latest_failure) ->
+        Map.merge(latest_failure, %{"state" => "degraded"})
+
+      true ->
+        nil
+    end
+  end
+
+  defp context_compaction_unsafe?(state) do
+    state
+    |> Map.get(:turns, %{})
+    |> Map.values()
+    |> Enum.any?(&(&1.state in [:running, :awaiting_input, :cancelling, :superseding]))
   end
 
   defp latest_intake_handoff(%Conversation{} = conversation) do
@@ -234,10 +298,10 @@ defmodule JidoCode.Conversations.Snapshot do
     end
   end
 
-  defp referenced_files(turns, state) do
+  defp referenced_files(turns, state, latest_reset) do
     accepted_result_files =
       state
-      |> accepted_tool_results()
+      |> accepted_tool_results(latest_reset)
       |> Enum.flat_map(fn result ->
         result
         |> Map.get("result", %{})
@@ -252,9 +316,10 @@ defmodule JidoCode.Conversations.Snapshot do
     |> Enum.take(-12)
   end
 
-  defp accepted_tool_results(state) do
+  defp accepted_tool_results(state, latest_reset) do
     state.child_work_order
     |> Enum.map(&Map.fetch!(state.child_works, &1))
+    |> Enum.reject(&reset_covered_child_work?(&1, latest_reset))
     |> Enum.filter(fn child_work ->
       case Map.get(state.turns, child_work.turn_id) do
         %Turn{state: turn_state} ->
@@ -390,6 +455,75 @@ defmodule JidoCode.Conversations.Snapshot do
   end
 
   defp context_management_or_nil(_context_management), do: nil
+
+  defp latest_context_reset(state) do
+    state.events
+    |> Enum.reverse()
+    |> Enum.find_value(fn event ->
+      if event.name == "conversation.context_compacted" do
+        payload = normalize_map(event.payload)
+
+        %{
+          "summary_id" => normalize_optional_string(Map.get(payload, "summary_id")),
+          "recommendation_id" => normalize_optional_string(Map.get(payload, "recommendation_id")),
+          "debounce_key" => normalize_optional_string(Map.get(payload, "debounce_key")),
+          "source_span_ids" => normalize_string_list(Map.get(payload, "source_span_ids")),
+          "policy_id" => normalize_optional_string(Map.get(payload, "policy_id")),
+          "workflow" => normalize_optional_string(Map.get(payload, "workflow")),
+          "specialist_role" => normalize_optional_string(Map.get(payload, "specialist_role")),
+          "reset_sequence" => normalize_non_negative_integer(Map.get(payload, "reset_sequence", event.sequence)),
+          "event_sequence" => event.sequence,
+          "compacted_at" => event.occurred_at
+        }
+        |> Enum.reject(fn {_key, value} -> value in [nil, []] end)
+        |> Map.new()
+      end
+    end)
+  end
+
+  defp latest_context_compaction_failure(state) do
+    state.events
+    |> Enum.reverse()
+    |> Enum.find_value(fn event ->
+      if event.name == "conversation.context_compaction_failed" do
+        payload = normalize_map(event.payload)
+
+        %{
+          "recommendation_id" => normalize_optional_string(Map.get(payload, "recommendation_id")),
+          "debounce_key" => normalize_optional_string(Map.get(payload, "debounce_key")),
+          "policy_id" => normalize_optional_string(Map.get(payload, "policy_id")),
+          "workflow" => normalize_optional_string(Map.get(payload, "workflow")),
+          "specialist_role" => normalize_optional_string(Map.get(payload, "specialist_role")),
+          "turn_id" => normalize_optional_string(Map.get(payload, "turn_id")),
+          "child_work_id" => normalize_optional_string(Map.get(payload, "child_work_id")),
+          "reason" => normalize_optional_string(Map.get(payload, "reason")),
+          "retryable?" => normalize_boolean(Map.get(payload, "retryable?", true)),
+          "event_sequence" => event.sequence,
+          "failed_at" => event.occurred_at
+        }
+        |> Enum.reject(fn {_key, value} -> value in [nil, []] end)
+        |> Map.new()
+      end
+    end)
+  end
+
+  defp active_compaction_summary_ids(%{"summary_id" => summary_id}) when is_binary(summary_id), do: [summary_id]
+  defp active_compaction_summary_ids(_latest_reset), do: nil
+
+  defp reset_covered_turn?(%Turn{id: turn_id}, latest_reset), do: reset_covered_turn_id?(turn_id, latest_reset)
+  defp reset_covered_turn?(_turn, _latest_reset), do: false
+
+  defp reset_covered_child_work?(%ChildWork{turn_id: turn_id}, latest_reset),
+    do: reset_covered_turn_id?(turn_id, latest_reset)
+
+  defp reset_covered_child_work?(_child_work, _latest_reset), do: false
+
+  defp reset_covered_turn_id?(turn_id, %{"source_span_ids" => source_span_ids}) when is_binary(turn_id) do
+    turn_span_id = "turn:#{turn_id}"
+    turn_id in source_span_ids or turn_span_id in source_span_ids
+  end
+
+  defp reset_covered_turn_id?(_turn_id, _latest_reset), do: false
 
   defp pending_clarification(turns, state) do
     case Enum.find(Enum.reverse(turns), &(&1.state == :awaiting_input)) do

@@ -82,6 +82,7 @@ defmodule JidoCode.AgentWorkspace do
 
   alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
   alias JidoCode.AgentWorkspace.PromptProjection
+  alias JidoCode.Conversations.ContextCompaction, as: ConversationContextCompaction
   alias JidoCode.Pods.{MemoryGraphPod, SourceCodeGraphPod}
   alias JidoCode.{ContextBudget, ContextManagement, MemoryGraph, SourceCodeGraph}
   alias Jido.AgentOS.ManagerSupervisor
@@ -328,6 +329,113 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Runs automatic compaction for the latest eligible monitor recommendation.
+
+  This is the product-owned bridge from metadata-only monitoring to the
+  compactor. It does not mutate conversation history; callers decide how to
+  record any reset marker after an accepted summary is stored.
+  """
+  @spec auto_compact_context(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def auto_compact_context(managed_repo_id, work_item_id, conversation_state_or_snapshot, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(conversation_state_or_snapshot) and
+             is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+    context_opts = context_management_opts(opts)
+
+    with %{metadata: metadata} <- Manager.pod_status(managed_repo_id, pod_id),
+         action <- ContextManagement.automatic_compaction_action(metadata, context_opts),
+         {:action, "compact"} <- {:action, Map.get(action, "state")},
+         {:ok, candidate} <-
+           ConversationContextCompaction.compaction_candidate(conversation_state_or_snapshot, action, context_opts),
+         :ok <- reject_already_compacted(managed_repo_id, work_item_id, candidate, opts),
+         {:ok, status} <- compact_context(managed_repo_id, work_item_id, candidate, opts) do
+      {:ok,
+       Map.put(status, "auto_compaction", %{
+         "state" => "compacted",
+         "recommendation_id" => Map.get(action, "recommendation_id"),
+         "debounce_key" => Map.get(action, "debounce_key"),
+         "source_span_ids" => Map.get(candidate, :source_span_ids, Map.get(candidate, "source_span_ids", [])),
+         "workflow" => Map.get(candidate, :workflow, Map.get(candidate, "workflow")),
+         "specialist_role" => Map.get(candidate, :specialist_role, Map.get(candidate, "specialist_role")),
+         "policy_id" => Map.get(action, "policy_id")
+       })}
+    else
+      nil ->
+        {:ok, ContextManagement.automatic_compaction_action(nil, context_opts)}
+
+      {:action, _state} ->
+        case Manager.pod_status(managed_repo_id, pod_id) do
+          %{metadata: metadata} -> {:ok, ContextManagement.automatic_compaction_action(metadata, context_opts)}
+          _other -> {:ok, ContextManagement.automatic_compaction_action(nil, context_opts)}
+        end
+
+      {:error, {:already_compacted, summary}} ->
+        {:ok,
+         %{
+           "state" => "skip",
+           "reason" => "source_span_already_compacted",
+           "summary_id" => Map.get(summary, "id"),
+           "source_span_ids" => Map.get(summary, "source_span_ids", []),
+           "policy_id" => Map.get(summary, "policy_id")
+         }}
+
+      {:error, reason} = error ->
+        _ = persist_context_compaction_failure(managed_repo_id, work_item_id, reason, nil, opts)
+        error
+    end
+  end
+
+  @doc """
+  Retries automatic compaction for the latest monitor recommendation.
+
+  This explicit operator/test path allows the latest debounced recommendation
+  to run again while retaining the same idempotency guard for already-compacted
+  source spans.
+  """
+  @spec retry_auto_compact_context(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def retry_auto_compact_context(managed_repo_id, work_item_id, conversation_state_or_snapshot, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(conversation_state_or_snapshot) and
+             is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    retry_opts =
+      case Manager.pod_status(managed_repo_id, pod_id) do
+        %{metadata: metadata} -> retry_context_management_opts(opts, latest_monitor_decision(metadata))
+        _other -> retry_context_management_opts(opts, %{})
+      end
+
+    auto_compact_context(managed_repo_id, work_item_id, conversation_state_or_snapshot, retry_opts)
+  end
+
+  @doc """
+  Disables automatic compaction for a work item while leaving monitoring active.
+  """
+  @spec disable_auto_compaction(managed_repo_id(), work_item_id(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def disable_auto_compaction(managed_repo_id, work_item_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+    reason = Keyword.get(opts, :reason)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: metadata} ->
+        with {:ok, pod_entry} <-
+               Manager.update_pod_metadata(
+                 managed_repo_id,
+                 pod_id,
+                 ContextManagement.disable_auto_compaction_metadata(metadata, reason)
+               ) do
+          {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+        end
+
+      _other ->
+        {:ok, ContextManagement.status_summary(nil)}
+    end
+  end
+
+  @doc """
   Returns bounded active compaction summaries for prompt assembly.
   """
   @spec context_compaction_summaries(managed_repo_id(), work_item_id(), keyword()) :: [map()]
@@ -414,6 +522,55 @@ defmodule JidoCode.AgentWorkspace do
         :ok
     end
   end
+
+  defp reject_already_compacted(managed_repo_id, work_item_id, candidate, opts) do
+    source_span_ids =
+      candidate
+      |> Map.get(:source_span_ids, Map.get(candidate, "source_span_ids", []))
+      |> normalize_string_list()
+      |> Enum.sort()
+
+    context_compaction_summaries(managed_repo_id, work_item_id, opts)
+    |> Enum.find(fn summary ->
+      summary
+      |> Map.get("source_span_ids", [])
+      |> normalize_string_list()
+      |> Enum.sort()
+      |> Kernel.==(source_span_ids)
+    end)
+    |> case do
+      nil -> :ok
+      summary -> {:error, {:already_compacted, summary}}
+    end
+  end
+
+  defp normalize_string_list(values) when is_list(values) do
+    values
+    |> Enum.map(&normalize_string_value/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_string_list(value) do
+    value
+    |> normalize_string_value()
+    |> case do
+      nil -> []
+      string -> [string]
+    end
+  end
+
+  defp normalize_string_value(nil), do: nil
+
+  defp normalize_string_value(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_string_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp normalize_string_value(value), do: inspect(value)
 
   @doc """
   Lists active WorkItems (CodingPods) for a ManagedRepo.
@@ -1683,6 +1840,31 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp retry_context_management_opts(opts, decision) do
+    retry_context_opts =
+      opts
+      |> context_management_opts()
+      |> Keyword.merge(
+        allow_debounced_recommendation?: true,
+        recommendation_id: Map.get(decision, "id"),
+        debounce_key: Map.get(decision, "debounce_key")
+      )
+
+    Keyword.put(opts, :context_management, retry_context_opts)
+  end
+
+  defp latest_monitor_decision(metadata) when is_map(metadata) do
+    metadata
+    |> Map.get(:latest_monitor_decision, Map.get(metadata, "latest_monitor_decision", %{}))
+    |> ContextManagement.public_payload()
+    |> case do
+      %{} = decision -> decision
+      _other -> %{}
+    end
+  end
+
+  defp latest_monitor_decision(_metadata), do: %{}
+
   defp context_management_opts(opts) when is_list(opts) do
     nested =
       opts
@@ -1697,6 +1879,7 @@ defmodule JidoCode.AgentWorkspace do
       Keyword.take(opts, [
         :enabled?,
         :compaction_enabled?,
+        :auto_compaction_enabled?,
         :high_water_mark,
         :repeated_trim_threshold,
         :debounce_window_ms,

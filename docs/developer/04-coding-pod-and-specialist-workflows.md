@@ -79,6 +79,28 @@ The pod can recommend or perform proactive compaction, but it does not replace
 request-time `ContextBudget` packing. Disabled, degraded, or failed context
 management falls back to the existing provider-request budget guard.
 
+Automatic compaction follows the conversation lifecycle. Budget observations
+produce monitor decisions; matching recommendations become pending
+conversation state; the coordinator executes them only at a terminal boundary.
+Accepted attempts store a bounded summary and append
+`conversation.context_compacted`, which resets prompt-facing shared context for
+the covered old spans without deleting the event history. Failed attempts append
+`conversation.context_compaction_failed` and keep execution moving.
+
+The public controls live on `AgentWorkspace`:
+
+- `record_context_observation/4` records metadata-only budget observations
+- `auto_compact_context/4` executes an eligible monitor recommendation
+- `retry_auto_compact_context/4` retries the latest eligible recommendation,
+  including matching debounced recommendations
+- `disable_auto_compaction/3` stops automatic execution while preserving
+  monitor observations and recommendations
+
+Operator metadata exposes lifecycle states such as `recommended`, `pending`,
+`deferred`, `compacted`, `skipped`, and `degraded`. It should include ids,
+counts, reset references, and remediation hints, not raw old prompts or tool
+output.
+
 ## Lazy Specialists
 
 The AI specialists only start when needed:

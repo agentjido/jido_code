@@ -99,13 +99,29 @@ not persist raw prompt bodies or raw tool output as durable memory.
 
 Context management is the proactive layer on top of request-time budgeting.
 Use `test/jido_code/context_management_test.exs` for policy, observation,
-candidate, and summary-store rules. Use Phases 89 through 91 for pod topology,
-monitor observation, compactor lifecycle, and prompt injection.
+candidate, and summary-store rules. Use Phases 89 through 96 for pod topology,
+monitor observation, compactor lifecycle, prompt injection, automatic trigger
+adoption, reset-aware snapshots, runtime adoption, controls, and lifecycle
+metadata.
 
 Run AgentWorkspace regression tests when changing lifecycle wiring, because the
 context-management pod is created and stopped with the work-item `CodingPod`.
 Run context-budget tests when changing summary injection because
 `compaction_summary` sections remain non-required prompt context.
+
+Focused automatic compaction verification should include:
+
+- `test/jido_code/phase_ninety_three_integration_test.exs`
+- `test/jido_code/phase_ninety_four_integration_test.exs`
+- `test/jido_code/phase_ninety_five_integration_test.exs`
+- `test/jido_code/phase_ninety_six_integration_test.exs`
+
+Also run conversation coordinator and snapshot regressions when touching
+pending compaction, reset projection, retry, disable, or failure events.
+`mix memory.verify` is only required when changing durable-memory capture,
+memory graph boundaries, workflow provenance capture, or memory adoption.
+`mix source_graph.verify` is only required when changing source graph prompt
+projection, graph actions, graph pods, or workspace source graph entrypoints.
 
 ## Prompt Context Memory Verification
 

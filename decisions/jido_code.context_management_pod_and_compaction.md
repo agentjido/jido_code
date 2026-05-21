@@ -1,8 +1,8 @@
-# ADR: CodingPod-Owned Context Management Pod And Proactive Compaction
+# ADR: CodingPod-Owned Context Management Pod And Automatic Compaction
 
 ## Status
 
-Accepted for planning.
+Accepted and implemented.
 
 ## Context
 
@@ -40,6 +40,23 @@ Request-time budgeting remains mandatory. `JidoCode.ContextBudget` and
 `JidoCode.ContextBudget.ReActRequestTransformer` continue to protect every
 provider request even when proactive compaction is disabled, stale, or failed.
 
+Automatic compaction is allowed, but it is not a hidden rewrite of conversation
+history. Monitor recommendations become pending conversation state only when
+their scope matches the active work item, workflow, specialist role,
+conversation, and turn. The coordinator executes pending compaction at a
+terminal boundary, stores an accepted summary, and appends
+`conversation.context_compacted` as a reset marker. Snapshots use that marker to
+remove covered old spans from prompt-facing shared context while preserving the
+append-only event stream. Failures append
+`conversation.context_compaction_failed` and execution continues through
+request-time packing.
+
+Automatic execution is controlled separately from monitoring through
+`auto_compaction_enabled?`. Operators and tests can disable automatic execution
+without deleting monitor observations, and can explicitly retry the latest
+eligible recommendation. Retries remain idempotent for already-compacted source
+spans.
+
 Compaction output becomes bounded prompt context, such as
 `specialist_summary`, `conversation_history`, or `compaction_summary` sections.
 Raw old messages remain recoverable through governed conversation history and
@@ -61,6 +78,10 @@ workflow provenance, but they are not automatically re-expanded into prompts.
   boundaries.
 - Failed or disabled compaction must degrade to existing request-time packing
   without blocking specialist execution.
+- Context-management status and conversation snapshots now expose lifecycle
+  metadata for recommended, pending, deferred, in-flight, compacted, skipped,
+  blocked, and degraded states without storing raw old prompt or tool-output
+  content.
 
 ## Related Specifications
 
@@ -73,3 +94,7 @@ workflow provenance, but they are not automatically re-expanded into prompts.
 - `../.planning/phase-90-budget-monitor-runtime-adoption.md`
 - `../.planning/phase-91-context-compactor-summary-lifecycle.md`
 - `../.planning/phase-92-context-management-observability-and-contributor-convergence.md`
+- `../.planning/phase-93-automatic-context-compaction-trigger-foundation.md`
+- `../.planning/phase-94-conversation-context-reset-projection.md`
+- `../.planning/phase-95-conversation-runtime-auto-compaction-adoption.md`
+- `../.planning/phase-96-auto-compaction-observability-and-contributor-convergence.md`

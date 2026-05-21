@@ -18,6 +18,7 @@ defmodule JidoCode.ContextManagement do
   @default_debounce_window_ms 300_000
   @default_max_summary_tokens 1_000
   @default_max_candidate_tokens 4_000
+  @default_auto_compaction_enabled true
 
   defmodule BudgetObservation do
     @moduledoc "Metadata-only budget observation accepted by the BudgetMonitor."
@@ -125,6 +126,11 @@ defmodule JidoCode.ContextManagement do
       enabled?: enabled?(opts),
       compaction_enabled?:
         boolean_value(Map.get(opts, :compaction_enabled?, Map.get(config, :compaction_enabled?, true)), true),
+      auto_compaction_enabled?:
+        boolean_value(
+          Map.get(opts, :auto_compaction_enabled?, Map.get(config, :auto_compaction_enabled?)),
+          @default_auto_compaction_enabled
+        ),
       high_water_mark:
         ratio_value(Map.get(opts, :high_water_mark, Map.get(config, :high_water_mark)), @default_high_water_mark),
       repeated_trim_threshold:
@@ -164,7 +170,7 @@ defmodule JidoCode.ContextManagement do
       workspace_path: workspace_path,
       parent_pod_id: parent_pod_id,
       runtime_status: :running,
-      context_management_status: if(policy.enabled?, do: :healthy, else: :disabled),
+      context_management_status: initial_context_management_status(policy),
       policy: public_policy(policy),
       observations: [],
       recommendations: [],
@@ -187,6 +193,11 @@ defmodule JidoCode.ContextManagement do
       "summary_count" => 0,
       "latest_monitor_decision" => nil,
       "latest_compaction" => nil,
+      "auto_compaction_lifecycle" => %{
+        "state" => "unavailable",
+        "reason" => "context_management_unavailable",
+        "diagnostics" => %{"kind" => "auto_compaction_lifecycle", "state" => "degraded"}
+      },
       "diagnostics" => [%{"kind" => "context_management_unavailable", "state" => "degraded"}]
     }
   end
@@ -214,7 +225,9 @@ defmodule JidoCode.ContextManagement do
         end),
       "latest_monitor_decision" =>
         stringify_keys(Map.get(metadata, :latest_monitor_decision, Map.get(metadata, "latest_monitor_decision"))),
-      "latest_compaction" => stringify_keys(Map.get(metadata, :latest_compaction, Map.get(metadata, "latest_compaction"))),
+      "latest_compaction" =>
+        stringify_keys(Map.get(metadata, :latest_compaction, Map.get(metadata, "latest_compaction"))),
+      "auto_compaction_lifecycle" => auto_compaction_lifecycle(metadata, active_summaries),
       "diagnostics" =>
         metadata
         |> Map.get(:diagnostics, Map.get(metadata, "diagnostics", []))
@@ -227,7 +240,7 @@ defmodule JidoCode.ContextManagement do
   def disabled_metadata(reason \\ "Context management is disabled for this request.") do
     %{
       context_management_status: :disabled,
-      policy: %{id: @default_policy_id, enabled?: false, compaction_enabled?: false},
+      policy: %{id: @default_policy_id, enabled?: false, compaction_enabled?: false, auto_compaction_enabled?: false},
       latest_monitor_decision: %{
         state: :skipped,
         reason: reason,
@@ -237,6 +250,38 @@ defmodule JidoCode.ContextManagement do
       updated_at: DateTime.utc_now()
     }
   end
+
+  @doc "Disables automatic compaction while preserving monitor observations and recommendations."
+  @spec disable_auto_compaction_metadata(metadata(), String.t() | nil) :: metadata()
+  def disable_auto_compaction_metadata(metadata, reason \\ nil)
+
+  def disable_auto_compaction_metadata(metadata, reason) when is_map(metadata) do
+    reason = normalize_optional_string(reason) || "Automatic compaction disabled for this work item."
+
+    diagnostic = %{
+      kind: :auto_compaction_disabled,
+      state: :skipped,
+      reason: reason
+    }
+
+    policy =
+      metadata
+      |> Map.get(:policy, Map.get(metadata, "policy", %{}))
+      |> normalize_map()
+      |> Map.put(:auto_compaction_enabled?, false)
+
+    metadata
+    |> Map.put(:policy, policy)
+    |> Map.put(:updated_at, DateTime.utc_now())
+    |> Map.update(:diagnostics, [diagnostic], fn diagnostics ->
+      diagnostics
+      |> List.wrap()
+      |> Kernel.++([diagnostic])
+      |> Enum.map(&redact_diagnostics/1)
+    end)
+  end
+
+  def disable_auto_compaction_metadata(_metadata, _reason), do: disabled_metadata()
 
   @doc "Returns a metadata-only observation struct."
   @spec observation(map()) :: {:ok, budget_observation()} | {:error, term()}
@@ -320,6 +365,80 @@ defmodule JidoCode.ContextManagement do
         monitor_decision(latest, policy, :healthy, :within_budget)
     end
   end
+
+  @doc """
+  Converts the latest monitor decision into an automatic compaction action.
+
+  This keeps the `BudgetMonitor` deterministic and metadata-only: callers use
+  this action to decide whether to build a candidate and invoke the compactor.
+  """
+  @spec automatic_compaction_action(metadata() | nil, keyword() | map()) :: map()
+  def automatic_compaction_action(metadata, opts \\ [])
+
+  def automatic_compaction_action(nil, opts) do
+    policy = policy(opts)
+
+    auto_compaction_action(:skip, :context_management_unavailable, nil, policy, %{
+      kind: :auto_compaction_action,
+      state: :skip
+    })
+  end
+
+  def automatic_compaction_action(metadata, opts) when is_map(metadata) do
+    opts = normalize_opts(opts)
+
+    policy =
+      case Map.has_key?(opts, :auto_compaction_enabled?) do
+        true ->
+          Map.put(policy_from_metadata(metadata), :auto_compaction_enabled?, policy(opts).auto_compaction_enabled?)
+
+        false ->
+          policy_from_metadata(metadata)
+      end
+
+    decision =
+      metadata
+      |> Map.get(:latest_monitor_decision, Map.get(metadata, "latest_monitor_decision"))
+      |> public_payload()
+      |> case do
+        %{} = decision -> decision
+        _other -> %{}
+      end
+
+    cond do
+      not policy.enabled? ->
+        auto_compaction_action(:skip, :context_management_disabled, decision, policy)
+
+      not policy.compaction_enabled? ->
+        auto_compaction_action(:skip, :compaction_disabled, decision, policy)
+
+      not policy.auto_compaction_enabled? ->
+        auto_compaction_action(:skip, :auto_compaction_disabled, decision, policy)
+
+      decision == %{} ->
+        auto_compaction_action(:skip, :no_monitor_decision, nil, policy)
+
+      Map.get(decision, "debounced?") in [true, "true"] and
+          not allow_debounced_recommendation?(decision, opts) ->
+        auto_compaction_action(:skip, :debounced_recommendation, decision, policy)
+
+      Map.get(decision, "state") == "recommend" ->
+        auto_compaction_action(
+          :compact,
+          Map.get(decision, "reason", "monitor_recommended_compaction"),
+          decision,
+          policy
+        )
+
+      Map.get(decision, "state") in ["blocked", "degraded"] ->
+        auto_compaction_action(:blocked, Map.get(decision, "reason", "compaction_not_safe"), decision, policy)
+
+      true ->
+        auto_compaction_action(:skip, Map.get(decision, "reason", "within_budget"), decision, policy)
+    end
+  end
+
+  def automatic_compaction_action(_metadata, opts), do: automatic_compaction_action(nil, opts)
 
   @doc "Normalizes and validates a compaction summary record."
   @spec compaction_summary(map() | compaction_summary(), keyword() | map()) ::
@@ -571,7 +690,7 @@ defmodule JidoCode.ContextManagement do
       context_management_status: :degraded,
       latest_compaction: %{
         state: :failed,
-        reason: inspect(reason),
+        reason: safe_failure_reason(reason),
         retryable?: true,
         remediation: "Retry compaction after narrowing context, selecting a smaller span, or changing model selection.",
         source_span_count: span_count,
@@ -595,6 +714,14 @@ defmodule JidoCode.ContextManagement do
 
   def public_payload(%{} = map), do: map |> redact_diagnostics() |> stringify_keys()
 
+  @doc "Returns a bounded, metadata-safe representation of a compaction failure reason."
+  @spec safe_failure_reason(term()) :: String.t()
+  def safe_failure_reason(reason) do
+    reason
+    |> redact_diagnostics()
+    |> inspect(limit: 20, printable_limit: 500)
+  end
+
   @doc "Returns the public policy shape stored in pod metadata."
   @spec public_policy(policy()) :: map()
   def public_policy(policy) when is_map(policy) do
@@ -603,6 +730,7 @@ defmodule JidoCode.ContextManagement do
       :id,
       :enabled?,
       :compaction_enabled?,
+      :auto_compaction_enabled?,
       :high_water_mark,
       :repeated_trim_threshold,
       :debounce_window_ms,
@@ -637,6 +765,10 @@ defmodule JidoCode.ContextManagement do
   end
 
   def redact_diagnostics(list) when is_list(list), do: Enum.map(list, &redact_diagnostics/1)
+
+  def redact_diagnostics(tuple) when is_tuple(tuple),
+    do: tuple |> Tuple.to_list() |> redact_diagnostics() |> List.to_tuple()
+
   def redact_diagnostics(value), do: value
 
   defp config do
@@ -645,25 +777,57 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp config_diagnostics(opts, config) do
-    [:high_water_mark, :repeated_trim_threshold, :debounce_window_ms, :max_summary_tokens, :max_candidate_tokens]
-    |> Enum.flat_map(fn key ->
-      value = Map.get(opts, key, Map.get(config, key))
+    numeric_diagnostics =
+      [:high_water_mark, :repeated_trim_threshold, :debounce_window_ms, :max_summary_tokens, :max_candidate_tokens]
+      |> Enum.flat_map(fn key ->
+        value = Map.get(opts, key, Map.get(config, key))
 
-      cond do
-        is_nil(value) ->
-          []
+        cond do
+          is_nil(value) ->
+            []
 
-        key == :high_water_mark and ratio_value(value, nil) == nil ->
-          [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+          key == :high_water_mark and ratio_value(value, nil) == nil ->
+            [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
 
-        key != :high_water_mark and positive_integer(value, nil) == nil ->
-          [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+          key != :high_water_mark and positive_integer(value, nil) == nil ->
+            [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
 
-        true ->
-          []
-      end
-    end)
+          true ->
+            []
+        end
+      end)
+
+    boolean_diagnostics =
+      [:enabled?, :compaction_enabled?, :auto_compaction_enabled?]
+      |> Enum.flat_map(fn key ->
+        value = Map.get(opts, key, Map.get(config, key))
+
+        cond do
+          is_nil(value) ->
+            []
+
+          valid_boolean_config?(value) ->
+            []
+
+          true ->
+            [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+        end
+      end)
+
+    numeric_diagnostics ++ boolean_diagnostics
   end
+
+  defp initial_context_management_status(%{enabled?: false}), do: :disabled
+
+  defp initial_context_management_status(%{diagnostics: diagnostics}) when is_list(diagnostics) do
+    if Enum.any?(diagnostics, &(Map.get(&1, :state) == :degraded)) do
+      :degraded
+    else
+      :healthy
+    end
+  end
+
+  defp initial_context_management_status(_policy), do: :healthy
 
   defp policy_from_metadata(metadata) do
     metadata
@@ -702,8 +866,12 @@ defmodule JidoCode.ContextManagement do
 
   defp high_water_exceeded?(context_budget, policy) do
     budget = numeric_value(Map.get(context_budget, "model_budget", Map.get(context_budget, :model_budget)), 0)
+
     estimated =
-      numeric_value(Map.get(context_budget, "estimated_input_tokens", Map.get(context_budget, :estimated_input_tokens)), 0)
+      numeric_value(
+        Map.get(context_budget, "estimated_input_tokens", Map.get(context_budget, :estimated_input_tokens)),
+        0
+      )
 
     budget > 0 and estimated / budget >= policy.high_water_mark
   end
@@ -740,6 +908,8 @@ defmodule JidoCode.ContextManagement do
       workflow: workflow,
       specialist_role: specialist_role,
       source: Map.get(observation, "source"),
+      conversation_id: Map.get(observation, "conversation_id"),
+      turn_id: Map.get(observation, "turn_id"),
       debounce_key: debounce_key,
       policy_id: policy.id,
       created_at: DateTime.utc_now(),
@@ -790,6 +960,177 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp maybe_append_recommendation(recommendations, decision), do: {recommendations, public_payload(decision)}
+
+  defp auto_compaction_lifecycle(metadata, active_summaries) when is_map(metadata) do
+    policy = metadata |> Map.get(:policy, Map.get(metadata, "policy", %{})) |> public_payload()
+
+    decision =
+      metadata |> Map.get(:latest_monitor_decision, Map.get(metadata, "latest_monitor_decision")) |> public_payload()
+
+    compaction = metadata |> Map.get(:latest_compaction, Map.get(metadata, "latest_compaction")) |> public_payload()
+
+    cond do
+      Map.get(policy || %{}, "enabled?") in [false, "false"] ->
+        lifecycle("disabled", "context_management_disabled", decision, compaction, active_summaries)
+
+      Map.get(policy || %{}, "auto_compaction_enabled?") in [false, "false"] ->
+        lifecycle("skipped", "auto_compaction_disabled", decision, compaction, active_summaries)
+
+      is_map(compaction) and Map.get(compaction, "state") in ["stored", :stored] ->
+        lifecycle("compacted", "summary_stored", decision, compaction, active_summaries)
+
+      is_map(compaction) and Map.get(compaction, "state") in ["running", "started", "in_flight", :running, :started] ->
+        lifecycle(
+          "in_flight",
+          Map.get(compaction, "reason", "compaction_running"),
+          decision,
+          compaction,
+          active_summaries
+        )
+
+      is_map(compaction) and Map.get(compaction, "state") in ["failed", :failed] ->
+        lifecycle(
+          "degraded",
+          Map.get(compaction, "reason", "compaction_failed"),
+          decision,
+          compaction,
+          active_summaries
+        )
+
+      is_map(decision) and Map.get(decision, "state") in ["recommend", :recommend] ->
+        lifecycle(
+          "recommended",
+          Map.get(decision, "reason", "monitor_recommended_compaction"),
+          decision,
+          compaction,
+          active_summaries
+        )
+
+      is_map(decision) and Map.get(decision, "state") in ["blocked", :blocked] ->
+        lifecycle("blocked", Map.get(decision, "reason", "compaction_not_safe"), decision, compaction, active_summaries)
+
+      true ->
+        lifecycle(
+          "healthy",
+          Map.get(decision || %{}, "reason", "within_budget"),
+          decision,
+          compaction,
+          active_summaries
+        )
+    end
+  end
+
+  defp lifecycle(state, reason, decision, compaction, active_summaries) do
+    %{
+      "state" => state,
+      "reason" => normalize_optional_string(reason) || "unknown",
+      "recommendation_id" => if(is_map(decision), do: Map.get(decision, "id")),
+      "debounce_key" => if(is_map(decision), do: Map.get(decision, "debounce_key")),
+      "summary_id" => if(is_map(compaction), do: Map.get(compaction, "id")),
+      "active_summary_ids" => Enum.map(active_summaries, &Map.get(&1, "id")),
+      "source_span_count" => compaction_source_span_count(compaction, active_summaries),
+      "policy_id" => lifecycle_policy_id(decision, compaction),
+      "remediation" => lifecycle_remediation(state, reason, decision, compaction),
+      "diagnostics" => %{"kind" => "auto_compaction_lifecycle", "state" => state}
+    }
+    |> Enum.reject(fn {_key, value} -> value in [nil, [], ""] end)
+    |> Map.new()
+  end
+
+  defp lifecycle_policy_id(decision, compaction) do
+    cond do
+      is_map(compaction) and Map.get(compaction, "policy_id") -> Map.get(compaction, "policy_id")
+      is_map(decision) -> Map.get(decision, "policy_id")
+      true -> nil
+    end
+  end
+
+  defp lifecycle_remediation(state, reason, decision, compaction) do
+    cond do
+      is_map(compaction) and Map.get(compaction, "remediation") ->
+        Map.get(compaction, "remediation")
+
+      is_map(decision) and Map.get(decision, "remediation") ->
+        Map.get(decision, "remediation")
+
+      true ->
+        default_lifecycle_remediation(state, reason)
+    end
+  end
+
+  defp default_lifecycle_remediation("skipped", _reason),
+    do: "Enable automatic compaction to execute eligible recommendations."
+
+  defp default_lifecycle_remediation("disabled", _reason),
+    do: "Enable context management to collect monitor observations."
+
+  defp default_lifecycle_remediation("blocked", "unresolved_tool_call_group"),
+    do: "Wait for the matching tool result before compacting this context."
+
+  defp default_lifecycle_remediation("blocked", "required_context_overflow"),
+    do: "Reduce required request context before retrying compaction."
+
+  defp default_lifecycle_remediation("degraded", _reason),
+    do: "Retry compaction after narrowing context, selecting a smaller span, or changing model selection."
+
+  defp default_lifecycle_remediation(_state, _reason), do: nil
+
+  defp compaction_source_span_count(compaction, active_summaries) when is_map(compaction) do
+    Map.get(compaction, "source_span_count") ||
+      active_summaries_source_span_count(active_summaries)
+  end
+
+  defp compaction_source_span_count(_compaction, active_summaries),
+    do: active_summaries_source_span_count(active_summaries)
+
+  defp active_summaries_source_span_count(active_summaries) do
+    Enum.reduce(active_summaries, 0, fn summary, count ->
+      count + (summary |> Map.get("source_span_ids", []) |> length())
+    end)
+  end
+
+  defp allow_debounced_recommendation?(decision, opts) when is_map(decision) and is_map(opts) do
+    allow? = boolean_value(Map.get(opts, :allow_debounced_recommendation?), false)
+    expected_id = normalize_optional_string(Map.get(opts, :recommendation_id))
+    expected_debounce_key = normalize_optional_string(Map.get(opts, :debounce_key))
+
+    allow? and
+      ((not is_nil(expected_id) and Map.get(decision, "id") == expected_id) or
+         (not is_nil(expected_debounce_key) and Map.get(decision, "debounce_key") == expected_debounce_key))
+  end
+
+  defp allow_debounced_recommendation?(_decision, _opts), do: false
+
+  defp auto_compaction_action(state, reason, decision, policy, diagnostics \\ %{}) do
+    decision = if is_map(decision), do: public_payload(decision), else: nil
+    reason = normalize_optional_string(reason) || "unknown"
+
+    %{
+      state: state,
+      reason: reason,
+      recommendation_id: decision && Map.get(decision, "id"),
+      debounce_key: decision && Map.get(decision, "debounce_key"),
+      workflow: decision && Map.get(decision, "workflow"),
+      specialist_role: decision && Map.get(decision, "specialist_role"),
+      managed_repo_id: decision && Map.get(decision, "managed_repo_id"),
+      work_item_id: decision && Map.get(decision, "work_item_id"),
+      conversation_id: decision && Map.get(decision, "conversation_id"),
+      turn_id: decision && Map.get(decision, "turn_id"),
+      policy_id: policy.id,
+      created_at: DateTime.utc_now(),
+      diagnostics:
+        Map.merge(
+          %{
+            kind: :auto_compaction_action,
+            state: state,
+            reason: reason,
+            monitor_state: decision && Map.get(decision, "state")
+          },
+          diagnostics
+        )
+    }
+    |> public_payload()
+  end
 
   defp monitor_status(%{"state" => "healthy"}), do: :healthy
   defp monitor_status(%{"state" => "recommend"}), do: :recommend_compaction
@@ -1156,6 +1497,8 @@ defmodule JidoCode.ContextManagement do
   defp boolean_value(value, _default) when value in [true, "true", "1"], do: true
   defp boolean_value(value, _default) when value in [false, "false", "0"], do: false
   defp boolean_value(_value, default), do: default
+
+  defp valid_boolean_config?(value), do: value in [true, false, "true", "false", "1", "0"]
 
   defp ratio_value(value, _default) when is_float(value) and value > 0 and value <= 1, do: value
   defp ratio_value(value, _default) when is_integer(value) and value > 0 and value <= 100, do: value / 100

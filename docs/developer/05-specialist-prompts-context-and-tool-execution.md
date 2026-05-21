@@ -192,6 +192,19 @@ the same request-time `ContextBudget` packing and ReAct request transformer.
 Monitor state is surfaced as `context_management` metadata beside existing
 `context_budget` diagnostics.
 
+Automatic execution is policy-controlled. `auto_compaction_enabled?` can stop
+execution while leaving monitor observations visible. Invalid automatic
+compaction tuning is surfaced as degraded metadata; it does not weaken the
+request-time budget guard.
+
+For work-item conversations, monitor recommendations are tracked by the
+coordinator and applied at a terminal boundary. Running, awaiting-input,
+cancelling, or superseding turns defer compaction. Accepted attempts append a
+`conversation.context_compacted` reset marker; failed attempts append
+`conversation.context_compaction_failed`. Snapshots expose lifecycle metadata
+such as `pending`, `deferred`, `compacted`, and `degraded` with recommendation
+ids, policy ids, summary ids, reset or event sequences, and remediation hints.
+
 When compaction is accepted, `AgentWorkspace` may inject active summaries as a
 typed `compaction_summary` prompt section. That section is useful context, not
 required context, so the same `ContextBudget` packer can trim or drop it. The
@@ -200,6 +213,9 @@ recovery records; compaction summaries are not durable repository memory.
 
 If compaction fails, the context-management pod records retryable remediation
 metadata and the active specialist turn continues with request-time packing.
+Use `AgentWorkspace.retry_auto_compact_context/4` for an explicit retry of the
+latest eligible recommendation and `AgentWorkspace.disable_auto_compaction/3`
+when automatic execution should stop without discarding monitor evidence.
 
 ## What The Model Sees Directly vs Indirectly
 

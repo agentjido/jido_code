@@ -688,6 +688,9 @@ defmodule JidoCode.Conversations.Runtime do
       |> normalize_list_of_maps()
       |> Enum.take(-3)
 
+    compaction_summaries =
+      active_compaction_summaries(managed_repo_id, work_item_id, workflow, shared_context)
+
     policy =
       runtime_spec
       |> runtime_context_budget_opts(shared_context)
@@ -718,6 +721,14 @@ defmodule JidoCode.Conversations.Runtime do
       ),
       ContextBudget.section(:referenced_files, referenced_files, retention: :useful),
       ContextBudget.section(:accepted_tool_results, accepted_result_lines(accepted_tool_results), retention: :useful),
+      ContextBudget.section(:compaction_summary, compaction_summary_lines(compaction_summaries),
+        retention: :useful,
+        metadata: %{
+          kind: :compaction_summary,
+          summary_count: length(compaction_summaries),
+          summary_ids: Enum.map(compaction_summaries, &Map.get(&1, "id"))
+        }
+      ),
       ContextBudget.section(:clarification_context, clarification_lines(clarification_resume), retention: :important),
       ContextBudget.section(:prompt_memory, prompt_memory_lines(prompt_memory, accepted_tool_results),
         retention: :useful,
@@ -739,6 +750,43 @@ defmodule JidoCode.Conversations.Runtime do
       text: packed.text,
       context_budget: packed
     }
+  end
+
+  defp active_compaction_summaries(managed_repo_id, work_item_id, workflow, shared_context) do
+    active_summary_ids =
+      shared_context
+      |> Map.get("active_compaction_summary_ids", [])
+      |> normalize_string_list()
+
+    summaries =
+      AgentWorkspace.context_compaction_summaries(managed_repo_id, work_item_id,
+        workflow: workflow,
+        limit: 6
+      )
+
+    case active_summary_ids do
+      [] ->
+        summaries
+
+      summary_ids ->
+        active_summaries = Enum.filter(summaries, &(Map.get(&1, "id") in summary_ids))
+
+        if active_summaries == [], do: summaries, else: active_summaries
+    end
+  end
+
+  defp compaction_summary_lines([]), do: []
+
+  defp compaction_summary_lines(summaries) when is_list(summaries) do
+    Enum.map(summaries, fn summary ->
+      summary_text = Map.get(summary, "summary_text", "")
+      summary_id = Map.get(summary, "id", "unknown-summary")
+      workflow = Map.get(summary, "workflow", "unknown-workflow")
+      specialist_role = Map.get(summary, "specialist_role", "unknown-specialist")
+      span_count = summary |> Map.get("source_span_ids", []) |> length()
+
+      "- #{summary_id} (#{workflow}/#{specialist_role}, #{span_count} span(s)): #{summary_text}"
+    end)
   end
 
   defp runtime_progress_event(request) do

@@ -28,22 +28,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 93 Phase 93 - Automatic Context Compaction Trigger Foundation
   Establish the product-owned bridge from budget-monitor recommendations to safe compaction candidates without mutating conversation history or blocking active work.
 
-  [ ] 93.1 Section - Recommendation-To-Action Contract
+  [x] 93.1 Section - Recommendation-To-Action Contract
     Define when a monitor recommendation becomes an automatic compaction attempt and when it remains metadata only.
 
-    [ ] 93.1.1 Task - Define automatic compaction eligibility
+    [x] 93.1.1 Task - Define automatic compaction eligibility
       Add a deterministic policy helper that evaluates context-management status, latest monitor decision, policy configuration, and debounce state.
 
-      [ ] 93.1.1.1 Subtask - Treat only `recommend` monitor decisions as auto-compaction candidates.
-      [ ] 93.1.1.2 Subtask - Skip automatic compaction when context management or compaction is disabled.
-      [ ] 93.1.1.3 Subtask - Skip debounced, already-compacted, blocked, degraded, or healthy decisions with explicit diagnostics.
+      [x] 93.1.1.1 Subtask - Treat only `recommend` monitor decisions as auto-compaction candidates.
+      [x] 93.1.1.2 Subtask - Skip automatic compaction when context management or compaction is disabled.
+      [x] 93.1.1.3 Subtask - Skip debounced, already-compacted, blocked, degraded, or healthy decisions with explicit diagnostics.
 
-    [ ] 93.1.2 Task - Add action-oriented monitor output
+    [x] 93.1.2 Task - Add action-oriented monitor output
       Return a compact action result that callers can use without inspecting raw pod metadata.
 
-      [ ] 93.1.2.1 Subtask - Add result states for `:compact`, `:skip`, `:defer`, and `:blocked`.
-      [ ] 93.1.2.2 Subtask - Include recommendation id, debounce key, workflow, specialist role, policy id, conversation id, and turn id.
-      [ ] 93.1.2.3 Subtask - Keep the action result metadata-only and free of prompt text or tool-output bodies.
+      [x] 93.1.2.1 Subtask - Add result states for `:compact`, `:skip`, `:defer`, and `:blocked`.
+      [x] 93.1.2.2 Subtask - Include recommendation id, debounce key, workflow, specialist role, policy id, conversation id, and turn id.
+      [x] 93.1.2.3 Subtask - Keep the action result metadata-only and free of prompt text or tool-output bodies.
 
   [ ] 93.2 Section - Compaction Candidate Source Construction
     Build protocol-safe compaction candidates from conversation runtime state after a recommendation has crossed the configured threshold.

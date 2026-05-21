@@ -154,6 +154,90 @@ defmodule JidoCode.ContextManagementTest do
     assert length(third.recommendations) == 1
   end
 
+  test "automatic compaction action compacts only eligible monitor recommendations" do
+    metadata =
+      ContextManagement.initial_metadata(
+        "repo-93",
+        "work-93",
+        "/tmp/workspace",
+        "coding-pod-work-93"
+      )
+
+    assert ContextManagement.automatic_compaction_action(metadata)["state"] == "skip"
+
+    assert {:ok, recommended} =
+             ContextManagement.add_observation(metadata, %{
+               managed_repo_id: "repo-93",
+               work_item_id: "work-93",
+               workflow: :execute,
+               specialist_role: :coder,
+               conversation_id: "conversation-93",
+               turn_id: "turn-93",
+               context_budget: %{
+                 "policy_id" => "context-budget:v1",
+                 "state" => "packed",
+                 "model_budget" => 1_000,
+                 "estimated_input_tokens" => 900,
+                 "diagnostics" => []
+               }
+             })
+
+    compact_action = ContextManagement.automatic_compaction_action(recommended)
+
+    assert compact_action["state"] == "compact"
+    assert compact_action["reason"] == "history_high_water_mark"
+    assert compact_action["recommendation_id"] == recommended.latest_monitor_decision["id"]
+    assert compact_action["conversation_id"] == "conversation-93"
+    assert compact_action["turn_id"] == "turn-93"
+
+    assert ContextManagement.automatic_compaction_action(recommended, auto_compaction_enabled?: false)["state"] ==
+             "skip"
+  end
+
+  test "automatic compaction action skips debounced and blocked decisions" do
+    metadata =
+      ContextManagement.initial_metadata(
+        "repo-93",
+        "work-93",
+        "/tmp/workspace",
+        "coding-pod-work-93",
+        repeated_trim_threshold: 2
+      )
+
+    observation = %{
+      managed_repo_id: "repo-93",
+      work_item_id: "work-93",
+      workflow: :review,
+      specialist_role: :reviewer,
+      context_budget: trimmed_budget(),
+      diagnostics: %{source_span_ids: ["span-a", "span-b"]}
+    }
+
+    assert {:ok, first} = ContextManagement.add_observation(metadata, observation)
+    assert {:ok, second} = ContextManagement.add_observation(first, observation)
+    assert {:ok, debounced} = ContextManagement.add_observation(second, observation)
+
+    assert ContextManagement.automatic_compaction_action(second)["state"] == "compact"
+
+    debounced_action = ContextManagement.automatic_compaction_action(debounced)
+    assert debounced_action["state"] == "skip"
+    assert debounced_action["reason"] == "debounced_recommendation"
+
+    assert {:ok, blocked} =
+             ContextManagement.add_observation(metadata, %{
+               managed_repo_id: "repo-93",
+               work_item_id: "work-93",
+               workflow: :execute,
+               specialist_role: :coder,
+               context_budget: trimmed_budget(),
+               diagnostics: %{"unresolved_tool_call_group?" => true}
+             })
+
+    blocked_action = ContextManagement.automatic_compaction_action(blocked)
+    assert blocked_action["state"] == "blocked"
+    assert blocked_action["reason"] == "unresolved_tool_call_group"
+  end
+
   test "budget monitor blocks compaction for required overflow and unresolved tool groups" do
     metadata =
       ContextManagement.initial_metadata(

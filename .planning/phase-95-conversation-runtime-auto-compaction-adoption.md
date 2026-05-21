@@ -61,22 +61,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 95.2.2.2 Subtask - Confirm referenced files can be reintroduced by new turns after a reset.
       [x] 95.2.2.3 Subtask - Confirm prompt memory and durable memory adoption boundaries are unaffected by compaction.
 
-  [ ] 95.3 Section - Failure, Concurrency, And Backpressure
+  [x] 95.3 Section - Failure, Concurrency, And Backpressure
     Make automatic compaction safe under compactor errors, racing turns, and repeated threshold crossings.
 
-    [ ] 95.3.1 Task - Degrade failed compaction safely
+    [x] 95.3.1 Task - Degrade failed compaction safely
       Preserve existing conversation execution when automatic compaction cannot produce a summary.
 
-      [ ] 95.3.1.1 Subtask - Record failed automatic compaction in context-management metadata and conversation lifecycle events.
-      [ ] 95.3.1.2 Subtask - Continue with request-time packing when compaction fails.
-      [ ] 95.3.1.3 Subtask - Avoid retry loops until a new recommendation, new source span, or explicit operator retry arrives.
+      [x] 95.3.1.1 Subtask - Record failed automatic compaction in context-management metadata and conversation lifecycle events.
+      [x] 95.3.1.2 Subtask - Continue with request-time packing when compaction fails.
+      [x] 95.3.1.3 Subtask - Avoid retry loops until a new recommendation, new source span, or explicit operator retry arrives.
 
-    [ ] 95.3.2 Task - Serialize automatic compaction per conversation
+    [x] 95.3.2 Task - Serialize automatic compaction per conversation
       Prevent overlapping compaction attempts from racing with turn admission or reset projection.
 
-      [ ] 95.3.2.1 Subtask - Track pending and in-flight compaction state in coordinator runtime state.
-      [ ] 95.3.2.2 Subtask - Ensure only one compaction attempt runs per conversation at a time.
-      [ ] 95.3.2.3 Subtask - Preserve stop, pause, steer, and cancellation semantics while compaction is pending.
+      [x] 95.3.2.1 Subtask - Track pending and in-flight compaction state in coordinator runtime state.
+      [x] 95.3.2.2 Subtask - Ensure only one compaction attempt runs per conversation at a time.
+      [x] 95.3.2.3 Subtask - Preserve stop, pause, steer, and cancellation semantics while compaction is pending.
 
   [ ] 95.4 Section - Integration Tests
     Prove real conversation turns automatically compact at safe boundaries and continue with bounded prompt context.

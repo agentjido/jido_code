@@ -99,6 +99,58 @@ defmodule JidoCode.PhaseNinetyFiveIntegrationTest do
     assert :ok = AgentWorkspace.stop_conversation(conversation.id)
   end
 
+  test "failed automatic compaction records diagnostics and keeps conversation execution moving" do
+    {managed_repo, work_item} = managed_repo_and_work_item_fixture!("failed-boundary")
+    workspace_path = create_workspace_path!("failed-boundary")
+
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+    assert {:ok, _pod_name} = AgentWorkspace.ensure_coding_pod(managed_repo.id, work_item.id, workspace_path)
+
+    assert {:ok, %{conversation: conversation}} =
+             AgentWorkspace.open_work_item_conversation(work_item.id, %{
+               source: "work_item_detail",
+               objective: "Exercise failed automatic context compaction."
+             })
+
+    running = submit_turn!(conversation.id, "single active implementation context")
+
+    assert {:ok, context_management} =
+             AgentWorkspace.record_context_observation(managed_repo.id, work_item.id, %{
+               workflow: :execute,
+               specialist_role: :coder,
+               conversation_id: conversation.id,
+               turn_id: running.active_turn_id,
+               context_budget: high_water_budget()
+             })
+
+    completed =
+      complete_active_child_work!(running, "single active implementation result", %{
+        "context_management" => context_management
+      })
+
+    failure_event = Enum.find(completed.events, &(&1.name == "conversation.context_compaction_failed"))
+
+    assert failure_event
+    assert failure_event.payload["state"] == "failed"
+    assert failure_event.payload["retryable?"]
+    assert failure_event.payload["reason"] =~ "no_eligible_history"
+    assert completed.active_turn == nil
+    assert completed.active_child_work == nil
+
+    degraded_status = AgentWorkspace.context_management_status(managed_repo.id, work_item.id)
+    assert degraded_status["state"] == "degraded"
+    assert get_in(degraded_status, ["latest_compaction", "state"]) == "failed"
+    assert AgentWorkspace.context_compaction_summaries(managed_repo.id, work_item.id) == []
+
+    continued = submit_turn!(conversation.id, "continue after failed compaction")
+
+    assert continued.active_turn_id
+    assert continued.active_child_work_id
+
+    assert :ok = AgentWorkspace.stop_conversation(conversation.id)
+  end
+
   defp run_runtime(spec) do
     outcome =
       Runtime.run(spec, fn event ->

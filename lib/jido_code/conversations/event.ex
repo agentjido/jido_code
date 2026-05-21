@@ -12,6 +12,7 @@ defmodule JidoCode.Conversations.Event do
   @canonical_event_names [
     "conversation.message_added",
     "conversation.context_compacted",
+    "conversation.context_compaction_failed",
     "conversation.status_changed",
     "turn.queued",
     "turn.started",

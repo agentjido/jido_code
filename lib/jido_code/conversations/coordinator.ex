@@ -1545,26 +1545,48 @@ defmodule JidoCode.Conversations.Coordinator do
       |> Map.get("latest_monitor_decision", %{})
       |> normalize_map()
 
-    if Map.get(decision, "state") == "recommend" and
-         context_compaction_decision_matches?(state, payload, child_work, decision) do
-      %{
+    cond do
+      Map.get(decision, "state") != "recommend" ->
         state
-        | pending_context_compaction: %{
-            "state" => "pending",
-            "recommendation_id" => Map.get(decision, "id"),
-            "debounce_key" => Map.get(decision, "debounce_key"),
-            "workflow" => Map.get(decision, "workflow"),
-            "specialist_role" => Map.get(decision, "specialist_role"),
-            "policy_id" => Map.get(decision, "policy_id"),
-            "reason" => Map.get(decision, "reason"),
-            "turn_id" => child_work.turn_id,
-            "child_work_id" => child_work.id
-          }
-      }
-    else
-      state
+
+      not context_compaction_decision_matches?(state, payload, child_work, decision) ->
+        state
+
+      decision_debounced?(decision) and pending_context_compaction_matches?(state.pending_context_compaction, decision) ->
+        state
+
+      decision_debounced?(decision) ->
+        state
+
+      true ->
+        %{
+          state
+          | pending_context_compaction: %{
+              "state" => "pending",
+              "recommendation_id" => Map.get(decision, "id"),
+              "debounce_key" => Map.get(decision, "debounce_key"),
+              "workflow" => Map.get(decision, "workflow"),
+              "specialist_role" => Map.get(decision, "specialist_role"),
+              "policy_id" => Map.get(decision, "policy_id"),
+              "reason" => Map.get(decision, "reason"),
+              "turn_id" => child_work.turn_id,
+              "child_work_id" => child_work.id
+            }
+        }
     end
   end
+
+  defp decision_debounced?(decision) when is_map(decision),
+    do: Map.get(decision, "debounced?") in [true, "true"]
+
+  defp decision_debounced?(_decision), do: false
+
+  defp pending_context_compaction_matches?(%{} = pending_context_compaction, decision) when is_map(decision) do
+    optional_match?(Map.get(decision, "id"), Map.get(pending_context_compaction, "recommendation_id")) or
+      optional_match?(Map.get(decision, "debounce_key"), Map.get(pending_context_compaction, "debounce_key"))
+  end
+
+  defp pending_context_compaction_matches?(_pending_context_compaction, _decision), do: false
 
   defp context_compaction_decision_matches?(state, payload, %ChildWork{} = child_work, decision) do
     payload_workflow = tool_result_workflow(payload)
@@ -1619,8 +1641,8 @@ defmodule JidoCode.Conversations.Coordinator do
         {:ok, _skipped_or_blocked} ->
           {:ok, %{state | pending_context_compaction: nil}}
 
-        {:error, _reason} ->
-          {:ok, %{state | pending_context_compaction: nil}}
+        {:error, reason} ->
+          append_context_compaction_failed_event(state, pending_context_compaction, reason)
       end
     end
   end
@@ -1669,6 +1691,40 @@ defmodule JidoCode.Conversations.Coordinator do
        })}
     else
       {:error, _reason} -> {:ok, %{state | pending_context_compaction: nil}}
+    end
+  end
+
+  defp append_context_compaction_failed_event(state, pending_context_compaction, reason) do
+    payload =
+      pending_context_compaction
+      |> normalize_map()
+      |> Map.take([
+        "recommendation_id",
+        "debounce_key",
+        "workflow",
+        "specialist_role",
+        "policy_id",
+        "turn_id",
+        "child_work_id"
+      ])
+      |> Map.merge(%{
+        "state" => "failed",
+        "reason" => inspect(reason),
+        "retryable?" => true
+      })
+
+    case JidoCode.ContextManagement.reject_raw_context_metadata(payload) do
+      :ok ->
+        {:ok,
+         state
+         |> Map.put(:pending_context_compaction, nil)
+         |> append_event("conversation.context_compaction_failed", %{
+           actor: runtime_actor(),
+           payload: payload
+         })}
+
+      {:error, _reason} ->
+        {:ok, %{state | pending_context_compaction: nil}}
     end
   end
 

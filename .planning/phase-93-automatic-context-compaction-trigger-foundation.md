@@ -62,22 +62,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 93.2.2.2 Subtask - Reject candidates that would split assistant/tool-result groups.
       [x] 93.2.2.3 Subtask - Reject candidates that only contain current request, repository scope, pending clarification, or no eligible older context.
 
-  [ ] 93.3 Section - Automatic Compaction Execution Boundary
+  [x] 93.3 Section - Automatic Compaction Execution Boundary
     Introduce an explicit boundary that callers can invoke after a recommendation to compact eligible context and persist the summary.
 
-    [ ] 93.3.1 Task - Add a product-owned auto-compaction helper
+    [x] 93.3.1 Task - Add a product-owned auto-compaction helper
       Route eligible candidates through `AgentWorkspace.compact_context/4` without exposing compactor internals to the coordinator.
 
-      [ ] 93.3.1.1 Subtask - Accept managed repo id, work item id, conversation state or snapshot, latest recommendation metadata, and context-management opts.
-      [ ] 93.3.1.2 Subtask - Return accepted summary status, skipped diagnostics, deferred diagnostics, or compaction failure details.
-      [ ] 93.3.1.3 Subtask - Ensure failures call the existing compaction failure persistence path and never mutate raw conversation events.
+      [x] 93.3.1.1 Subtask - Accept managed repo id, work item id, conversation state or snapshot, latest recommendation metadata, and context-management opts.
+      [x] 93.3.1.2 Subtask - Return accepted summary status, skipped diagnostics, deferred diagnostics, or compaction failure details.
+      [x] 93.3.1.3 Subtask - Ensure failures call the existing compaction failure persistence path and never mutate raw conversation events.
 
-    [ ] 93.3.2 Task - Add idempotency around repeated recommendations
+    [x] 93.3.2 Task - Add idempotency around repeated recommendations
       Prevent automatic compaction loops for unchanged source spans and repeated threshold observations.
 
-      [ ] 93.3.2.1 Subtask - Detect an active summary that already covers the same source span ids.
-      [ ] 93.3.2.2 Subtask - Preserve monitor debounce semantics when the same recommendation is observed repeatedly.
-      [ ] 93.3.2.3 Subtask - Emit a skipped state that explains idempotent no-op behavior.
+      [x] 93.3.2.1 Subtask - Detect an active summary that already covers the same source span ids.
+      [x] 93.3.2.2 Subtask - Preserve monitor debounce semantics when the same recommendation is observed repeatedly.
+      [x] 93.3.2.3 Subtask - Emit a skipped state that explains idempotent no-op behavior.
 
   [ ] 93.4 Section - Integration Tests
     Prove threshold recommendations can be converted into safe automatic compaction attempts without changing the append-only conversation model.

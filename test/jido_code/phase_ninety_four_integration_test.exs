@@ -46,6 +46,9 @@ defmodule JidoCode.PhaseNinetyFourIntegrationTest do
     previous_state = %{state | events: [], event_sequence: 0}
 
     assert :ok = Persistence.persist_transition(previous_state, state)
+    assert {:ok, persisted_events} = Persistence.events_since(conversation.id, 0)
+    assert Enum.map(persisted_events, & &1.name) == ["conversation.message_added", "conversation.context_compacted"]
+
     assert {:ok, restored_state} = Persistence.restore_state(conversation)
 
     restored_snapshot = Snapshot.from_state(restored_state)

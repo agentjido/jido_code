@@ -24,7 +24,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Accepted compaction summaries are prompt context and remain trim/drop eligible under request-time budgeting.
 - Debugging should recover original context through conversation history and provenance references, not automatic prompt expansion.
 
-[ ] 94 Phase 94 - Conversation Context Reset Projection
+[x] 94 Phase 94 - Conversation Context Reset Projection
   Add the append-only reset marker and snapshot projection rules that replace older raw conversation context with accepted compaction summaries.
 
   [x] 94.1 Section - Canonical Context-Compacted Event
@@ -78,19 +78,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 94.3.2.2 Subtask - Keep UI/event-stream recovery independent from prompt projection filtering.
       [x] 94.3.2.3 Subtask - Document that reset boundaries affect future prompt context, not historical event access.
 
-  [ ] 94.4 Section - Integration Tests
+  [x] 94.4 Section - Integration Tests
     Prove automatic reset markers are durable, replayable, and projection-only.
 
-    [ ] 94.4.1 Task - Add reset projection coverage
+    [x] 94.4.1 Task - Add reset projection coverage
       Exercise a conversation with old completed context, a compaction summary, and a reset event.
 
-      [ ] 94.4.1.1 Subtask - Add coverage proving reset-covered accepted tool results leave `shared_context`.
-      [ ] 94.4.1.2 Subtask - Add coverage proving required scope and pending clarification survive reset.
-      [ ] 94.4.1.3 Subtask - Add coverage proving active summary ids and reset metadata are visible.
+      [x] 94.4.1.1 Subtask - Add coverage proving reset-covered accepted tool results leave `shared_context`.
+      [x] 94.4.1.2 Subtask - Add coverage proving required scope and pending clarification survive reset.
+      [x] 94.4.1.3 Subtask - Add coverage proving active summary ids and reset metadata are visible.
 
-    [ ] 94.4.2 Task - Add persistence and replay coverage
+    [x] 94.4.2 Task - Add persistence and replay coverage
       Verify that reset events survive persistence and do not erase historical transcript records.
 
-      [ ] 94.4.2.1 Subtask - Add coverage for `Persistence.restore_state/1` with a reset event.
-      [ ] 94.4.2.2 Subtask - Add coverage proving `events_since` still returns pre-reset history.
-      [ ] 94.4.2.3 Subtask - Run conversation persistence, snapshot, and context-management focused tests.
+      [x] 94.4.2.1 Subtask - Add coverage for `Persistence.restore_state/1` with a reset event.
+      [x] 94.4.2.2 Subtask - Add coverage proving `events_since` still returns pre-reset history.
+      [x] 94.4.2.3 Subtask - Run conversation persistence, snapshot, and context-management focused tests.

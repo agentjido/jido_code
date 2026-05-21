@@ -196,6 +196,16 @@ If optional sections are too large, the runtime trims them and records compact
 budget diagnostics. The current request and governed repository/work-item scope
 remain required.
 
+The runtime and child-work result path can also carry `context_management`
+metadata. When that metadata includes a matching monitor recommendation, the
+conversation coordinator records pending automatic compaction. It waits for a
+terminal boundary before calling `AgentWorkspace.auto_compact_context/4`; if a
+turn is still running, awaiting input, cancelling, or superseding, the
+recommendation remains deferred. Accepted compaction appends
+`conversation.context_compacted` as a reset marker. Failed compaction appends
+`conversation.context_compaction_failed` and keeps the conversation on the
+request-time budget path.
+
 ### Stage 5: AgentWorkspace may wrap the instruction again
 
 `AgentWorkspace` may further transform the instruction through the same context
@@ -234,6 +244,14 @@ work-item `ContextManagementPod` has accepted summaries for older specialist
 history. That summary section is an additive continuity aid. It does not
 replace the current request, does not expand old raw tool output, and still
 passes through request-time `ContextBudget` packing.
+
+Reset-aware snapshots use the latest `conversation.context_compacted` event to
+filter covered old spans out of prompt-facing shared context. The old turns and
+events remain available for transcript debugging; they are not silently
+re-expanded into the model prompt. Operators and tests can use
+`AgentWorkspace.retry_auto_compact_context/4` for an explicit retry of the
+latest eligible recommendation or `AgentWorkspace.disable_auto_compaction/3` to
+stop automatic execution while leaving monitor observations visible.
 
 ### Stage 6: The specialist adds the system prompt
 

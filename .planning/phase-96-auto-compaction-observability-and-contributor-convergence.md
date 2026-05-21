@@ -63,22 +63,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 96.2.2.2 Subtask - Add a skip/disable path that leaves monitor observations visible but stops automatic execution.
       [x] 96.2.2.3 Subtask - Keep explicit retries idempotent for already-compacted source spans.
 
-  [ ] 96.3 Section - Specs, ADRs, And Developer Guides
+  [x] 96.3 Section - Specs, ADRs, And Developer Guides
     Converge project guidance around the final automatic compaction lifecycle.
 
-    [ ] 96.3.1 Task - Update architecture records
+    [x] 96.3.1 Task - Update architecture records
       Bring specs and decisions up to date with automatic compaction and reset-aware projection behavior.
 
-      [ ] 96.3.1.1 Subtask - Update the context-management pod spec to replace historical "not yet dedicated" language with current pod and automatic behavior.
-      [ ] 96.3.1.2 Subtask - Update the compaction policy spec with automatic trigger, deferral, reset, and retry semantics.
-      [ ] 96.3.1.3 Subtask - Update the ADR if the automatic reset marker or configuration policy changes the accepted architecture.
+      [x] 96.3.1.1 Subtask - Update the context-management pod spec to replace historical "not yet dedicated" language with current pod and automatic behavior.
+      [x] 96.3.1.2 Subtask - Update the compaction policy spec with automatic trigger, deferral, reset, and retry semantics.
+      [x] 96.3.1.3 Subtask - Update the ADR if the automatic reset marker or configuration policy changes the accepted architecture.
 
-    [ ] 96.3.2 Task - Update contributor guidance and quality gates
+    [x] 96.3.2 Task - Update contributor guidance and quality gates
       Make implementation and verification expectations clear for future context-management changes.
 
-      [ ] 96.3.2.1 Subtask - Update CodingPod and specialist-prompt guides with automatic compaction lifecycle details.
-      [ ] 96.3.2.2 Subtask - Update user-request-to-LLM docs with the new monitor, compact, reset, summary-injection, and request-time packing sequence.
-      [ ] 96.3.2.3 Subtask - Update quality-gate guidance with focused automatic compaction tests and when to run `mix memory.verify` or `mix source_graph.verify`.
+      [x] 96.3.2.1 Subtask - Update CodingPod and specialist-prompt guides with automatic compaction lifecycle details.
+      [x] 96.3.2.2 Subtask - Update user-request-to-LLM docs with the new monitor, compact, reset, summary-injection, and request-time packing sequence.
+      [x] 96.3.2.3 Subtask - Update quality-gate guidance with focused automatic compaction tests and when to run `mix memory.verify` or `mix source_graph.verify`.
 
   [ ] 96.4 Section - Integration Tests
     End the track with cross-boundary verification for observability, configuration, documentation, and degraded behavior.

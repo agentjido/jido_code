@@ -16,12 +16,14 @@ growth without replacing the request-time context-budget safety net.
 
 ## Current Truth
 
-The product already has `JidoCode.ContextBudget` and a ReAct request
-transformer that pack context at provider-request time. That layer is mandatory
-and remains the final safety check for every specialist request.
+The product has `JidoCode.ContextBudget` and a ReAct request transformer that
+pack context at provider-request time. That layer is mandatory and remains the
+final safety check for every specialist request.
 
-There is not yet a dedicated agent or pod that watches accumulated context and
-proactively compresses retained specialist history.
+Each work-item `CodingPod` now owns a dedicated `ContextManagementPod` that
+watches accumulated context through metadata-only budget observations,
+recommends compaction, stores accepted summaries, and exposes lifecycle status
+without replaying raw old prompt or tool-output content.
 
 ## Required Architecture
 
@@ -54,8 +56,9 @@ It emits:
 - compaction recommendations when threshold policy is crossed
 - blocked or degraded diagnostics when compaction is unsafe or unavailable
 
-The monitor does not mutate specialist history directly. It requests compaction
-through product-owned actions or signals.
+The monitor does not mutate specialist history directly. It emits deterministic
+metadata. `AgentWorkspace` and the conversation coordinator turn eligible
+recommendations into compaction attempts through product-owned boundaries.
 
 ## ContextCompactor Contract
 
@@ -97,12 +100,60 @@ that behavior.
 ## Runtime Integration
 
 `AgentWorkspace` and specialist runners pass context-budget diagnostics to the
-context-management pod after specialist calls. The pod may request compaction
-before the next specialist call.
+context-management pod after specialist calls. Work-item conversation turns also
+carry context-management status in tool-result payloads.
+
+When the latest monitor decision recommends compaction, the conversation
+coordinator records a pending automatic compaction candidate. It only executes
+that candidate at a safe terminal boundary, after active turns and child work
+are no longer running, awaiting input, cancelling, or superseding. Running or
+awaiting-input turns leave the candidate deferred.
+
+Accepted automatic compaction stores a summary in the product-owned
+`CompactionStore` and appends a `conversation.context_compacted` event. That
+event acts as a reset marker for prompt-facing snapshot projection: old covered
+turns stay in the append-only event history, but they are no longer replayed as
+normal prompt context. Failed attempts append
+`conversation.context_compaction_failed` with retryable diagnostics.
 
 Prompt assembly may include a bounded compaction summary section when available.
 The request-time `ContextBudget` layer still packs the final prompt and
 retained history.
+
+## Configuration And Controls
+
+The context-management policy separates monitoring from automatic execution:
+
+- `enabled?` controls whether the pod accepts context-management observations.
+- `compaction_enabled?` controls whether summaries can be produced.
+- `auto_compaction_enabled?` controls whether eligible monitor recommendations
+  execute automatically.
+
+Invalid tuning or boolean config is reported as degraded diagnostics while the
+request-time budget guard continues to run. Operators and tests can disable
+automatic execution for a work item without deleting monitor observations, and
+can explicitly retry the latest eligible recommendation. Retries remain
+idempotent for already-compacted source spans.
+
+## Observability
+
+Public status and snapshots expose concise automatic compaction lifecycle
+metadata:
+
+- healthy
+- recommended
+- pending
+- deferred
+- in-flight
+- compacted
+- skipped or disabled
+- blocked
+- degraded
+
+Lifecycle metadata includes recommendation ids, debounce keys, policy ids,
+summary ids, source span counts, reset sequences, event sequences, and
+remediation hints where available. It must not contain raw old messages, raw
+tool outputs, or prompt bodies.
 
 ## Degraded Behavior
 
@@ -123,3 +174,7 @@ Tests must prove:
 - summaries can be injected as bounded prompt sections
 - request-time packing still runs after compaction
 - disabled or failed compaction degrades safely
+- automatic recommendations defer until terminal boundaries
+- reset markers filter prompt-facing shared context without deleting history
+- explicit disable and retry paths preserve monitor evidence and idempotency
+- lifecycle metadata remains useful without leaking raw context

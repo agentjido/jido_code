@@ -46,22 +46,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 96.1.2.2 Subtask - Include degraded remediation hints for disabled config, ineligible candidates, unresolved tool groups, and compactor failures.
       [x] 96.1.2.3 Subtask - Preserve event-sequence references for transcript debugging without replaying raw old context into prompts.
 
-  [ ] 96.2 Section - Configuration And Control Surfaces
+  [x] 96.2 Section - Configuration And Control Surfaces
     Add conservative controls for enabling, disabling, and tuning automatic compaction.
 
-    [ ] 96.2.1 Task - Add automatic compaction configuration
+    [x] 96.2.1 Task - Add automatic compaction configuration
       Separate monitor recommendation thresholds from the decision to automatically compact.
 
-      [ ] 96.2.1.1 Subtask - Add `auto_compaction_enabled?` or equivalent policy flag with safe default behavior.
-      [ ] 96.2.1.2 Subtask - Add per-request and test overrides for auto-compaction behavior.
-      [ ] 96.2.1.3 Subtask - Validate invalid automatic compaction config as degraded metadata rather than disabling request-time budgeting.
+      [x] 96.2.1.1 Subtask - Add `auto_compaction_enabled?` or equivalent policy flag with safe default behavior.
+      [x] 96.2.1.2 Subtask - Add per-request and test overrides for auto-compaction behavior.
+      [x] 96.2.1.3 Subtask - Validate invalid automatic compaction config as degraded metadata rather than disabling request-time budgeting.
 
-    [ ] 96.2.2 Task - Add explicit retry and disable paths
+    [x] 96.2.2 Task - Add explicit retry and disable paths
       Let operators and tests force a retry or disable automatic compaction without changing the monitor.
 
-      [ ] 96.2.2.1 Subtask - Add an explicit operator/workflow retry path for the latest eligible recommendation.
-      [ ] 96.2.2.2 Subtask - Add a skip/disable path that leaves monitor observations visible but stops automatic execution.
-      [ ] 96.2.2.3 Subtask - Keep explicit retries idempotent for already-compacted source spans.
+      [x] 96.2.2.1 Subtask - Add an explicit operator/workflow retry path for the latest eligible recommendation.
+      [x] 96.2.2.2 Subtask - Add a skip/disable path that leaves monitor observations visible but stops automatic execution.
+      [x] 96.2.2.3 Subtask - Keep explicit retries idempotent for already-compacted source spans.
 
   [ ] 96.3 Section - Specs, ADRs, And Developer Guides
     Converge project guidance around the final automatic compaction lifecycle.

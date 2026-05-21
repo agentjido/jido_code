@@ -170,7 +170,7 @@ defmodule JidoCode.ContextManagement do
       workspace_path: workspace_path,
       parent_pod_id: parent_pod_id,
       runtime_status: :running,
-      context_management_status: if(policy.enabled?, do: :healthy, else: :disabled),
+      context_management_status: initial_context_management_status(policy),
       policy: public_policy(policy),
       observations: [],
       recommendations: [],
@@ -250,6 +250,38 @@ defmodule JidoCode.ContextManagement do
       updated_at: DateTime.utc_now()
     }
   end
+
+  @doc "Disables automatic compaction while preserving monitor observations and recommendations."
+  @spec disable_auto_compaction_metadata(metadata(), String.t() | nil) :: metadata()
+  def disable_auto_compaction_metadata(metadata, reason \\ nil)
+
+  def disable_auto_compaction_metadata(metadata, reason) when is_map(metadata) do
+    reason = normalize_optional_string(reason) || "Automatic compaction disabled for this work item."
+
+    diagnostic = %{
+      kind: :auto_compaction_disabled,
+      state: :skipped,
+      reason: reason
+    }
+
+    policy =
+      metadata
+      |> Map.get(:policy, Map.get(metadata, "policy", %{}))
+      |> normalize_map()
+      |> Map.put(:auto_compaction_enabled?, false)
+
+    metadata
+    |> Map.put(:policy, policy)
+    |> Map.put(:updated_at, DateTime.utc_now())
+    |> Map.update(:diagnostics, [diagnostic], fn diagnostics ->
+      diagnostics
+      |> List.wrap()
+      |> Kernel.++([diagnostic])
+      |> Enum.map(&redact_diagnostics/1)
+    end)
+  end
+
+  def disable_auto_compaction_metadata(_metadata, _reason), do: disabled_metadata()
 
   @doc "Returns a metadata-only observation struct."
   @spec observation(map()) :: {:ok, budget_observation()} | {:error, term()}
@@ -745,25 +777,57 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp config_diagnostics(opts, config) do
-    [:high_water_mark, :repeated_trim_threshold, :debounce_window_ms, :max_summary_tokens, :max_candidate_tokens]
-    |> Enum.flat_map(fn key ->
-      value = Map.get(opts, key, Map.get(config, key))
+    numeric_diagnostics =
+      [:high_water_mark, :repeated_trim_threshold, :debounce_window_ms, :max_summary_tokens, :max_candidate_tokens]
+      |> Enum.flat_map(fn key ->
+        value = Map.get(opts, key, Map.get(config, key))
 
-      cond do
-        is_nil(value) ->
-          []
+        cond do
+          is_nil(value) ->
+            []
 
-        key == :high_water_mark and ratio_value(value, nil) == nil ->
-          [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+          key == :high_water_mark and ratio_value(value, nil) == nil ->
+            [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
 
-        key != :high_water_mark and positive_integer(value, nil) == nil ->
-          [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+          key != :high_water_mark and positive_integer(value, nil) == nil ->
+            [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
 
-        true ->
-          []
-      end
-    end)
+          true ->
+            []
+        end
+      end)
+
+    boolean_diagnostics =
+      [:enabled?, :compaction_enabled?, :auto_compaction_enabled?]
+      |> Enum.flat_map(fn key ->
+        value = Map.get(opts, key, Map.get(config, key))
+
+        cond do
+          is_nil(value) ->
+            []
+
+          valid_boolean_config?(value) ->
+            []
+
+          true ->
+            [%{kind: :invalid_context_management_config, state: :degraded, key: key, value: inspect(value)}]
+        end
+      end)
+
+    numeric_diagnostics ++ boolean_diagnostics
   end
+
+  defp initial_context_management_status(%{enabled?: false}), do: :disabled
+
+  defp initial_context_management_status(%{diagnostics: diagnostics}) when is_list(diagnostics) do
+    if Enum.any?(diagnostics, &(Map.get(&1, :state) == :degraded)) do
+      :degraded
+    else
+      :healthy
+    end
+  end
+
+  defp initial_context_management_status(_policy), do: :healthy
 
   defp policy_from_metadata(metadata) do
     metadata
@@ -1433,6 +1497,8 @@ defmodule JidoCode.ContextManagement do
   defp boolean_value(value, _default) when value in [true, "true", "1"], do: true
   defp boolean_value(value, _default) when value in [false, "false", "0"], do: false
   defp boolean_value(_value, default), do: default
+
+  defp valid_boolean_config?(value), do: value in [true, false, "true", "false", "1", "0"]
 
   defp ratio_value(value, _default) when is_float(value) and value > 0 and value <= 1, do: value
   defp ratio_value(value, _default) when is_integer(value) and value > 0 and value <= 100, do: value / 100

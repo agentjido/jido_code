@@ -387,6 +387,55 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
+  Retries automatic compaction for the latest monitor recommendation.
+
+  This explicit operator/test path allows the latest debounced recommendation
+  to run again while retaining the same idempotency guard for already-compacted
+  source spans.
+  """
+  @spec retry_auto_compact_context(managed_repo_id(), work_item_id(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def retry_auto_compact_context(managed_repo_id, work_item_id, conversation_state_or_snapshot, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(conversation_state_or_snapshot) and
+             is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+
+    retry_opts =
+      case Manager.pod_status(managed_repo_id, pod_id) do
+        %{metadata: metadata} -> retry_context_management_opts(opts, latest_monitor_decision(metadata))
+        _other -> retry_context_management_opts(opts, %{})
+      end
+
+    auto_compact_context(managed_repo_id, work_item_id, conversation_state_or_snapshot, retry_opts)
+  end
+
+  @doc """
+  Disables automatic compaction for a work item while leaving monitoring active.
+  """
+  @spec disable_auto_compaction(managed_repo_id(), work_item_id(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def disable_auto_compaction(managed_repo_id, work_item_id, opts \\ [])
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
+    pod_id = ContextManagement.pod_id(work_item_id)
+    reason = Keyword.get(opts, :reason)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: metadata} ->
+        with {:ok, pod_entry} <-
+               Manager.update_pod_metadata(
+                 managed_repo_id,
+                 pod_id,
+                 ContextManagement.disable_auto_compaction_metadata(metadata, reason)
+               ) do
+          {:ok, ContextManagement.status_summary(pod_entry.metadata)}
+        end
+
+      _other ->
+        {:ok, ContextManagement.status_summary(nil)}
+    end
+  end
+
+  @doc """
   Returns bounded active compaction summaries for prompt assembly.
   """
   @spec context_compaction_summaries(managed_repo_id(), work_item_id(), keyword()) :: [map()]
@@ -1790,6 +1839,31 @@ defmodule JidoCode.AgentWorkspace do
       _other -> :infinity
     end
   end
+
+  defp retry_context_management_opts(opts, decision) do
+    retry_context_opts =
+      opts
+      |> context_management_opts()
+      |> Keyword.merge(
+        allow_debounced_recommendation?: true,
+        recommendation_id: Map.get(decision, "id"),
+        debounce_key: Map.get(decision, "debounce_key")
+      )
+
+    Keyword.put(opts, :context_management, retry_context_opts)
+  end
+
+  defp latest_monitor_decision(metadata) when is_map(metadata) do
+    metadata
+    |> Map.get(:latest_monitor_decision, Map.get(metadata, "latest_monitor_decision", %{}))
+    |> ContextManagement.public_payload()
+    |> case do
+      %{} = decision -> decision
+      _other -> %{}
+    end
+  end
+
+  defp latest_monitor_decision(_metadata), do: %{}
 
   defp context_management_opts(opts) when is_list(opts) do
     nested =

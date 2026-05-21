@@ -6,6 +6,7 @@ defmodule JidoCode.PhaseNinetyFiveIntegrationTest do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Conversations.Runtime
   alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
 
@@ -55,7 +56,64 @@ defmodule JidoCode.PhaseNinetyFiveIntegrationTest do
 
     assert summary_text =~ "Compacted 1 older execute/coder context span"
 
+    next_instruction = "Continue current request in lib/after_reset.ex."
+
+    {outcome, events} =
+      run_runtime(%{
+        conversation_id: conversation.id,
+        managed_repo_id: managed_repo.id,
+        work_item_id: work_item.id,
+        turn_id: "phase-95-next-turn",
+        instruction: next_instruction,
+        objective: "Exercise prompt continuity after automatic context compaction.",
+        source: "phase_95_test",
+        turn_payload: %{
+          "workflow" => "execute",
+          "instruction" => next_instruction,
+          "referenced_files" => ["lib/after_reset.ex"]
+        },
+        shared_context:
+          completed.shared_context
+          |> Map.put("referenced_files", ["lib/after_reset.ex"])
+          |> Map.put("context_budget", %{"input_token_budget" => 2_400})
+      })
+
+    assert {:completed, %{"result" => %{"summary" => runtime_summary, "context_budget" => result_budget}}} =
+             outcome
+
+    assert runtime_summary =~ "Current request:"
+    assert runtime_summary =~ next_instruction
+    assert runtime_summary =~ "lib/after_reset.ex"
+    assert runtime_summary =~ "Compaction summary:"
+    assert runtime_summary =~ "Compacted 1 older execute/coder context span"
+    refute runtime_summary =~ "older implementation context"
+    refute runtime_summary =~ "older implementation result"
+
+    assert Enum.any?(events, &(&1["kind"] == "progress" and &1["workflow"] == "execute"))
+
+    compaction_diagnostic =
+      Enum.find(result_budget["diagnostics"], &(to_string(&1["kind"]) == "compaction_summary"))
+
+    assert compaction_diagnostic["retention"] in [:useful, "useful"]
+
     assert :ok = AgentWorkspace.stop_conversation(conversation.id)
+  end
+
+  defp run_runtime(spec) do
+    outcome =
+      Runtime.run(spec, fn event ->
+        send(self(), {:runtime_event, event})
+      end)
+
+    {outcome, runtime_events()}
+  end
+
+  defp runtime_events(events \\ []) do
+    receive do
+      {:runtime_event, event} -> runtime_events([event | events])
+    after
+      0 -> Enum.reverse(events)
+    end
   end
 
   defp submit_turn!(conversation_id, instruction) do

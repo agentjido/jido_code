@@ -44,22 +44,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 95.1.2.2 Subtask - Defer compaction while a turn is running, awaiting input, cancelling, or superseding.
       [x] 95.1.2.3 Subtask - Ensure queued next turns see reset-aware `shared_context` and active compaction summaries.
 
-  [ ] 95.2 Section - Prompt Continuity After Reset
+  [x] 95.2 Section - Prompt Continuity After Reset
     Ensure future provider requests receive the accepted summary instead of reset-covered raw context.
 
-    [ ] 95.2.1 Task - Inject summaries across conversation runtime paths
+    [x] 95.2.1 Task - Inject summaries across conversation runtime paths
       Align direct AgentWorkspace, semantic workflow, memory workflow, and fallback paths on the same active summary behavior.
 
-      [ ] 95.2.1.1 Subtask - Confirm AgentWorkspace specialist prompts include active summaries after automatic compaction.
-      [ ] 95.2.1.2 Subtask - Add runtime instruction support for active summary metadata when conversation-owned prompt assembly needs it.
-      [ ] 95.2.1.3 Subtask - Keep compaction summaries trim/drop eligible under `ContextBudget` and never mark them as required context.
+      [x] 95.2.1.1 Subtask - Confirm AgentWorkspace specialist prompts include active summaries after automatic compaction.
+      [x] 95.2.1.2 Subtask - Add runtime instruction support for active summary metadata when conversation-owned prompt assembly needs it.
+      [x] 95.2.1.3 Subtask - Keep compaction summaries trim/drop eligible under `ContextBudget` and never mark them as required context.
 
-    [ ] 95.2.2 Task - Keep required context fresh
+    [x] 95.2.2 Task - Keep required context fresh
       Preserve current request, governed scope, active files, and operator clarification state after the reset.
 
-      [ ] 95.2.2.1 Subtask - Confirm the current turn instruction is never sourced from compacted context.
-      [ ] 95.2.2.2 Subtask - Confirm referenced files can be reintroduced by new turns after a reset.
-      [ ] 95.2.2.3 Subtask - Confirm prompt memory and durable memory adoption boundaries are unaffected by compaction.
+      [x] 95.2.2.1 Subtask - Confirm the current turn instruction is never sourced from compacted context.
+      [x] 95.2.2.2 Subtask - Confirm referenced files can be reintroduced by new turns after a reset.
+      [x] 95.2.2.3 Subtask - Confirm prompt memory and durable memory adoption boundaries are unaffected by compaction.
 
   [ ] 95.3 Section - Failure, Concurrency, And Backpressure
     Make automatic compaction safe under compactor errors, racing turns, and repeated threshold crossings.

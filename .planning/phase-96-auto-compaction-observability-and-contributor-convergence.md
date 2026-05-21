@@ -26,7 +26,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Automatic compaction remains a prompt-continuity optimization, not durable memory adoption.
 - Existing request-time context-budget verification remains mandatory for this track.
 
-[ ] 96 Phase 96 - Auto-Compaction Observability And Contributor Convergence
+[x] 96 Phase 96 - Auto-Compaction Observability And Contributor Convergence
   Make automatic compaction explainable, configurable, documented, and covered by contributor quality gates after runtime adoption lands.
 
   [x] 96.1 Section - Lifecycle Metadata And Operator Visibility
@@ -80,20 +80,20 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 96.3.2.2 Subtask - Update user-request-to-LLM docs with the new monitor, compact, reset, summary-injection, and request-time packing sequence.
       [x] 96.3.2.3 Subtask - Update quality-gate guidance with focused automatic compaction tests and when to run `mix memory.verify` or `mix source_graph.verify`.
 
-  [ ] 96.4 Section - Integration Tests
+  [x] 96.4 Section - Integration Tests
     End the track with cross-boundary verification for observability, configuration, documentation, and degraded behavior.
 
-    [ ] 96.4.1 Task - Add lifecycle observability coverage
+    [x] 96.4.1 Task - Add lifecycle observability coverage
       Verify product metadata distinguishes each automatic compaction state without leaking raw context.
 
-      [ ] 96.4.1.1 Subtask - Add coverage for pending, compacted, skipped, deferred, degraded, and explicit retry states.
-      [ ] 96.4.1.2 Subtask - Add sentinel tests proving raw prompt and tool-output content stay out of lifecycle metadata.
-      [ ] 96.4.1.3 Subtask - Add snapshot and event-stream assertions for reset sequence and summary ids.
+      [x] 96.4.1.1 Subtask - Add coverage for pending, compacted, skipped, deferred, degraded, and explicit retry states.
+      [x] 96.4.1.2 Subtask - Add sentinel tests proving raw prompt and tool-output content stay out of lifecycle metadata.
+      [x] 96.4.1.3 Subtask - Add snapshot and event-stream assertions for reset sequence and summary ids.
 
-    [ ] 96.4.2 Task - Run final automatic compaction verification
+    [x] 96.4.2 Task - Run final automatic compaction verification
       Verify the completed rollout across monitor, compactor, reset projection, runtime adoption, and docs.
 
-      [ ] 96.4.2.1 Subtask - Run focused Phase 93 through Phase 96 integration tests.
-      [ ] 96.4.2.2 Subtask - Run context-management and context-budget regression tests.
-      [ ] 96.4.2.3 Subtask - Run conversation runtime, coordinator, persistence, and snapshot tests.
-      [ ] 96.4.2.4 Subtask - Run `mix source_graph.verify` or `mix memory.verify` only if implementation touches graph prompt projection, provenance capture, or durable-memory boundaries.
+      [x] 96.4.2.1 Subtask - Run focused Phase 93 through Phase 96 integration tests.
+      [x] 96.4.2.2 Subtask - Run context-management and context-budget regression tests.
+      [x] 96.4.2.3 Subtask - Run conversation runtime, coordinator, persistence, and snapshot tests.
+      [x] 96.4.2.4 Subtask - Run `mix source_graph.verify` or `mix memory.verify` only if implementation touches graph prompt projection, provenance capture, or durable-memory boundaries.

@@ -239,6 +239,14 @@ defmodule JidoCode.PhaseNinetySixIntegrationTest do
     assert compacted_snapshot.context_compaction_lifecycle["reset_sequence"] == 1
     assert compacted_snapshot.context_compaction_lifecycle["source_span_count"] == 1
     assert compacted_snapshot.shared_context["latest_context_reset"]["summary_id"] == "summary-96"
+
+    assert [%{name: "conversation.context_compacted", payload: compacted_payload}] =
+             Enum.filter(compacted_snapshot.events, &(&1.name == "conversation.context_compacted"))
+
+    assert compacted_payload["summary_id"] == "summary-96"
+    assert compacted_payload["reset_sequence"] == 1
+    assert compacted_payload["source_span_ids"] == ["turn:turn-older"]
+
     refute inspect(compacted_snapshot.context_compaction_lifecycle, limit: :infinity) =~ @raw_sentinel
     refute inspect(compacted_snapshot.shared_context, limit: :infinity) =~ @raw_sentinel
 
@@ -274,6 +282,12 @@ defmodule JidoCode.PhaseNinetySixIntegrationTest do
 
     assert degraded_snapshot.shared_context["latest_context_compaction_failure"]["recommendation_id"] ==
              "recommendation-96"
+
+    assert [%{name: "conversation.context_compaction_failed", payload: failure_payload}] =
+             Enum.filter(degraded_snapshot.events, &(&1.name == "conversation.context_compaction_failed"))
+
+    assert failure_payload["recommendation_id"] == "recommendation-96"
+    assert failure_payload["retryable?"]
 
     refute inspect(degraded_snapshot.context_compaction_lifecycle, limit: :infinity) =~ @raw_sentinel
     refute inspect(degraded_snapshot.context_compaction_lifecycle, limit: :infinity) =~ "raw_prompt"

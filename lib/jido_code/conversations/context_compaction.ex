@@ -37,6 +37,30 @@ defmodule JidoCode.Conversations.ContextCompaction do
 
   def messages_from_state(_state_or_snapshot), do: []
 
+  @spec context_compacted_event_payload(map()) :: {:ok, map()} | {:error, term()}
+  def context_compacted_event_payload(attrs) when is_map(attrs) do
+    with :ok <- ContextManagement.reject_raw_context_metadata(attrs),
+         {:ok, summary_id} <- required_string(attrs, :summary_id),
+         {:ok, source_span_ids} <- required_string_list(attrs, :source_span_ids) do
+      {:ok,
+       %{
+         "summary_id" => summary_id,
+         "recommendation_id" => field(attrs, :recommendation_id) |> normalize_optional_string(),
+         "debounce_key" => field(attrs, :debounce_key) |> normalize_optional_string(),
+         "source_span_ids" => source_span_ids,
+         "policy_id" => field(attrs, :policy_id) |> normalize_optional_string(),
+         "workflow" => field(attrs, :workflow) |> normalize_optional_string(),
+         "specialist_role" => field(attrs, :specialist_role) |> normalize_optional_string(),
+         "reset_sequence" => field(attrs, :reset_sequence),
+         "state" => "compacted"
+       }
+       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+       |> Map.new()}
+    end
+  end
+
+  def context_compacted_event_payload(_attrs), do: {:error, :invalid_context_compacted_event_payload}
+
   defp candidate_attrs(state_or_snapshot, action) do
     %{
       managed_repo_id: field(action, :managed_repo_id) || field(state_or_snapshot, :managed_repo_id),
@@ -218,6 +242,39 @@ defmodule JidoCode.Conversations.ContextCompaction do
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
+
+  defp required_string(attrs, key) do
+    case field(attrs, key) |> normalize_optional_string() do
+      nil -> {:error, {:missing_required_context_compaction_field, key}}
+      value -> {:ok, value}
+    end
+  end
+
+  defp required_string_list(attrs, key) do
+    attrs
+    |> field(key, [])
+    |> normalize_string_list()
+    |> case do
+      [] -> {:error, {:missing_required_context_compaction_field, key}}
+      values -> {:ok, values}
+    end
+  end
+
+  defp normalize_string_list(values) when is_list(values) do
+    values
+    |> Enum.map(&normalize_optional_string/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_string_list(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> []
+      string -> [string]
+    end
+  end
 
   defp normalize_optional_string(nil), do: nil
 

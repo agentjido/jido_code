@@ -27,22 +27,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 94 Phase 94 - Conversation Context Reset Projection
   Add the append-only reset marker and snapshot projection rules that replace older raw conversation context with accepted compaction summaries.
 
-  [ ] 94.1 Section - Canonical Context-Compacted Event
+  [x] 94.1 Section - Canonical Context-Compacted Event
     Represent successful automatic compaction as a first-class conversation lifecycle event without storing raw old context.
 
-    [ ] 94.1.1 Task - Add the reset event contract
+    [x] 94.1.1 Task - Add the reset event contract
       Define a canonical `conversation.context_compacted` event with enough metadata to explain the reset boundary.
 
-      [ ] 94.1.1.1 Subtask - Add the event name to the canonical conversation event list.
-      [ ] 94.1.1.2 Subtask - Include summary id, recommendation id, source span ids, policy id, workflow, specialist role, and reset sequence.
-      [ ] 94.1.1.3 Subtask - Validate that event payloads do not include raw prompt text, raw tool output, or source file bodies.
+      [x] 94.1.1.1 Subtask - Add the event name to the canonical conversation event list.
+      [x] 94.1.1.2 Subtask - Include summary id, recommendation id, source span ids, policy id, workflow, specialist role, and reset sequence.
+      [x] 94.1.1.3 Subtask - Validate that event payloads do not include raw prompt text, raw tool output, or source file bodies.
 
-    [ ] 94.1.2 Task - Persist reset events append-only
+    [x] 94.1.2 Task - Persist reset events append-only
       Store reset events through the existing transition persistence path so replay remains deterministic.
 
-      [ ] 94.1.2.1 Subtask - Append reset events after a summary is accepted by the compaction store.
-      [ ] 94.1.2.2 Subtask - Persist the reset event and updated snapshot in the same transition as other coordinator events.
-      [ ] 94.1.2.3 Subtask - Preserve all earlier `conversation.message_added`, turn, and tool events.
+      [x] 94.1.2.1 Subtask - Append reset events after a summary is accepted by the compaction store.
+      [x] 94.1.2.2 Subtask - Persist the reset event and updated snapshot in the same transition as other coordinator events.
+      [x] 94.1.2.3 Subtask - Preserve all earlier `conversation.message_added`, turn, and tool events.
 
   [ ] 94.2 Section - Snapshot Projection After Reset
     Teach prompt-facing shared context to honor the latest reset boundary while preserving active work and required scope.

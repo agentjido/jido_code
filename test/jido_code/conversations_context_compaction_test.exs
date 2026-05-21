@@ -4,6 +4,35 @@ defmodule JidoCode.Conversations.ContextCompactionTest do
   use ExUnit.Case, async: true
 
   alias JidoCode.Conversations.ContextCompaction
+  alias JidoCode.Conversations.Event
+
+  test "context compacted event payload is canonical and metadata-safe" do
+    assert "conversation.context_compacted" in Event.canonical_event_names()
+
+    assert {:ok, payload} =
+             ContextCompaction.context_compacted_event_payload(%{
+               summary_id: "summary-93",
+               recommendation_id: "recommendation-93",
+               debounce_key: "debounce-93",
+               source_span_ids: ["turn:turn-1"],
+               policy_id: "context-management:v1",
+               workflow: :execute,
+               specialist_role: :coder,
+               reset_sequence: 12
+             })
+
+    assert payload["summary_id"] == "summary-93"
+    assert payload["source_span_ids"] == ["turn:turn-1"]
+    assert payload["workflow"] == "execute"
+    assert payload["state"] == "compacted"
+
+    assert {:error, :raw_context_metadata_rejected} =
+             ContextCompaction.context_compacted_event_payload(%{
+               summary_id: "summary-93",
+               source_span_ids: ["turn:turn-1"],
+               raw_prompt: "do not persist this"
+             })
+  end
 
   test "builds a protocol-safe candidate from older completed conversation turns" do
     snapshot = %{

@@ -151,6 +151,62 @@ defmodule JidoCode.PhaseNinetyFiveIntegrationTest do
     assert :ok = AgentWorkspace.stop_conversation(conversation.id)
   end
 
+  test "automatic compaction defers while the turn is running or awaiting input" do
+    {managed_repo, work_item} = managed_repo_and_work_item_fixture!("deferral")
+    workspace_path = create_workspace_path!("deferral")
+
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+    assert {:ok, _pod_name} = AgentWorkspace.ensure_coding_pod(managed_repo.id, work_item.id, workspace_path)
+
+    assert {:ok, %{conversation: conversation}} =
+             AgentWorkspace.open_work_item_conversation(work_item.id, %{
+               source: "work_item_detail",
+               objective: "Exercise automatic context compaction deferral."
+             })
+
+    conversation.id
+    |> submit_turn!("older implementation context")
+    |> complete_active_child_work!("older implementation result")
+
+    running = submit_turn!(conversation.id, "active implementation follow-up")
+
+    assert {:ok, context_management} =
+             AgentWorkspace.record_context_observation(managed_repo.id, work_item.id, %{
+               workflow: :execute,
+               specialist_role: :coder,
+               conversation_id: conversation.id,
+               turn_id: running.active_turn_id,
+               context_budget: high_water_budget()
+             })
+
+    progress =
+      submit_tool_result!(running, "progress", %{
+        "summary" => "context budget crossed the high-water mark",
+        "context_management" => context_management
+      })
+
+    refute Enum.any?(progress.events, &(&1.name == "conversation.context_compacted"))
+    assert progress.active_turn.state == :running
+    assert AgentWorkspace.context_compaction_summaries(managed_repo.id, work_item.id) == []
+
+    awaiting =
+      submit_tool_result!(progress, "needs_input", %{
+        "prompt" => "Confirm the active file before continuing.",
+        "context_management" => context_management
+      })
+
+    refute Enum.any?(awaiting.events, &(&1.name == "conversation.context_compacted"))
+    assert awaiting.active_turn.state == :awaiting_input
+
+    assert awaiting.shared_context["pending_clarification"]["prompt"]["prompt"] ==
+             "Confirm the active file before continuing."
+
+    assert AgentWorkspace.context_compaction_summaries(managed_repo.id, work_item.id) == []
+
+    assert :ok = AgentWorkspace.stop_conversation(conversation.id)
+  end
+
   defp run_runtime(spec) do
     outcome =
       Runtime.run(spec, fn event ->
@@ -197,6 +253,25 @@ defmodule JidoCode.PhaseNinetyFiveIntegrationTest do
              )
 
     completed
+  end
+
+  defp submit_tool_result!(snapshot, kind, payload) do
+    assert {:ok, updated} =
+             AgentWorkspace.handle_conversation_command(
+               snapshot.conversation_id,
+               %{
+                 type: "tool_result.submit",
+                 payload:
+                   %{
+                     child_work_id: snapshot.active_child_work_id,
+                     kind: kind
+                   }
+                   |> Map.merge(payload)
+               },
+               actor: Actor.operator_actor(%{"id" => "operator-phase-95"})
+             )
+
+    updated
   end
 
   defp managed_repo_and_work_item_fixture!(suffix) do

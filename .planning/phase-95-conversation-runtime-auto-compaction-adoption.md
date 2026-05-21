@@ -24,7 +24,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Automatic compaction should run before the next prompt uses older context, not in the middle of provider request assembly.
 - Request-time `ContextBudget` packing remains the final guard after any automatic reset.
 
-[ ] 95 Phase 95 - Conversation Runtime Auto-Compaction Adoption
+[x] 95 Phase 95 - Conversation Runtime Auto-Compaction Adoption
   Wire automatic compaction into the real conversation runtime so threshold-crossing conversations compact and reset before the next turn consumes stale oversized context.
 
   [x] 95.1 Section - Coordinator Scheduling And Deferral
@@ -78,19 +78,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 95.3.2.2 Subtask - Ensure only one compaction attempt runs per conversation at a time.
       [x] 95.3.2.3 Subtask - Preserve stop, pause, steer, and cancellation semantics while compaction is pending.
 
-  [ ] 95.4 Section - Integration Tests
+  [x] 95.4 Section - Integration Tests
     Prove real conversation turns automatically compact at safe boundaries and continue with bounded prompt context.
 
-    [ ] 95.4.1 Task - Add end-to-end auto-compaction coverage
+    [x] 95.4.1 Task - Add end-to-end auto-compaction coverage
       Exercise a conversation that crosses the configured high-water threshold and then continues through a new turn.
 
-      [ ] 95.4.1.1 Subtask - Add coverage proving automatic compaction runs after a terminal turn recommendation.
-      [ ] 95.4.1.2 Subtask - Add coverage proving the next turn sees active summary metadata and not reset-covered raw accepted tool results.
-      [ ] 95.4.1.3 Subtask - Add coverage proving request-time budget packing still runs after automatic compaction.
+      [x] 95.4.1.1 Subtask - Add coverage proving automatic compaction runs after a terminal turn recommendation.
+      [x] 95.4.1.2 Subtask - Add coverage proving the next turn sees active summary metadata and not reset-covered raw accepted tool results.
+      [x] 95.4.1.3 Subtask - Add coverage proving request-time budget packing still runs after automatic compaction.
 
-    [ ] 95.4.2 Task - Add deferral and failure coverage
+    [x] 95.4.2 Task - Add deferral and failure coverage
       Exercise active-turn, awaiting-input, failed-compaction, and repeated-recommendation scenarios.
 
-      [ ] 95.4.2.1 Subtask - Add coverage proving running and awaiting-input turns defer automatic compaction.
-      [ ] 95.4.2.2 Subtask - Add coverage proving compactor failure records diagnostics and continues with request-time packing.
-      [ ] 95.4.2.3 Subtask - Run conversation runtime, coordinator, context-management, and context-budget focused tests.
+      [x] 95.4.2.1 Subtask - Add coverage proving running and awaiting-input turns defer automatic compaction.
+      [x] 95.4.2.2 Subtask - Add coverage proving compactor failure records diagnostics and continues with request-time packing.
+      [x] 95.4.2.3 Subtask - Run conversation runtime, coordinator, context-management, and context-budget focused tests.

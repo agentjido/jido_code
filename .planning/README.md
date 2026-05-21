@@ -144,6 +144,10 @@ The plan aligns to:
 84. [Phase 90 - Budget Monitor Runtime Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-90-budget-monitor-runtime-adoption.md): wire structured budget diagnostics into a work-item-scoped BudgetMonitor that can recommend compaction without mutating specialist history or storing raw prompt content.
 85. [Phase 91 - Context Compactor Summary Lifecycle](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-91-context-compactor-summary-lifecycle.md): add the bounded compaction flow that summarizes eligible older specialist history into reusable prompt sections while preserving tool-call protocol boundaries.
 86. [Phase 92 - Context Management Observability And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-92-context-management-observability-and-contributor-convergence.md): make proactive context management observable, configurable, documented, and covered by quality gates while retaining request-time budget fallback.
+87. [Phase 93 - Automatic Context Compaction Trigger Foundation](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-93-automatic-context-compaction-trigger-foundation.md): bridge budget-monitor recommendations into safe automatic compaction attempts by building protocol-safe candidates and routing them through the product-owned compaction boundary.
+88. [Phase 94 - Conversation Context Reset Projection](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-94-conversation-context-reset-projection.md): add append-only reset markers and reset-aware snapshot projection so future prompts use compaction summaries instead of reset-covered raw conversation context.
+89. [Phase 95 - Conversation Runtime Auto-Compaction Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-95-conversation-runtime-auto-compaction-adoption.md): wire automatic compaction into real conversation runtime scheduling so threshold-crossing turns compact at safe boundaries before queued work consumes oversized context.
+90. [Phase 96 - Auto-Compaction Observability And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-96-auto-compaction-observability-and-contributor-convergence.md): make automatic compaction lifecycle state, configuration, docs, and verification explicit while preserving request-time budget fallback and prompt-memory boundaries.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -197,6 +201,15 @@ can be compacted into bounded prompt context while request-time
 monitor observations and compaction lifecycle evidence metadata-only, injects
 accepted summaries as trim/drop eligible prompt sections, and documents focused
 context-management verification beside the existing context-budget gates.
+
+Automatic context-compaction note: Phases 93 through 96 extend the Phase 89
+through 92 context-management pod from explicit compaction into automatic
+runtime adoption. The track bridges monitor recommendations into safe
+compaction attempts, adds append-only reset markers for prompt-facing
+conversation projection, runs compaction only at safe conversation boundaries,
+and converges observability, configuration, specs, docs, and verification
+without deleting historical events or making compaction summaries durable
+memory.
 
 Source-code graph live-refresh note: Phase 80 adds save-triggered refresh on
 top of the existing explicit analyze, load, refresh, status, query, and recovery

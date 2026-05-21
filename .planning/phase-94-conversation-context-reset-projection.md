@@ -61,22 +61,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 94.2.2.2 Subtask - Include latest reset sequence and reset reason metadata.
       [x] 94.2.2.3 Subtask - Keep summary text bounded to prompt assembly surfaces rather than general snapshot metadata unless explicitly needed.
 
-  [ ] 94.3 Section - Replay And Resume Stability
+  [x] 94.3 Section - Replay And Resume Stability
     Ensure reset-aware snapshots restore consistently after coordinator restarts and reconnect recovery.
 
-    [ ] 94.3.1 Task - Restore reset markers from persisted events
+    [x] 94.3.1 Task - Restore reset markers from persisted events
       Make cold-load state reconstruction produce the same reset-aware projection as an active coordinator.
 
-      [ ] 94.3.1.1 Subtask - Rehydrate `conversation.context_compacted` events from `EventRecord`.
-      [ ] 94.3.1.2 Subtask - Ensure `Snapshot.restore_state/3` preserves reset events and event sequence ordering.
-      [ ] 94.3.1.3 Subtask - Confirm persisted snapshots keep reset metadata in bounded shared context.
+      [x] 94.3.1.1 Subtask - Rehydrate `conversation.context_compacted` events from `EventRecord`.
+      [x] 94.3.1.2 Subtask - Ensure `Snapshot.restore_state/3` preserves reset events and event sequence ordering.
+      [x] 94.3.1.3 Subtask - Confirm persisted snapshots keep reset metadata in bounded shared context.
 
-    [ ] 94.3.2 Task - Preserve operator transcript continuity
+    [x] 94.3.2 Task - Preserve operator transcript continuity
       Keep conversation browsing complete while only prompt-facing context is reset.
 
-      [ ] 94.3.2.1 Subtask - Ensure `conversation_events_since/3` still returns pre-reset events by sequence.
-      [ ] 94.3.2.2 Subtask - Keep UI/event-stream recovery independent from prompt projection filtering.
-      [ ] 94.3.2.3 Subtask - Document that reset boundaries affect future prompt context, not historical event access.
+      [x] 94.3.2.1 Subtask - Ensure `conversation_events_since/3` still returns pre-reset events by sequence.
+      [x] 94.3.2.2 Subtask - Keep UI/event-stream recovery independent from prompt projection filtering.
+      [x] 94.3.2.3 Subtask - Document that reset boundaries affect future prompt context, not historical event access.
 
   [ ] 94.4 Section - Integration Tests
     Prove automatic reset markers are durable, replayable, and projection-only.

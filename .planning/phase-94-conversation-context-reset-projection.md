@@ -44,22 +44,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 94.1.2.2 Subtask - Persist the reset event and updated snapshot in the same transition as other coordinator events.
       [x] 94.1.2.3 Subtask - Preserve all earlier `conversation.message_added`, turn, and tool events.
 
-  [ ] 94.2 Section - Snapshot Projection After Reset
+  [x] 94.2 Section - Snapshot Projection After Reset
     Teach prompt-facing shared context to honor the latest reset boundary while preserving active work and required scope.
 
-    [ ] 94.2.1 Task - Filter reset-covered raw context
+    [x] 94.2.1 Task - Filter reset-covered raw context
       Derive `shared_context` from events, turns, and child work after the latest accepted reset marker.
 
-      [ ] 94.2.1.1 Subtask - Exclude reset-covered referenced files, accepted tool results, and older latest-instruction candidates from prompt-facing context.
-      [ ] 94.2.1.2 Subtask - Keep managed repo id, work item id, work resolution, scope, attachment mode, and pending clarification intact.
-      [ ] 94.2.1.3 Subtask - Preserve active turn and awaiting-input context even when an older span was compacted.
+      [x] 94.2.1.1 Subtask - Exclude reset-covered referenced files, accepted tool results, and older latest-instruction candidates from prompt-facing context.
+      [x] 94.2.1.2 Subtask - Keep managed repo id, work item id, work resolution, scope, attachment mode, and pending clarification intact.
+      [x] 94.2.1.3 Subtask - Preserve active turn and awaiting-input context even when an older span was compacted.
 
-    [ ] 94.2.2 Task - Surface active compaction summaries in shared context
+    [x] 94.2.2 Task - Surface active compaction summaries in shared context
       Make the reset projection explainable to runtime and operator surfaces without expanding old transcript content.
 
-      [ ] 94.2.2.1 Subtask - Include active compaction summary ids and source span counts in `shared_context`.
-      [ ] 94.2.2.2 Subtask - Include latest reset sequence and reset reason metadata.
-      [ ] 94.2.2.3 Subtask - Keep summary text bounded to prompt assembly surfaces rather than general snapshot metadata unless explicitly needed.
+      [x] 94.2.2.1 Subtask - Include active compaction summary ids and source span counts in `shared_context`.
+      [x] 94.2.2.2 Subtask - Include latest reset sequence and reset reason metadata.
+      [x] 94.2.2.3 Subtask - Keep summary text bounded to prompt assembly surfaces rather than general snapshot metadata unless explicitly needed.
 
   [ ] 94.3 Section - Replay And Resume Stability
     Ensure reset-aware snapshots restore consistently after coordinator restarts and reconnect recovery.

@@ -45,22 +45,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 93.1.2.2 Subtask - Include recommendation id, debounce key, workflow, specialist role, policy id, conversation id, and turn id.
       [x] 93.1.2.3 Subtask - Keep the action result metadata-only and free of prompt text or tool-output bodies.
 
-  [ ] 93.2 Section - Compaction Candidate Source Construction
+  [x] 93.2 Section - Compaction Candidate Source Construction
     Build protocol-safe compaction candidates from conversation runtime state after a recommendation has crossed the configured threshold.
 
-    [ ] 93.2.1 Task - Add conversation-to-candidate projection
+    [x] 93.2.1 Task - Add conversation-to-candidate projection
       Convert older conversation events, turns, and accepted child-work results into `ContextManagement.compaction_candidate/3` input messages.
 
-      [ ] 93.2.1.1 Subtask - Map operator/user turns to user messages with stable span ids.
-      [ ] 93.2.1.2 Subtask - Map completed runtime output and accepted tool results to assistant or tool messages without raw diagnostic storage.
-      [ ] 93.2.1.3 Subtask - Include workflow, specialist role, work item id, conversation id, turn id, and policy id in candidate attributes.
+      [x] 93.2.1.1 Subtask - Map operator/user turns to user messages with stable span ids.
+      [x] 93.2.1.2 Subtask - Map completed runtime output and accepted tool results to assistant or tool messages without raw diagnostic storage.
+      [x] 93.2.1.3 Subtask - Include workflow, specialist role, work item id, conversation id, turn id, and policy id in candidate attributes.
 
-    [ ] 93.2.2 Task - Preserve active and unsafe context
+    [x] 93.2.2 Task - Preserve active and unsafe context
       Ensure automatic candidates do not summarize required scope, active requests, pending clarification, or unresolved tool groups.
 
-      [ ] 93.2.2.1 Subtask - Exclude the latest non-system group and any currently running or awaiting-input turn.
-      [ ] 93.2.2.2 Subtask - Reject candidates that would split assistant/tool-result groups.
-      [ ] 93.2.2.3 Subtask - Reject candidates that only contain current request, repository scope, pending clarification, or no eligible older context.
+      [x] 93.2.2.1 Subtask - Exclude the latest non-system group and any currently running or awaiting-input turn.
+      [x] 93.2.2.2 Subtask - Reject candidates that would split assistant/tool-result groups.
+      [x] 93.2.2.3 Subtask - Reject candidates that only contain current request, repository scope, pending clarification, or no eligible older context.
 
   [ ] 93.3 Section - Automatic Compaction Execution Boundary
     Introduce an explicit boundary that callers can invoke after a recommendation to compact eligible context and persist the summary.

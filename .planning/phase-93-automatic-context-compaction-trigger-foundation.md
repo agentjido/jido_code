@@ -25,7 +25,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Automatic compaction must remain product-owned; `BudgetMonitor` should decide, not mutate conversation or specialist history directly.
 - The first automatic implementation should compact only protocol-safe older conversation context and should degrade to request-time packing.
 
-[ ] 93 Phase 93 - Automatic Context Compaction Trigger Foundation
+[x] 93 Phase 93 - Automatic Context Compaction Trigger Foundation
   Establish the product-owned bridge from budget-monitor recommendations to safe compaction candidates without mutating conversation history or blocking active work.
 
   [x] 93.1 Section - Recommendation-To-Action Contract
@@ -79,19 +79,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 93.3.2.2 Subtask - Preserve monitor debounce semantics when the same recommendation is observed repeatedly.
       [x] 93.3.2.3 Subtask - Emit a skipped state that explains idempotent no-op behavior.
 
-  [ ] 93.4 Section - Integration Tests
+  [x] 93.4 Section - Integration Tests
     Prove threshold recommendations can be converted into safe automatic compaction attempts without changing the append-only conversation model.
 
-    [ ] 93.4.1 Task - Add automatic trigger coverage
+    [x] 93.4.1 Task - Add automatic trigger coverage
       Exercise the monitor-to-action bridge with high-water, repeated-trim, disabled, debounced, blocked, and ineligible states.
 
-      [ ] 93.4.1.1 Subtask - Add tests proving a `recommend` decision produces a `:compact` action when compaction is enabled.
-      [ ] 93.4.1.2 Subtask - Add tests proving disabled and blocked decisions produce metadata-only skips.
-      [ ] 93.4.1.3 Subtask - Add tests proving unchanged debounced recommendations do not create duplicate summaries.
+      [x] 93.4.1.1 Subtask - Add tests proving a `recommend` decision produces a `:compact` action when compaction is enabled.
+      [x] 93.4.1.2 Subtask - Add tests proving disabled and blocked decisions produce metadata-only skips.
+      [x] 93.4.1.3 Subtask - Add tests proving unchanged debounced recommendations do not create duplicate summaries.
 
-    [ ] 93.4.2 Task - Add candidate safety coverage
+    [x] 93.4.2 Task - Add candidate safety coverage
       Verify the automatic candidate builder preserves protocol and active-turn boundaries.
 
-      [ ] 93.4.2.1 Subtask - Add coverage for completed older turns plus the active latest turn.
-      [ ] 93.4.2.2 Subtask - Add coverage proving unresolved tool groups defer or reject automatic compaction.
-      [ ] 93.4.2.3 Subtask - Run focused context-management and conversation snapshot tests.
+      [x] 93.4.2.1 Subtask - Add coverage for completed older turns plus the active latest turn.
+      [x] 93.4.2.2 Subtask - Add coverage proving unresolved tool groups defer or reject automatic compaction.
+      [x] 93.4.2.3 Subtask - Run focused context-management and conversation snapshot tests.

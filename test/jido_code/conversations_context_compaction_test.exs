@@ -93,4 +93,31 @@ defmodule JidoCode.Conversations.ContextCompactionTest do
     refute candidate.source_text =~ "failed request"
     refute candidate.source_text =~ "active request"
   end
+
+  test "marks active-only conversation context as ineligible for compaction" do
+    snapshot = %{
+      conversation_id: "conversation-93",
+      managed_repo_id: "repo-93",
+      work_item_id: "work-93",
+      turns: [
+        %{id: "turn-active", state: "running", payload: %{"instruction" => "active request"}}
+      ],
+      child_works: []
+    }
+
+    action = %{
+      "managed_repo_id" => "repo-93",
+      "work_item_id" => "work-93",
+      "workflow" => "execute",
+      "specialist_role" => "coder",
+      "conversation_id" => "conversation-93",
+      "turn_id" => "turn-active"
+    }
+
+    assert {:ok, candidate} = ContextCompaction.compaction_candidate(snapshot, action)
+
+    refute candidate.eligible?
+    assert candidate.diagnostics.reason == :no_eligible_history
+    assert candidate.source_span_ids == []
+  end
 end

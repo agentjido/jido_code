@@ -83,6 +83,39 @@ defmodule JidoCode.PhaseNinetyThreeIntegrationTest do
     assert skipped["reason"] == "auto_compaction_disabled"
   end
 
+  test "automatic compaction helper persists degraded state for ineligible candidates" do
+    managed_repo_id = "phase-93-repo-#{System.unique_integer([:positive])}"
+    work_item_id = "phase-93-work-#{System.unique_integer([:positive])}"
+    workspace_path = create_workspace_path!()
+
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+    assert {:ok, _pod_name} =
+             AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+    assert {:ok, _status} =
+             AgentWorkspace.record_context_observation(managed_repo_id, work_item_id, %{
+               workflow: :execute,
+               specialist_role: :coder,
+               context_budget: high_water_budget()
+             })
+
+    assert {:error, {:ineligible_compaction_candidate, %{reason: :no_eligible_history}}} =
+             AgentWorkspace.auto_compact_context(managed_repo_id, work_item_id, %{
+               conversation_id: "conversation-93",
+               managed_repo_id: managed_repo_id,
+               work_item_id: work_item_id,
+               turns: [
+                 %{id: "turn-active", state: "running", payload: %{"instruction" => "active request"}}
+               ],
+               child_works: []
+             })
+
+    degraded_status = AgentWorkspace.context_management_status(managed_repo_id, work_item_id)
+    assert degraded_status["state"] == "degraded"
+    assert get_in(degraded_status, ["latest_compaction", "retryable?"])
+  end
+
   defp high_water_budget do
     %{
       "policy_id" => "context-budget:v1",

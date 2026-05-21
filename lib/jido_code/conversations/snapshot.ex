@@ -32,6 +32,7 @@ defmodule JidoCode.Conversations.Snapshot do
       last_event_sequence: 0,
       event_count: 0,
       events: [],
+      context_compaction_lifecycle: nil,
       shared_context: shared_context_for_conversation(conversation)
     }
   end
@@ -73,6 +74,7 @@ defmodule JidoCode.Conversations.Snapshot do
       last_event_sequence: state.event_sequence,
       event_count: length(state.events),
       events: Enum.map(state.events, &Event.summary/1),
+      context_compaction_lifecycle: context_compaction_lifecycle(state),
       shared_context: shared_context_from_state(state)
     }
   end
@@ -225,7 +227,63 @@ defmodule JidoCode.Conversations.Snapshot do
     |> maybe_put("latest_context_management", latest_context_management(state))
     |> maybe_put("latest_context_reset", latest_reset)
     |> maybe_put("active_compaction_summary_ids", active_compaction_summary_ids(latest_reset))
+    |> maybe_put("latest_context_compaction_failure", latest_context_compaction_failure(state))
     |> maybe_put("pending_clarification", pending_clarification(turns, state))
+  end
+
+  defp context_compaction_lifecycle(state) do
+    pending_context_compaction = state |> Map.get(:pending_context_compaction) |> normalize_map()
+    latest_reset = latest_context_reset(state)
+    latest_failure = latest_context_compaction_failure(state)
+
+    cond do
+      pending_context_compaction != %{} ->
+        pending_context_compaction
+        |> Map.take([
+          "recommendation_id",
+          "debounce_key",
+          "workflow",
+          "specialist_role",
+          "policy_id",
+          "turn_id",
+          "child_work_id"
+        ])
+        |> Map.merge(%{
+          "state" => if(context_compaction_unsafe?(state), do: "deferred", else: "pending"),
+          "reason" => Map.get(pending_context_compaction, "reason", "monitor_recommended_compaction")
+        })
+
+      is_map(latest_reset) ->
+        latest_reset
+        |> Map.take([
+          "summary_id",
+          "recommendation_id",
+          "debounce_key",
+          "source_span_ids",
+          "policy_id",
+          "workflow",
+          "specialist_role",
+          "reset_sequence",
+          "event_sequence"
+        ])
+        |> Map.merge(%{
+          "state" => "compacted",
+          "source_span_count" => latest_reset |> Map.get("source_span_ids", []) |> length()
+        })
+
+      is_map(latest_failure) ->
+        Map.merge(latest_failure, %{"state" => "degraded"})
+
+      true ->
+        nil
+    end
+  end
+
+  defp context_compaction_unsafe?(state) do
+    state
+    |> Map.get(:turns, %{})
+    |> Map.values()
+    |> Enum.any?(&(&1.state in [:running, :awaiting_input, :cancelling, :superseding]))
   end
 
   defp latest_intake_handoff(%Conversation{} = conversation) do
@@ -416,6 +474,32 @@ defmodule JidoCode.Conversations.Snapshot do
           "reset_sequence" => normalize_non_negative_integer(Map.get(payload, "reset_sequence", event.sequence)),
           "event_sequence" => event.sequence,
           "compacted_at" => event.occurred_at
+        }
+        |> Enum.reject(fn {_key, value} -> value in [nil, []] end)
+        |> Map.new()
+      end
+    end)
+  end
+
+  defp latest_context_compaction_failure(state) do
+    state.events
+    |> Enum.reverse()
+    |> Enum.find_value(fn event ->
+      if event.name == "conversation.context_compaction_failed" do
+        payload = normalize_map(event.payload)
+
+        %{
+          "recommendation_id" => normalize_optional_string(Map.get(payload, "recommendation_id")),
+          "debounce_key" => normalize_optional_string(Map.get(payload, "debounce_key")),
+          "policy_id" => normalize_optional_string(Map.get(payload, "policy_id")),
+          "workflow" => normalize_optional_string(Map.get(payload, "workflow")),
+          "specialist_role" => normalize_optional_string(Map.get(payload, "specialist_role")),
+          "turn_id" => normalize_optional_string(Map.get(payload, "turn_id")),
+          "child_work_id" => normalize_optional_string(Map.get(payload, "child_work_id")),
+          "reason" => normalize_optional_string(Map.get(payload, "reason")),
+          "retryable?" => normalize_boolean(Map.get(payload, "retryable?", true)),
+          "event_sequence" => event.sequence,
+          "failed_at" => event.occurred_at
         }
         |> Enum.reject(fn {_key, value} -> value in [nil, []] end)
         |> Map.new()

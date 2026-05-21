@@ -193,6 +193,11 @@ defmodule JidoCode.ContextManagement do
       "summary_count" => 0,
       "latest_monitor_decision" => nil,
       "latest_compaction" => nil,
+      "auto_compaction_lifecycle" => %{
+        "state" => "unavailable",
+        "reason" => "context_management_unavailable",
+        "diagnostics" => %{"kind" => "auto_compaction_lifecycle", "state" => "degraded"}
+      },
       "diagnostics" => [%{"kind" => "context_management_unavailable", "state" => "degraded"}]
     }
   end
@@ -222,6 +227,7 @@ defmodule JidoCode.ContextManagement do
         stringify_keys(Map.get(metadata, :latest_monitor_decision, Map.get(metadata, "latest_monitor_decision"))),
       "latest_compaction" =>
         stringify_keys(Map.get(metadata, :latest_compaction, Map.get(metadata, "latest_compaction"))),
+      "auto_compaction_lifecycle" => auto_compaction_lifecycle(metadata, active_summaries),
       "diagnostics" =>
         metadata
         |> Map.get(:diagnostics, Map.get(metadata, "diagnostics", []))
@@ -652,7 +658,7 @@ defmodule JidoCode.ContextManagement do
       context_management_status: :degraded,
       latest_compaction: %{
         state: :failed,
-        reason: inspect(reason),
+        reason: safe_failure_reason(reason),
         retryable?: true,
         remediation: "Retry compaction after narrowing context, selecting a smaller span, or changing model selection.",
         source_span_count: span_count,
@@ -675,6 +681,14 @@ defmodule JidoCode.ContextManagement do
   end
 
   def public_payload(%{} = map), do: map |> redact_diagnostics() |> stringify_keys()
+
+  @doc "Returns a bounded, metadata-safe representation of a compaction failure reason."
+  @spec safe_failure_reason(term()) :: String.t()
+  def safe_failure_reason(reason) do
+    reason
+    |> redact_diagnostics()
+    |> inspect(limit: 20, printable_limit: 500)
+  end
 
   @doc "Returns the public policy shape stored in pod metadata."
   @spec public_policy(policy()) :: map()
@@ -719,6 +733,10 @@ defmodule JidoCode.ContextManagement do
   end
 
   def redact_diagnostics(list) when is_list(list), do: Enum.map(list, &redact_diagnostics/1)
+
+  def redact_diagnostics(tuple) when is_tuple(tuple),
+    do: tuple |> Tuple.to_list() |> redact_diagnostics() |> List.to_tuple()
+
   def redact_diagnostics(value), do: value
 
   defp config do
@@ -878,6 +896,134 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp maybe_append_recommendation(recommendations, decision), do: {recommendations, public_payload(decision)}
+
+  defp auto_compaction_lifecycle(metadata, active_summaries) when is_map(metadata) do
+    policy = metadata |> Map.get(:policy, Map.get(metadata, "policy", %{})) |> public_payload()
+
+    decision =
+      metadata |> Map.get(:latest_monitor_decision, Map.get(metadata, "latest_monitor_decision")) |> public_payload()
+
+    compaction = metadata |> Map.get(:latest_compaction, Map.get(metadata, "latest_compaction")) |> public_payload()
+
+    cond do
+      Map.get(policy || %{}, "enabled?") in [false, "false"] ->
+        lifecycle("disabled", "context_management_disabled", decision, compaction, active_summaries)
+
+      Map.get(policy || %{}, "auto_compaction_enabled?") in [false, "false"] ->
+        lifecycle("skipped", "auto_compaction_disabled", decision, compaction, active_summaries)
+
+      is_map(compaction) and Map.get(compaction, "state") in ["stored", :stored] ->
+        lifecycle("compacted", "summary_stored", decision, compaction, active_summaries)
+
+      is_map(compaction) and Map.get(compaction, "state") in ["running", "started", "in_flight", :running, :started] ->
+        lifecycle(
+          "in_flight",
+          Map.get(compaction, "reason", "compaction_running"),
+          decision,
+          compaction,
+          active_summaries
+        )
+
+      is_map(compaction) and Map.get(compaction, "state") in ["failed", :failed] ->
+        lifecycle(
+          "degraded",
+          Map.get(compaction, "reason", "compaction_failed"),
+          decision,
+          compaction,
+          active_summaries
+        )
+
+      is_map(decision) and Map.get(decision, "state") in ["recommend", :recommend] ->
+        lifecycle(
+          "recommended",
+          Map.get(decision, "reason", "monitor_recommended_compaction"),
+          decision,
+          compaction,
+          active_summaries
+        )
+
+      is_map(decision) and Map.get(decision, "state") in ["blocked", :blocked] ->
+        lifecycle("blocked", Map.get(decision, "reason", "compaction_not_safe"), decision, compaction, active_summaries)
+
+      true ->
+        lifecycle(
+          "healthy",
+          Map.get(decision || %{}, "reason", "within_budget"),
+          decision,
+          compaction,
+          active_summaries
+        )
+    end
+  end
+
+  defp lifecycle(state, reason, decision, compaction, active_summaries) do
+    %{
+      "state" => state,
+      "reason" => normalize_optional_string(reason) || "unknown",
+      "recommendation_id" => if(is_map(decision), do: Map.get(decision, "id")),
+      "debounce_key" => if(is_map(decision), do: Map.get(decision, "debounce_key")),
+      "summary_id" => if(is_map(compaction), do: Map.get(compaction, "id")),
+      "active_summary_ids" => Enum.map(active_summaries, &Map.get(&1, "id")),
+      "source_span_count" => compaction_source_span_count(compaction, active_summaries),
+      "policy_id" => lifecycle_policy_id(decision, compaction),
+      "remediation" => lifecycle_remediation(state, reason, decision, compaction),
+      "diagnostics" => %{"kind" => "auto_compaction_lifecycle", "state" => state}
+    }
+    |> Enum.reject(fn {_key, value} -> value in [nil, [], ""] end)
+    |> Map.new()
+  end
+
+  defp lifecycle_policy_id(decision, compaction) do
+    cond do
+      is_map(compaction) and Map.get(compaction, "policy_id") -> Map.get(compaction, "policy_id")
+      is_map(decision) -> Map.get(decision, "policy_id")
+      true -> nil
+    end
+  end
+
+  defp lifecycle_remediation(state, reason, decision, compaction) do
+    cond do
+      is_map(compaction) and Map.get(compaction, "remediation") ->
+        Map.get(compaction, "remediation")
+
+      is_map(decision) and Map.get(decision, "remediation") ->
+        Map.get(decision, "remediation")
+
+      true ->
+        default_lifecycle_remediation(state, reason)
+    end
+  end
+
+  defp default_lifecycle_remediation("skipped", _reason),
+    do: "Enable automatic compaction to execute eligible recommendations."
+
+  defp default_lifecycle_remediation("disabled", _reason),
+    do: "Enable context management to collect monitor observations."
+
+  defp default_lifecycle_remediation("blocked", "unresolved_tool_call_group"),
+    do: "Wait for the matching tool result before compacting this context."
+
+  defp default_lifecycle_remediation("blocked", "required_context_overflow"),
+    do: "Reduce required request context before retrying compaction."
+
+  defp default_lifecycle_remediation("degraded", _reason),
+    do: "Retry compaction after narrowing context, selecting a smaller span, or changing model selection."
+
+  defp default_lifecycle_remediation(_state, _reason), do: nil
+
+  defp compaction_source_span_count(compaction, active_summaries) when is_map(compaction) do
+    Map.get(compaction, "source_span_count") ||
+      active_summaries_source_span_count(active_summaries)
+  end
+
+  defp compaction_source_span_count(_compaction, active_summaries),
+    do: active_summaries_source_span_count(active_summaries)
+
+  defp active_summaries_source_span_count(active_summaries) do
+    Enum.reduce(active_summaries, 0, fn summary, count ->
+      count + (summary |> Map.get("source_span_ids", []) |> length())
+    end)
+  end
 
   defp allow_debounced_recommendation?(decision, opts) when is_map(decision) and is_map(opts) do
     allow? = boolean_value(Map.get(opts, :allow_debounced_recommendation?), false)

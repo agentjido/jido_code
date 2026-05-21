@@ -29,22 +29,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 96 Phase 96 - Auto-Compaction Observability And Contributor Convergence
   Make automatic compaction explainable, configurable, documented, and covered by contributor quality gates after runtime adoption lands.
 
-  [ ] 96.1 Section - Lifecycle Metadata And Operator Visibility
+  [x] 96.1 Section - Lifecycle Metadata And Operator Visibility
     Surface the automatic compaction lifecycle without exposing raw reset-covered context.
 
-    [ ] 96.1.1 Task - Add auto-compaction lifecycle summaries
+    [x] 96.1.1 Task - Add auto-compaction lifecycle summaries
       Extend context-management and conversation metadata with concise automatic compaction states.
 
-      [ ] 96.1.1.1 Subtask - Surface pending, in-flight, compacted, skipped, deferred, and degraded states.
-      [ ] 96.1.1.2 Subtask - Include reset sequence, summary ids, source span counts, recommendation ids, and policy ids.
-      [ ] 96.1.1.3 Subtask - Keep raw old messages, raw tool outputs, and prompt bodies out of snapshots and operator metadata.
+      [x] 96.1.1.1 Subtask - Surface pending, in-flight, compacted, skipped, deferred, and degraded states.
+      [x] 96.1.1.2 Subtask - Include reset sequence, summary ids, source span counts, recommendation ids, and policy ids.
+      [x] 96.1.1.3 Subtask - Keep raw old messages, raw tool outputs, and prompt bodies out of snapshots and operator metadata.
 
-    [ ] 96.1.2 Task - Add debugging breadcrumbs
+    [x] 96.1.2 Task - Add debugging breadcrumbs
       Provide enough structured evidence to diagnose automatic compaction behavior from normal product surfaces.
 
-      [ ] 96.1.2.1 Subtask - Link monitor decisions to compaction attempts and reset events.
-      [ ] 96.1.2.2 Subtask - Include degraded remediation hints for disabled config, ineligible candidates, unresolved tool groups, and compactor failures.
-      [ ] 96.1.2.3 Subtask - Preserve event-sequence references for transcript debugging without replaying raw old context into prompts.
+      [x] 96.1.2.1 Subtask - Link monitor decisions to compaction attempts and reset events.
+      [x] 96.1.2.2 Subtask - Include degraded remediation hints for disabled config, ineligible candidates, unresolved tool groups, and compactor failures.
+      [x] 96.1.2.3 Subtask - Preserve event-sequence references for transcript debugging without replaying raw old context into prompts.
 
   [ ] 96.2 Section - Configuration And Control Surfaces
     Add conservative controls for enabling, disabling, and tuning automatic compaction.

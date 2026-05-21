@@ -1709,7 +1709,7 @@ defmodule JidoCode.Conversations.Coordinator do
       ])
       |> Map.merge(%{
         "state" => "failed",
-        "reason" => inspect(reason),
+        "reason" => JidoCode.ContextManagement.safe_failure_reason(reason),
         "retryable?" => true
       })
 

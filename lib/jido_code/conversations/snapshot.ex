@@ -140,6 +140,7 @@ defmodule JidoCode.Conversations.Snapshot do
       child_works: child_works_by_id,
       child_work_order: Enum.map(child_works, & &1.id),
       child_worker_pids: %{},
+      pending_context_compaction: nil,
       event_sequence: max_event_sequence(snapshot, restored_events),
       events: restored_events
     }

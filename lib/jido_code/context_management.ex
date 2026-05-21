@@ -380,7 +380,8 @@ defmodule JidoCode.ContextManagement do
       decision == %{} ->
         auto_compaction_action(:skip, :no_monitor_decision, nil, policy)
 
-      Map.get(decision, "debounced?") in [true, "true"] ->
+      Map.get(decision, "debounced?") in [true, "true"] and
+          not allow_debounced_recommendation?(decision, opts) ->
         auto_compaction_action(:skip, :debounced_recommendation, decision, policy)
 
       Map.get(decision, "state") == "recommend" ->
@@ -877,6 +878,18 @@ defmodule JidoCode.ContextManagement do
   end
 
   defp maybe_append_recommendation(recommendations, decision), do: {recommendations, public_payload(decision)}
+
+  defp allow_debounced_recommendation?(decision, opts) when is_map(decision) and is_map(opts) do
+    allow? = boolean_value(Map.get(opts, :allow_debounced_recommendation?), false)
+    expected_id = normalize_optional_string(Map.get(opts, :recommendation_id))
+    expected_debounce_key = normalize_optional_string(Map.get(opts, :debounce_key))
+
+    allow? and
+      ((not is_nil(expected_id) and Map.get(decision, "id") == expected_id) or
+         (not is_nil(expected_debounce_key) and Map.get(decision, "debounce_key") == expected_debounce_key))
+  end
+
+  defp allow_debounced_recommendation?(_decision, _opts), do: false
 
   defp auto_compaction_action(state, reason, decision, policy, diagnostics \\ %{}) do
     decision = if is_map(decision), do: public_payload(decision), else: nil

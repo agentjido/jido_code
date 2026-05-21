@@ -27,22 +27,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 95 Phase 95 - Conversation Runtime Auto-Compaction Adoption
   Wire automatic compaction into the real conversation runtime so threshold-crossing conversations compact and reset before the next turn consumes stale oversized context.
 
-  [ ] 95.1 Section - Coordinator Scheduling And Deferral
+  [x] 95.1 Section - Coordinator Scheduling And Deferral
     Let the conversation coordinator react to monitor recommendations while preserving turn lifecycle ordering.
 
-    [ ] 95.1.1 Task - Detect recommendations in runtime payloads
+    [x] 95.1.1 Task - Detect recommendations in runtime payloads
       Inspect runtime progress, delta, needs-input, and completed payloads for context-management decisions.
 
-      [ ] 95.1.1.1 Subtask - Extract latest monitor decision metadata from payload-level context-management summaries.
-      [ ] 95.1.1.2 Subtask - Mark compaction pending when a recommendation appears before the current turn is terminal.
-      [ ] 95.1.1.3 Subtask - Ignore stale recommendations that do not match the active conversation, work item, or workflow scope.
+      [x] 95.1.1.1 Subtask - Extract latest monitor decision metadata from payload-level context-management summaries.
+      [x] 95.1.1.2 Subtask - Mark compaction pending when a recommendation appears before the current turn is terminal.
+      [x] 95.1.1.3 Subtask - Ignore stale recommendations that do not match the active conversation, work item, or workflow scope.
 
-    [ ] 95.1.2 Task - Run compaction at safe boundaries
+    [x] 95.1.2 Task - Run compaction at safe boundaries
       Execute pending automatic compaction after the current turn settles and before activating queued work.
 
-      [ ] 95.1.2.1 Subtask - Trigger compaction after terminal child-work settlement when the latest recommendation is still eligible.
-      [ ] 95.1.2.2 Subtask - Defer compaction while a turn is running, awaiting input, cancelling, or superseding.
-      [ ] 95.1.2.3 Subtask - Ensure queued next turns see reset-aware `shared_context` and active compaction summaries.
+      [x] 95.1.2.1 Subtask - Trigger compaction after terminal child-work settlement when the latest recommendation is still eligible.
+      [x] 95.1.2.2 Subtask - Defer compaction while a turn is running, awaiting input, cancelling, or superseding.
+      [x] 95.1.2.3 Subtask - Ensure queued next turns see reset-aware `shared_context` and active compaction summaries.
 
   [ ] 95.2 Section - Prompt Continuity After Reset
     Ensure future provider requests receive the accepted summary instead of reset-covered raw context.

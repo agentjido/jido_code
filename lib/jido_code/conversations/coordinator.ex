@@ -15,6 +15,8 @@ defmodule JidoCode.Conversations.Coordinator do
 
   use GenServer
 
+  alias JidoCode.Control.Actor
+
   alias JidoCode.Conversations.{
     ChildWork,
     ChildWorker,
@@ -28,6 +30,7 @@ defmodule JidoCode.Conversations.Coordinator do
     WorkflowRouter
   }
 
+  alias JidoCode.Conversations.ContextCompaction
   alias JidoCode.Conversations.WorkResolution
 
   @type state :: %{
@@ -43,6 +46,7 @@ defmodule JidoCode.Conversations.Coordinator do
           child_works: %{String.t() => ChildWork.t()},
           child_work_order: [String.t()],
           child_worker_pids: %{String.t() => pid()},
+          pending_context_compaction: map() | nil,
           event_sequence: non_neg_integer(),
           events: [Event.t()]
         }
@@ -577,6 +581,14 @@ defmodule JidoCode.Conversations.Coordinator do
 
   defp normalize_map(_value), do: %{}
 
+  defp normalize_nested_value(%DateTime{} = value),
+    do: value |> DateTime.truncate(:microsecond) |> DateTime.to_iso8601()
+
+  defp normalize_nested_value(%NaiveDateTime{} = value),
+    do: value |> NaiveDateTime.truncate(:microsecond) |> NaiveDateTime.to_iso8601()
+
+  defp normalize_nested_value(%Date{} = value), do: Date.to_iso8601(value)
+  defp normalize_nested_value(%Time{} = value), do: value |> Time.truncate(:microsecond) |> Time.to_iso8601()
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
@@ -588,6 +600,7 @@ defmodule JidoCode.Conversations.Coordinator do
     with {:ok, %ChildWork{} = child_work} <- target_child_work(state, normalized_command.payload),
          {:ok, %Turn{} = turn} <- turn_for_child_work(state, child_work),
          {:ok, result_kind} <- tool_result_kind(normalized_command.payload),
+         state <- maybe_track_context_compaction_recommendation(state, normalized_command.payload, child_work),
          {:ok, next_state} <-
            apply_tool_result_kind(
              state,
@@ -765,9 +778,12 @@ defmodule JidoCode.Conversations.Coordinator do
       |> sync_child_work_with_turn(updated_turn, actor)
 
     if Turn.terminal_state?(updated_turn.state) and next_state.active_turn_id == updated_turn.id do
-      next_state
-      |> Map.put(:active_turn_id, nil)
-      |> maybe_activate_next_turn()
+      with {:ok, compacted_state} <-
+             next_state
+             |> Map.put(:active_turn_id, nil)
+             |> maybe_apply_pending_context_compaction() do
+        maybe_activate_next_turn(compacted_state)
+      end
     else
       {:ok, next_state}
     end
@@ -1511,9 +1527,149 @@ defmodule JidoCode.Conversations.Coordinator do
       child_works: %{},
       child_work_order: [],
       child_worker_pids: %{},
+      pending_context_compaction: nil,
       event_sequence: 0,
       events: []
     }
+  end
+
+  defp maybe_track_context_compaction_recommendation(state, payload, %ChildWork{} = child_work) do
+    context_management =
+      payload
+      |> normalize_map()
+      |> Map.get("context_management", %{})
+      |> normalize_map()
+
+    decision =
+      context_management
+      |> Map.get("latest_monitor_decision", %{})
+      |> normalize_map()
+
+    if Map.get(decision, "state") == "recommend" and
+         context_compaction_decision_matches?(state, payload, child_work, decision) do
+      %{
+        state
+        | pending_context_compaction: %{
+            "state" => "pending",
+            "recommendation_id" => Map.get(decision, "id"),
+            "debounce_key" => Map.get(decision, "debounce_key"),
+            "workflow" => Map.get(decision, "workflow"),
+            "specialist_role" => Map.get(decision, "specialist_role"),
+            "policy_id" => Map.get(decision, "policy_id"),
+            "reason" => Map.get(decision, "reason"),
+            "turn_id" => child_work.turn_id,
+            "child_work_id" => child_work.id
+          }
+      }
+    else
+      state
+    end
+  end
+
+  defp context_compaction_decision_matches?(state, payload, %ChildWork{} = child_work, decision) do
+    payload_workflow = tool_result_workflow(payload)
+
+    required_string?(Map.get(decision, "workflow")) and
+      required_string?(Map.get(decision, "specialist_role")) and
+      optional_match?(Map.get(decision, "managed_repo_id"), state.conversation.managed_repo_id) and
+      optional_match?(Map.get(decision, "work_item_id"), state.conversation.work_item_id) and
+      optional_match?(Map.get(decision, "conversation_id"), state.conversation.id) and
+      optional_match?(Map.get(decision, "turn_id"), child_work.turn_id) and
+      optional_match?(payload_workflow, Map.get(decision, "workflow"))
+  end
+
+  defp tool_result_workflow(payload) do
+    payload = normalize_map(payload)
+    result = payload |> Map.get("result", %{}) |> normalize_map()
+
+    Map.get(payload, "workflow") ||
+      Map.get(result, "workflow") ||
+      payload |> Map.get("latest_progress", %{}) |> normalize_map() |> Map.get("workflow")
+  end
+
+  defp optional_match?(value, expected) do
+    case optional_string(value) do
+      nil -> true
+      normalized_value -> normalized_value == optional_string(expected)
+    end
+  end
+
+  defp required_string?(value), do: not is_nil(optional_string(value))
+
+  defp maybe_apply_pending_context_compaction(%{pending_context_compaction: nil} = state), do: {:ok, state}
+
+  defp maybe_apply_pending_context_compaction(%{conversation: %Conversation{work_item_id: nil}} = state),
+    do: {:ok, state}
+
+  defp maybe_apply_pending_context_compaction(state) do
+    if unsafe_context_compaction_state?(state) do
+      {:ok, state}
+    else
+      pending_context_compaction = state.pending_context_compaction
+
+      case JidoCode.AgentWorkspace.auto_compact_context(
+             state.conversation.managed_repo_id,
+             state.conversation.work_item_id,
+             Snapshot.from_state(state),
+             context_compaction_opts(pending_context_compaction)
+           ) do
+        {:ok, %{"auto_compaction" => %{"state" => "compacted"} = auto_compaction} = status} ->
+          append_context_compacted_event(state, auto_compaction, status)
+
+        {:ok, _skipped_or_blocked} ->
+          {:ok, %{state | pending_context_compaction: nil}}
+
+        {:error, _reason} ->
+          {:ok, %{state | pending_context_compaction: nil}}
+      end
+    end
+  end
+
+  defp context_compaction_opts(%{} = pending_context_compaction) do
+    [
+      context_management: [
+        allow_debounced_recommendation?: true,
+        recommendation_id: Map.get(pending_context_compaction, "recommendation_id"),
+        debounce_key: Map.get(pending_context_compaction, "debounce_key")
+      ]
+    ]
+  end
+
+  defp context_compaction_opts(_pending_context_compaction), do: []
+
+  defp unsafe_context_compaction_state?(state) do
+    state.turns
+    |> Map.values()
+    |> Enum.any?(&(&1.state in [:running, :awaiting_input, :cancelling, :superseding]))
+  end
+
+  defp append_context_compacted_event(state, auto_compaction, status) do
+    latest_compaction =
+      status
+      |> Map.get("latest_compaction", %{})
+      |> normalize_map()
+
+    with {:ok, payload} <-
+           ContextCompaction.context_compacted_event_payload(%{
+             summary_id: Map.get(latest_compaction, "id"),
+             recommendation_id: Map.get(auto_compaction, "recommendation_id"),
+             debounce_key: Map.get(auto_compaction, "debounce_key"),
+             source_span_ids: Map.get(auto_compaction, "source_span_ids", []),
+             policy_id: Map.get(auto_compaction, "policy_id"),
+             workflow: Map.get(auto_compaction, "workflow"),
+             specialist_role: Map.get(auto_compaction, "specialist_role"),
+             reset_sequence: state.event_sequence + 1
+           }) do
+      {:ok,
+       state
+       |> Map.put(:pending_context_compaction, nil)
+       |> append_event("conversation.context_compacted", %{
+         actor: runtime_actor(),
+         payload: payload
+       })}
+    else
+      {:error, _reason} -> {:ok, %{state | pending_context_compaction: nil}}
+    end
   end
 
   defp maybe_terminate_child_worker(pid) when is_pid(pid) do
@@ -1647,6 +1803,13 @@ defmodule JidoCode.Conversations.Coordinator do
     |> maybe_put("kind", child_work.kind)
   end
 
+  defp runtime_actor do
+    Actor.managed_repo_orchestrator_actor(%{
+      "id" => "system:conversation-runtime",
+      "email" => "conversation-runtime@system.local"
+    })
+  end
+
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
@@ -1659,6 +1822,8 @@ defmodule JidoCode.Conversations.Coordinator do
       trimmed -> trimmed
     end
   end
+
+  defp optional_string(nil), do: nil
 
   defp optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> optional_string()

@@ -82,8 +82,8 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
       |> get(~p"/welcome")
       |> html_response(200)
 
-    assert welcome_html =~ "octocat@example.com"
-    assert welcome_html =~ "Sign Out"
+    assert welcome_html =~ ~s|id="jido-code-reset-surface"|
+    assert welcome_html =~ "Welcome"
 
     {:ok, identities} = UserIdentity.list_for_user(%{user_id: current_user_id(conn)}, authorize?: false)
     assert Enum.map(identities, & &1.provider_subject) == ["12345"]

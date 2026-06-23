@@ -5,6 +5,7 @@ defmodule JidoCode.Workbench.InventorySurface do
   """
 
   alias JidoCode.ManagedRepoRoutes
+
   alias JidoCode.Workbench.{
     Inventory,
     IssueTriageWorkflowKickoff,
@@ -244,23 +245,23 @@ defmodule JidoCode.Workbench.InventorySurface do
   def memory_graph_hint(_project), do: nil
 
   @spec semantic_graph_hint_badge_class(map()) :: String.t()
-  def semantic_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
-  def semantic_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
+  def semantic_graph_hint_badge_class(%{state: :ready}), do: status_pill_class(:success)
+  def semantic_graph_hint_badge_class(%{state: :blocked}), do: status_pill_class(:warning)
+  def semantic_graph_hint_badge_class(%{state: :stale}), do: status_pill_class(:warning)
+  def semantic_graph_hint_badge_class(%{state: :degraded}), do: status_pill_class(:warning)
+  def semantic_graph_hint_badge_class(%{state: :failed}), do: status_pill_class(:error)
+  def semantic_graph_hint_badge_class(%{state: :not_ready}), do: status_pill_class(:neutral)
+  def semantic_graph_hint_badge_class(_hint), do: status_pill_class(:neutral)
 
   @spec memory_graph_hint_badge_class(map()) :: String.t()
-  def memory_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
-  def memory_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :invalidated}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
-  def memory_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
-  def memory_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
+  def memory_graph_hint_badge_class(%{state: :ready}), do: status_pill_class(:success)
+  def memory_graph_hint_badge_class(%{state: :blocked}), do: status_pill_class(:warning)
+  def memory_graph_hint_badge_class(%{state: :stale}), do: status_pill_class(:warning)
+  def memory_graph_hint_badge_class(%{state: :invalidated}), do: status_pill_class(:warning)
+  def memory_graph_hint_badge_class(%{state: :degraded}), do: status_pill_class(:warning)
+  def memory_graph_hint_badge_class(%{state: :failed}), do: status_pill_class(:error)
+  def memory_graph_hint_badge_class(%{state: :not_ready}), do: status_pill_class(:neutral)
+  def memory_graph_hint_badge_class(_hint), do: status_pill_class(:neutral)
 
   @spec semantic_graph_hint_recovery_path(map(), String.t() | nil) :: String.t() | nil
   def semantic_graph_hint_recovery_path(project, detail_path) do
@@ -300,13 +301,28 @@ defmodule JidoCode.Workbench.InventorySurface do
   end
 
   @spec run_outcome_status_badge_class(term()) :: String.t()
-  def run_outcome_status_badge_class("completed"), do: "badge badge-success badge-xs"
-  def run_outcome_status_badge_class("running"), do: "badge badge-info badge-xs"
-  def run_outcome_status_badge_class("failed"), do: "badge badge-error badge-xs"
-  def run_outcome_status_badge_class("cancelled"), do: "badge badge-warning badge-xs"
-  def run_outcome_status_badge_class("awaiting_approval"), do: "badge badge-warning badge-xs"
-  def run_outcome_status_badge_class("pending"), do: "badge badge-outline badge-xs"
-  def run_outcome_status_badge_class(_status), do: "badge badge-outline badge-xs"
+  def run_outcome_status_badge_class("completed"), do: status_pill_class(:success)
+  def run_outcome_status_badge_class("running"), do: status_pill_class(:info)
+  def run_outcome_status_badge_class("failed"), do: status_pill_class(:error)
+  def run_outcome_status_badge_class("cancelled"), do: status_pill_class(:warning)
+  def run_outcome_status_badge_class("awaiting_approval"), do: status_pill_class(:warning)
+  def run_outcome_status_badge_class("pending"), do: status_pill_class(:neutral)
+  def run_outcome_status_badge_class(_status), do: status_pill_class(:neutral)
+
+  defp status_pill_class(tone) do
+    base = "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium"
+
+    tone_class =
+      case tone do
+        :success -> "border-primary/30 bg-primary/10 text-primary"
+        :info -> "border-accent/30 bg-accent/10 text-accent-foreground"
+        :warning -> "border-destructive/30 bg-destructive/10 text-destructive"
+        :error -> "border-destructive/40 bg-destructive/15 text-destructive"
+        :neutral -> "border-border bg-transparent text-muted-foreground"
+      end
+
+    base <> " " <> tone_class
+  end
 
   @spec run_outcome_status_label(term()) :: String.t()
   def run_outcome_status_label(status) do

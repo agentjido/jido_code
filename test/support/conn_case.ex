@@ -47,7 +47,6 @@ defmodule JidoCodeWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import JidoCodeWeb.ConnCase
-      import JidoCodeWeb.LiveVueCase
     end
   end
 

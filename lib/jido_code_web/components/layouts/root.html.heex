@@ -1,71 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    {Application.get_env(:live_debugger, :live_debugger_tags)}
-
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Jido Code" suffix=" · Phoenix Framework">
+    <.live_title default="Jido.Code" suffix=" · Phoenix Framework">
       {assigns[:page_title]}
     </.live_title>
     <PhoenixVite.Components.assets
       names={["js/app.js", "css/app.css"]}
       manifest={JidoCodeWeb.FrontendAssets.vite_manifest()}
       dev_server={PhoenixVite.Components.has_vite_watcher?(JidoCodeWeb.Endpoint)}
-      to_url={fn p -> static_url(@conn, p) end}
+      to_url={fn path -> static_url(@conn, path) end}
     />
-    <script>
-      (() => {
-        const root = document.documentElement;
-        const themeModeQuery = window.matchMedia("(prefers-color-scheme: light)");
-        const getResolvedTheme = (mode) => (mode === "system" ? (themeModeQuery.matches ? "light" : "dark") : mode);
-
-        const applyTheme = (mode) => {
-          const resolvedTheme = getResolvedTheme(mode);
-
-          root.setAttribute("data-theme-mode", mode);
-          root.setAttribute("data-theme", resolvedTheme);
-          root.classList.toggle("light", resolvedTheme === "light");
-          root.classList.toggle("dark", resolvedTheme === "dark");
-
-          if (mode === "system") {
-            localStorage.removeItem("phx:theme");
-          } else {
-            localStorage.setItem("phx:theme", mode);
-          }
-        };
-
-        let currentMode = localStorage.getItem("phx:theme") || "system";
-        applyTheme(currentMode);
-
-        const handleSystemChange = () => {
-          if ((root.getAttribute("data-theme-mode") || "system") === "system") {
-            applyTheme("system");
-          }
-        };
-
-        if (typeof themeModeQuery.addEventListener === "function") {
-          themeModeQuery.addEventListener("change", handleSystemChange);
-        } else if (typeof themeModeQuery.addListener === "function") {
-          themeModeQuery.addListener(handleSystemChange);
-        }
-
-        window.addEventListener("storage", (e) => {
-          if (e.key === "phx:theme") {
-            currentMode = e.newValue || "system";
-            applyTheme(currentMode);
-          }
-        });
-
-        window.addEventListener("phx:set-theme", (e) => {
-          currentMode = e.target.dataset.phxTheme || "system";
-          applyTheme(currentMode);
-        });
-      })();
-    </script>
   </head>
-  <body class="antialiased font-mono">
+  <body class="bg-background text-foreground antialiased">
     {@inner_content}
   </body>
 </html>

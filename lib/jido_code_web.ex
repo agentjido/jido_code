@@ -83,21 +83,14 @@ defmodule JidoCodeWeb do
       # Translation
       use Gettext, backend: JidoCodeWeb.Gettext
 
-      # LiveView remains the routed host shell; Vue mounts only inside HEEx surfaces.
+      # LiveView remains the routed host shell; Vue mounts only inside bounded HEEx surfaces.
       use LiveVue
 
-      # Generate helper functions for bounded Vue islands that live under the shared shell.
-      use LiveVue.Components, vue_root: ["./assets/vue", "./lib/jido_code_web"]
+      # Generate helper functions for bounded Vue islands that live under assets/vue.
+      use LiveVue.Components, vue_root: ["./assets/vue"]
 
       # HTML escaping functionality
       import Phoenix.HTML
-      # Core UI components
-      import JidoCodeWeb.CoreComponents
-      import JidoCodeWeb.ConversationSurfaceComponents
-      import JidoCodeWeb.LiveVueComponents
-      import JidoCodeWeb.MemorySurfaceComponents
-      import JidoCodeWeb.OperatorStateComponents
-      import JidoCodeWeb.OperatorShellComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

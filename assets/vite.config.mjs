@@ -1,27 +1,31 @@
-import { defineConfig } from 'vite'
-import vue from "@vitejs/plugin-vue";
-import liveVuePlugin from "live_vue/vitePlugin";
-import tailwindcss from "@tailwindcss/vite";
+import {defineConfig} from "vite"
+import vue from "@vitejs/plugin-vue"
+import liveVuePlugin from "live_vue/vitePlugin"
+import tailwindcss from "@tailwindcss/vite"
+import {fileURLToPath} from "node:url"
 
-const phoenixPort = process.env.PORT ?? "4100";
+const phoenixHost = process.env.PHX_HOST ?? "localhost"
+const phoenixPort = process.env.PORT ?? "4100"
+const viteHost = process.env.VITE_HOST ?? (process.env.PHX_HOST ? "0.0.0.0" : "127.0.0.1")
+const vitePort = Number(process.env.VITE_PORT ?? "5173")
 const allowedOrigins = [
   `http://localhost:${phoenixPort}`,
   `http://127.0.0.1:${phoenixPort}`,
-];
+  `http://${phoenixHost}:${phoenixPort}`,
+]
 
 export default defineConfig({
   server: {
-    host: "127.0.0.1",
-    port: 5173,
+    host: viteHost,
+    port: vitePort,
     strictPort: true,
-    cors: { origin: allowedOrigins },
+    cors: {origin: [...new Set(allowedOrigins)]},
   },
   optimizeDeps: {
-    // https://vitejs.dev/guide/dep-pre-bundling#monorepos-and-linked-dependencies
     include: ["live_vue", "phoenix", "phoenix_html", "phoenix_live_view"],
   },
-  ssr: { noExternal: process.env.NODE_ENV === "production" ? true : undefined },
-    build: {
+  ssr: {noExternal: process.env.NODE_ENV === "production" ? true : undefined},
+  build: {
     manifest: false,
     ssrManifest: false,
     rollupOptions: {
@@ -30,17 +34,11 @@ export default defineConfig({
     outDir: "../priv/static",
     emptyOutDir: true,
   },
-  // LV Colocated JS and Hooks
-  // https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.ColocatedJS.html#module-internals
   resolve: {
     alias: {
-      "@": ".",
+      "@": fileURLToPath(new URL(".", import.meta.url)),
       "phoenix-colocated": `${process.env.MIX_BUILD_PATH}/phoenix-colocated`,
     },
   },
-  plugins: [
-    tailwindcss(),
-    vue(),
-    liveVuePlugin()
-  ]
-});
+  plugins: [tailwindcss(), vue(), liveVuePlugin()],
+})

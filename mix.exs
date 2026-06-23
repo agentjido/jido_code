@@ -141,6 +141,7 @@ defmodule JidoCode.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_live_dashboard, "~> 0.8"},
+      {:salad_ui, "~> 1.0.0-beta.3"},
       {:bandit, "~> 1.5"},
 
       # Ash framework and extensions
@@ -210,14 +211,13 @@ defmodule JidoCode.MixProject do
 
       # Utilities
       {:dotenvy, "~> 1.1"},
-      {:live_toast, "~> 0.8"},
       {:jason, "~> 1.2"},
       {:picosat_elixir, "~> 0.2"},
       {:mdex, "~> 0.12"},
       {:zoi, "~> 0.17"},
 
       # Development & testing
-      {:sourceror, "~> 1.8", only: [:dev, :test]},
+      {:sourceror, "~> 1.8"},
       {:lazy_html, ">= 0.1.0"},
       {:tidewave, "~> 0.5.6", only: [:dev]},
       # TODO: re-enable once startup perf is fixed (v0.6.0 adds ~28s to boot)

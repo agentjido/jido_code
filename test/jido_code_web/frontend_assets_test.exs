@@ -36,7 +36,7 @@ defmodule JidoCodeWeb.FrontendAssetsTest do
     })
 
     status = FrontendAssets.status()
-    delivery = FrontendAssets.vue_surface_delivery("DashboardRunSummaryWidget")
+    delivery = FrontendAssets.vue_surface_delivery("ResetSurface")
 
     assert status.mode == :fallback
     assert delivery.mode == :fallback
@@ -54,7 +54,7 @@ defmodule JidoCodeWeb.FrontendAssetsTest do
     })
 
     status = FrontendAssets.status()
-    delivery = FrontendAssets.vue_surface_delivery("DashboardRunSummaryWidget")
+    delivery = FrontendAssets.vue_surface_delivery("ResetSurface")
 
     assert status.mode == :client_only
     assert delivery.mode == :client_only

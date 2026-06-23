@@ -96,31 +96,25 @@ defmodule JidoCodeWeb.Router do
       reset_path: "/reset",
       auth_routes_prefix: "/auth",
       on_mount: [{JidoCodeWeb.LiveUserAuth, :live_no_user}],
-      overrides: [
-        JidoCodeWeb.AuthOverrides,
-        Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI
-      ]
+      overrides: [JidoCodeWeb.AuthOverrides]
     )
 
     # Remove this if you do not want to use the reset password feature
     reset_route(
       auth_routes_prefix: "/auth",
-      overrides: [
-        JidoCodeWeb.AuthOverrides,
-        Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI
-      ]
+      overrides: [JidoCodeWeb.AuthOverrides]
     )
 
     # Remove this if you do not use the confirmation strategy
     confirm_route(JidoCode.Accounts.User, :confirm_new_user,
       auth_routes_prefix: "/auth",
-      overrides: [JidoCodeWeb.AuthOverrides, Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI]
+      overrides: [JidoCodeWeb.AuthOverrides]
     )
 
     # Remove this if you do not use the magic link strategy.
     magic_sign_in_route(JidoCode.Accounts.User, :magic_link,
       auth_routes_prefix: "/auth",
-      overrides: [JidoCodeWeb.AuthOverrides, Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI]
+      overrides: [JidoCodeWeb.AuthOverrides]
     )
   end
 

@@ -4,6 +4,7 @@ defmodule JidoCode.GitHub.ServiceCredentialsTest do
   # covers: auth.github_service_credentials.secret_resolution
   use JidoCode.DataCase, async: false
 
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.GitHub.ServiceCredentials
   alias JidoCode.Security.SecretRefs
 
@@ -11,6 +12,8 @@ defmodule JidoCode.GitHub.ServiceCredentialsTest do
   @system_env_keys ["GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET", "GITHUB_PAT"]
 
   setup do
+    setup_store!()
+
     original_app_env =
       Enum.map(@app_env_keys, fn key ->
         {key, Application.get_env(:jido_code, key, :__missing__)}
@@ -109,4 +112,21 @@ defmodule JidoCode.GitHub.ServiceCredentialsTest do
 
   defp restore_system_env(key, :__missing__), do: System.delete_env(key)
   defp restore_system_env(key, value), do: System.put_env(key, value)
+
+  defp setup_store! do
+    store_name = :"github_service_credentials_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_github_service_credentials/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_app_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

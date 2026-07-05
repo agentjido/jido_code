@@ -14,6 +14,7 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
     ProviderConfigCodec,
     RunCodec,
     RuntimeEventCodec,
+    SecretLifecycleAuditCodec,
     SecretRefCodec,
     SystemConfigCodec,
     TokenCodec,
@@ -36,7 +37,8 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
     token: TokenCodec,
     provider_config: ProviderConfigCodec,
     event: EventCodec,
-    secret_ref: SecretRefCodec
+    secret_ref: SecretRefCodec,
+    secret_lifecycle_audit: SecretLifecycleAuditCodec
   }
 
   @spec codec(atom()) :: {:ok, module()} | {:error, {:excluded, atom()}} | {:error, :unknown_record_type}

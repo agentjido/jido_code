@@ -697,6 +697,22 @@ jcp:sourceKey a owl:DatatypeProperty ;
     rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
+jcp:credentialSource a owl:DatatypeProperty ;
+    rdfs:label "credential source" ;
+    rdfs:comment "Non-sensitive origin for a SecretRef lifecycle version, such as env, onboarding, or rotation." ;
+    rdfs:domain jcp:SecretRef ;
+    rdfs:range xsd:string .
+
+jcp:keyVersion a owl:DatatypeProperty ;
+    rdfs:label "key version" ;
+    rdfs:domain jcp:SecretRef ;
+    rdfs:range xsd:integer .
+
+jcp:lastRotatedAt a owl:DatatypeProperty ;
+    rdfs:label "last rotated at" ;
+    rdfs:domain jcp:SecretRef ;
+    rdfs:range xsd:dateTime .
+
 jcp:isAdmin a owl:DatatypeProperty ;
     rdfs:label "is admin" ;
     rdfs:domain jcp:User ;
@@ -793,6 +809,26 @@ jcp:externalId a owl:DatatypeProperty ;
 
 jcp:canonicalKey a owl:DatatypeProperty ;
     rdfs:label "canonical key" ;
+    rdfs:range xsd:string .
+
+jcp:actionType a owl:DatatypeProperty ;
+    rdfs:label "action type" ;
+    rdfs:domain jcp:SecretLifecycleAudit ;
+    rdfs:range xsd:string .
+
+jcp:outcomeStatus a owl:DatatypeProperty ;
+    rdfs:label "outcome status" ;
+    rdfs:domain jcp:SecretLifecycleAudit ;
+    rdfs:range xsd:string .
+
+jcp:actorId a owl:DatatypeProperty ;
+    rdfs:label "actor id" ;
+    rdfs:domain jcp:SecretLifecycleAudit ;
+    rdfs:range xsd:string .
+
+jcp:actorEmail a owl:DatatypeProperty ;
+    rdfs:label "actor email" ;
+    rdfs:domain jcp:SecretLifecycleAudit ;
     rdfs:range xsd:string .
 
 jcp:canonicalReference a owl:DatatypeProperty ;

@@ -1,14 +1,14 @@
 defmodule JidoCode.Security.SecretRefsTest do
-  use JidoCode.DataCase, async: false
+  use ExUnit.Case, async: false
 
-  require Ash.Query
-
-  alias JidoCode.Security
-  alias JidoCode.Security.{Encryption, SecretRef, SecretRefs}
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Security.{Encryption, SecretRefStore, SecretRefs}
 
   @valid_test_encryption_key "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
 
   setup do
+    setup_store!()
+
     original_key = Application.get_env(:jido_code, :secret_ref_encryption_key, :__missing__)
 
     original_rotation_validator =
@@ -39,12 +39,7 @@ defmodule JidoCode.Security.SecretRefsTest do
                source: :onboarding
              })
 
-    query =
-      SecretRef
-      |> Ash.Query.filter(scope == :integration and name == ^name)
-      |> Ash.Query.limit(1)
-
-    assert {:ok, [stored_secret_ref]} = Ash.read(query, domain: Security, authorize?: false)
+    assert {:ok, stored_secret_ref} = SecretRefStore.get_by_scope_name(:integration, name)
     assert stored_secret_ref.name == name
     assert stored_secret_ref.scope == :integration
     assert is_binary(stored_secret_ref.ciphertext)
@@ -129,17 +124,14 @@ defmodule JidoCode.Security.SecretRefsTest do
     assert {:ok, initial_ciphertext} = Encryption.encrypt(initial_value)
 
     assert {:ok, initial_secret_ref} =
-             SecretRef.create(
-               %{
-                 scope: :integration,
-                 name: name,
-                 ciphertext: initial_ciphertext,
-                 key_version: 1,
-                 source: :onboarding,
-                 last_rotated_at: initial_last_rotated_at
-               },
-               authorize?: false
-             )
+             SecretRefStore.upsert_secret_ref(%{
+               scope: :integration,
+               name: name,
+               ciphertext: initial_ciphertext,
+               key_version: 1,
+               source: :onboarding,
+               last_rotated_at: initial_last_rotated_at
+             })
 
     assert {:ok, rotated_metadata} =
              SecretRefs.persist_operational_secret(%{
@@ -153,12 +145,7 @@ defmodule JidoCode.Security.SecretRefsTest do
     assert rotated_metadata.source == :rotation
     assert DateTime.compare(rotated_metadata.last_rotated_at, initial_last_rotated_at) == :gt
 
-    query =
-      SecretRef
-      |> Ash.Query.filter(scope == :integration and name == ^name)
-      |> Ash.Query.limit(1)
-
-    assert {:ok, [rotated_secret_ref]} = Ash.read(query, domain: Security, authorize?: false)
+    assert {:ok, rotated_secret_ref} = SecretRefStore.get_by_scope_name(:integration, name)
     assert rotated_secret_ref.id == initial_secret_ref.id
     assert rotated_secret_ref.key_version == 2
     assert rotated_secret_ref.source == :rotation
@@ -175,17 +162,14 @@ defmodule JidoCode.Security.SecretRefsTest do
     assert {:ok, initial_ciphertext} = Encryption.encrypt(initial_value)
 
     assert {:ok, initial_secret_ref} =
-             SecretRef.create(
-               %{
-                 scope: :integration,
-                 name: name,
-                 ciphertext: initial_ciphertext,
-                 key_version: max_bigint,
-                 source: :onboarding,
-                 last_rotated_at: initial_last_rotated_at
-               },
-               authorize?: false
-             )
+             SecretRefStore.upsert_secret_ref(%{
+               scope: :integration,
+               name: name,
+               ciphertext: initial_ciphertext,
+               key_version: max_bigint,
+               source: :onboarding,
+               last_rotated_at: initial_last_rotated_at
+             })
 
     assert {:error, typed_error} =
              SecretRefs.persist_operational_secret(%{
@@ -198,12 +182,7 @@ defmodule JidoCode.Security.SecretRefsTest do
     assert typed_error.message == "Secret persistence failed and no secret was persisted."
     assert typed_error.recovery_instruction =~ "Retry the save."
 
-    query =
-      SecretRef
-      |> Ash.Query.filter(scope == :integration and name == ^name)
-      |> Ash.Query.limit(1)
-
-    assert {:ok, [persisted_secret_ref]} = Ash.read(query, domain: Security, authorize?: false)
+    assert {:ok, persisted_secret_ref} = SecretRefStore.get_by_scope_name(:integration, name)
     assert persisted_secret_ref.id == initial_secret_ref.id
     assert persisted_secret_ref.ciphertext == initial_ciphertext
     assert persisted_secret_ref.source == :onboarding
@@ -222,12 +201,7 @@ defmodule JidoCode.Security.SecretRefsTest do
                source: :onboarding
              })
 
-    query =
-      SecretRef
-      |> Ash.Query.filter(scope == :integration and name == ^name)
-      |> Ash.Query.limit(1)
-
-    assert {:ok, [initial_secret_ref]} = Ash.read(query, domain: Security, authorize?: false)
+    assert {:ok, initial_secret_ref} = SecretRefStore.get_by_scope_name(:integration, name)
 
     Application.put_env(:jido_code, :secret_lifecycle_audit_persister, fn _attributes ->
       {:error, :forced_audit_failure}
@@ -242,7 +216,7 @@ defmodule JidoCode.Security.SecretRefsTest do
 
     assert typed_error.error_type == "secret_audit_persistence_failed"
 
-    assert {:ok, [persisted_secret_ref]} = Ash.read(query, domain: Security, authorize?: false)
+    assert {:ok, persisted_secret_ref} = SecretRefStore.get_by_scope_name(:integration, name)
     assert persisted_secret_ref.id == initial_metadata.id
     assert persisted_secret_ref.ciphertext == initial_secret_ref.ciphertext
     assert persisted_secret_ref.key_version == initial_secret_ref.key_version
@@ -264,12 +238,7 @@ defmodule JidoCode.Security.SecretRefsTest do
     assert typed_error.message == "Secret encryption is unavailable and no secret was persisted."
     assert typed_error.recovery_instruction =~ "JIDO_CODE_SECRET_REF_ENCRYPTION_KEY"
 
-    query =
-      SecretRef
-      |> Ash.Query.filter(scope == :integration and name == ^name)
-      |> Ash.Query.limit(1)
-
-    assert {:ok, []} = Ash.read(query, domain: Security, authorize?: false)
+    assert {:ok, nil} = SecretRefStore.get_by_scope_name(:integration, name)
   end
 
   test "rotate_provider_credential swaps versions atomically while in-flight context keeps prior version" do
@@ -396,4 +365,21 @@ defmodule JidoCode.Security.SecretRefsTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp setup_store! do
+    store_name = :"secret_refs_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_secret_refs/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

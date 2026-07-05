@@ -32,6 +32,7 @@ defmodule JidoCode.ControlPlane.CodecsTest do
     assert :token in coverage.codec_record_types
     assert :user_identity in coverage.codec_record_types
     assert :provider_config in coverage.codec_record_types
+    assert :secret_lifecycle_audit in coverage.codec_record_types
     refute :api_key in coverage.explicitly_excluded_record_types
     assert {:ok, _codec} = Registry.codec(:api_key)
   end
@@ -93,16 +94,30 @@ defmodule JidoCode.ControlPlane.CodecsTest do
     assert {:ok, encoded} =
              Registry.encode(:secret_ref, %{
                secret_ref_id: "secret-1",
+               canonical_key: "integration:github-token",
                scope: "integration",
                name: "github-token",
                display_name: "GitHub token",
-               provider: "github"
+               provider: "github",
+               source: "onboarding",
+               key_version: 1,
+               last_rotated_at: ~U[2026-01-01 00:00:00Z]
              })
 
     assert encoded.graph_name == :security
     assert encoded.subject_iri == "https://jido.run/control/secret-refs/secret-1"
+
+    assert %{identity: :unique_scope_name, predicate: "canonicalKey", value: "integration:github-token"} in encoded.identity_queries
+
     assert triple_value(encoded, "sourceKey") == "github-token"
     assert triple_value(encoded, "provider") == "github"
+    assert triple_value(encoded, "credentialSource") == "onboarding"
+    assert triple_value(encoded, "keyVersion") == 1
+
+    refute Enum.any?(encoded.triples, fn
+             {_subject, _predicate, %RDF.Literal{} = object} -> RDF.Literal.value(object) == "ciphertext"
+             _triple -> false
+           end)
 
     assert {:error, {:sensitive_field_not_projectable, :plaintext}} =
              Registry.encode(:secret_ref, %{
@@ -111,6 +126,36 @@ defmodule JidoCode.ControlPlane.CodecsTest do
                name: "bad",
                plaintext: "never-project"
              })
+
+    assert {:error, {:sensitive_field_not_projectable, :ciphertext}} =
+             Registry.encode(:secret_ref, %{
+               secret_ref_id: "secret-3",
+               scope: "integration",
+               name: "bad",
+               ciphertext: "ciphertext"
+             })
+  end
+
+  test "secret lifecycle audit codec projects append-only audit facts" do
+    assert {:ok, encoded} =
+             Registry.encode(:secret_lifecycle_audit, %{
+               secret_lifecycle_audit_id: "audit-1",
+               secret_ref_id: "secret-1",
+               scope: "integration",
+               name: "github-token",
+               action_type: "rotate",
+               outcome_status: "succeeded",
+               actor_id: "owner-1",
+               actor_email: "owner@example.com",
+               occurred_at: ~U[2026-01-01 00:00:00Z]
+             })
+
+    assert encoded.graph_name == :security
+    assert encoded.subject_iri == "https://jido.run/control/secret-lifecycle-audits/audit-1"
+    assert triple_value(encoded, "secretRefId") == "secret-1"
+    assert triple_value(encoded, "actionType") == "rotate"
+    assert triple_value(encoded, "outcomeStatus") == "succeeded"
+    assert triple_value(encoded, "actorId") == "owner-1"
   end
 
   test "token and API key codecs reject credential material" do

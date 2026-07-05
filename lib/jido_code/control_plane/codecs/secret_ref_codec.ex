@@ -14,7 +14,9 @@ defmodule JidoCode.ControlPlane.Codecs.SecretRefCodec do
   @record_type :secret_ref
   @sensitive_fields [
     :plaintext,
+    :value,
     :ciphertext,
+    :encrypted_blob,
     :password,
     :password_hash,
     :api_key,
@@ -26,11 +28,16 @@ defmodule JidoCode.ControlPlane.Codecs.SecretRefCodec do
   ]
   @field_mappings %{
     secret_ref_id: "secretRefId",
+    canonical_key: "canonicalKey",
     scope: "sourceKind",
     name: "sourceKey",
     display_name: "displayName",
     provider: "provider",
     provider_host: "providerHost",
+    source: "credentialSource",
+    key_version: "keyVersion",
+    last_rotated_at: "lastRotatedAt",
+    expires_at: "expiresAt",
     updated_at: "updatedAt",
     metadata: "metadataJson"
   }
@@ -55,8 +62,8 @@ defmodule JidoCode.ControlPlane.Codecs.SecretRefCodec do
     [
       %{
         identity: :unique_scope_name,
-        predicates: ["sourceKind", "sourceKey"],
-        values: [record[:scope] || record["scope"], record[:name] || record["name"]]
+        predicate: "canonicalKey",
+        value: record[:canonical_key] || record["canonical_key"]
       }
     ]
   end

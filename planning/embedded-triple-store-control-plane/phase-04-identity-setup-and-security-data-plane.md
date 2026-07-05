@@ -60,25 +60,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section moves secret metadata and provider login policy into semantic records while keeping secret material outside the graph.
 
-- [ ] 4.3 Section - Secret references and provider config.
+- [x] 4.3 Section - Secret references and provider config.
 
   Description: The graph records references, lifecycle metadata, and audit facts; encrypted or external secret material remains outside semantic triples.
 
-  - [ ] 4.3.1 Task - Implement secret reference store services.
+  - [x] 4.3.1 Task - Implement secret reference store services.
 
     Description: Secret refs need lifecycle state, rotation metadata, audit rows, and safe display projections.
 
-    - [ ] 4.3.1.1 Subtask - Implement secret ref and secret lifecycle audit codecs.
-    - [ ] 4.3.1.2 Subtask - Rewire secret creation, rotation, deletion, and lookup paths.
-    - [ ] 4.3.1.3 Subtask - Assert encoded triples never include plaintext secret values or encrypted blobs intended for external storage.
+    - [x] 4.3.1.1 Subtask - Implement secret ref and secret lifecycle audit codecs.
+    - [x] 4.3.1.2 Subtask - Rewire secret creation, rotation, deletion, and lookup paths.
+    - [x] 4.3.1.3 Subtask - Assert encoded triples never include plaintext secret values or encrypted blobs intended for external storage.
 
-  - [ ] 4.3.2 Task - Implement provider configuration services.
+  - [x] 4.3.2 Task - Implement provider configuration services.
 
     Description: Provider login settings, host scoping, and registration policy should be controlled by store-backed records.
 
-    - [ ] 4.3.2.1 Subtask - Rewire provider login policy lookup away from Ash queries.
-    - [ ] 4.3.2.2 Subtask - Rewire GitHub service credential lookup to secret references and provider config projections.
-    - [ ] 4.3.2.3 Subtask - Preserve setup fallback behavior when provider config is missing or incomplete.
+    - [x] 4.3.2.1 Subtask - Rewire provider login policy lookup away from Ash queries.
+    - [x] 4.3.2.2 Subtask - Rewire GitHub service credential lookup to secret references and provider config projections.
+    - [x] 4.3.2.3 Subtask - Preserve setup fallback behavior when provider config is missing or incomplete.
 
 ## 4.4 Section - Integration Tests
 

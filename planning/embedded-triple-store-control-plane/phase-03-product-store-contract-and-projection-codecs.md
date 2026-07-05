@@ -12,25 +12,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section defines the dependency boundary that all domains call instead of Ash.
 
-- [ ] 3.1 Section - Store behaviour.
+- [x] 3.1 Section - Store behaviour.
 
   Description: A single behaviour keeps the TripleStore implementation replaceable in tests while preventing direct store calls from web or workflow modules.
 
-  - [ ] 3.1.1 Task - Define `JidoCode.ControlPlane.Store`.
+  - [x] 3.1.1 Task - Define `JidoCode.ControlPlane.Store`.
 
     Description: The behaviour should model product persistence operations rather than RDF implementation details.
 
-    - [ ] 3.1.1.1 Subtask - Define callbacks for create, update, upsert, delete, get, list, append_event, and query.
-    - [ ] 3.1.1.2 Subtask - Define common request, actor, authorization context, and outcome structs.
-    - [ ] 3.1.1.3 Subtask - Define typed error structs for validation, conflict, not found, unavailable, and unauthorized outcomes.
+    - [x] 3.1.1.1 Subtask - Define callbacks for create, update, upsert, delete, get, list, append_event, and query.
+    - [x] 3.1.1.2 Subtask - Define common request, actor, authorization context, and outcome structs.
+    - [x] 3.1.1.3 Subtask - Define typed error structs for validation, conflict, not found, unavailable, and unauthorized outcomes.
 
-  - [ ] 3.1.2 Task - Add in-memory fake store for tests.
+  - [x] 3.1.2 Task - Add in-memory fake store for tests.
 
     Description: Unit tests should not need RocksDB unless they are verifying store integration.
 
-    - [ ] 3.1.2.1 Subtask - Implement a deterministic fake that honors the behaviour and identity conflicts.
-    - [ ] 3.1.2.2 Subtask - Add helpers for seeding records and reading written events.
-    - [ ] 3.1.2.3 Subtask - Keep fake semantics aligned with TripleStore contract tests.
+    - [x] 3.1.2.1 Subtask - Implement a deterministic fake that honors the behaviour and identity conflicts.
+    - [x] 3.1.2.2 Subtask - Add helpers for seeding records and reading written events.
+    - [x] 3.1.2.3 Subtask - Keep fake semantics aligned with TripleStore contract tests.
 
 ## 3.2 Section - RDF Projection Codecs
 

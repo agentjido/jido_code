@@ -60,25 +60,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section defines safe query access over product records.
 
-- [ ] 2.3 Section - Query boundary.
+- [x] 2.3 Section - Query boundary.
 
   Description: Product callers receive shaped projections from named query helpers, while explicit SPARQL remains a diagnostics and specialist capability.
 
-  - [ ] 2.3.1 Task - Add bounded query APIs.
+  - [x] 2.3.1 Task - Add bounded query APIs.
 
     Description: Query APIs should be small, typed, and aligned with product use cases.
 
-    - [ ] 2.3.1.1 Subtask - Add get-by-id, list-by-class, list-by-repo, and lookup-by-identity helpers.
-    - [ ] 2.3.1.2 Subtask - Add pagination, limit, and timeout options with conservative defaults.
-    - [ ] 2.3.1.3 Subtask - Add degraded error shaping for parse errors, missing graph, timeout, and store unavailable cases.
+    - [x] 2.3.1.1 Subtask - Add get-by-id, list-by-class, list-by-repo, and lookup-by-identity helpers.
+    - [x] 2.3.1.2 Subtask - Add pagination, limit, and timeout options with conservative defaults.
+    - [x] 2.3.1.3 Subtask - Add degraded error shaping for parse errors, missing graph, timeout, and store unavailable cases.
 
-  - [ ] 2.3.2 Task - Add raw SPARQL escape hatch for diagnostics.
+  - [x] 2.3.2 Task - Add raw SPARQL escape hatch for diagnostics.
 
     Description: Raw SPARQL must stay explicit, bounded, and unavailable to ordinary UI paths.
 
-    - [ ] 2.3.2.1 Subtask - Route diagnostics queries through a named product action.
-    - [ ] 2.3.2.2 Subtask - Enforce graph allow-list, timeout, and row limits.
-    - [ ] 2.3.2.3 Subtask - Redact security and auth graph literals from generic diagnostics output.
+    - [x] 2.3.2.1 Subtask - Route diagnostics queries through a named product action.
+    - [x] 2.3.2.2 Subtask - Enforce graph allow-list, timeout, and row limits.
+    - [x] 2.3.2.3 Subtask - Redact security and auth graph literals from generic diagnostics output.
 
 ## 2.4 Section - Integration Tests
 

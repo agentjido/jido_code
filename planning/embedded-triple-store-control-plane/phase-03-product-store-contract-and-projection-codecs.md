@@ -60,25 +60,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section replaces Ash changesets and policies with product-owned validators and guards.
 
-- [ ] 3.3 Section - Validation and authorization replacement.
+- [x] 3.3 Section - Validation and authorization replacement.
 
   Description: Validation and authorization must be explicit before product callers switch to the new store.
 
-  - [ ] 3.3.1 Task - Add command validators.
+  - [x] 3.3.1 Task - Add command validators.
 
     Description: Each write command should validate required fields, enum values, identity fields, and lifecycle transitions.
 
-    - [ ] 3.3.1.1 Subtask - Define reusable validators for required string, atom enum, map, datetime, and relationship fields.
-    - [ ] 3.3.1.2 Subtask - Define per-family validators for setup, control, operations, governance, orchestration, conversations, execution runtime, auth, and security records.
-    - [ ] 3.3.1.3 Subtask - Return structured validation errors suitable for LiveView forms and workflow callers.
+    - [x] 3.3.1.1 Subtask - Define reusable validators for required string, atom enum, map, datetime, and relationship fields.
+    - [x] 3.3.1.2 Subtask - Define per-family validators for setup, control, operations, governance, orchestration, conversations, execution runtime, auth, and security records.
+    - [x] 3.3.1.3 Subtask - Return structured validation errors suitable for LiveView forms and workflow callers.
 
-  - [ ] 3.3.2 Task - Add policy guards.
+  - [x] 3.3.2 Task - Add policy guards.
 
     Description: Existing Ash policy intent should become explicit policy functions near product services.
 
-    - [ ] 3.3.2.1 Subtask - Define human operator, machine actor, setup bootstrap, and system actor contexts.
-    - [ ] 3.3.2.2 Subtask - Add read and mutate authorization checks for each record family.
-    - [ ] 3.3.2.3 Subtask - Add audit metadata for authorized and denied mutations.
+    - [x] 3.3.2.1 Subtask - Define human operator, machine actor, setup bootstrap, and system actor contexts.
+    - [x] 3.3.2.2 Subtask - Add read and mutate authorization checks for each record family.
+    - [x] 3.3.2.3 Subtask - Add audit metadata for authorized and denied mutations.
 
 ## 3.4 Section - Integration Tests
 

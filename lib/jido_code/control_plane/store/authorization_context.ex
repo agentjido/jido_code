@@ -14,12 +14,12 @@ defmodule JidoCode.ControlPlane.Store.AuthorizationContext do
   @type t :: %__MODULE__{
           mode: mode(),
           allowed?: boolean(),
-          scopes: [atom()],
+          scopes: [atom() | String.t()],
           reason: term(),
           metadata: map()
         }
 
-  @spec allow(mode(), [atom()], map()) :: t()
+  @spec allow(mode(), [atom() | String.t()], map()) :: t()
   def allow(mode \\ :system, scopes \\ [], metadata \\ %{}) do
     %__MODULE__{mode: mode, allowed?: true, scopes: scopes, metadata: metadata}
   end

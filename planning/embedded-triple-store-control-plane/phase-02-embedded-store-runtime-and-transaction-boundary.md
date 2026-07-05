@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase introduces the local embedded `triple_store` runtime as the only product persistence engine. It replaces `JidoCode.Repo` supervision with a product-owned quad-store process, transaction boundary, startup bootstrap, and test sandbox pattern.
 
-- [ ] 2 Phase - Embedded store runtime and transaction boundary.
+- [x] 2 Phase - Embedded store runtime and transaction boundary.
 
   Description: Create the runtime substrate that later product services can use without depending on Ash or Ecto.
 
@@ -84,22 +84,22 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves the embedded store runtime can boot, write, query, and reset without Ash/Postgres.
 
-- [ ] 2.4 Section - Integration tests.
+- [x] 2.4 Section - Integration tests.
 
   Description: Exercise the store as a supervised product dependency and as an isolated test dependency.
 
-  - [ ] 2.4.1 Task - Add supervised store tests.
+  - [x] 2.4.1 Task - Add supervised store tests.
 
     Description: Runtime tests should prove the store starts under application supervision and survives normal lifecycle operations.
 
-    - [ ] 2.4.1.1 Subtask - Start the store with `start_supervised!/1` in tests.
-    - [ ] 2.4.1.2 Subtask - Verify ontology bootstrap creates expected named graphs.
-    - [ ] 2.4.1.3 Subtask - Verify restart reopens the same embedded store path.
+    - [x] 2.4.1.1 Subtask - Start the store with `start_supervised!/1` in tests.
+    - [x] 2.4.1.2 Subtask - Verify ontology bootstrap creates expected named graphs.
+    - [x] 2.4.1.3 Subtask - Verify restart reopens the same embedded store path.
 
-  - [ ] 2.4.2 Task - Add transaction and query tests.
+  - [x] 2.4.2 Task - Add transaction and query tests.
 
     Description: Store command tests should cover successful writes and constraint failures.
 
-    - [ ] 2.4.2.1 Subtask - Write and replace a sample managed repo record through command APIs.
-    - [ ] 2.4.2.2 Subtask - Prove duplicate identity writes return typed conflict errors.
-    - [ ] 2.4.2.3 Subtask - Prove raw SPARQL diagnostics observe timeouts and graph allow-lists.
+    - [x] 2.4.2.1 Subtask - Write and replace a sample managed repo record through command APIs.
+    - [x] 2.4.2.2 Subtask - Prove duplicate identity writes return typed conflict errors.
+    - [x] 2.4.2.3 Subtask - Prove raw SPARQL diagnostics observe timeouts and graph allow-lists.

@@ -6,9 +6,8 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
   Loads recent governed run summaries for dashboard visibility.
   """
 
-  alias JidoCode.Control.Actor
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
-  alias JidoCode.Orchestration.Run
+  alias JidoCode.Governance.RecordStore, as: GovernanceStore
+  alias JidoCode.Orchestration.{RecordStore, Run}
 
   @default_limit 8
   @default_fetch_error_type "dashboard_run_summary_feed_fetch_failed"
@@ -58,7 +57,7 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
   @doc false
   @spec default_loader() :: {:ok, [run_summary()], stale_warning() | nil} | {:error, stale_warning()}
   def default_loader do
-    case Run.read(query: [sort: [started_at: :desc], limit: @default_limit], actor: Actor.operator_actor()) do
+    case RecordStore.list_runs(%{}, query: [sort: [started_at: :desc], limit: @default_limit]) do
       {:ok, []} ->
         {:ok, [], nil}
 
@@ -242,14 +241,14 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
 
   defp governance_summary(%Run{} = run) do
     evidence_count =
-      case Evidence.read(query: [filter: [run_id: run.id]], actor: Actor.operator_actor()) do
+      case GovernanceStore.list_evidence(%{run_id: run.id}) do
         {:ok, evidence_records} -> length(evidence_records)
         _other -> 0
       end
 
     change_request_status =
-      case ChangeRequest.read(query: [filter: [run_id: run.id], limit: 1], actor: Actor.operator_actor()) do
-        {:ok, [change_request | _rest]} ->
+      case GovernanceStore.get_change_request_by_run_id(run.id) do
+        {:ok, change_request} when not is_nil(change_request) ->
           change_request
           |> map_get(:status, "status")
           |> normalize_status()
@@ -259,9 +258,9 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
       end
 
     latest_decision =
-      case Decision.read(
-             query: [filter: [run_id: run.id], sort: [decided_at: :desc], limit: 1],
-             actor: Actor.operator_actor()
+      case GovernanceStore.list_decisions(
+             %{run_id: run.id},
+             query: [sort: [decided_at: :desc], limit: 1]
            ) do
         {:ok, [decision | _rest]} ->
           decision

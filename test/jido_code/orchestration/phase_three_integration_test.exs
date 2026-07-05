@@ -10,11 +10,16 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
   # covers: architecture.run_governance.blocked_review_context_preserves_typed_remediation
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, PolicySet}
+  alias JidoCode.Control.ManagedRepoStore
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Governance.RecordStore, as: GovernanceStore
   alias JidoCode.Operations.Ingress
-  alias JidoCode.Orchestration.{ExecutionProfile, Run, RunBridge, WorkflowRun}
+  alias JidoCode.Orchestration.{RecordStore, RunBridge, WorkflowRun}
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "work item launch resolves governed execution profile and preserves explicit stages under runic" do
     governed_stages = [
@@ -50,8 +55,7 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     {:ok, work_item} = record_work_item(project, "operator-launch")
 
@@ -63,11 +67,7 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
       })
 
     {:ok, execution_profile} =
-      ExecutionProfile.get_by_managed_repo_name(
-        managed_repo.id,
-        "workflow:fix_failing_tests",
-        actor: Actor.operator_actor()
-      )
+      RecordStore.get_execution_profile_by_managed_repo_name(managed_repo.id, "workflow:fix_failing_tests")
 
     assert workflow_run.inputs["work_item_id"] == work_item.id
     assert run.work_item_id == work_item.id
@@ -136,12 +136,12 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
         transitioned_at: ~U[2026-03-31 23:02:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
 
     {:ok, evidence_records} =
-      Evidence.read(query: [filter: [run_id: run.id], sort: [key: :asc]], actor: Actor.operator_actor())
+      GovernanceStore.list_evidence(%{run_id: run.id}, query: [sort: [key: :asc]])
 
-    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+    {:ok, change_request} = GovernanceStore.get_change_request_by_run_id(run.id)
 
     assert Enum.map(evidence_records, & &1.key) == [
              "approval_context",
@@ -161,14 +161,10 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
         approved_at: ~U[2026-03-31 23:03:00Z]
       })
 
-    {:ok, approved_change_request} =
-      ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+    {:ok, approved_change_request} = GovernanceStore.get_change_request_by_run_id(run.id)
 
     {:ok, [decision]} =
-      Decision.read(
-        query: [filter: [run_id: run.id], sort: [decided_at: :desc]],
-        actor: Actor.operator_actor()
-      )
+      GovernanceStore.list_decisions(%{run_id: run.id}, query: [sort: [decided_at: :desc]])
 
     assert approved_change_request.status == :approved
     assert decision.decision == :approve
@@ -223,7 +219,7 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
         transitioned_at: ~U[2026-03-31 23:12:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
 
     {:ok, _rejected_workflow_run} =
       WorkflowRun.reject(workflow_run, %{
@@ -232,13 +228,10 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
         rationale: "Validation needs a broader test sweep."
       })
 
-    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+    {:ok, change_request} = GovernanceStore.get_change_request_by_run_id(run.id)
 
     {:ok, [decision]} =
-      Decision.read(
-        query: [filter: [run_id: run.id], sort: [decided_at: :desc]],
-        actor: Actor.operator_actor()
-      )
+      GovernanceStore.list_decisions(%{run_id: run.id}, query: [sort: [decided_at: :desc]])
 
     assert change_request.status == :rejected
     assert decision.decision == :reject
@@ -254,20 +247,18 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
     {:ok, auto_post_work_item} = record_work_item(auto_post_project, "operator-auto-post")
 
     assert {:ok, _policy_set} =
-             PolicySet.upsert_default_for_managed_repo(
-               %{
-                 managed_repo_id: auto_post_managed_repo.id,
-                 review_policy: %{
-                   mode: "auto_post",
-                   requires_human_approval: false,
-                   change_request_required: false,
-                   review_threshold: "auto_post",
-                   required_stage: "approval",
-                   source: "phase_three_integration_override"
-                 }
-               },
-               actor: Actor.admin_actor()
-             )
+             GovernanceStore.upsert_policy_set(%{
+               managed_repo_id: auto_post_managed_repo.id,
+               name: "default",
+               review_policy: %{
+                 mode: "auto_post",
+                 requires_human_approval: false,
+                 change_request_required: false,
+                 review_threshold: "auto_post",
+                 required_stage: "approval",
+                 source: "phase_three_integration_override"
+               }
+             })
 
     {:ok, auto_post_run_record} =
       WorkflowRun.create(%{
@@ -310,13 +301,9 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
       })
 
     {:ok, auto_post_run} =
-      Run.get_by_workflow_run_id(auto_post_run_record.id, actor: Actor.operator_actor())
+      RecordStore.get_run_by_workflow_run_id(auto_post_run_record.id)
 
-    assert {:ok, []} =
-             ChangeRequest.read(
-               query: [filter: [run_id: auto_post_run.id]],
-               actor: Actor.operator_actor()
-             )
+    assert {:ok, []} = GovernanceStore.list_change_requests(%{run_id: auto_post_run.id})
 
     {:ok, blocked_project} = create_project("repo-phase-three-blocked-review")
     {:ok, blocked_managed_repo} = managed_repo_for_project(blocked_project)
@@ -362,10 +349,9 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
       })
 
     {:ok, blocked_run} =
-      Run.get_by_workflow_run_id(blocked_workflow_run.id, actor: Actor.operator_actor())
+      RecordStore.get_run_by_workflow_run_id(blocked_workflow_run.id)
 
-    {:ok, blocked_change_request} =
-      ChangeRequest.get_by_run_id(blocked_run.id, actor: Actor.operator_actor())
+    {:ok, blocked_change_request} = GovernanceStore.get_change_request_by_run_id(blocked_run.id)
 
     assert blocked_change_request.request_metadata["review_blocked"] == true
 
@@ -386,7 +372,7 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
   end
 
   defp managed_repo_for_project(project) do
-    ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    ManagedRepoStore.get_by_legacy_project_id(project.id)
   end
 
   defp record_work_item(project, actor_id) do
@@ -407,4 +393,24 @@ defmodule JidoCode.Orchestration.PhaseThreeIntegrationTest do
       {:ok, work_item}
     end
   end
+
+  defp setup_product_store do
+    store_name = :"phase_three_integration_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_phase_three_integration/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

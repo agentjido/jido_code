@@ -7,10 +7,15 @@ defmodule JidoCode.Governance.PolicyBridgeTest do
   # covers: architecture.vsm_recursion.algedonic_escalation
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{PolicyBridge, RepoPosture}
+  alias JidoCode.Control.ManagedRepoStore
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Governance.{PolicyBridge, PostureBridge}
   alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "strong posture can progress to autonomous supervision and preserve auto-post governance" do
     workspace_path = create_workspace_path!("autonomous")
@@ -35,8 +40,7 @@ defmodule JidoCode.Governance.PolicyBridgeTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     assert {:ok, %{assessment: _assessment}} =
              Ingress.record_operator_intake(%{
@@ -47,8 +51,7 @@ defmodule JidoCode.Governance.PolicyBridgeTest do
                payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
-    assert {:ok, repo_posture} =
-             RepoPosture.get_by_managed_repo_id(managed_repo.id, actor: Actor.operator_actor())
+    assert {:ok, %{repo_posture: repo_posture}} = PostureBridge.sync_managed_repo(managed_repo)
 
     assert repo_posture.supervision_mode == "autonomous"
     assert repo_posture.escalation_status == "normal"
@@ -83,11 +86,9 @@ defmodule JidoCode.Governance.PolicyBridgeTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
-    assert {:ok, repo_posture} =
-             RepoPosture.get_by_managed_repo_id(managed_repo.id, actor: Actor.operator_actor())
+    assert {:ok, %{repo_posture: repo_posture}} = PostureBridge.sync_managed_repo(managed_repo)
 
     assert repo_posture.supervision_mode == "directed"
     assert repo_posture.escalation_status == "algedonic"
@@ -149,4 +150,24 @@ defmodule JidoCode.Governance.PolicyBridgeTest do
 
     File.write!(Path.join(spec_dir, "state.json"), Jason.encode!(state))
   end
+
+  defp setup_product_store do
+    store_name = :"policy_bridge_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_policy_bridge/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

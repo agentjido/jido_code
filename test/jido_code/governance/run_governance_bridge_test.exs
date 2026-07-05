@@ -5,10 +5,14 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
   # covers: architecture.run_governance.decision_records_capture_governance_outcomes
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.Actor
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
-  alias JidoCode.Orchestration.{Run, WorkflowRun}
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Governance.RecordStore, as: GovernanceStore
+  alias JidoCode.Orchestration.{RecordStore, WorkflowRun}
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "awaiting approval creates evidence and a reviewable change request" do
     {:ok, project} = create_project("repo-governed-review")
@@ -49,10 +53,10 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
         transitioned_at: ~U[2026-03-31 19:02:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
 
     {:ok, evidence_records} =
-      Evidence.read(query: [filter: [run_id: run.id], sort: [key: :asc]], actor: Actor.operator_actor())
+      GovernanceStore.list_evidence(%{run_id: run.id}, query: [sort: [key: :asc]])
 
     assert Enum.map(evidence_records, & &1.key) == [
              "approval_context",
@@ -61,7 +65,7 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
              "test_summary"
            ]
 
-    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+    {:ok, change_request} = GovernanceStore.get_change_request_by_run_id(run.id)
 
     assert change_request.status == :open
     assert change_request.summary =~ run.run_id
@@ -112,14 +116,11 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
         approved_at: ~U[2026-03-31 20:03:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
-    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
+    {:ok, change_request} = GovernanceStore.get_change_request_by_run_id(run.id)
 
     {:ok, [decision]} =
-      Decision.read(
-        query: [filter: [run_id: run.id], sort: [decided_at: :desc]],
-        actor: Actor.operator_actor()
-      )
+      GovernanceStore.list_decisions(%{run_id: run.id}, query: [sort: [decided_at: :desc]])
 
     assert change_request.status == :approved
 
@@ -180,10 +181,9 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
         transitioned_at: ~U[2026-03-31 21:02:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
 
-    assert {:ok, []} =
-             ChangeRequest.read(query: [filter: [run_id: run.id]], actor: Actor.operator_actor())
+    assert {:ok, []} = GovernanceStore.list_change_requests(%{run_id: run.id})
   end
 
   test "blocked approval context preserves typed remediation on the change request" do
@@ -221,8 +221,8 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
         transitioned_at: ~U[2026-03-31 22:02:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
-    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
+    {:ok, change_request} = GovernanceStore.get_change_request_by_run_id(run.id)
 
     assert change_request.request_metadata["review_blocked"] == true
 
@@ -241,4 +241,24 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
       settings: %{}
     })
   end
+
+  defp setup_product_store do
+    store_name = :"run_governance_bridge_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_run_governance_bridge/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

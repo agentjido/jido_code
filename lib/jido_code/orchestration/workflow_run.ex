@@ -7,7 +7,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     authorizers: [Ash.Policy.Authorizer]
 
   alias JidoCode.GitHub.IssueCommentClient
-  alias JidoCode.Control.{Actor, Checks.ActorClassIn, RepoBridge}
+  alias JidoCode.Control.{Actor, Checks.ActorClassIn}
   alias JidoCode.Orchestration.{RunBridge, RunPubSub}
 
   @statuses [:pending, :running, :awaiting_approval, :completed, :failed, :cancelled]
@@ -1842,33 +1842,8 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   defp retry_initiating_actor(_run, actor), do: actor
 
   defp maybe_assign_managed_repo_id(changeset) do
-    managed_repo_id =
-      Ash.Changeset.get_attribute(changeset, :managed_repo_id) ||
-        managed_repo_id_for_project(Ash.Changeset.get_attribute(changeset, :project_id))
-
-    if is_binary(managed_repo_id) do
-      Ash.Changeset.force_change_attribute(changeset, :managed_repo_id, managed_repo_id)
-    else
-      changeset
-    end
+    Ash.Changeset.force_change_attribute(changeset, :managed_repo_id, nil)
   end
-
-  defp managed_repo_id_for_project(project_id) when is_binary(project_id) do
-    case RepoBridge.repo_scope(project_id) do
-      {:ok, scope} ->
-        scope
-        |> Map.get(:managed_repo)
-        |> case do
-          %{id: managed_repo_id} when is_binary(managed_repo_id) -> managed_repo_id
-          _other -> nil
-        end
-
-      _other ->
-        nil
-    end
-  end
-
-  defp managed_repo_id_for_project(_project_id), do: nil
 
   defp retry_context_step_results(run, retry_attempt) do
     %{

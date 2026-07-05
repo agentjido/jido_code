@@ -10,8 +10,8 @@ defmodule JidoCode.Governance.RuntimeEvidenceFeed do
   Loads operator-facing runtime evidence summaries from governed repo posture.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.RepoPosture
+  alias JidoCode.Control.{ManagedRepo, ManagedRepoStore}
+  alias JidoCode.Governance.{RecordStore, RepoPosture}
 
   @default_limit 6
   @default_error_type "dashboard_runtime_evidence_feed_fetch_failed"
@@ -60,7 +60,7 @@ defmodule JidoCode.Governance.RuntimeEvidenceFeed do
   @doc false
   @spec default_loader() :: {:ok, [runtime_evidence_summary()], stale_warning() | nil} | {:error, stale_warning()}
   def default_loader do
-    case RepoPosture.read(query: [sort: [updated_at: :desc], limit: @default_limit], actor: Actor.operator_actor()) do
+    case RecordStore.list_repo_postures(%{}, query: [sort: [updated_at: :desc], limit: @default_limit]) do
       {:ok, repo_postures} ->
         summaries =
           repo_postures
@@ -155,11 +155,8 @@ defmodule JidoCode.Governance.RuntimeEvidenceFeed do
   end
 
   defp managed_repo_label(managed_repo_id) when is_binary(managed_repo_id) do
-    case ManagedRepo.read(
-           query: [filter: [id: managed_repo_id], limit: 1],
-           actor: Actor.operator_actor()
-         ) do
-      {:ok, [%ManagedRepo{} = managed_repo | _rest]} ->
+    case ManagedRepoStore.get_by_id(managed_repo_id) do
+      {:ok, %ManagedRepo{} = managed_repo} ->
         normalize_optional_string(managed_repo.display_name) || managed_repo_id
 
       _other ->

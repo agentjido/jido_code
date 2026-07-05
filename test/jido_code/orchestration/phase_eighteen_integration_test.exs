@@ -2,14 +2,19 @@ defmodule JidoCode.Orchestration.PhaseEighteenIntegrationTest do
   # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Orchestration.{Run, RunSummaryFeed, WorkflowRun}
+  alias JidoCode.Control.{Actor, ManagedRepoStore}
+  alias JidoCode.ControlPlane.{ProductStore, StoreServer}
+  alias JidoCode.Orchestration.{RecordStore, RunSummaryFeed, WorkflowRun}
   alias JidoCode.Projects.Project
   alias JidoCode.Workbench.RunOutcomes
 
+  setup do
+    setup_product_store()
+  end
+
   test "canonical dashboard and workbench feeds resolve governed runs when projection exists" do
     {:ok, project} = create_project("phase-eighteen-canonical-feeds")
-    {:ok, managed_repo} = ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     {:ok, workflow_run} =
       WorkflowRun.create(%{
@@ -25,7 +30,7 @@ defmodule JidoCode.Orchestration.PhaseEighteenIntegrationTest do
         started_at: ~U[2026-04-04 10:00:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
     {:ok, run_summaries, nil} = RunSummaryFeed.default_loader()
 
     assert Enum.any?(run_summaries, &(&1.run_id == run.run_id))
@@ -41,7 +46,7 @@ defmodule JidoCode.Orchestration.PhaseEighteenIntegrationTest do
 
   test "orphaned workflow history is absent from canonical feeds once the governed projection is removed" do
     {:ok, project} = create_project("phase-eighteen-orphaned-history")
-    {:ok, managed_repo} = ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     {:ok, workflow_run} =
       WorkflowRun.create(%{
@@ -57,8 +62,8 @@ defmodule JidoCode.Orchestration.PhaseEighteenIntegrationTest do
         started_at: ~U[2026-04-04 10:30:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
-    :ok = Ash.destroy(run, actor: Actor.factory_system_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
+    assert {:ok, %{status: :deleted}} = ProductStore.dispatch(:delete, :run, subject_iri: run_subject_iri(run))
 
     {:ok, persisted_workflow_run} =
       WorkflowRun.get_by_project_and_run_id(
@@ -86,4 +91,30 @@ defmodule JidoCode.Orchestration.PhaseEighteenIntegrationTest do
       settings: %{}
     })
   end
+
+  defp run_subject_iri(run) do
+    run.__metadata__
+    |> Map.fetch!(:control_plane_record)
+    |> Map.fetch!(:subject_iri)
+  end
+
+  defp setup_product_store do
+    store_name = :"phase_eighteen_integration_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_phase_eighteen_integration/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

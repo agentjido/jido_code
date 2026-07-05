@@ -8,11 +8,17 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
   # covers: architecture.vsm_recursion.algedonic_escalation
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{Evidence, PolicyBridge, PostureCheck, PostureBridge, RepoPosture}
+  alias JidoCode.Control.ManagedRepoStore
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Governance.{PolicyBridge, PostureBridge}
+  alias JidoCode.Governance.RecordStore, as: GovernanceStore
   alias JidoCode.Operations.{Ingress, RepoNativeState}
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "verified repo-native state informs assessments, stays predictable without beadwork, and can progress to autonomous supervision" do
     workspace_path = create_workspace_path!("stable")
@@ -37,9 +43,9 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
+    assert {:ok, _repo_native_state} = RepoNativeState.sync_managed_repo(managed_repo)
     assert {:ok, initial_snapshot} = RepoNativeState.latest_signal_snapshot(managed_repo.id)
     assert initial_snapshot["spec_led"]["status"] == "verified"
     assert initial_snapshot["beadwork"]["present"] == false
@@ -71,8 +77,7 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
     assert second_assessment.inputs["repo_native_state"]["beadwork"]["status"] == "aligned"
     assert second_assessment.inputs["repo_native_state"]["beadwork"]["aligned_open_work_item_ids"] == [work_item.id]
 
-    assert {:ok, repo_posture} =
-             RepoPosture.get_by_managed_repo_id(managed_repo.id, actor: Actor.operator_actor())
+    assert {:ok, %{repo_posture: repo_posture}} = PostureBridge.sync_managed_repo(managed_repo)
 
     assert repo_posture.supervision_mode == "autonomous"
     assert repo_posture.escalation_status == "normal"
@@ -102,8 +107,7 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     assert {:ok, %{assessment: assessment, work_item: work_item}} =
              Ingress.record_operator_intake(%{
@@ -135,13 +139,9 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
              })
 
     assert {:ok, [failure_evidence]} =
-             Evidence.read(
-               query: [
-                 filter: [managed_repo_id: managed_repo.id, key: "failure_context"],
-                 sort: [recorded_at: :desc],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
+             GovernanceStore.list_evidence(
+               %{managed_repo_id: managed_repo.id, key: "failure_context"},
+               query: [sort: [recorded_at: :desc], limit: 1]
              )
 
     assert {:ok, %{repo_posture: repo_posture}} = PostureBridge.sync_managed_repo(managed_repo)
@@ -150,10 +150,7 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
     assert is_binary(repo_posture.algedonic_check_id)
 
     assert {:ok, [algedonic_check]} =
-             PostureCheck.read(
-               query: [filter: [id: repo_posture.algedonic_check_id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             GovernanceStore.list_posture_checks(%{id: repo_posture.algedonic_check_id}, query: [limit: 1])
 
     assert algedonic_check.dimension == "algedonic_escalation"
     assert algedonic_check.escalation_mode == "algedonic"
@@ -240,4 +237,24 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
       """
     )
   end
+
+  defp setup_product_store do
+    store_name = :"phase_five_integration_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_phase_five_integration/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

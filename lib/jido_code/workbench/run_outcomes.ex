@@ -4,9 +4,8 @@ defmodule JidoCode.Workbench.RunOutcomes do
   Resolves recent governed run outcomes for workbench repository rows.
   """
 
-  alias JidoCode.Control.Actor
   alias JidoCode.ManagedRepoRoutes
-  alias JidoCode.Orchestration.Run
+  alias JidoCode.Orchestration.RecordStore
 
   @fallback_row_id_prefix "workbench-row-"
   @query_timeout_ms 5_000
@@ -177,9 +176,9 @@ defmodule JidoCode.Workbench.RunOutcomes do
         {:ok, nil}
 
       normalized_managed_repo_id ->
-        case Run.read(
-               query: [filter: [managed_repo_id: normalized_managed_repo_id], sort: [started_at: :desc], limit: 1],
-               actor: Actor.operator_actor()
+        case RecordStore.list_runs(
+               %{managed_repo_id: normalized_managed_repo_id},
+               query: [sort: [started_at: :desc], limit: 1]
              ) do
           {:ok, [run | _]} -> {:ok, run_outcome_from_run(project_id, run)}
           {:ok, []} -> {:ok, nil}
@@ -258,12 +257,12 @@ defmodule JidoCode.Workbench.RunOutcomes do
           Map.put(
             normalized,
             project_id,
-              unknown_outcome(
-                nil,
-                nil,
-                "Recent run outcome payload is invalid (#{inspect(other)}).",
-                @status_unresolved_error_type
-              )
+            unknown_outcome(
+              nil,
+              nil,
+              "Recent run outcome payload is invalid (#{inspect(other)}).",
+              @status_unresolved_error_type
+            )
           )
       end
     end)

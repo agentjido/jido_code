@@ -8,10 +8,10 @@ defmodule JidoCode.Orchestration.RunBridge do
   Projects legacy `WorkflowRun` records into governed `Run` and `ExecutionProfile` records.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{Actor, ManagedRepo, ManagedRepoStore}
   alias JidoCode.Governance.RunGovernanceBridge
   alias JidoCode.Operations.WorkItem
-  alias JidoCode.Orchestration.{ExecutionProfile, Run, WorkflowRun}
+  alias JidoCode.Orchestration.{ExecutionProfile, RecordStore, Run, WorkflowRun}
 
   @projection_actor Actor.factory_system_actor()
   @launch_actor Actor.managed_repo_orchestrator_actor()
@@ -24,7 +24,7 @@ defmodule JidoCode.Orchestration.RunBridge do
   @type launch_result :: {:ok, %{workflow_run: WorkflowRun.t(), run: Run.t()}} | {:error, term()}
   @spec projected_run_for_workflow_run(WorkflowRun.t()) :: {:ok, Run.t()} | {:error, term()}
   def projected_run_for_workflow_run(%WorkflowRun{id: workflow_run_id} = workflow_run) do
-    case Run.get_by_workflow_run_id(workflow_run_id, actor: @projection_actor) do
+    case RecordStore.get_run_by_workflow_run_id(workflow_run_id, actor: @projection_actor) do
       {:ok, %Run{} = run} -> {:ok, run}
       {:ok, nil} -> sync_workflow_run(workflow_run)
       {:error, _reason} -> sync_workflow_run(workflow_run)
@@ -36,9 +36,11 @@ defmodule JidoCode.Orchestration.RunBridge do
   @spec sync_workflow_run(WorkflowRun.t()) :: {:ok, Run.t()} | {:error, term()}
   def sync_workflow_run(%WorkflowRun{} = workflow_run) do
     with {:ok, managed_repo} <- managed_repo(workflow_run),
+         {:ok, _workflow_projection} <-
+           RecordStore.upsert_workflow_run_compatibility(workflow_run, actor: @projection_actor),
          {:ok, execution_profile} <- resolve_execution_profile(managed_repo, workflow_run),
          attrs <- projection_attrs(workflow_run, managed_repo, execution_profile),
-         {:ok, run} <- Run.upsert_projection(attrs, actor: @projection_actor),
+         {:ok, run} <- RecordStore.upsert_run(attrs, actor: @projection_actor),
          {:ok, _governance_projection} <- RunGovernanceBridge.sync_run(run, workflow_run) do
       {:ok, run}
     end
@@ -55,7 +57,7 @@ defmodule JidoCode.Orchestration.RunBridge do
     with {:ok, managed_repo} <- managed_repo_for_work_item(work_item),
          {:ok, workflow_attrs} <- build_workflow_run_attrs(work_item, managed_repo, attrs),
          {:ok, workflow_run} <- WorkflowRun.create(workflow_attrs, actor: @launch_actor),
-         {:ok, run} <- Run.get_by_workflow_run_id(workflow_run.id, actor: @launch_actor) do
+         {:ok, run} <- RecordStore.get_run_by_workflow_run_id(workflow_run.id, actor: @launch_actor) do
       {:ok, %{workflow_run: workflow_run, run: run}}
     end
   end
@@ -131,7 +133,6 @@ defmodule JidoCode.Orchestration.RunBridge do
      %{
        run_id: run_id,
        project_id: managed_repo.legacy_project_id,
-       managed_repo_id: managed_repo.id,
        workflow_name: workflow_name,
        workflow_version: workflow_version,
        trigger: %{
@@ -194,16 +195,17 @@ defmodule JidoCode.Orchestration.RunBridge do
   end
 
   defp managed_repo(%WorkflowRun{managed_repo_id: managed_repo_id}) when is_binary(managed_repo_id) do
-    case ManagedRepo.read(query: [filter: [id: managed_repo_id]], actor: @projection_actor) do
-      {:ok, [%ManagedRepo{} = managed_repo]} -> {:ok, managed_repo}
-      {:ok, []} -> {:error, :managed_repo_not_found}
+    case ManagedRepoStore.get_by_id(managed_repo_id) do
+      {:ok, %ManagedRepo{} = managed_repo} -> {:ok, managed_repo}
+      {:ok, nil} -> {:error, :managed_repo_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp managed_repo(%WorkflowRun{} = workflow_run) do
-    case ManagedRepo.get_by_legacy_project_id(workflow_run.project_id, actor: @projection_actor) do
-      {:ok, managed_repo} -> {:ok, managed_repo}
+    case ManagedRepoStore.get_by_legacy_project_id(workflow_run.project_id) do
+      {:ok, %ManagedRepo{} = managed_repo} -> {:ok, managed_repo}
+      {:ok, nil} -> {:error, :managed_repo_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -211,9 +213,9 @@ defmodule JidoCode.Orchestration.RunBridge do
   defp managed_repo(_workflow_run), do: {:error, :managed_repo_not_found}
 
   defp managed_repo_for_work_item(%WorkItem{managed_repo_id: managed_repo_id}) do
-    case ManagedRepo.read(query: [filter: [id: managed_repo_id]], actor: @projection_actor) do
-      {:ok, [%ManagedRepo{} = managed_repo]} -> {:ok, managed_repo}
-      {:ok, []} -> {:error, :managed_repo_not_found}
+    case ManagedRepoStore.get_by_id(managed_repo_id) do
+      {:ok, %ManagedRepo{} = managed_repo} -> {:ok, managed_repo}
+      {:ok, nil} -> {:error, :managed_repo_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -236,7 +238,7 @@ defmodule JidoCode.Orchestration.RunBridge do
     effective_settings = deep_merge(repo_defaults, workflow_defaults)
     profile_name = if workflow_defaults == %{}, do: "default", else: "workflow:#{workflow_run.workflow_name}"
 
-    ExecutionProfile.upsert_for_managed_repo(
+    RecordStore.upsert_execution_profile(
       %{
         managed_repo_id: managed_repo.id,
         name: profile_name,

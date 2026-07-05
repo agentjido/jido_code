@@ -4,7 +4,7 @@ defmodule JidoCode.Governance.RuntimeCapabilityBridge do
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Operations.Observation
+  alias JidoCode.Operations.{Observation, RecordStore}
 
   @observer Actor.factory_system_actor(%{
               "id" => "system:runtime-capability-bridge",
@@ -159,7 +159,8 @@ defmodule JidoCode.Governance.RuntimeCapabilityBridge do
   end
 
   defp create_observation(managed_repo_id, capability_posture, digest) do
-    Observation.create(
+    RecordStore.create(
+      :observation,
       %{
         managed_repo_id: managed_repo_id,
         source: @source,
@@ -178,17 +179,21 @@ defmodule JidoCode.Governance.RuntimeCapabilityBridge do
   end
 
   defp latest_observation(managed_repo_id) do
-    case Observation.read(
-           query: [
-             filter: [managed_repo_id: managed_repo_id, source: @source, category: @category],
-             sort: [observed_at: :desc],
-             limit: 1
-           ],
+    case RecordStore.list(:observation, %{managed_repo_id: managed_repo_id, source: @source, category: @category},
            actor: @observer
          ) do
-      {:ok, [%Observation{} = observation | _rest]} -> observation
+      {:ok, observations} -> latest_by(observations, :observed_at)
       _other -> nil
     end
+  end
+
+  defp latest_by(records, field) when is_list(records) do
+    records
+    |> Enum.reject(&(Map.get(&1, field) == nil))
+    |> Enum.sort_by(&(Map.get(&1, field) |> DateTime.to_unix(:microsecond)), :desc)
+    |> List.first()
+  rescue
+    _error -> nil
   end
 
   defp digest(payload) do

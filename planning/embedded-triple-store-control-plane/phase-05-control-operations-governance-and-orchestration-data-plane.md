@@ -62,25 +62,27 @@ Back to plan: [README](./README.md)
 
 **Description:** This section replaces governed run, evidence, review, decision, policy, posture, and execution profile persistence.
 
-- [ ] 5.3 Section - Governance and orchestration records.
+- [x] 5.3 Section - Governance and orchestration records.
 
   Description: Governance remains explicit and auditable while no longer depending on Ash resources or Postgres migrations.
 
-  - [ ] 5.3.1 Task - Implement orchestration services.
+  - [x] 5.3.1 Task - Implement orchestration services.
 
     Description: Runs and execution profiles need store-backed lifecycle transitions and projections.
 
-    - [ ] 5.3.1.1 Subtask - Implement codecs for run, workflow run compatibility, and execution profile records.
-    - [ ] 5.3.1.2 Subtask - Rewire run bridge, run summary feed, and workflow launch paths to store services.
-    - [ ] 5.3.1.3 Subtask - Preserve retry lineage and stage-status projections.
+    - [x] 5.3.1.1 Subtask - Implement codecs for run, workflow run compatibility, and execution profile records.
+    - [x] 5.3.1.2 Subtask - Rewire run bridge, run summary feed, and workflow launch paths to store services.
+    - [x] 5.3.1.3 Subtask - Preserve retry lineage and stage-status projections.
 
-  - [ ] 5.3.2 Task - Implement governance services.
+  - [x] 5.3.2 Task - Implement governance services.
 
     Description: Evidence, change requests, decisions, policies, posture, and posture checks need explicit product-owned lifecycle rules.
 
-    - [ ] 5.3.2.1 Subtask - Implement codecs for evidence, change request, decision, policy set, repo posture, and posture check.
-    - [ ] 5.3.2.2 Subtask - Rewire governance bridges to store-backed reads and writes.
-    - [ ] 5.3.2.3 Subtask - Preserve algedonic escalation, decision supersession, and evidence linkage behavior.
+    - [x] 5.3.2.1 Subtask - Implement codecs for evidence, change request, decision, policy set, repo posture, and posture check.
+    - [x] 5.3.2.2 Subtask - Rewire governance bridges to store-backed reads and writes.
+    - [x] 5.3.2.3 Subtask - Preserve algedonic escalation, decision supersession, and evidence linkage behavior.
+
+    Section verification: `mix test test/jido_code/orchestration/run_bridge_test.exs test/jido_code/orchestration/phase_three_integration_test.exs test/jido_code/governance/run_governance_bridge_test.exs test/jido_code/governance/policy_bridge_test.exs test/jido_code/governance/posture_bridge_test.exs test/jido_code/governance/runtime_evidence_feed_test.exs` passes against isolated embedded product stores.
 
 ## 5.4 Section - Integration Tests
 

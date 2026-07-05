@@ -10,6 +10,7 @@ defmodule JidoCode.Control.RepoBridge do
   """
 
   alias JidoCode.Control.{ManagedRepo, ManagedRepoStore, SourceRepo, SourceRepoStore}
+  alias JidoCode.Governance.PolicyBridge
 
   @execution_setting_keys ["execution", "workflow", "llm", "llm_selection"]
   @type scope :: %{
@@ -29,7 +30,8 @@ defmodule JidoCode.Control.RepoBridge do
     with {:ok, source_repo_attrs} <- source_repo_attrs(attrs),
          {:ok, source_repo} <- SourceRepoStore.upsert(source_repo_attrs),
          {:ok, managed_repo} <-
-           ManagedRepoStore.upsert(managed_repo_attrs(attrs, source_repo)) do
+           ManagedRepoStore.upsert(managed_repo_attrs(attrs, source_repo)),
+         {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(managed_repo) do
       {:ok, %{managed_repo: managed_repo, source_repo: source_repo}}
     end
   end

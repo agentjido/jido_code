@@ -1,6 +1,6 @@
-defmodule JidoCode.ControlPlane.Codecs.DecisionCodec do
+defmodule JidoCode.ControlPlane.Codecs.ChangeRequestCodec do
   @moduledoc """
-  RDF projection codec for governance decision records.
+  RDF projection codec for governed change request records.
   """
 
   @behaviour JidoCode.ControlPlane.Codecs.Codec
@@ -8,20 +8,20 @@ defmodule JidoCode.ControlPlane.Codecs.DecisionCodec do
   alias JidoCode.ControlPlane.Codecs.MapRecord
   alias JidoCode.ControlPlane.SemanticIdentity
 
-  @record_type :decision
+  @record_type :change_request
   @field_mappings %{
     managed_repo_id: "managedRepoId",
-    decision_id: "decisionId",
-    decision_key: "decisionKey",
-    run_id: "runId",
     change_request_id: "changeRequestId",
+    run_id: "runId",
+    source_key: "changeRequestSourceKey",
     work_item_id: "workItemId",
-    decision: "decisionOutcome",
-    actor: "actorJson",
-    rationale: "rationale",
+    status: "recordStatus",
+    summary: "summary",
+    review_context: "reviewContextJson",
+    request_metadata: "requestMetadataJson",
     evidence_ids: "evidenceIdsJson",
-    decision_metadata: "decisionMetadataJson",
-    decided_at: "decidedAt",
+    requested_at: "requestedAt",
+    resolved_at: "resolvedAt",
     inserted_at: "insertedAt",
     updated_at: "updatedAt",
     metadata: "metadataJson"
@@ -36,14 +36,17 @@ defmodule JidoCode.ControlPlane.Codecs.DecisionCodec do
   @impl true
   def class_iri, do: SemanticIdentity.class_iri(@record_type)
   @impl true
-  def subject_iri(record), do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :decision_id)
+  def subject_iri(record),
+    do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :change_request_id)
 
   @impl true
-  def identity_queries(record),
-    do: [%{identity: :unique_decision_key, predicate: "decisionKey", value: value_for(record, :decision_key)}]
+  def identity_queries(record) do
+    record = normalized_record(record)
+    [%{identity: :unique_run, predicate: "changeRequestSourceKey", value: value_for(record, :source_key)}]
+  end
 
   @impl true
-  def encode(record) do
+  def encode(record) when is_map(record) do
     record = normalized_record(record)
 
     with {:ok, subject_iri} <- subject_iri(record) do
@@ -55,7 +58,9 @@ defmodule JidoCode.ControlPlane.Codecs.DecisionCodec do
   def decode(projection), do: MapRecord.decode(@record_type, projection, @field_mappings)
 
   defp normalized_record(record) do
-    Map.put_new(record, :decision_id, value_for(record, :decision_id) || value_for(record, :id))
+    record
+    |> Map.put_new(:change_request_id, value_for(record, :change_request_id) || value_for(record, :id))
+    |> Map.put_new(:source_key, value_for(record, :source_key) || value_for(record, :run_id))
   end
 
   defp value_for(record, key), do: Map.get(record, key) || Map.get(record, to_string(key))

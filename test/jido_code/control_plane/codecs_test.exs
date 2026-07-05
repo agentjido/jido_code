@@ -27,8 +27,9 @@ defmodule JidoCode.ControlPlane.CodecsTest do
     assert coverage.extra_record_types == []
     assert :managed_repo in coverage.codec_record_types
     assert :secret_ref in coverage.codec_record_types
-    assert :user in coverage.explicitly_excluded_record_types
-    assert {:error, {:excluded, :codec_not_promoted_yet}} = Registry.codec(:user)
+    assert :user in coverage.codec_record_types
+    assert :api_key in coverage.explicitly_excluded_record_types
+    assert {:error, {:excluded, :codec_not_promoted_yet}} = Registry.codec(:api_key)
   end
 
   test "managed repo codec emits deterministic graph, class, subject, identity, and field triples" do

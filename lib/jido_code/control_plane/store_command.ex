@@ -323,6 +323,8 @@ defmodule JidoCode.ControlPlane.StoreCommand do
     end
   end
 
+  defp comparable_term(%DateTime{} = datetime), do: DateTime.to_unix(datetime, :millisecond)
+
   defp comparable_term(term), do: to_string(term)
 
   defp attrs_map(attrs) when is_list(attrs), do: Map.new(attrs)

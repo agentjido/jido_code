@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase creates the product-facing store contract and the codecs that map Elixir structs or maps to RDF quads. It replaces Ash resource actions with explicit product services while keeping callers insulated from raw RDF.
 
-- [ ] 3 Phase - Product store contract and projection codecs.
+- [x] 3 Phase - Product store contract and projection codecs.
 
   Description: Build the translation layer between product records and semantic graph storage.
 
@@ -84,22 +84,22 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves product records can round-trip through codecs and the store contract without Ash.
 
-- [ ] 3.4 Section - Integration tests.
+- [x] 3.4 Section - Integration tests.
 
   Description: Contract tests should exercise both the fake store and embedded TripleStore implementation.
 
-  - [ ] 3.4.1 Task - Add codec round-trip tests.
+  - [x] 3.4.1 Task - Add codec round-trip tests.
 
     Description: Codec tests should prove data shape, identity, and graph placement are deterministic.
 
-    - [ ] 3.4.1.1 Subtask - Round-trip representative records from every product family.
-    - [ ] 3.4.1.2 Subtask - Assert generated quads use expected class, subject, graph, and predicate IRIs.
-    - [ ] 3.4.1.3 Subtask - Assert excluded secret fields never appear in encoded quads.
+    - [x] 3.4.1.1 Subtask - Round-trip representative records from every product family.
+    - [x] 3.4.1.2 Subtask - Assert generated quads use expected class, subject, graph, and predicate IRIs.
+    - [x] 3.4.1.3 Subtask - Assert excluded secret fields never appear in encoded quads.
 
-  - [ ] 3.4.2 Task - Add store contract tests.
+  - [x] 3.4.2 Task - Add store contract tests.
 
     Description: Store implementations should pass the same product-level behaviour tests.
 
-    - [ ] 3.4.2.1 Subtask - Run create, update, upsert, lookup, delete, and append-event tests against fake store.
-    - [ ] 3.4.2.2 Subtask - Run the same tests against a temporary embedded TripleStore path.
-    - [ ] 3.4.2.3 Subtask - Assert authorization and validation errors match across implementations.
+    - [x] 3.4.2.1 Subtask - Run create, update, upsert, lookup, delete, and append-event tests against fake store.
+    - [x] 3.4.2.2 Subtask - Run the same tests against a temporary embedded TripleStore path.
+    - [x] 3.4.2.3 Subtask - Assert authorization and validation errors match across implementations.

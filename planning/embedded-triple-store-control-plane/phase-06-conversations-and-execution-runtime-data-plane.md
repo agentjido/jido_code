@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase moves append-heavy runtime records onto the embedded semantic data plane. It covers conversations, conversation events, snapshots, context reset markers, execution workflows, sandbox sessions, runtime events, checkpoints, execution sessions, and sprite specs. Forge is treated as a legacy implementation name for this runtime layer, not a product domain to preserve.
 
-- [ ] 6 Phase - Conversations and execution runtime data plane.
+- [x] 6 Phase - Conversations and execution runtime data plane.
 
   Description: Preserve runtime continuity and append-only evidence while replacing Ash-backed conversation persistence and legacy Forge/Ash runtime persistence.
 
@@ -92,22 +92,24 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves runtime persistence works under realistic conversation and execution runtime scenarios.
 
-- [ ] 6.4 Section - Integration tests.
+- [x] 6.4 Section - Integration tests.
 
   Description: Exercise append-heavy writes, replay, recovery, and redaction against the embedded store.
 
-  - [ ] 6.4.1 Task - Add conversation runtime integration coverage.
+  - [x] 6.4.1 Task - Add conversation runtime integration coverage.
 
     Description: Conversation tests should prove event replay and snapshots are durable without Ash.
 
-    - [ ] 6.4.1.1 Subtask - Start a work-item conversation, append turns, and replay events by sequence.
-    - [ ] 6.4.1.2 Subtask - Persist a snapshot and recover runtime state from the embedded store.
-    - [ ] 6.4.1.3 Subtask - Prove compaction reset markers affect prompt projection without deleting historical events.
+    - [x] 6.4.1.1 Subtask - Start a work-item conversation, append turns, and replay events by sequence.
+    - [x] 6.4.1.2 Subtask - Persist a snapshot and recover runtime state from the embedded store.
+    - [x] 6.4.1.3 Subtask - Prove compaction reset markers affect prompt projection without deleting historical events.
 
-  - [ ] 6.4.2 Task - Add execution runtime integration coverage.
+  - [x] 6.4.2 Task - Add execution runtime integration coverage.
 
     Description: Runtime tests should prove lifecycle updates and output redaction survive store replacement.
 
-    - [ ] 6.4.2.1 Subtask - Create an execution workflow, sandbox session, event stream, execution session, and checkpoint.
-    - [ ] 6.4.2.2 Subtask - Resume a session from latest checkpoint metadata.
-    - [ ] 6.4.2.3 Subtask - Assert redacted output and prompt fields stay bounded in graph literals.
+    - [x] 6.4.2.1 Subtask - Create an execution workflow, sandbox session, event stream, execution session, and checkpoint.
+    - [x] 6.4.2.2 Subtask - Resume a session from latest checkpoint metadata.
+    - [x] 6.4.2.3 Subtask - Assert redacted output and prompt fields stay bounded in graph literals.
+
+    Section verification: `mix test test/jido_code/control_plane/embedded_store_phase_six_integration_test.exs` proves conversation replay, snapshot recovery, reset-aware prompt projection, execution workflow/session/event/checkpoint persistence, latest-checkpoint resume metadata, and redacted bounded output through an isolated embedded product store.

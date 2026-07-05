@@ -10,7 +10,7 @@ defmodule JidoCodeWeb.PhaseFiftyNineIntegrationTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.AuthProviders.ProviderConfig
+  alias JidoCode.AuthProviders.ProviderConfigStore
 
   @checker_env :setup_github_credential_checker
   @checked_at ~U[2026-03-15 18:30:00Z]
@@ -73,7 +73,7 @@ defmodule JidoCodeWeb.PhaseFiftyNineIntegrationTest do
     assert has_element?(settings_view, "#settings-auth-provider-login-card-github", "Ready")
 
     {:ok, config} =
-      ProviderConfig.get_by_provider_host(:github, "github.com", authorize?: false)
+      ProviderConfigStore.get_by_provider_host(:github, "github.com")
 
     assert config.enabled == true
     assert config.login_enabled == true

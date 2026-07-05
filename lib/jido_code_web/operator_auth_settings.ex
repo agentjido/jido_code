@@ -5,7 +5,7 @@ defmodule JidoCodeWeb.OperatorAuthSettings do
   # covers: auth.operator_settings.integration_boundary_visible
   @moduledoc false
 
-  alias JidoCode.AuthProviders.ProviderConfig
+  alias JidoCode.AuthProviders.{ProviderConfig, ProviderConfigStore}
   alias JidoCode.GitHub.ServiceCredentials
   alias JidoCode.Setup.GitHubCredentialChecks
 
@@ -56,20 +56,17 @@ defmodule JidoCodeWeb.OperatorAuthSettings do
     with {:ok, provider} <- normalize_provider(Map.get(params, "provider")),
          {:ok, provider_host} <- provider_host_for(provider),
          {:ok, _config} <-
-           ProviderConfig.upsert(
-             %{
-               provider: provider,
-               provider_host: provider_host,
-               enabled: truthy?(Map.get(params, "enabled")),
-               login_enabled: truthy?(Map.get(params, "login_enabled")),
-               allowlist_mode: normalize_allowlist_mode(Map.get(params, "allowlist_mode")),
-               allowlist_values: parse_allowlist_values(Map.get(params, "allowlist_values")),
-               broker_base_url: normalize_optional_string(Map.get(params, "broker_base_url")),
-               broker_issuer: normalize_optional_string(Map.get(params, "broker_issuer")),
-               broker_audience: normalize_optional_string(Map.get(params, "broker_audience"))
-             },
-             authorize?: false
-           ) do
+           ProviderConfigStore.upsert(%{
+             provider: provider,
+             provider_host: provider_host,
+             enabled: truthy?(Map.get(params, "enabled")),
+             login_enabled: truthy?(Map.get(params, "login_enabled")),
+             allowlist_mode: normalize_allowlist_mode(Map.get(params, "allowlist_mode")),
+             allowlist_values: parse_allowlist_values(Map.get(params, "allowlist_values")),
+             broker_base_url: normalize_optional_string(Map.get(params, "broker_base_url")),
+             broker_issuer: normalize_optional_string(Map.get(params, "broker_issuer")),
+             broker_audience: normalize_optional_string(Map.get(params, "broker_audience"))
+           }) do
       {:ok, provider}
     end
   end
@@ -159,10 +156,9 @@ defmodule JidoCodeWeb.OperatorAuthSettings do
   defp provider_login_cards do
     Enum.map(@provider_catalog, fn provider_definition ->
       config =
-        case ProviderConfig.get_by_provider_host(
+        case ProviderConfigStore.get_by_provider_host(
                provider_definition.provider,
-               provider_definition.provider_host,
-               authorize?: false
+               provider_definition.provider_host
              ) do
           {:ok, %ProviderConfig{} = provider_config} -> provider_config
           _other -> nil

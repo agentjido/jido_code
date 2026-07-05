@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.AuthController do
 
   require Logger
 
+  alias JidoCode.Accounts.{SessionTokens, UserStore}
   alias JidoCode.Setup.BootstrapStatus
 
   @sign_out_success_message "You are now signed out"
@@ -23,6 +24,7 @@ defmodule JidoCodeWeb.AuthController do
     conn
     |> delete_session(:return_to)
     |> store_in_session(user)
+    |> put_product_session(user)
     # If your resource has a different name, update the assign name here (i.e :current_admin)
     |> assign(:current_user, user)
     |> put_flash(:info, message)
@@ -91,6 +93,37 @@ defmodule JidoCodeWeb.AuthController do
   end
 
   defp default_sign_out_invalidator(conn, otp_app), do: clear_session(conn, otp_app)
+
+  defp put_product_session(conn, user) do
+    with {:ok, product_user} <- product_user_for(user),
+         {:ok, token} <- SessionTokens.issue(product_user) do
+      conn
+      |> put_session("product_user_token", token)
+      |> put_session("product_user_email", to_string(product_user.email))
+    else
+      _error -> conn
+    end
+  end
+
+  defp product_user_for(user) do
+    email = user |> Map.get(:email) |> to_string()
+
+    case UserStore.get_by_email(email) do
+      {:ok, nil} ->
+        UserStore.upsert(%{
+          user_id: user |> Map.get(:id) |> to_string(),
+          email: email,
+          is_admin: Map.get(user, :is_admin, false),
+          confirmed_at: Map.get(user, :confirmed_at)
+        })
+
+      {:ok, product_user} ->
+        {:ok, product_user}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
   defp default_return_to do
     case BootstrapStatus.current().state do

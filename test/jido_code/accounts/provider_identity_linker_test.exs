@@ -4,37 +4,35 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
   # covers: auth.provider_identity_linking.auto_create_local_user
   # covers: auth.provider_identity_linking.auth_timestamps
   # covers: auth.provider_login_policy.blocked_before_linking
-  use JidoCode.DataCase, async: true
+  use ExUnit.Case, async: false
 
-  require Ash.Query
-
-  alias JidoCode.AuthProviders.ProviderConfig
-  alias JidoCode.Accounts.ProviderIdentityLinker
-  alias JidoCode.Accounts.User
-  alias JidoCode.Accounts.UserIdentity
+  alias JidoCode.Accounts.{ProviderIdentityLinker, User, UserIdentityStore, UserStore}
+  alias JidoCode.AuthProviders.ProviderConfigStore
+  alias JidoCode.ControlPlane.StoreServer
 
   @initial_auth_at ~U[2026-03-15 16:00:00.000000Z]
   @follow_up_auth_at ~U[2026-03-15 17:00:00.000000Z]
+
+  setup do
+    setup_store!()
+  end
 
   test "reuses an existing provider identity and refreshes the last authenticated timestamp" do
     enable_provider!(:github, "github.com")
     user = register_user!("provider-existing")
 
     {:ok, identity} =
-      UserIdentity.create(
-        %{
-          user_id: user.id,
-          provider: :github,
-          provider_host: "github.com",
-          provider_subject: "provider-user-1",
-          provider_login: "existing-login",
-          provider_email: user.email,
-          email_verified: true,
-          first_authenticated_at: @initial_auth_at,
-          last_authenticated_at: @initial_auth_at
-        },
-        authorize?: false
-      )
+      UserIdentityStore.upsert(%{
+        user_id: user.id,
+        provider: :github,
+        provider_host: "github.com",
+        provider_subject: "provider-user-1",
+        provider_login: "existing-login",
+        provider_email: user.email,
+        email_verified: true,
+        first_authenticated_at: @initial_auth_at,
+        last_authenticated_at: @initial_auth_at
+      })
 
     {:ok, result} =
       ProviderIdentityLinker.link(%{
@@ -112,30 +110,25 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
     assert linked_result.resolution == :linked_by_email
     assert linked_result.user.id == created_result.user.id
 
-    identities =
-      UserIdentity.list_for_user(%{user_id: created_result.user.id}, authorize?: false)
-      |> elem(1)
+    {:ok, identities} = UserIdentityStore.list_for_user(created_result.user.id)
 
     assert length(identities) == 2
     assert Enum.sort(Enum.map(identities, & &1.provider)) == [:bitbucket, :github]
 
-    assert {:ok, %User{} = same_user} = User.get_by_email(%{email: email}, authorize?: false)
+    assert {:ok, %User{} = same_user} = UserStore.get_by_email(email)
     assert same_user.id == created_result.user.id
   end
 
   test "blocked provider identities fail before local account creation" do
     {:ok, _config} =
-      ProviderConfig.upsert(
-        %{
-          provider: :github,
-          provider_host: "github.com",
-          enabled: true,
-          login_enabled: true,
-          allowlist_mode: :organizations,
-          allowlist_values: ["agentjido"]
-        },
-        authorize?: false
-      )
+      ProviderConfigStore.upsert(%{
+        provider: :github,
+        provider_host: "github.com",
+        enabled: true,
+        login_enabled: true,
+        allowlist_mode: :organizations,
+        allowlist_values: ["agentjido"]
+      })
 
     assert {:error, error} =
              ProviderIdentityLinker.link(%{
@@ -150,11 +143,7 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
              })
 
     assert error.error_type == "provider_identity_not_allowlisted"
-
-    assert {:ok, nil} =
-             User
-             |> Ash.Query.filter(email == ^"blocked@example.com")
-             |> Ash.read_one(authorize?: false)
+    assert {:ok, nil} = UserStore.get_by_email("blocked@example.com")
   end
 
   defp register_user!(email_prefix) do
@@ -162,13 +151,11 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
     email = "#{email_prefix}-#{unique_suffix}@example.com"
 
     {:ok, user} =
-      User.provision_from_provider_identity(
-        %{
-          email: email,
-          confirmed_at: DateTime.utc_now() |> DateTime.truncate(:second)
-        },
-        authorize?: false
-      )
+      UserStore.upsert(%{
+        email: email,
+        confirmed_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        is_admin: false
+      })
 
     user
   end
@@ -185,7 +172,27 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
       }
       |> Map.merge(Enum.into(overrides, %{}))
 
-    {:ok, config} = ProviderConfig.upsert(params, authorize?: false)
+    {:ok, config} = ProviderConfigStore.upsert(params)
     config
   end
+
+  defp setup_store! do
+    store_name = :"provider_identity_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_provider_identity/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

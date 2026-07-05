@@ -28,8 +28,12 @@ defmodule JidoCode.ControlPlane.CodecsTest do
     assert :managed_repo in coverage.codec_record_types
     assert :secret_ref in coverage.codec_record_types
     assert :user in coverage.codec_record_types
-    assert :api_key in coverage.explicitly_excluded_record_types
-    assert {:error, {:excluded, :codec_not_promoted_yet}} = Registry.codec(:api_key)
+    assert :api_key in coverage.codec_record_types
+    assert :token in coverage.codec_record_types
+    assert :user_identity in coverage.codec_record_types
+    assert :provider_config in coverage.codec_record_types
+    refute :api_key in coverage.explicitly_excluded_record_types
+    assert {:ok, _codec} = Registry.codec(:api_key)
   end
 
   test "managed repo codec emits deterministic graph, class, subject, identity, and field triples" do
@@ -107,6 +111,41 @@ defmodule JidoCode.ControlPlane.CodecsTest do
                name: "bad",
                plaintext: "never-project"
              })
+  end
+
+  test "token and API key codecs reject credential material" do
+    assert {:ok, token} =
+             Registry.encode(:token, %{
+               token_id: "token-1",
+               user_id: "user-1",
+               subject: "owner@example.com",
+               purpose: "session",
+               expires_at: ~U[2026-01-01 00:00:00Z],
+               status: "active"
+             })
+
+    assert token.graph_name == :auth
+    assert token.subject_iri == "https://jido.run/control/tokens/token-1"
+    assert triple_value(token, "purpose") == "session"
+
+    assert {:error, {:sensitive_field_not_projectable, :token}} =
+             Registry.encode(:token, %{token_id: "token-2", token: "never-project"})
+
+    assert {:ok, api_key} =
+             Registry.encode(:api_key, %{
+               api_key_id: "api-key-1",
+               user_id: "user-1",
+               name: "Automation",
+               expires_at: ~U[2026-01-01 00:00:00Z],
+               status: "active"
+             })
+
+    assert api_key.graph_name == :auth
+    assert api_key.subject_iri == "https://jido.run/control/api-keys/api-key-1"
+    assert triple_value(api_key, "displayName") == "Automation"
+
+    assert {:error, {:sensitive_field_not_projectable, :api_key}} =
+             Registry.encode(:api_key, %{api_key_id: "api-key-2", api_key: "never-project"})
   end
 
   test "codecs decode shaped store projections back into product maps" do

@@ -707,6 +707,73 @@ jcp:confirmedAt a owl:DatatypeProperty ;
     rdfs:domain jcp:User ;
     rdfs:range xsd:dateTime .
 
+jcp:providerEmail a owl:DatatypeProperty ;
+    rdfs:label "provider email" ;
+    rdfs:domain jcp:UserIdentity ;
+    rdfs:range xsd:string .
+
+jcp:emailVerified a owl:DatatypeProperty ;
+    rdfs:label "email verified" ;
+    rdfs:domain jcp:UserIdentity ;
+    rdfs:range xsd:boolean .
+
+jcp:firstAuthenticatedAt a owl:DatatypeProperty ;
+    rdfs:label "first authenticated at" ;
+    rdfs:domain jcp:UserIdentity ;
+    rdfs:range xsd:dateTime .
+
+jcp:lastAuthenticatedAt a owl:DatatypeProperty ;
+    rdfs:label "last authenticated at" ;
+    rdfs:domain jcp:UserIdentity ;
+    rdfs:range xsd:dateTime .
+
+jcp:enabled a owl:DatatypeProperty ;
+    rdfs:label "enabled" ;
+    rdfs:range xsd:boolean .
+
+jcp:loginEnabled a owl:DatatypeProperty ;
+    rdfs:label "login enabled" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:boolean .
+
+jcp:allowlistMode a owl:DatatypeProperty ;
+    rdfs:label "allowlist mode" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:string .
+
+jcp:allowlistValuesJson a owl:DatatypeProperty ;
+    rdfs:label "allowlist values JSON" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:string .
+
+jcp:brokerIssuer a owl:DatatypeProperty ;
+    rdfs:label "broker issuer" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:string .
+
+jcp:brokerAudience a owl:DatatypeProperty ;
+    rdfs:label "broker audience" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:string .
+
+jcp:brokerBaseUrl a owl:DatatypeProperty ;
+    rdfs:label "broker base URL" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:string .
+
+jcp:purpose a owl:DatatypeProperty ;
+    rdfs:label "purpose" ;
+    rdfs:domain jcp:Token ;
+    rdfs:range xsd:string .
+
+jcp:expiresAt a owl:DatatypeProperty ;
+    rdfs:label "expires at" ;
+    rdfs:range xsd:dateTime .
+
+jcp:revokedAt a owl:DatatypeProperty ;
+    rdfs:label "revoked at" ;
+    rdfs:range xsd:dateTime .
+
 jcp:workspacePath a owl:DatatypeProperty ;
     rdfs:label "workspace path" ;
     rdfs:domain jcp:ManagedRepo ;

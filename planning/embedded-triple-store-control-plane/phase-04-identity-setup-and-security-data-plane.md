@@ -36,25 +36,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section replaces Ash Authentication resource state with explicit identity records and auth services.
 
-- [ ] 4.2 Section - Local users and provider identities.
+- [x] 4.2 Section - Local users and provider identities.
 
   Description: Local users, provider identities, and registration policy become product records with hand-authored auth logic.
 
-  - [ ] 4.2.1 Task - Implement user and identity store services.
+  - [x] 4.2.1 Task - Implement user and identity store services.
 
     Description: User records need canonical identity, email lookup, admin state, confirmation state, and provider links.
 
-    - [ ] 4.2.1.1 Subtask - Implement user, user identity, provider config, API key, and token codecs.
-    - [ ] 4.2.1.2 Subtask - Implement email and provider-subject uniqueness checks.
-    - [ ] 4.2.1.3 Subtask - Implement user projection helpers for current scope and LiveView sessions.
+    - [x] 4.2.1.1 Subtask - Implement user, user identity, provider config, API key, and token codecs.
+    - [x] 4.2.1.2 Subtask - Implement email and provider-subject uniqueness checks.
+    - [x] 4.2.1.3 Subtask - Implement user projection helpers for current scope and LiveView sessions.
 
-  - [ ] 4.2.2 Task - Replace authentication token flows.
+  - [x] 4.2.2 Task - Replace authentication token flows.
 
     Description: Password reset, magic link, API key, and session token flows should no longer depend on Ash Authentication tables.
 
-    - [ ] 4.2.2.1 Subtask - Implement token creation, lookup, expiration, and revocation through the embedded store.
-    - [ ] 4.2.2.2 Subtask - Implement API key hashing and revocation without storing plaintext key material.
-    - [ ] 4.2.2.3 Subtask - Replace Ash Authentication sender and verification entrypoints with product-owned services.
+    - [x] 4.2.2.1 Subtask - Implement token creation, lookup, expiration, and revocation through the embedded store.
+    - [x] 4.2.2.2 Subtask - Implement API key hashing and revocation without storing plaintext key material.
+    - [x] 4.2.2.3 Subtask - Replace Ash Authentication sender and verification entrypoints with product-owned services.
 
 ## 4.3 Section - Secret References And Provider Config
 

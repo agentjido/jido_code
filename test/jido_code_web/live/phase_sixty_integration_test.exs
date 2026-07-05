@@ -16,7 +16,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
+  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfigStore}
   alias JidoCode.Repo
 
   @checker_env :setup_github_credential_checker
@@ -288,7 +288,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
       }
       |> Map.merge(Map.new(overrides))
 
-    {:ok, config} = ProviderConfig.upsert(attrs, authorize?: false)
+    {:ok, config} = ProviderConfigStore.upsert(attrs)
     config
   end
 

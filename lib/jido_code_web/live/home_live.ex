@@ -14,10 +14,8 @@ defmodule JidoCodeWeb.HomeLive do
   # covers: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
   use JidoCodeWeb, :live_view
 
-  require Ash.Query
-
-  alias JidoCode.AuthProviders
   alias JidoCode.AuthProviders.ProviderConfig
+  alias JidoCode.AuthProviders.ProviderConfigStore
   alias JidoCode.Setup.BootstrapStatus
   alias JidoCode.Setup.DeploymentMode
   alias JidoCode.Setup.OwnerBootstrap
@@ -579,10 +577,7 @@ defmodule JidoCodeWeb.HomeLive do
     if not BootstrapStatus.provider_login_available?() do
       false
     else
-      ProviderConfig
-      |> Ash.Query.filter(provider == ^:github and provider_host == ^"github.com")
-      |> Ash.read_one(domain: AuthProviders, authorize?: false)
-      |> case do
+      case ProviderConfigStore.get_by_provider_host(:github, "github.com") do
         {:ok, %ProviderConfig{enabled: true, login_enabled: true}} -> true
         _other -> false
       end

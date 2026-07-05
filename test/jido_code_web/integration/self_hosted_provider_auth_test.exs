@@ -10,8 +10,9 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
 
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
-  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
+  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfigStore}
   alias JidoCode.Repo
+  alias JidoCode.Setup.OwnerStore
 
   @resolver_env :provider_auth_broker_jwks_resolver
   @managed_app_env_keys [
@@ -172,7 +173,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     response = json_response(response_conn, 422)
 
     assert response["error"]["error_type"] == "provider_identity_not_allowlisted"
-    assert get_session(response_conn, "user_token") == nil
+    assert get_session(response_conn, "product_user_token") == nil
 
     {authed_conn, _session_token, _owner} =
       authenticate_bootstrap_owner_conn("owner@example.com", "owner-password-123")
@@ -244,7 +245,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
       }
       |> Map.merge(Map.new(overrides))
 
-    {:ok, config} = ProviderConfig.upsert(attrs, authorize?: false)
+    {:ok, config} = ProviderConfigStore.upsert(attrs)
     config
   end
 
@@ -258,15 +259,20 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
            authorize?: false
          ) do
       {:ok, _owner} ->
-        :ok
+        seed_product_owner!(email)
 
       {:error, reason} ->
         if Exception.message(reason) =~ "has already been taken" do
-          :ok
+          seed_product_owner!(email)
         else
           raise "owner bootstrap failed: #{Exception.message(reason)}"
         end
     end
+  end
+
+  defp seed_product_owner!(email) do
+    {:ok, _owner} = OwnerStore.create_owner(%{email: email})
+    :ok
   end
 
   defp authenticate_bootstrap_owner_conn(email, password) do

@@ -4,11 +4,8 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   # covers: auth.provider_identity_linking.auto_create_local_user
   # covers: auth.provider_identity_linking.auth_timestamps
   # covers: auth.provider_login_policy.blocked_before_linking
-  require Ash.Query
-
-  alias JidoCode.Accounts
   alias JidoCode.Accounts.User
-  alias JidoCode.Accounts.UserIdentity
+  alias JidoCode.Accounts.{UserIdentity, UserIdentityStore, UserStore}
   alias JidoCode.AuthProviders.LoginPolicy
 
   @type resolution :: :existing_identity | :linked_by_email | :created_user
@@ -141,20 +138,17 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   end
 
   defp create_identity(%User{} = user, input) do
-    UserIdentity.create(
-      %{
-        user_id: user.id,
-        provider: input.provider,
-        provider_host: input.provider_host,
-        provider_subject: input.provider_subject,
-        provider_login: input.provider_login,
-        provider_email: input.provider_email,
-        email_verified: input.email_verified,
-        first_authenticated_at: input.authenticated_at,
-        last_authenticated_at: input.authenticated_at
-      },
-      authorize?: false
-    )
+    UserIdentityStore.upsert(%{
+      user_id: user.id,
+      provider: input.provider,
+      provider_host: input.provider_host,
+      provider_subject: input.provider_subject,
+      provider_login: input.provider_login,
+      provider_email: input.provider_email,
+      email_verified: input.email_verified,
+      first_authenticated_at: input.authenticated_at,
+      last_authenticated_at: input.authenticated_at
+    })
   end
 
   defp update_identity(%UserIdentity{} = identity, input) do
@@ -172,7 +166,10 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
         update_params
       end
 
-    UserIdentity.update(identity, update_params, authorize?: false)
+    identity
+    |> identity_attrs()
+    |> Map.merge(update_params)
+    |> UserIdentityStore.upsert()
   end
 
   defp create_user(input, _opts) do
@@ -185,13 +182,12 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
             nil
           end
 
-        User.provision_from_provider_identity(
-          %{
-            email: email,
-            confirmed_at: confirmed_at
-          },
-          authorize?: false
-        )
+        UserStore.upsert(%{
+          email: email,
+          confirmed_at: confirmed_at,
+          is_admin: false,
+          metadata: %{"created_by" => "provider_identity"}
+        })
 
       _other ->
         {:error, :provider_email_required_for_auto_create}
@@ -205,7 +201,7 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   defp verified_email_user(_email, _email_verified), do: {:ok, nil}
 
   defp load_user(user_id) do
-    case Ash.get(User, user_id, domain: Accounts, authorize?: false) do
+    case UserStore.get_by_id(to_string(user_id)) do
       {:ok, %User{} = user} -> {:ok, user}
       {:ok, nil} -> {:error, :linked_user_not_found}
       {:error, reason} -> {:error, reason}
@@ -213,17 +209,11 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   end
 
   defp find_identity(provider, provider_host, provider_subject) do
-    UserIdentity
-    |> Ash.Query.filter(
-      provider == ^provider and provider_host == ^provider_host and provider_subject == ^provider_subject
-    )
-    |> Ash.read_one(domain: Accounts, authorize?: false)
+    UserIdentityStore.get_by_provider_subject(provider, provider_host, provider_subject)
   end
 
   defp find_user_by_email(email) do
-    User
-    |> Ash.Query.filter(email == ^email)
-    |> Ash.read_one(domain: Accounts, authorize?: false)
+    UserStore.get_by_email(email)
   end
 
   defp normalize_input(params) do
@@ -305,4 +295,19 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
+
+  defp identity_attrs(%UserIdentity{} = identity) do
+    %{
+      user_identity_id: identity.id,
+      user_id: identity.user_id,
+      provider: identity.provider,
+      provider_host: identity.provider_host,
+      provider_subject: identity.provider_subject,
+      provider_login: identity.provider_login,
+      provider_email: identity.provider_email,
+      email_verified: identity.email_verified,
+      first_authenticated_at: identity.first_authenticated_at,
+      last_authenticated_at: identity.last_authenticated_at
+    }
+  end
 end

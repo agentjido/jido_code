@@ -6,15 +6,19 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
   alias JidoCode.ControlPlane.SemanticIdentity
 
   alias JidoCode.ControlPlane.Codecs.{
+    ApiKeyCodec,
     ConversationCodec,
     DecisionCodec,
     EventCodec,
     ManagedRepoCodec,
+    ProviderConfigCodec,
     RunCodec,
     RuntimeEventCodec,
     SecretRefCodec,
     SystemConfigCodec,
+    TokenCodec,
     UserCodec,
+    UserIdentityCodec,
     WorkItemCodec
   }
 
@@ -27,6 +31,10 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
     conversation: ConversationCodec,
     runtime_event: RuntimeEventCodec,
     user: UserCodec,
+    user_identity: UserIdentityCodec,
+    api_key: ApiKeyCodec,
+    token: TokenCodec,
+    provider_config: ProviderConfigCodec,
     event: EventCodec,
     secret_ref: SecretRefCodec
   }

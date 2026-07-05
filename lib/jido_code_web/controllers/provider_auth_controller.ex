@@ -16,8 +16,7 @@ defmodule JidoCodeWeb.ProviderAuthController do
 
   use JidoCodeWeb, :controller
 
-  alias AshAuthentication.Plug.Helpers
-  alias JidoCode.AuthProviders.{BrokerHandoff, BrokerState, ProviderConfig, ProviderLogin}
+  alias JidoCode.AuthProviders.{BrokerHandoff, BrokerState, ProviderConfig, ProviderConfigStore, ProviderLogin}
   alias JidoCode.Setup.BootstrapStatus
 
   def start(conn, %{"provider" => provider} = params) do
@@ -79,7 +78,9 @@ defmodule JidoCodeWeb.ProviderAuthController do
          {:ok, sign_in_result} <- ProviderLogin.sign_in(validated.claims) do
       conn
       |> delete_session(:return_to)
-      |> Helpers.store_in_session(sign_in_result.session_user)
+      |> configure_session(renew: true)
+      |> put_session("product_user_token", sign_in_result.token)
+      |> put_session("product_user_email", to_string(sign_in_result.session_user.email))
       |> assign(:current_user, sign_in_result.session_user)
       |> put_flash(:info, sign_in_message(sign_in_result, validated.provider))
       |> redirect(to: state_claims.redirect_path)
@@ -188,7 +189,7 @@ defmodule JidoCodeWeb.ProviderAuthController do
   defp fetch_provider_config(provider, provider_host) do
     normalized_provider = normalize_provider(provider)
 
-    case ProviderConfig.get_by_provider_host(normalized_provider, provider_host, authorize?: false) do
+    case ProviderConfigStore.get_by_provider_host(normalized_provider, provider_host) do
       {:ok, %ProviderConfig{} = provider_config} ->
         {:ok, provider_config}
 

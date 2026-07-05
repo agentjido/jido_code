@@ -30,8 +30,10 @@ defmodule JidoCodeWeb.ConnCase do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
+  alias JidoCode.Setup.OwnerStore
 
   import Phoenix.ConnTest, only: [recycle: 1]
   import Plug.Conn, only: [get_session: 2]
@@ -54,6 +56,7 @@ defmodule JidoCodeWeb.ConnCase do
   setup tags do
     JidoCode.DataCase.setup_sandbox(tags)
     JidoCode.DataCase.setup_policy_actor()
+    setup_product_store()
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 
@@ -71,13 +74,19 @@ defmodule JidoCodeWeb.ConnCase do
            context: %{token_type: :sign_in}
          ) do
       {:ok, _owner} ->
-        :ok
+        seed_product_owner!(email)
 
       {:error, %Ash.Error.Forbidden{}} ->
-        bootstrap_owner(email, password)
+        with :ok <- bootstrap_owner(email, password) do
+          seed_product_owner!(email)
+        end
 
       {:error, reason} ->
-        raise "owner registration failed: #{Exception.message(reason)}"
+        if duplicate_email_error?(reason) do
+          seed_product_owner!(email)
+        else
+          raise "owner registration failed: #{Exception.message(reason)}"
+        end
     end
   end
 
@@ -144,6 +153,25 @@ defmodule JidoCodeWeb.ConnCase do
   def restore_system_env(key, :__missing__), do: System.delete_env(key)
   def restore_system_env(key, nil), do: System.delete_env(key)
   def restore_system_env(key, value), do: System.put_env(key, value)
+
+  def setup_product_store do
+    store_name = :"conn_case_product_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_conn_case/#{store_name}")
+
+    ExUnit.Callbacks.start_supervised!(
+      {StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start}
+    )
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 
   def provision_managed_repo!(attrs) when is_map(attrs) do
     {:ok, provisioned_repo} = provision_managed_repo(attrs)
@@ -221,6 +249,15 @@ defmodule JidoCodeWeb.ConnCase do
   defp auth_result(conn, session_token, _owner, true, false), do: {conn, session_token}
   defp auth_result(conn, _session_token, owner, false, true), do: {conn, owner}
   defp auth_result(conn, session_token, owner, true, true), do: {conn, session_token, owner}
+
+  defp seed_product_owner!(email) do
+    {:ok, _owner} = OwnerStore.create_owner(%{email: email})
+    :ok
+  end
+
+  defp duplicate_email_error?(reason) do
+    Exception.message(reason) =~ "has already been taken"
+  end
 
   defp governed_run_project_id(%{project_id: project_id}) when is_binary(project_id), do: {:ok, project_id}
 

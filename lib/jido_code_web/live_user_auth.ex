@@ -10,7 +10,7 @@ defmodule JidoCodeWeb.LiveUserAuth do
   import Phoenix.Component
   use JidoCodeWeb, :verified_routes
 
-  alias JidoCode.Accounts.User
+  alias JidoCode.Accounts.{SessionTokens, User}
   alias JidoCode.Setup.{BootstrapStatus, BootstrapToken, OwnerStore}
 
   # This is used for nested liveviews to fetch the current user.
@@ -102,9 +102,15 @@ defmodule JidoCodeWeb.LiveUserAuth do
         Map.get(session, "user_token") ||
         Map.get(session, :user_token)
 
-    with {:ok, %{"email" => email}} <- BootstrapToken.verify(token),
-         {:ok, %User{} = owner} <- OwnerStore.get_by_email(email) do
-      {:ok, owner}
+    case SessionTokens.verify(token) do
+      {:ok, %User{} = user} ->
+        {:ok, user}
+
+      {:error, _reason} ->
+        with {:ok, %{"email" => email}} <- BootstrapToken.verify(token),
+             {:ok, %User{} = owner} <- OwnerStore.get_by_email(email) do
+          {:ok, owner}
+        end
     end
   end
 

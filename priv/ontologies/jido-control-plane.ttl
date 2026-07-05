@@ -11,8 +11,8 @@
 
 jcp: a owl:Ontology ;
     rdfs:label "Jido Governed Control-Plane Ontology" ;
-    rdfs:comment "A companion ontology that models governed Jido.Code product records as first-class semantic entities so repository memory and workflow provenance can link to managed repositories, observations, assessments, work items, runs, evidence, change requests, and governed decisions directly." ;
-    owl:versionInfo "2026-04-11" .
+    rdfs:comment "A companion ontology that models Jido.Code product records as first-class semantic entities so repository memory, workflow provenance, source-code findings, and embedded control-plane storage can link to managed repositories, operations, orchestration, governance, conversations, execution runtime, auth, security, setup, and external provider records directly." ;
+    owl:versionInfo "2026-07-05" .
 
 ### Classes
 
@@ -23,6 +23,24 @@ jcp:GovernedRecord a owl:Class ;
 
 jcp:ManagedRepo a owl:Class ;
     rdfs:label "Managed Repository" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:SourceRepo a owl:Class ;
+    rdfs:label "Source Repository" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Project a owl:Class ;
+    rdfs:label "Legacy Project" ;
+    rdfs:comment "A legacy project record retained for compatibility while managed repositories are canonical." ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Intake a owl:Class ;
+    rdfs:label "Intake" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ExternalObject a owl:Class ;
+    rdfs:label "External Object" ;
+    rdfs:comment "An external provider object such as a GitHub issue or pull request tracked by the control plane." ;
     rdfs:subClassOf jcp:GovernedRecord .
 
 jcp:Event a owl:Class ;
@@ -45,6 +63,15 @@ jcp:Run a owl:Class ;
     rdfs:label "Run" ;
     rdfs:subClassOf jcp:GovernedRecord .
 
+jcp:WorkflowRun a owl:Class ;
+    rdfs:label "Workflow Run" ;
+    rdfs:comment "A previous-era workflow run record retained as compatibility input for canonical governed runs." ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ExecutionProfile a owl:Class ;
+    rdfs:label "Execution Profile" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
 jcp:Evidence a owl:Class ;
     rdfs:label "Evidence" ;
     rdfs:subClassOf jcp:GovernedRecord .
@@ -58,6 +85,108 @@ jcp:Decision a owl:Class ;
     rdfs:comment "A governed control-plane decision record, distinct from memory:Decision." ;
     rdfs:subClassOf jcp:GovernedRecord .
 
+jcp:PolicySet a owl:Class ;
+    rdfs:label "Policy Set" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:RepoPosture a owl:Class ;
+    rdfs:label "Repository Posture" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:PostureCheck a owl:Class ;
+    rdfs:label "Posture Check" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Conversation a owl:Class ;
+    rdfs:label "Conversation" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ConversationEvent a owl:Class ;
+    rdfs:label "Conversation Event" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ConversationSnapshot a owl:Class ;
+    rdfs:label "Conversation Snapshot" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ExecutionWorkflow a owl:Class ;
+    rdfs:label "Execution Workflow" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:SandboxSession a owl:Class ;
+    rdfs:label "Sandbox Session" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:RuntimeEvent a owl:Class ;
+    rdfs:label "Runtime Event" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:Checkpoint a owl:Class ;
+    rdfs:label "Checkpoint" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:ExecSession a owl:Class ;
+    rdfs:label "Execution Session" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:SpriteSpec a owl:Class ;
+    rdfs:label "Sprite Spec" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:AccountRecord a owl:Class ;
+    rdfs:label "Account Record" ;
+    rdfs:comment "A local identity or credential-adjacent record owned by the product control plane." ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:User a owl:Class ;
+    rdfs:label "User" ;
+    rdfs:subClassOf jcp:AccountRecord .
+
+jcp:UserIdentity a owl:Class ;
+    rdfs:label "User Identity" ;
+    rdfs:subClassOf jcp:AccountRecord .
+
+jcp:ApiKey a owl:Class ;
+    rdfs:label "API Key" ;
+    rdfs:subClassOf jcp:AccountRecord .
+
+jcp:Token a owl:Class ;
+    rdfs:label "Token" ;
+    rdfs:subClassOf jcp:AccountRecord .
+
+jcp:ProviderConfig a owl:Class ;
+    rdfs:label "Provider Config" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:GitHubRepo a owl:Class ;
+    rdfs:label "GitHub Repository" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:WebhookDelivery a owl:Class ;
+    rdfs:label "Webhook Delivery" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:IssueAnalysis a owl:Class ;
+    rdfs:label "Issue Analysis" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:SecurityRecord a owl:Class ;
+    rdfs:label "Security Record" ;
+    rdfs:comment "A product-owned security metadata record. Secret material itself should remain outside semantic projection." ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
+jcp:SecretRef a owl:Class ;
+    rdfs:label "Secret Reference" ;
+    rdfs:subClassOf jcp:SecurityRecord .
+
+jcp:SecretLifecycleAudit a owl:Class ;
+    rdfs:label "Secret Lifecycle Audit" ;
+    rdfs:subClassOf jcp:SecurityRecord .
+
+jcp:SystemConfig a owl:Class ;
+    rdfs:label "System Config" ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
 ### Object properties
 
 jcp:forManagedRepo a owl:ObjectProperty ;
@@ -65,6 +194,31 @@ jcp:forManagedRepo a owl:ObjectProperty ;
     rdfs:comment "Scopes a governed record to its canonical managed repository." ;
     rdfs:domain jcp:GovernedRecord ;
     rdfs:range jcp:ManagedRepo .
+
+jcp:sourceRepo a owl:ObjectProperty ;
+    rdfs:label "source repo" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:SourceRepo .
+
+jcp:legacyProject a owl:ObjectProperty ;
+    rdfs:label "legacy project" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:Project .
+
+jcp:tracksExternalObject a owl:ObjectProperty ;
+    rdfs:label "tracks external object" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:ExternalObject .
+
+jcp:fromIntake a owl:ObjectProperty ;
+    rdfs:label "from intake" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range jcp:Intake .
+
+jcp:observesExternalObject a owl:ObjectProperty ;
+    rdfs:label "observes external object" ;
+    rdfs:domain jcp:Observation ;
+    rdfs:range jcp:ExternalObject .
 
 jcp:aboutEvent a owl:ObjectProperty ;
     rdfs:label "about event" ;
@@ -81,15 +235,41 @@ jcp:informedByEvent a owl:ObjectProperty ;
     rdfs:domain jcp:Assessment ;
     rdfs:range jcp:Event .
 
+jcp:informedByExternalObject a owl:ObjectProperty ;
+    rdfs:label "informed by external object" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range jcp:ExternalObject .
+
 jcp:derivedFromAssessment a owl:ObjectProperty ;
     rdfs:label "derived from assessment" ;
     rdfs:domain jcp:WorkItem ;
     rdfs:range jcp:Assessment .
 
+jcp:derivedFromObservation a owl:ObjectProperty ;
+    rdfs:label "derived from observation" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range jcp:Observation .
+
+jcp:derivedFromExternalObject a owl:ObjectProperty ;
+    rdfs:label "derived from external object" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range jcp:ExternalObject .
+
 jcp:executesWorkItem a owl:ObjectProperty ;
     rdfs:label "executes work item" ;
     rdfs:domain jcp:Run ;
     rdfs:range jcp:WorkItem .
+
+jcp:projectsWorkflowRun a owl:ObjectProperty ;
+    rdfs:label "projects workflow run" ;
+    rdfs:comment "Links a canonical governed run to a compatibility workflow run record." ;
+    rdfs:domain jcp:Run ;
+    rdfs:range jcp:WorkflowRun .
+
+jcp:usesExecutionProfile a owl:ObjectProperty ;
+    rdfs:label "uses execution profile" ;
+    rdfs:domain jcp:Run ;
+    rdfs:range jcp:ExecutionProfile .
 
 jcp:hasEvidence a owl:ObjectProperty ;
     rdfs:label "has evidence" ;
@@ -116,11 +296,173 @@ jcp:supersedesDecision a owl:ObjectProperty ;
     rdfs:domain jcp:Decision ;
     rdfs:range jcp:Decision .
 
+jcp:hasPolicySet a owl:ObjectProperty ;
+    rdfs:label "has policy set" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:PolicySet .
+
+jcp:hasRepoPosture a owl:ObjectProperty ;
+    rdfs:label "has repository posture" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:RepoPosture .
+
+jcp:hasPostureCheck a owl:ObjectProperty ;
+    rdfs:label "has posture check" ;
+    rdfs:domain jcp:RepoPosture ;
+    rdfs:range jcp:PostureCheck .
+
+jcp:algedonicCheck a owl:ObjectProperty ;
+    rdfs:label "algedonic check" ;
+    rdfs:domain jcp:RepoPosture ;
+    rdfs:range jcp:PostureCheck .
+
+jcp:hasConversation a owl:ObjectProperty ;
+    rdfs:label "has conversation" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:Conversation .
+
+jcp:conversationForWorkItem a owl:ObjectProperty ;
+    rdfs:label "conversation for work item" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range jcp:WorkItem .
+
+jcp:hasConversationEvent a owl:ObjectProperty ;
+    rdfs:label "has conversation event" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range jcp:ConversationEvent .
+
+jcp:hasConversationSnapshot a owl:ObjectProperty ;
+    rdfs:label "has conversation snapshot" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range jcp:ConversationSnapshot .
+
+jcp:hasExecutionWorkflow a owl:ObjectProperty ;
+    rdfs:label "has execution workflow" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range jcp:ExecutionWorkflow .
+
+jcp:hasSandboxSession a owl:ObjectProperty ;
+    rdfs:label "has sandbox session" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:SandboxSession .
+
+jcp:hasRuntimeEvent a owl:ObjectProperty ;
+    rdfs:label "has runtime event" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range jcp:RuntimeEvent .
+
+jcp:hasCheckpoint a owl:ObjectProperty ;
+    rdfs:label "has checkpoint" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range jcp:Checkpoint .
+
+jcp:hasExecSession a owl:ObjectProperty ;
+    rdfs:label "has execution session" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range jcp:ExecSession .
+
+jcp:usesSpriteSpec a owl:ObjectProperty ;
+    rdfs:label "uses sprite spec" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range jcp:SpriteSpec .
+
+jcp:belongsToUser a owl:ObjectProperty ;
+    rdfs:label "belongs to user" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range jcp:User .
+
+jcp:identifiesProviderAccount a owl:ObjectProperty ;
+    rdfs:label "identifies provider account" ;
+    rdfs:domain jcp:UserIdentity ;
+    rdfs:range jcp:ProviderConfig .
+
+jcp:tracksGitHubRepo a owl:ObjectProperty ;
+    rdfs:label "tracks GitHub repository" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range jcp:GitHubRepo .
+
+jcp:deliveredToGitHubRepo a owl:ObjectProperty ;
+    rdfs:label "delivered to GitHub repository" ;
+    rdfs:domain jcp:WebhookDelivery ;
+    rdfs:range jcp:GitHubRepo .
+
+jcp:analyzesGitHubRepo a owl:ObjectProperty ;
+    rdfs:label "analyzes GitHub repository" ;
+    rdfs:domain jcp:IssueAnalysis ;
+    rdfs:range jcp:GitHubRepo .
+
+jcp:hasSecretRef a owl:ObjectProperty ;
+    rdfs:label "has secret reference" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range jcp:SecretRef .
+
+jcp:hasSecretLifecycleAudit a owl:ObjectProperty ;
+    rdfs:label "has secret lifecycle audit" ;
+    rdfs:domain jcp:SecretRef ;
+    rdfs:range jcp:SecretLifecycleAudit .
+
 ### Datatype properties
+
+jcp:recordId a owl:DatatypeProperty ;
+    rdfs:label "record id" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:recordKind a owl:DatatypeProperty ;
+    rdfs:label "record kind" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:recordStatus a owl:DatatypeProperty ;
+    rdfs:label "record status" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:insertedAt a owl:DatatypeProperty ;
+    rdfs:label "inserted at" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:dateTime .
+
+jcp:updatedAt a owl:DatatypeProperty ;
+    rdfs:label "updated at" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:dateTime .
+
+jcp:metadataJson a owl:DatatypeProperty ;
+    rdfs:label "metadata JSON" ;
+    rdfs:comment "A bounded serialized projection for map-shaped metadata that has not been promoted into first-class semantic nodes." ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:payloadJson a owl:DatatypeProperty ;
+    rdfs:label "payload JSON" ;
+    rdfs:comment "A bounded serialized projection for external payloads that are retained for traceability but not queried as semantic structure." ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
 
 jcp:managedRepoId a owl:DatatypeProperty ;
     rdfs:label "managed repo id" ;
     rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:sourceRepoId a owl:DatatypeProperty ;
+    rdfs:label "source repo id" ;
+    rdfs:domain jcp:SourceRepo ;
+    rdfs:range xsd:string .
+
+jcp:projectId a owl:DatatypeProperty ;
+    rdfs:label "project id" ;
+    rdfs:domain jcp:Project ;
+    rdfs:range xsd:string .
+
+jcp:intakeId a owl:DatatypeProperty ;
+    rdfs:label "intake id" ;
+    rdfs:domain jcp:Intake ;
+    rdfs:range xsd:string .
+
+jcp:externalObjectId a owl:DatatypeProperty ;
+    rdfs:label "external object id" ;
+    rdfs:domain jcp:ExternalObject ;
     rdfs:range xsd:string .
 
 jcp:eventId a owl:DatatypeProperty ;
@@ -148,6 +490,16 @@ jcp:runId a owl:DatatypeProperty ;
     rdfs:domain jcp:Run ;
     rdfs:range xsd:string .
 
+jcp:workflowRunId a owl:DatatypeProperty ;
+    rdfs:label "workflow run id" ;
+    rdfs:domain jcp:WorkflowRun ;
+    rdfs:range xsd:string .
+
+jcp:executionProfileId a owl:DatatypeProperty ;
+    rdfs:label "execution profile id" ;
+    rdfs:domain jcp:ExecutionProfile ;
+    rdfs:range xsd:string .
+
 jcp:evidenceId a owl:DatatypeProperty ;
     rdfs:label "evidence id" ;
     rdfs:domain jcp:Evidence ;
@@ -163,8 +515,175 @@ jcp:decisionId a owl:DatatypeProperty ;
     rdfs:domain jcp:Decision ;
     rdfs:range xsd:string .
 
+jcp:policySetId a owl:DatatypeProperty ;
+    rdfs:label "policy set id" ;
+    rdfs:domain jcp:PolicySet ;
+    rdfs:range xsd:string .
+
+jcp:repoPostureId a owl:DatatypeProperty ;
+    rdfs:label "repository posture id" ;
+    rdfs:domain jcp:RepoPosture ;
+    rdfs:range xsd:string .
+
+jcp:postureCheckId a owl:DatatypeProperty ;
+    rdfs:label "posture check id" ;
+    rdfs:domain jcp:PostureCheck ;
+    rdfs:range xsd:string .
+
+jcp:conversationId a owl:DatatypeProperty ;
+    rdfs:label "conversation id" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range xsd:string .
+
+jcp:conversationEventId a owl:DatatypeProperty ;
+    rdfs:label "conversation event id" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:conversationSnapshotId a owl:DatatypeProperty ;
+    rdfs:label "conversation snapshot id" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:executionWorkflowId a owl:DatatypeProperty ;
+    rdfs:label "execution workflow id" ;
+    rdfs:domain jcp:ExecutionWorkflow ;
+    rdfs:range xsd:string .
+
+jcp:sandboxSessionId a owl:DatatypeProperty ;
+    rdfs:label "sandbox session id" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:runtimeEventId a owl:DatatypeProperty ;
+    rdfs:label "runtime event id" ;
+    rdfs:domain jcp:RuntimeEvent ;
+    rdfs:range xsd:string .
+
+jcp:checkpointId a owl:DatatypeProperty ;
+    rdfs:label "checkpoint id" ;
+    rdfs:domain jcp:Checkpoint ;
+    rdfs:range xsd:string .
+
+jcp:execSessionId a owl:DatatypeProperty ;
+    rdfs:label "execution session id" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:string .
+
+jcp:spriteSpecId a owl:DatatypeProperty ;
+    rdfs:label "sprite spec id" ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:userId a owl:DatatypeProperty ;
+    rdfs:label "user id" ;
+    rdfs:domain jcp:User ;
+    rdfs:range xsd:string .
+
+jcp:userIdentityId a owl:DatatypeProperty ;
+    rdfs:label "user identity id" ;
+    rdfs:domain jcp:UserIdentity ;
+    rdfs:range xsd:string .
+
+jcp:apiKeyId a owl:DatatypeProperty ;
+    rdfs:label "API key id" ;
+    rdfs:domain jcp:ApiKey ;
+    rdfs:range xsd:string .
+
+jcp:tokenId a owl:DatatypeProperty ;
+    rdfs:label "token id" ;
+    rdfs:domain jcp:Token ;
+    rdfs:range xsd:string .
+
+jcp:providerConfigId a owl:DatatypeProperty ;
+    rdfs:label "provider config id" ;
+    rdfs:domain jcp:ProviderConfig ;
+    rdfs:range xsd:string .
+
+jcp:githubRepoId a owl:DatatypeProperty ;
+    rdfs:label "GitHub repository id" ;
+    rdfs:domain jcp:GitHubRepo ;
+    rdfs:range xsd:string .
+
+jcp:webhookDeliveryId a owl:DatatypeProperty ;
+    rdfs:label "webhook delivery id" ;
+    rdfs:domain jcp:WebhookDelivery ;
+    rdfs:range xsd:string .
+
+jcp:issueAnalysisId a owl:DatatypeProperty ;
+    rdfs:label "issue analysis id" ;
+    rdfs:domain jcp:IssueAnalysis ;
+    rdfs:range xsd:string .
+
+jcp:secretRefId a owl:DatatypeProperty ;
+    rdfs:label "secret reference id" ;
+    rdfs:domain jcp:SecretRef ;
+    rdfs:range xsd:string .
+
+jcp:secretLifecycleAuditId a owl:DatatypeProperty ;
+    rdfs:label "secret lifecycle audit id" ;
+    rdfs:domain jcp:SecretLifecycleAudit ;
+    rdfs:range xsd:string .
+
+jcp:systemConfigId a owl:DatatypeProperty ;
+    rdfs:label "system config id" ;
+    rdfs:domain jcp:SystemConfig ;
+    rdfs:range xsd:string .
+
 jcp:recordLabel a owl:DatatypeProperty ;
     rdfs:label "record label" ;
     rdfs:comment "A human-facing label for bounded product projections over governed records." ;
     rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
+
+jcp:displayName a owl:DatatypeProperty ;
+    rdfs:label "display name" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:sourceKind a owl:DatatypeProperty ;
+    rdfs:label "source kind" ;
+    rdfs:range xsd:string .
+
+jcp:workspacePath a owl:DatatypeProperty ;
+    rdfs:label "workspace path" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:provider a owl:DatatypeProperty ;
+    rdfs:label "provider" ;
+    rdfs:range xsd:string .
+
+jcp:providerHost a owl:DatatypeProperty ;
+    rdfs:label "provider host" ;
+    rdfs:range xsd:string .
+
+jcp:externalId a owl:DatatypeProperty ;
+    rdfs:label "external id" ;
+    rdfs:range xsd:string .
+
+jcp:canonicalKey a owl:DatatypeProperty ;
+    rdfs:label "canonical key" ;
+    rdfs:range xsd:string .
+
+jcp:canonicalReference a owl:DatatypeProperty ;
+    rdfs:label "canonical reference" ;
+    rdfs:range xsd:string .
+
+jcp:title a owl:DatatypeProperty ;
+    rdfs:label "title" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:summary a owl:DatatypeProperty ;
+    rdfs:label "summary" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:priority a owl:DatatypeProperty ;
+    rdfs:label "priority" ;
+    rdfs:range xsd:string .
+
+jcp:occurredAt a owl:DatatypeProperty ;
+    rdfs:label "occurred at" ;
+    rdfs:range xsd:dateTime .

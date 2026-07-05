@@ -36,25 +36,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section defines how writes happen safely without Ash changesets or database transactions.
 
-- [ ] 2.2 Section - Transaction and update boundary.
+- [x] 2.2 Section - Transaction and update boundary.
 
   Description: Route every mutation through one product-owned command boundary that validates, rewrites, and commits quads atomically enough for product invariants.
 
-  - [ ] 2.2.1 Task - Define write command shape.
+  - [x] 2.2.1 Task - Define write command shape.
 
     Description: Store callers should submit typed commands, not raw SPARQL update strings.
 
-    - [ ] 2.2.1.1 Subtask - Define insert, replace-subject, delete-subject, append-event, and upsert-by-identity commands.
-    - [ ] 2.2.1.2 Subtask - Include actor, correlation id, graph name, expected identity, and validation context in each command.
-    - [ ] 2.2.1.3 Subtask - Return typed outcomes with written subject IRIs and event IRIs.
+    - [x] 2.2.1.1 Subtask - Define insert, replace-subject, delete-subject, append-event, and upsert-by-identity commands.
+    - [x] 2.2.1.2 Subtask - Include actor, correlation id, graph name, expected identity, and validation context in each command.
+    - [x] 2.2.1.3 Subtask - Return typed outcomes with written subject IRIs and event IRIs.
 
-  - [ ] 2.2.2 Task - Implement conflict and optimistic concurrency checks.
+  - [x] 2.2.2 Task - Implement conflict and optimistic concurrency checks.
 
     Description: The embedded store must explicitly enforce constraints previously supplied by Ash/Postgres.
 
-    - [ ] 2.2.2.1 Subtask - Implement uniqueness checks using SPARQL reads before writes.
-    - [ ] 2.2.2.2 Subtask - Add expected revision or updated-at checks for replace operations.
-    - [ ] 2.2.2.3 Subtask - Return deterministic conflict, stale write, and invalid command errors.
+    - [x] 2.2.2.1 Subtask - Implement uniqueness checks using SPARQL reads before writes.
+    - [x] 2.2.2.2 Subtask - Add expected revision or updated-at checks for replace operations.
+    - [x] 2.2.2.3 Subtask - Return deterministic conflict, stale write, and invalid command errors.
 
 ## 2.3 Section - Query Boundary
 

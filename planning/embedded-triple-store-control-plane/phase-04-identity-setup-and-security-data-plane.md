@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase moves bootstrap state, local identity, provider identity links, tokens, API keys, provider configuration, and secret references onto the product store. It deliberately avoids retaining Ash Authentication or Postgres-backed token tables.
 
-- [ ] 4 Phase - Identity, setup, and security data plane.
+- [x] 4 Phase - Identity, setup, and security data plane.
 
   Description: Replace identity and setup persistence first because these flows define how operators gain access to the rest of the product.
 
@@ -84,22 +84,22 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves setup, identity, auth, and security flows work without Ash/Postgres.
 
-- [ ] 4.4 Section - Integration tests.
+- [x] 4.4 Section - Integration tests.
 
   Description: Exercise user-visible and security-sensitive flows end to end against the embedded store.
 
-  - [ ] 4.4.1 Task - Add setup and identity integration coverage.
+  - [x] 4.4.1 Task - Add setup and identity integration coverage.
 
     Description: Setup tests should prove a fresh store can bootstrap and sign in an owner.
 
-    - [ ] 4.4.1.1 Subtask - Run owner bootstrap from an empty embedded store.
-    - [ ] 4.4.1.2 Subtask - Sign in with password, magic link, and provider identity where currently supported.
-    - [ ] 4.4.1.3 Subtask - Prove onboarding reset clears setup and identity state as intended.
+    - [x] 4.4.1.1 Subtask - Run owner bootstrap from an empty embedded store.
+    - [x] 4.4.1.2 Subtask - Sign in with password, magic link, and provider identity where currently supported.
+    - [x] 4.4.1.3 Subtask - Prove onboarding reset clears setup and identity state as intended.
 
-  - [ ] 4.4.2 Task - Add security integration coverage.
+  - [x] 4.4.2 Task - Add security integration coverage.
 
     Description: Security tests should prove secret metadata is queryable while secret material is not projected.
 
-    - [ ] 4.4.2.1 Subtask - Create, rotate, and delete a secret reference with audit events.
-    - [ ] 4.4.2.2 Subtask - Query provider config and secret refs through product services.
-    - [ ] 4.4.2.3 Subtask - Scan written quads for forbidden plaintext secret fields.
+    - [x] 4.4.2.1 Subtask - Create, rotate, and delete a secret reference with audit events.
+    - [x] 4.4.2.2 Subtask - Query provider config and secret refs through product services.
+    - [x] 4.4.2.3 Subtask - Scan written quads for forbidden plaintext secret fields.

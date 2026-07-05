@@ -89,6 +89,11 @@ jcp:PolicySet a owl:Class ;
     rdfs:label "Policy Set" ;
     rdfs:subClassOf jcp:GovernedRecord .
 
+jcp:ReviewPolicy a owl:Class ;
+    rdfs:label "Review Policy" ;
+    rdfs:comment "An embedded governance policy concept projected from policy sets when review controls need first-class semantic links." ;
+    rdfs:subClassOf jcp:GovernedRecord .
+
 jcp:RepoPosture a owl:Class ;
     rdfs:label "Repository Posture" ;
     rdfs:subClassOf jcp:GovernedRecord .
@@ -127,6 +132,7 @@ jcp:Checkpoint a owl:Class ;
 
 jcp:ExecSession a owl:Class ;
     rdfs:label "Execution Session" ;
+    rdfs:comment "Execution session projection keeps command status, bounded output summaries, artifact references, and cost or duration metadata; unbounded command output is intentionally excluded from semantic literals." ;
     rdfs:subClassOf jcp:GovernedRecord .
 
 jcp:SpriteSpec a owl:Class ;
@@ -148,10 +154,12 @@ jcp:UserIdentity a owl:Class ;
 
 jcp:ApiKey a owl:Class ;
     rdfs:label "API Key" ;
+    rdfs:comment "API key projection excludes raw key material and key hashes; only lifecycle and relationship metadata should be represented." ;
     rdfs:subClassOf jcp:AccountRecord .
 
 jcp:Token a owl:Class ;
     rdfs:label "Token" ;
+    rdfs:comment "Token projection excludes bearer token values and other credential material; only bounded lifecycle metadata should be represented." ;
     rdfs:subClassOf jcp:AccountRecord .
 
 jcp:ProviderConfig a owl:Class ;
@@ -160,6 +168,7 @@ jcp:ProviderConfig a owl:Class ;
 
 jcp:GitHubRepo a owl:Class ;
     rdfs:label "GitHub Repository" ;
+    rdfs:comment "GitHub repository projection excludes webhook secrets and other provider credentials." ;
     rdfs:subClassOf jcp:GovernedRecord .
 
 jcp:WebhookDelivery a owl:Class ;
@@ -177,6 +186,7 @@ jcp:SecurityRecord a owl:Class ;
 
 jcp:SecretRef a owl:Class ;
     rdfs:label "Secret Reference" ;
+    rdfs:comment "Secret reference projection excludes plaintext values, ciphertext, password hashes, API key hashes, token values, webhook secrets, and private keys." ;
     rdfs:subClassOf jcp:SecurityRecord .
 
 jcp:SecretLifecycleAudit a owl:Class ;
@@ -300,6 +310,11 @@ jcp:hasPolicySet a owl:ObjectProperty ;
     rdfs:label "has policy set" ;
     rdfs:domain jcp:ManagedRepo ;
     rdfs:range jcp:PolicySet .
+
+jcp:hasReviewPolicy a owl:ObjectProperty ;
+    rdfs:label "has review policy" ;
+    rdfs:domain jcp:PolicySet ;
+    rdfs:range jcp:ReviewPolicy .
 
 jcp:hasRepoPosture a owl:ObjectProperty ;
     rdfs:label "has repository posture" ;
@@ -436,7 +451,7 @@ jcp:metadataJson a owl:DatatypeProperty ;
 
 jcp:payloadJson a owl:DatatypeProperty ;
     rdfs:label "payload JSON" ;
-    rdfs:comment "A bounded serialized projection for external payloads that are retained for traceability but not queried as semantic structure." ;
+    rdfs:comment "A bounded serialized projection for external payloads that are retained for traceability but not queried as semantic structure. Raw secrets, ciphertext, key hashes, private keys, bearer tokens, raw LLM responses, and unbounded command output must not use this predicate." ;
     rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
@@ -518,6 +533,11 @@ jcp:decisionId a owl:DatatypeProperty ;
 jcp:policySetId a owl:DatatypeProperty ;
     rdfs:label "policy set id" ;
     rdfs:domain jcp:PolicySet ;
+    rdfs:range xsd:string .
+
+jcp:reviewPolicyId a owl:DatatypeProperty ;
+    rdfs:label "review policy id" ;
+    rdfs:domain jcp:ReviewPolicy ;
     rdfs:range xsd:string .
 
 jcp:repoPostureId a owl:DatatypeProperty ;
@@ -643,6 +663,12 @@ jcp:displayName a owl:DatatypeProperty ;
 
 jcp:sourceKind a owl:DatatypeProperty ;
     rdfs:label "source kind" ;
+    rdfs:range xsd:string .
+
+jcp:sourceKey a owl:DatatypeProperty ;
+    rdfs:label "source key" ;
+    rdfs:comment "A bounded source-specific lookup key for records that need stable provider or ingestion identity without storing raw payloads." ;
+    rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
 jcp:workspacePath a owl:DatatypeProperty ;

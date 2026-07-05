@@ -12,25 +12,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section expands the control-plane ontology from a memory-link companion into the schema source for product records.
 
-- [ ] 1.1 Section - Canonical control-plane ontology.
+- [x] 1.1 Section - Canonical control-plane ontology.
 
   Description: Keep the ontology broad enough to model all current Ash resource families while avoiding raw secret material and unbounded payload dumps.
 
-  - [ ] 1.1.1 Task - Complete class coverage for current product record families.
+  - [x] 1.1.1 Task - Complete class coverage for current product record families.
 
     Description: Every current Ash-backed resource family needs a corresponding semantic class or documented exclusion.
 
-    - [ ] 1.1.1.1 Subtask - Cover control, operations, governance, orchestration, conversations, execution runtime, accounts, auth providers, GitHub, security, setup, and legacy project classes.
-    - [ ] 1.1.1.2 Subtask - Mark previous-era records such as `Project` and `WorkflowRun` as compatibility concepts, not preferred new data-plane classes.
-    - [ ] 1.1.1.3 Subtask - Document which sensitive fields are intentionally excluded from semantic projection.
+    - [x] 1.1.1.1 Subtask - Cover control, operations, governance, orchestration, conversations, execution runtime, accounts, auth providers, GitHub, security, setup, and legacy project classes.
+    - [x] 1.1.1.2 Subtask - Mark previous-era records such as `Project` and `WorkflowRun` as compatibility concepts, not preferred new data-plane classes.
+    - [x] 1.1.1.3 Subtask - Document which sensitive fields are intentionally excluded from semantic projection.
 
-  - [ ] 1.1.2 Task - Define shared predicates for common resource fields.
+  - [x] 1.1.2 Task - Define shared predicates for common resource fields.
 
     Description: Common ids, statuses, timestamps, labels, source keys, and metadata projections should reuse stable predicates instead of per-class vocabulary drift.
 
-    - [ ] 1.1.2.1 Subtask - Add shared id, label, status, kind, inserted-at, updated-at, metadata, and payload predicates.
-    - [ ] 1.1.2.2 Subtask - Define provider, canonical key, canonical reference, title, summary, and priority predicates.
-    - [ ] 1.1.2.3 Subtask - Reserve JSON literal predicates for bounded map fields that are not yet query-critical.
+    - [x] 1.1.2.1 Subtask - Add shared id, label, status, kind, inserted-at, updated-at, metadata, and payload predicates.
+    - [x] 1.1.2.2 Subtask - Define provider, canonical key, canonical reference, title, summary, and priority predicates.
+    - [x] 1.1.2.3 Subtask - Reserve JSON literal predicates for bounded map fields that are not yet query-critical.
 
 ## 1.2 Section - Canonical IRI Rules
 

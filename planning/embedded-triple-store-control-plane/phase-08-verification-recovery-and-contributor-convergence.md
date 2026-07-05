@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase hardens the embedded TripleStore control plane after Ash/Postgres removal. It adds backup, restore, integrity checks, operational diagnostics, reset tooling, documentation, and durable quality gates for future contributors.
 
-- [ ] 8 Phase - Verification, recovery, and contributor convergence.
+- [x] 8 Phase - Verification, recovery, and contributor convergence.
 
   Description: Make the new embedded data plane operable, recoverable, and difficult to regress.
 
@@ -84,22 +84,22 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves the completed embedded data plane is recoverable, observable, documented, and guarded.
 
-- [ ] 8.4 Section - Integration tests.
+- [x] 8.4 Section - Integration tests.
 
   Description: Final gates should combine product smoke, integrity, backup, restore, and static regression checks.
 
-  - [ ] 8.4.1 Task - Add full embedded-store verification gate.
+  - [x] 8.4.1 Task - Add full embedded-store verification gate.
 
     Description: One Mix task should run the focused checks needed after persistence-boundary changes.
 
-    - [ ] 8.4.1.1 Subtask - Add `mix control_plane.verify` or equivalent.
-    - [ ] 8.4.1.2 Subtask - Include ontology parse/load, codec round-trip, store contract, integrity, and static dependency checks.
-    - [ ] 8.4.1.3 Subtask - Include product smoke tests that do not require Postgres.
+    - [x] 8.4.1.1 Subtask - Add `mix control_plane.verify` or equivalent.
+    - [x] 8.4.1.2 Subtask - Include ontology parse/load, codec round-trip, store contract, integrity, and static dependency checks.
+    - [x] 8.4.1.3 Subtask - Include product smoke tests that do not require Postgres.
 
-  - [ ] 8.4.2 Task - Add backup and recovery integration coverage.
+  - [x] 8.4.2 Task - Add backup and recovery integration coverage.
 
     Description: Recovery tests should prove the embedded control plane can be exported, restored, and used after restart.
 
-    - [ ] 8.4.2.1 Subtask - Bootstrap a store, create representative records, export graph files, and close the store.
-    - [ ] 8.4.2.2 Subtask - Restore into a new store path and verify product projections match.
-    - [ ] 8.4.2.3 Subtask - Restart the application against the restored store and run the product smoke scenario.
+    - [x] 8.4.2.1 Subtask - Bootstrap a store, create representative records, export graph files, and close the store.
+    - [x] 8.4.2.2 Subtask - Restore into a new store path and verify product projections match.
+    - [x] 8.4.2.3 Subtask - Restart the application against the restored store and run the product smoke scenario.

@@ -44,6 +44,7 @@ before editing:
 | `mix frontend.verify` | verify LiveVue and Vite browser pipeline |
 | `mix source_graph.verify` | verify semantic source-code graph stack |
 | `mix memory.verify` | verify memory graph and capture-plane behavior |
+| `mix control_plane.verify` | verify embedded control-plane ontology load, codecs, store contract, integrity, recovery, guardrails, and product smoke |
 | `mix control_plane.integrity` | check embedded control-plane graph topology, ontology version, identities, and dangling links |
 | `mix control_plane.query --named health` | inspect bounded control-plane store health without raw SPARQL |
 | `mix control_plane.export priv/tmp/control-plane.nq` | export control-plane graphs with auth and security graph redaction enabled by default |
@@ -63,8 +64,7 @@ Run the narrower verification commands when you touch those boundaries:
 
 - browser stack or `live_vue` changes -> `mix frontend.verify`
 - embedded control-plane store, codecs, graph topology, product record stores,
-  recovery tooling, or persistence guardrails -> `mix control_plane.integrity`
-  and `mix test test/jido_code/embedded_store_removal_gate_test.exs`
+  recovery tooling, or persistence guardrails -> `mix control_plane.verify`
 - source graph boundaries -> `mix source_graph.verify`
 - memory graph or capture boundaries -> `mix memory.verify`
 - prompt context memory adapter or conversation prompt recall changes -> run the

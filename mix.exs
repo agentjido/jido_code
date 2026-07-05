@@ -63,6 +63,7 @@ defmodule JidoCode.MixProject do
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.html": :test,
+        "control_plane.verify": :test,
         precommit: :test,
         "memory.verify": :test,
         "semantic.verify": :test,

@@ -12,7 +12,14 @@ defmodule JidoCode.ControlPlane.StoreContractIntegrationTest do
     operations: {:work_item, %{managed_repo_id: "repo-family", work_item_id: "work-family", title: "Family work"}},
     governance:
       {:decision, %{managed_repo_id: "repo-family", decision_id: "decision-family", source_key: "decision:family"}},
-    orchestration: {:run, %{managed_repo_id: "repo-family", run_id: "run-family", source_key: "run:family"}},
+    orchestration:
+      {:run,
+       %{
+         managed_repo_id: "repo-family",
+         run_record_id: "run-family",
+         run_id: "source-run-family",
+         source_key: "run:family"
+       }},
     conversations: {:conversation, %{managed_repo_id: "repo-family", conversation_id: "conversation-family"}},
     execution_runtime:
       {:runtime_event,
@@ -193,7 +200,7 @@ defmodule JidoCode.ControlPlane.StoreContractIntegrationTest do
       store: store,
       record_type: :managed_repo,
       subject_iri: "https://jido.run/control/managed-repos/#{repo_id}",
-      identity: %{identity: :unique_source_key, predicate_iri: control_iri("sourceKey"), value: source_key},
+      identity: %{identity: :unique_source_key, predicate_iri: control_iri("managedSourceKey"), value: source_key},
       record: %{
         managed_repo_id: repo_id,
         source_key: source_key,

@@ -10,9 +10,6 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
 
   import Phoenix.LiveViewTest
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
-
   setup do
     original_config = Application.get_env(:jido_code, :system_config, :__missing__)
     original_loader = Application.get_env(:jido_code, :system_config_loader, :__missing__)
@@ -50,25 +47,6 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
     register_owner("phase58-continue-owner@example.com", "owner-password-123")
     Application.put_env(:jido_code, :system_config, continue_setup_config("phase58-continue-owner@example.com"))
 
-    {:ok, sign_in_view, _html} = live(conn, ~p"/sign-in", on_error: :warn)
-
-    sign_in_view
-    |> form("form[action='/auth/user/password/sign_in']", %{
-      "user" => %{
-        "email" => "phase58-continue-owner@example.com",
-        "password" => "owner-password-123"
-      }
-    })
-    |> render_submit()
-
-    auth_redirect_path =
-      sign_in_view
-      |> assert_redirect()
-      |> redirect_path()
-
-    auth_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(auth_response, 302) == "/setup"
-
     {authed_conn, _session_token} =
       authenticate_owner_conn("phase58-continue-owner@example.com", "owner-password-123")
 
@@ -85,53 +63,15 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
     root_response = get(conn, ~p"/")
     assert redirected_to(root_response, 302) == "/welcome"
 
-    {:ok, sign_in_view, _html} = live(conn, ~p"/sign-in", on_error: :warn)
-
-    sign_in_view
-    |> form("form[action='/auth/user/password/sign_in']", %{
-      "user" => %{
-        "email" => "phase58-ready-owner@example.com",
-        "password" => "owner-password-123"
-      }
-    })
-    |> render_submit()
-
-    auth_redirect_path =
-      sign_in_view
-      |> assert_redirect()
-      |> redirect_path()
-
-    auth_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(auth_response, 302) == "/dashboard"
-
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, owner} =
-      Strategy.action(
-        strategy,
-        :sign_in,
-        %{
-          "email" => "phase58-ready-owner@example.com",
-          "password" => "owner-password-123"
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.fetch!(:token)
-
-    return_to_response =
-      conn
-      |> init_test_session(%{})
-      |> put_session(:return_to, "/settings")
-      |> get(owner_sign_in_with_token_path(strategy, token))
-
-    assert redirected_to(return_to_response, 302) == "/settings"
-
     {authed_conn, _session_token} =
       authenticate_owner_conn("phase58-ready-owner@example.com", "owner-password-123")
+
+    return_to_response =
+      authed_conn
+      |> put_session(:return_to, "/settings")
+      |> get(~p"/sign-out")
+
+    assert redirected_to(return_to_response, 302) == "/settings"
 
     {:ok, welcome_view, welcome_html} =
       live(recycle(authed_conn), ~p"/welcome", on_error: :warn)
@@ -220,28 +160,6 @@ defmodule JidoCodeWeb.PhaseFiftyEightIntegrationTest do
 
   defp assert_live_redirect(other, expected) do
     ExUnit.Assertions.flunk("expected live redirect to #{expected}, got: #{inspect(other)}")
-  end
-
-  defp redirect_path({path, _flash}) when is_binary(path), do: path
-  defp redirect_path(path) when is_binary(path), do: path
-
-  defp owner_sign_in_with_token_path(strategy, token) do
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
-    query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
   end
 
   defp repo_file!(path) do

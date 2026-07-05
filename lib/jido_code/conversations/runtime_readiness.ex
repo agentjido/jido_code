@@ -154,7 +154,10 @@ defmodule JidoCode.Conversations.RuntimeReadiness do
   end
 
   defp normalize_optional_string(nil), do: nil
-  defp normalize_optional_string(value) when is_atom(value), do: value |> Atom.to_string() |> normalize_optional_string()
+
+  defp normalize_optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_string()
+
   defp normalize_optional_string(_value), do: nil
 
   defp stringify_notice(notice) when is_map(notice) do

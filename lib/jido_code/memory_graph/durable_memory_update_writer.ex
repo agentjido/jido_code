@@ -271,12 +271,13 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
   defp load_graph_with_timeout(store, graph) do
     timeout = Config.store_timeout([])
 
-    load_task = Task.async(fn ->
-      Retry.with_write_retry(
-        fn -> TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) end,
-        attempt_context: %{operation: :memory_update}
-      )
-    end)
+    load_task =
+      Task.async(fn ->
+        Retry.with_write_retry(
+          fn -> TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) end,
+          attempt_context: %{operation: :memory_update}
+        )
+      end)
 
     case Task.yield(load_task, timeout) || Task.shutdown(load_task, :brutal_kill) do
       {:ok, result} -> result

@@ -2,27 +2,27 @@ defmodule JidoCode.Forge.Operations do
   @moduledoc """
   Orchestration layer for Forge session operations.
 
-  Coordinates between Ash resources (state/persistence) and runtime concerns
-  (Sprites API, PubSub events, session lifecycle). These operations involve
-  side effects that should not be embedded in Ash actions.
+  Coordinates between runtime persistence records and runtime concerns
+  (Sprites API, PubSub events, session lifecycle).
   """
 
   require Logger
 
+  alias JidoCode.ExecutionRuntime.RecordStore
   alias JidoCode.Forge.{ChannelRedaction, EventLogger, Manager, PubSub}
-  alias JidoCode.Forge.Resources.{Session, Checkpoint}
+  alias JidoCode.Forge.Resources.{Checkpoint, Session}
 
   @doc """
   Resume a session from its last checkpoint.
 
   1. Loads session and validates it has a checkpoint
-  2. Updates session state to :resuming via Ash
+  2. Updates session state to :resuming through the product store
   3. Logs resume event
   4. Starts a new SpriteSession process with checkpoint restoration
 
   Returns `{:ok, pid}` on success or `{:error, reason}` on failure.
   """
-  @spec resume(String.t() | Ash.UUID.t()) :: {:ok, pid()} | {:error, term()}
+  @spec resume(String.t()) :: {:ok, pid()} | {:error, term()}
   def resume(session_id) do
     with {:ok, session} <- load_session(session_id),
          :ok <- validate_resumable(session),
@@ -38,14 +38,14 @@ defmodule JidoCode.Forge.Operations do
   @doc """
   Cancel a running session.
 
-  1. Updates session state to :cancelled via Ash
+  1. Updates session state to :cancelled through the product store
   2. Logs cancellation event
   3. Stops the session process (which triggers sprite cleanup)
   4. Broadcasts cancellation
 
   Returns `:ok` on success or `{:error, reason}` on failure.
   """
-  @spec cancel(String.t() | Ash.UUID.t()) :: :ok | {:error, term()}
+  @spec cancel(String.t()) :: :ok | {:error, term()}
   def cancel(session_id) do
     with {:ok, session} <- load_session(session_id),
          :ok <- validate_cancellable(session),
@@ -68,7 +68,7 @@ defmodule JidoCode.Forge.Operations do
 
   Returns `{:ok, checkpoint}` on success.
   """
-  @spec create_checkpoint(String.t() | Ash.UUID.t(), keyword()) :: {:ok, Checkpoint.t()} | {:error, term()}
+  @spec create_checkpoint(String.t(), keyword()) :: {:ok, Checkpoint.t()} | {:error, term()}
   def create_checkpoint(session_id, opts \\ []) do
     name = Keyword.get(opts, :name)
 
@@ -86,7 +86,7 @@ defmodule JidoCode.Forge.Operations do
   @doc """
   Mark a session as failed with error details.
   """
-  @spec mark_failed(String.t() | Ash.UUID.t(), map()) :: {:ok, Session.t()} | {:error, term()}
+  @spec mark_failed(String.t(), map()) :: {:ok, Session.t()} | {:error, term()}
   def mark_failed(session_id, error_details) do
     with {:ok, session} <- load_session(session_id),
          {:ok, redacted_error_details} <- redact_failure_details(session.id, error_details),
@@ -100,7 +100,7 @@ defmodule JidoCode.Forge.Operations do
   @doc """
   Mark a session as completed.
   """
-  @spec complete(String.t() | Ash.UUID.t()) :: {:ok, Session.t()} | {:error, term()}
+  @spec complete(String.t()) :: {:ok, Session.t()} | {:error, term()}
   def complete(session_id) do
     with {:ok, session} <- load_session(session_id),
          {:ok, session} <- do_complete(session),
@@ -113,27 +113,7 @@ defmodule JidoCode.Forge.Operations do
   # Private helpers
 
   defp load_session(session_id) when is_binary(session_id) do
-    case Ecto.UUID.cast(session_id) do
-      {:ok, uuid} -> load_session_by_id(uuid)
-      :error -> load_session_by_name(session_id)
-    end
-  end
-
-  defp load_session_by_name(name) do
-    require Ash.Query
-
-    Session
-    |> Ash.Query.filter(name == ^name)
-    |> Ash.read_one()
-    |> case do
-      {:ok, nil} -> {:error, :session_not_found}
-      {:ok, session} -> {:ok, session}
-      error -> error
-    end
-  end
-
-  defp load_session_by_id(uuid) do
-    case Ash.get(Session, uuid) do
+    case RecordStore.get_sandbox_session(session_id) do
       {:ok, nil} -> {:error, :session_not_found}
       {:ok, session} -> {:ok, session}
       error -> error
@@ -141,10 +121,7 @@ defmodule JidoCode.Forge.Operations do
   end
 
   defp load_latest_checkpoint(session_id) do
-    Checkpoint
-    |> Ash.Query.for_read(:latest_for_session, %{session_id: session_id})
-    |> Ash.read_one()
-    |> case do
+    case RecordStore.latest_checkpoint(session_id) do
       {:ok, nil} -> {:error, :no_checkpoint_available}
       {:ok, checkpoint} -> {:ok, checkpoint}
       error -> error
@@ -178,21 +155,24 @@ defmodule JidoCode.Forge.Operations do
   end
 
   defp transition_to_resuming(session) do
-    session
-    |> Ash.Changeset.for_update(:begin_resume)
-    |> Ash.update()
+    RecordStore.update_sandbox_session(session, %{phase: :resuming, last_activity_at: DateTime.utc_now()})
   end
 
   defp transition_to_cancelled(session) do
-    session
-    |> Ash.Changeset.for_update(:cancel)
-    |> Ash.update()
+    RecordStore.update_sandbox_session(session, %{
+      phase: :cancelled,
+      last_activity_at: DateTime.utc_now(),
+      completed_at: DateTime.utc_now()
+    })
   end
 
   defp do_mark_failed(session, error_details) do
-    session
-    |> Ash.Changeset.for_update(:mark_failed, %{last_error: error_details})
-    |> Ash.update()
+    RecordStore.update_sandbox_session(session, %{
+      phase: :failed,
+      last_error: error_details,
+      last_activity_at: DateTime.utc_now(),
+      completed_at: DateTime.utc_now()
+    })
   end
 
   defp redact_failure_details(session_id, error_details) do
@@ -210,15 +190,18 @@ defmodule JidoCode.Forge.Operations do
   end
 
   defp do_complete(session) do
-    session
-    |> Ash.Changeset.for_update(:complete)
-    |> Ash.update()
+    RecordStore.update_sandbox_session(session, %{
+      phase: :completed,
+      last_activity_at: DateTime.utc_now(),
+      completed_at: DateTime.utc_now()
+    })
   end
 
   defp update_session_checkpoint(session, checkpoint_id) do
-    session
-    |> Ash.Changeset.for_update(:record_checkpoint, %{last_checkpoint_id: checkpoint_id})
-    |> Ash.update()
+    RecordStore.update_sandbox_session(session, %{
+      last_checkpoint_id: checkpoint_id,
+      last_activity_at: DateTime.utc_now()
+    })
   end
 
   defp log_event(session_id, event_type, data) do
@@ -253,8 +236,8 @@ defmodule JidoCode.Forge.Operations do
   end
 
   defp save_checkpoint(session, sprites_checkpoint_id, name) do
-    Checkpoint
-    |> Ash.Changeset.for_create(:create, %{
+    RecordStore.create_checkpoint(%{
+      managed_repo_id: Map.get(session, :managed_repo_id),
       session_id: session.id,
       sprites_checkpoint_id: sprites_checkpoint_id,
       name: name,
@@ -262,6 +245,5 @@ defmodule JidoCode.Forge.Operations do
       runner_state_snapshot: session.runner_state,
       metadata: %{created_at: DateTime.utc_now()}
     })
-    |> Ash.create()
   end
 end

@@ -7,10 +7,8 @@ defmodule JidoCode.Setup.OwnerRecovery do
 
   require Logger
 
-  alias AshAuthentication.{Info, Strategy}
-  alias AshAuthentication.Strategy.Password
   alias JidoCode.Accounts.User
-  alias JidoCode.Setup.OwnerBootstrap
+  alias JidoCode.Setup.{BootstrapToken, OwnerBootstrap, OwnerStore}
 
   @audit_event [:jido_code, :auth, :owner_recovery, :completed]
   @verification_phrase "RECOVER OWNER ACCESS"
@@ -28,7 +26,7 @@ defmodule JidoCode.Setup.OwnerRecovery do
   """
   @type audit_metadata :: %{
           route: String.t(),
-          owner_id: Ecto.UUID.t() | String.t(),
+          owner_id: JidoCode.UUID.t() | String.t(),
           owner_email: String.t(),
           recovery_mode: :bootstrap,
           verified_at: DateTime.t(),
@@ -60,15 +58,14 @@ defmodule JidoCode.Setup.OwnerRecovery do
     with {:ok, owner} <- fetch_owner_for_recovery(),
          {:ok, normalized_params} <- normalize_params(params),
          :ok <- verify_recovery(owner, normalized_params),
-         {:ok, signed_in_owner} <- reset_and_sign_in(owner, normalized_params),
-         {:ok, token} <- fetch_token(signed_in_owner),
-         {:ok, promoted_owner} <- maybe_promote_bootstrap_admin(signed_in_owner) do
-      audit = build_audit_metadata(promoted_owner)
+         {:ok, recovered_owner} <- recover_owner(owner),
+         {:ok, token} <- BootstrapToken.issue(recovered_owner) do
+      audit = build_audit_metadata(recovered_owner)
       emit_audit_event(audit)
 
       {:ok,
        %{
-         owner: promoted_owner,
+         owner: recovered_owner,
          token: token,
          owner_mode: :recovered,
          validated_note: "Owner account recovered.",
@@ -183,59 +180,7 @@ defmodule JidoCode.Setup.OwnerRecovery do
     end
   end
 
-  defp reset_and_sign_in(owner, normalized_params) do
-    strategy = password_strategy()
-
-    with {:ok, reset_token} <- Password.reset_token_for(strategy, owner),
-         {:ok, _recovered_owner} <- run_reset(strategy, reset_token, normalized_params),
-         {:ok, signed_in_owner} <- run_sign_in(strategy, normalized_params) do
-      {:ok, signed_in_owner}
-    else
-      :error ->
-        {:error, {:owner_recovery_failed, @token_generation_error}}
-
-      {:error, reason} ->
-        {:error, {:owner_recovery_failed, format_authentication_error(reason)}}
-    end
-  end
-
-  defp run_reset(strategy, reset_token, normalized_params) do
-    Strategy.action(
-      strategy,
-      :reset,
-      %{
-        "reset_token" => reset_token,
-        "password" => normalized_params.password,
-        "password_confirmation" => normalized_params.password_confirmation
-      },
-      context: %{token_type: :sign_in}
-    )
-  end
-
-  defp run_sign_in(strategy, normalized_params) do
-    Strategy.action(
-      strategy,
-      :sign_in,
-      %{
-        "email" => normalized_params.email,
-        "password" => normalized_params.password
-      },
-      context: %{token_type: :sign_in}
-    )
-  end
-
-  defp fetch_token(owner) do
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.get(:token)
-
-    if is_binary(token) and token != "" do
-      {:ok, token}
-    else
-      {:error, {:owner_recovery_failed, @token_generation_error}}
-    end
-  end
+  defp recover_owner(%User{} = owner), do: maybe_promote_bootstrap_admin(owner)
 
   defp build_audit_metadata(owner) do
     %{
@@ -251,9 +196,9 @@ defmodule JidoCode.Setup.OwnerRecovery do
   defp maybe_promote_bootstrap_admin(%User{is_admin: true} = owner), do: {:ok, owner}
 
   defp maybe_promote_bootstrap_admin(%User{} = owner) do
-    case User.promote_to_admin(owner, authorize?: false) do
+    case OwnerStore.promote_to_admin(owner) do
       {:ok, promoted_owner} -> {:ok, Map.put(promoted_owner, :__metadata__, Map.get(owner, :__metadata__, %{}))}
-      {:error, reason} -> {:error, {:owner_recovery_failed, format_authentication_error(reason)}}
+      {:error, reason} -> {:error, {:owner_recovery_failed, format_store_error(reason)}}
     end
   end
 
@@ -284,11 +229,9 @@ defmodule JidoCode.Setup.OwnerRecovery do
     ]
   end
 
-  defp password_strategy do
-    Info.strategy!(User, :password)
-  end
+  defp format_store_error(:invalid_owner), do: @token_generation_error
 
-  defp format_authentication_error(error) do
+  defp format_store_error(error) do
     case error do
       exception when is_exception(exception) ->
         exception

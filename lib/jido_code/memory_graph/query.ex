@@ -58,13 +58,18 @@ defmodule JidoCode.MemoryGraph.Query do
   defp execute_query(graph, query, graph_context, sparql) do
     timeout = Config.query_timeout([])
 
-    query_task = Task.async(fn ->
-      do_execute_query(graph, query, graph_context, sparql)
-    end)
+    query_task =
+      Task.async(fn ->
+        do_execute_query(graph, query, graph_context, sparql)
+      end)
 
     case Task.yield(query_task, timeout) || Task.shutdown(query_task, :brutal_kill) do
-      {:ok, result} -> result
-      nil -> {:error, :memory_graph_query_timeout, failure_diagnostics(graph_context, :execute_query, :timeout, timeout_ms: timeout)}
+      {:ok, result} ->
+        result
+
+      nil ->
+        {:error, :memory_graph_query_timeout,
+         failure_diagnostics(graph_context, :execute_query, :timeout, timeout_ms: timeout)}
     end
   end
 
@@ -91,9 +96,10 @@ defmodule JidoCode.MemoryGraph.Query do
   defp open_store(store_path) do
     timeout = Config.store_timeout([])
 
-    open_task = Task.async(fn ->
-      TripleStore.open(store_path, create_if_missing: false, schema: :quad)
-    end)
+    open_task =
+      Task.async(fn ->
+        TripleStore.open(store_path, create_if_missing: false, schema: :quad)
+      end)
 
     case Task.yield(open_task, timeout) || Task.shutdown(open_task, :brutal_kill) do
       {:ok, {:ok, store}} ->

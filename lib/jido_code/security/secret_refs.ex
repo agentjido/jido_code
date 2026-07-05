@@ -3,10 +3,7 @@ defmodule JidoCode.Security.SecretRefs do
   SecretRef persistence and metadata reads for `/settings/security`.
   """
 
-  require Ash.Query
-
-  alias JidoCode.{Repo, Security}
-  alias JidoCode.Security.{Encryption, SecretLifecycleAudit, SecretRef}
+  alias JidoCode.Security.{Encryption, SecretLifecycleAudit, SecretRef, SecretRefStore}
 
   @provider_secret_specs %{
     anthropic: %{scope: :integration, name: "providers/anthropic_api_key"},
@@ -48,6 +45,7 @@ defmodule JidoCode.Security.SecretRefs do
   """
 
   @default_actor_id "system"
+  @max_key_version 9_223_372_036_854_775_807
 
   @typedoc """
   Typed secret persistence/read error payload with remediation guidance.
@@ -62,7 +60,7 @@ defmodule JidoCode.Security.SecretRefs do
   Non-sensitive SecretRef fields safe for settings displays.
   """
   @type secret_metadata :: %{
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           key_version: integer(),
@@ -75,8 +73,8 @@ defmodule JidoCode.Security.SecretRefs do
   Persisted lifecycle audit entry for secret create/rotate/revoke actions.
   """
   @type secret_lifecycle_audit :: %{
-          id: Ecto.UUID.t(),
-          secret_ref_id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
+          secret_ref_id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           action_type: :create | :rotate | :revoke,
@@ -90,7 +88,7 @@ defmodule JidoCode.Security.SecretRefs do
   Revocation metadata returned when a SecretRef is revoked.
   """
   @type revoked_secret :: %{
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           revoked_at: DateTime.t()
@@ -106,7 +104,7 @@ defmodule JidoCode.Security.SecretRefs do
   """
   @type provider_credential_context :: %{
           provider: provider(),
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :integration,
           name: String.t(),
           key_version: integer(),
@@ -148,7 +146,7 @@ defmodule JidoCode.Security.SecretRefs do
   Decrypted operational secret value with non-sensitive metadata.
   """
   @type operational_secret_value :: %{
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           key_version: integer(),
@@ -558,7 +556,7 @@ defmodule JidoCode.Security.SecretRefs do
   """
   @spec list_secret_metadata() :: {:ok, [secret_metadata()]} | {:error, typed_error()}
   def list_secret_metadata do
-    case SecretRef.list_metadata(authorize?: false) do
+    case SecretRefStore.list_secret_refs() do
       {:ok, records} ->
         {:ok, Enum.map(records, &to_metadata/1)}
 
@@ -577,11 +575,7 @@ defmodule JidoCode.Security.SecretRefs do
   """
   @spec list_secret_lifecycle_audits() :: {:ok, [secret_lifecycle_audit()]} | {:error, typed_error()}
   def list_secret_lifecycle_audits do
-    query =
-      SecretLifecycleAudit
-      |> Ash.Query.sort(occurred_at: :desc, inserted_at: :desc)
-
-    case Ash.read(query, domain: Security, authorize?: false) do
+    case SecretRefStore.list_lifecycle_audits() do
       {:ok, records} ->
         {:ok, Enum.map(records, &to_lifecycle_audit/1)}
 
@@ -596,54 +590,41 @@ defmodule JidoCode.Security.SecretRefs do
   end
 
   defp persist_secret_ref_with_audit(scope, name, encrypted_ciphertext, source, actor) do
-    case Repo.transaction(fn ->
-           with {:ok, secret_ref} <- create_secret_ref(scope, name, encrypted_ciphertext, source),
-                {:ok, _audit_entry} <-
-                  persist_secret_lifecycle_audit(
-                    secret_ref,
-                    lifecycle_action_for_secret_ref(secret_ref),
-                    :succeeded,
-                    actor
-                  ) do
-             secret_ref
-           else
-             {:error, :audit_persistence_failed} ->
-               Repo.rollback(:audit_persistence_failed)
+    with {:ok, previous_secret_ref} <- get_secret_ref(scope, name),
+         {:ok, secret_ref} <- create_secret_ref(scope, name, encrypted_ciphertext, source) do
+      case persist_secret_lifecycle_audit(
+             secret_ref,
+             lifecycle_action_for_secret_ref(secret_ref),
+             :succeeded,
+             actor
+           ) do
+        {:ok, _audit_entry} ->
+          {:ok, secret_ref}
 
-             {:error, reason} ->
-               Repo.rollback(reason)
-           end
-         end) do
-      {:ok, secret_ref} -> {:ok, secret_ref}
-      {:error, reason} -> {:error, reason}
+        {:error, :audit_persistence_failed} ->
+          rollback_secret_ref_after_audit_failure(previous_secret_ref, secret_ref)
+          {:error, :audit_persistence_failed}
+      end
     end
   end
 
   defp revoke_secret_ref_with_audit(secret_ref_id, actor) do
-    case Repo.transaction(fn ->
-           with {:ok, secret_ref} <- get_secret_ref_by_id(secret_ref_id),
-                :ok <- destroy_secret_ref(secret_ref),
-                {:ok, _audit_entry} <-
-                  persist_secret_lifecycle_audit(secret_ref, :revoke, :succeeded, actor) do
-             %{
-               id: secret_ref.id,
-               scope: secret_ref.scope,
-               name: secret_ref.name,
-               revoked_at: DateTime.utc_now() |> DateTime.truncate(:second)
-             }
-           else
-             {:error, :not_found} ->
-               Repo.rollback(:not_found)
+    with {:ok, secret_ref} <- get_secret_ref_by_id(secret_ref_id),
+         :ok <- destroy_secret_ref(secret_ref) do
+      case persist_secret_lifecycle_audit(secret_ref, :revoke, :succeeded, actor) do
+        {:ok, _audit_entry} ->
+          {:ok,
+           %{
+             id: secret_ref.id,
+             scope: secret_ref.scope,
+             name: secret_ref.name,
+             revoked_at: DateTime.utc_now() |> DateTime.truncate(:second)
+           }}
 
-             {:error, :audit_persistence_failed} ->
-               Repo.rollback(:audit_persistence_failed)
-
-             {:error, reason} ->
-               Repo.rollback(reason)
-           end
-         end) do
-      {:ok, revoked_secret} -> {:ok, revoked_secret}
-      {:error, reason} -> {:error, reason}
+        {:error, :audit_persistence_failed} ->
+          restore_secret_ref(secret_ref)
+          {:error, :audit_persistence_failed}
+      end
     end
   end
 
@@ -710,35 +691,31 @@ defmodule JidoCode.Security.SecretRefs do
 
   @doc false
   def default_secret_lifecycle_audit_persister(attributes) when is_map(attributes) do
-    SecretLifecycleAudit.create(attributes, authorize?: false)
+    SecretRefStore.create_lifecycle_audit(attributes)
   end
 
   defp create_secret_ref(scope, name, encrypted_ciphertext, source) do
     with {:ok, existing_secret_ref} <- get_secret_ref(scope, name),
          {:ok, key_version} <- next_key_version(existing_secret_ref) do
-      SecretRef.create(
-        %{
-          scope: scope,
-          name: name,
-          ciphertext: encrypted_ciphertext,
-          source: metadata_source(source, existing_secret_ref),
-          key_version: key_version,
-          last_rotated_at: DateTime.utc_now() |> DateTime.truncate(:second)
-        },
-        authorize?: false
-      )
+      SecretRefStore.upsert_secret_ref(%{
+        id: existing_secret_ref && existing_secret_ref.id,
+        scope: scope,
+        name: name,
+        ciphertext: encrypted_ciphertext,
+        source: metadata_source(source, existing_secret_ref),
+        key_version: key_version,
+        last_rotated_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        expires_at: existing_secret_ref && existing_secret_ref.expires_at
+      })
     end
   end
 
   defp destroy_secret_ref(%SecretRef{} = secret_ref) do
-    case Ash.destroy(secret_ref, domain: Security, authorize?: false) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+    SecretRefStore.delete_secret_ref(secret_ref)
   end
 
   defp get_secret_ref(scope, name) do
-    case SecretRef.get_by_scope_name(scope, name, authorize?: false) do
+    case SecretRefStore.get_by_scope_name(scope, name) do
       {:ok, %SecretRef{} = secret_ref} ->
         {:ok, secret_ref}
 
@@ -746,38 +723,13 @@ defmodule JidoCode.Security.SecretRefs do
         {:ok, nil}
 
       {:error, reason} ->
-        if secret_ref_not_found?(reason) do
-          {:ok, nil}
-        else
-          {:error, reason}
-        end
+        {:error, reason}
     end
   end
 
   defp get_secret_ref_by_id(secret_ref_id) do
-    query =
-      SecretRef
-      |> Ash.Query.filter(id == ^secret_ref_id)
-      |> Ash.Query.limit(1)
-
-    case Ash.read(query, domain: Security, authorize?: false) do
-      {:ok, [secret_ref | _rest]} -> {:ok, secret_ref}
-      {:ok, []} -> {:error, :not_found}
-      {:error, reason} -> {:error, reason}
-    end
+    SecretRefStore.get_by_id(secret_ref_id)
   end
-
-  defp secret_ref_not_found?(%Ash.Error.Query.NotFound{}), do: true
-
-  defp secret_ref_not_found?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &secret_ref_not_found?/1)
-  end
-
-  defp secret_ref_not_found?(%{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &secret_ref_not_found?/1)
-  end
-
-  defp secret_ref_not_found?(_reason), do: false
 
   defp require_existing_secret_ref(%SecretRef{} = secret_ref), do: {:ok, secret_ref}
   defp require_existing_secret_ref(nil), do: {:error, :not_found}
@@ -785,7 +737,8 @@ defmodule JidoCode.Security.SecretRefs do
 
   defp next_key_version(nil), do: {:ok, 1}
 
-  defp next_key_version(%SecretRef{key_version: key_version}) when is_integer(key_version) do
+  defp next_key_version(%SecretRef{key_version: key_version})
+       when is_integer(key_version) and key_version < @max_key_version do
     {:ok, key_version + 1}
   end
 
@@ -1113,18 +1066,15 @@ defmodule JidoCode.Security.SecretRefs do
   end
 
   defp restore_secret_ref(%SecretRef{} = secret_ref) do
-    SecretRef.create(
-      %{
-        scope: secret_ref.scope,
-        name: secret_ref.name,
-        ciphertext: secret_ref.ciphertext,
-        source: secret_ref.source,
-        key_version: secret_ref.key_version,
-        last_rotated_at: secret_ref.last_rotated_at,
-        expires_at: secret_ref.expires_at
-      },
-      authorize?: false
-    )
+    SecretRefStore.restore_secret_ref(secret_ref)
+  end
+
+  defp rollback_secret_ref_after_audit_failure(nil, %SecretRef{} = secret_ref) do
+    destroy_secret_ref(secret_ref)
+  end
+
+  defp rollback_secret_ref_after_audit_failure(%SecretRef{} = previous_secret_ref, %SecretRef{}) do
+    restore_secret_ref(previous_secret_ref)
   end
 
   defp build_rotation_report(

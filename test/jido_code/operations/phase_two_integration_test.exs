@@ -15,9 +15,10 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
   # covers: architecture.work_synthesis.work_item_auditability_preserved
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{Actor, ManagedRepoStore, RepoBridge}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.GitHub.{Repo, WebhookDelivery, WebhookPipeline}
-  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, WorkItem}
+  alias JidoCode.Operations.RecordStore
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
   alias JidoCode.Setup.ProjectImport
@@ -25,6 +26,7 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
 
   @managed_env_keys [
     :setup_project_importer,
+    :setup_project_import_intake_recorder,
     :setup_project_clone_provisioner,
     :setup_project_baseline_syncer,
     :workbench_fix_workflow_launcher
@@ -46,11 +48,17 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
     Application.delete_env(:jido_code, :setup_project_clone_provisioner)
     Application.delete_env(:jido_code, :setup_project_baseline_syncer)
 
+    Application.put_env(
+      :jido_code,
+      :setup_project_import_intake_recorder,
+      &JidoCode.Operations.Ingress.record_operator_intake/1
+    )
+
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn _kickoff_request ->
       {:ok, %{run_id: "phase-two-fix-run-#{System.unique_integer([:positive])}"}}
     end)
 
-    :ok
+    setup_product_store()
   end
 
   test "verified webhook pipeline records the full demand-to-work chain for tracked GitHub issues" do
@@ -66,8 +74,7 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     {:ok, _github_repo} =
       Repo.create(%{
@@ -107,34 +114,22 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
     assert webhook_delivery.event_type == "issues.opened"
 
     assert {:ok, external_object} =
-             ExternalObject.get_by_canonical_key(
-               "github:github_issue:owner/repo-pipeline:99123",
-               actor: Actor.operator_actor()
-             )
+             RecordStore.get_external_object_by_canonical_key("github:github_issue:owner/repo-pipeline:99123")
 
     assert {:ok, [observation]} =
-             Observation.read(
-               query: [filter: [managed_repo_id: managed_repo.id, external_object_id: external_object.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:observation, %{
+               managed_repo_id: managed_repo.id,
+               external_object_id: external_object.id
+             })
 
     assert {:ok, [event]} =
-             Event.read(
-               query: [filter: [managed_repo_id: managed_repo.id, observation_id: observation.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:event, %{managed_repo_id: managed_repo.id, observation_id: observation.id})
 
     assert {:ok, [assessment]} =
-             Assessment.read(
-               query: [filter: [managed_repo_id: managed_repo.id, event_id: event.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:assessment, %{managed_repo_id: managed_repo.id, event_id: event.id})
 
     assert {:ok, [work_item]} =
-             WorkItem.read(
-               query: [filter: [managed_repo_id: managed_repo.id, assessment_id: assessment.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:work_item, %{managed_repo_id: managed_repo.id, assessment_id: assessment.id})
 
     assert observation.captured_by["delivery_id"] == "phase-two-webhook-1"
     assert event.category == "external.github.issue.opened"
@@ -165,38 +160,23 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
 
     refute ProjectImport.blocked?(report)
 
-    {:ok, [managed_repo]} =
-      ManagedRepo.read(
-        query: [filter: [id: report.project_record.id], limit: 1],
-        actor: Actor.operator_actor()
-      )
+    assert {:ok, managed_repo} = ManagedRepoStore.get_by_id(report.project_record.id)
 
     assert {:ok, [intake]} =
-             Intake.read(
-               query: [
-                 filter: [managed_repo_id: managed_repo.id, channel: "setup", intent: "project_import"],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:intake, %{
+               managed_repo_id: managed_repo.id,
+               channel: "setup",
+               intent: "project_import"
+             })
 
     assert {:ok, [event]} =
-             Event.read(
-               query: [filter: [managed_repo_id: managed_repo.id, intake_id: intake.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:event, %{managed_repo_id: managed_repo.id, intake_id: intake.id})
 
     assert {:ok, [assessment]} =
-             Assessment.read(
-               query: [filter: [managed_repo_id: managed_repo.id, event_id: event.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:assessment, %{managed_repo_id: managed_repo.id, event_id: event.id})
 
     assert {:ok, [work_item]} =
-             WorkItem.read(
-               query: [filter: [managed_repo_id: managed_repo.id, assessment_id: assessment.id], limit: 1],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:work_item, %{managed_repo_id: managed_repo.id, assessment_id: assessment.id})
 
     assert work_item.recommended_action == "prepare_managed_repo"
     assert work_item.status == :open
@@ -218,8 +198,7 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     assert {:ok, _first_run} =
              FixWorkflowKickoff.kickoff(
@@ -236,29 +215,18 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
              )
 
     assert {:ok, [work_item]} =
-             WorkItem.read(
-               query: [
-                 filter: [
-                   managed_repo_id: managed_repo.id,
-                   recommended_action: "launch_fix_workflow",
-                   status: :open
-                 ],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:work_item, %{
+               managed_repo_id: managed_repo.id,
+               recommended_action: "launch_fix_workflow",
+               status: :open
+             })
 
     assert {:ok, work_items} =
-             WorkItem.read(
-               query: [
-                 filter: [
-                   managed_repo_id: managed_repo.id,
-                   recommended_action: "launch_fix_workflow",
-                   status: :open
-                 ]
-               ],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:work_item, %{
+               managed_repo_id: managed_repo.id,
+               recommended_action: "launch_fix_workflow",
+               status: :open
+             })
 
     assert length(work_items) == 1
 
@@ -273,4 +241,34 @@ defmodule JidoCode.Operations.PhaseTwoIntegrationTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp seed_managed_repo!(project) do
+    {:ok, %{managed_repo: managed_repo}} =
+      RepoBridge.upsert_managed_repo(%{
+        name: project.name,
+        full_name: project.github_full_name,
+        default_branch: project.default_branch,
+        legacy_project_id: project.id,
+        settings: project.settings || %{}
+      })
+
+    managed_repo
+  end
+
+  defp setup_product_store do
+    store_name = :"operations_phase_two_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_operations_phase_two/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

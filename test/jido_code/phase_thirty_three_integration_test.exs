@@ -13,6 +13,7 @@ defmodule JidoCode.PhaseThirtyThreeIntegrationTest do
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Governance.{Decision, Evidence}
   alias JidoCode.MemoryGraph
+
   alias JidoCode.MemoryGraph.{
     CaptureEnvelope,
     DurableMemoryEnvelope,

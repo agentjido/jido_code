@@ -53,16 +53,9 @@ defmodule JidoCodeWeb.Endpoint do
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
-    # covers: developer.workflow.dev_browser_requests_do_not_autorun_ash_codegen
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
-
-    if Application.compile_env(:jido_code, :ash_codegen_status_check?, false) do
-      plug AshPhoenix.Plug.CheckCodegenStatus
-    end
-
-    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :jido_code
   end
 
   plug Phoenix.LiveDashboard.RequestLogger,
@@ -73,7 +66,7 @@ defmodule JidoCodeWeb.Endpoint do
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json, AshJsonApi.Plug.Parser],
+    parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library(),
     body_reader: {JidoCodeWeb.RawBodyReader, :read_body, []}

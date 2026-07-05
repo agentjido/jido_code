@@ -8,10 +8,8 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
 
   import Phoenix.LiveViewTest
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
-  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
-  alias JidoCode.Repo
+  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfigStore}
+  alias JidoCode.Setup.OwnerStore
 
   @resolver_env :provider_auth_broker_jwks_resolver
   @managed_app_env_keys [
@@ -49,7 +47,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
       end)
     end)
 
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
+    assert {:ok, _count} = OwnerStore.delete_all_users()
 
     :ok
   end
@@ -172,7 +170,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     response = json_response(response_conn, 422)
 
     assert response["error"]["error_type"] == "provider_identity_not_allowlisted"
-    assert get_session(response_conn, "user_token") == nil
+    assert get_session(response_conn, "product_user_token") == nil
 
     {authed_conn, _session_token, _owner} =
       authenticate_bootstrap_owner_conn("owner@example.com", "owner-password-123")
@@ -244,71 +242,33 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
       }
       |> Map.merge(Map.new(overrides))
 
-    {:ok, config} = ProviderConfig.upsert(attrs, authorize?: false)
+    {:ok, config} = ProviderConfigStore.upsert(attrs)
     config
   end
 
   defp bootstrap_owner(email, password) do
-    case User.bootstrap_admin(
-           %{
-             email: email,
-             password: password,
-             password_confirmation: password
-           },
-           authorize?: false
-         ) do
+    JidoCodeWeb.ConnCase.register_owner(email, password)
+    seed_product_owner!(email)
+  end
+
+  defp seed_product_owner!(email) do
+    case OwnerStore.get_by_email(email) do
+      {:ok, nil} ->
+        {:ok, _owner} = OwnerStore.create_owner(%{email: email})
+
       {:ok, _owner} ->
         :ok
-
-      {:error, reason} ->
-        if Exception.message(reason) =~ "has already been taken" do
-          :ok
-        else
-          raise "owner bootstrap failed: #{Exception.message(reason)}"
-        end
     end
+
+    :ok
   end
 
   defp authenticate_bootstrap_owner_conn(email, password) do
-    strategy = Info.strategy!(User, :password)
+    {auth_response, session_token, owner} =
+      JidoCodeWeb.ConnCase.authenticate_owner_conn(email, password, return_owner: true)
 
-    {:ok, owner} =
-      Strategy.action(
-        strategy,
-        :sign_in,
-        %{"email" => email, "password" => password},
-        context: %{token_type: :sign_in}
-      )
-
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.fetch!(:token)
-
-    auth_response = build_conn() |> get(bootstrap_owner_sign_in_with_token_path(strategy, token))
-    assert redirected_to(auth_response, 302) == "/dashboard"
-    session_token = get_session(auth_response, "user_token")
     assert is_binary(session_token)
     {recycle(auth_response), session_token, owner}
-  end
-
-  defp bootstrap_owner_sign_in_with_token_path(strategy, token) do
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
-    query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
   end
 
   defp handoff_token(jwk, overrides) do

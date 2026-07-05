@@ -76,8 +76,7 @@ defmodule JidoCode.Setup.GitHubRepositoryListingTest do
               "repository_access" => "unconfirmed",
               "detail" =>
                 "GitHub App credentials are not fully configured (`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are required).",
-              "remediation" =>
-                "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, then retry validation.",
+              "remediation" => "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, then retry validation.",
               "error_type" => "github_app_not_configured"
             },
             %{

@@ -26,7 +26,9 @@ defmodule JidoCode.MemoryGraph.Health do
     with {:ok, store} <- open_store_for_health(store_path) do
       try do
         memory_health = check_named_graph(store, MemoryGraph.memory_named_graph_resource(), :memory)
-        workflow_health = check_named_graph(store, MemoryGraph.workflow_provenance_named_graph_resource(), :workflow_provenance)
+
+        workflow_health =
+          check_named_graph(store, MemoryGraph.workflow_provenance_named_graph_resource(), :workflow_provenance)
 
         overall_status = determine_overall_status([memory_health, workflow_health])
 
@@ -90,9 +92,10 @@ defmodule JidoCode.MemoryGraph.Health do
   defp open_store_for_health(store_path) do
     timeout = Config.store_timeout([])
 
-    open_task = Task.async(fn ->
-      TripleStore.open(store_path, create_if_missing: false, schema: :quad)
-    end)
+    open_task =
+      Task.async(fn ->
+        TripleStore.open(store_path, create_if_missing: false, schema: :quad)
+      end)
 
     case Task.yield(open_task, timeout) || Task.shutdown(open_task, :brutal_kill) do
       {:ok, {:ok, store}} -> {:ok, store}

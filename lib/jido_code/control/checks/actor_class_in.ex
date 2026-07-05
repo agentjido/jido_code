@@ -3,16 +3,12 @@ defmodule JidoCode.Control.Checks.ActorClassIn do
   # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   @moduledoc false
 
-  use Ash.Policy.SimpleCheck
-
   alias JidoCode.Control.Actor
 
-  @impl true
   def match?(actor, _context, opts) do
     {:ok, Actor.allowed?(Actor.effective_actor(actor), Keyword.get(opts, :classes, []))}
   end
 
-  @impl true
   def describe(opts) do
     allowed =
       opts

@@ -70,7 +70,7 @@ defmodule JidoCode.Conversations.ChildWork do
     payload = Map.get(turn, :payload, %{})
 
     %__MODULE__{
-      id: Ecto.UUID.generate(),
+      id: JidoCode.UUID.generate(),
       conversation_id: conversation.id,
       managed_repo_id: conversation.managed_repo_id,
       work_item_id: conversation.work_item_id,
@@ -78,9 +78,8 @@ defmodule JidoCode.Conversations.ChildWork do
       turn_id: turn.id,
       tool_call_id:
         optional_string(map_get(attrs, :tool_call_id) || map_get(payload, :tool_call_id)) ||
-          Ecto.UUID.generate(),
-      kind:
-        optional_string(map_get(attrs, :kind) || map_get(payload, :execution_kind)) || "tool_call",
+          JidoCode.UUID.generate(),
+      kind: optional_string(map_get(attrs, :kind) || map_get(payload, :execution_kind)) || "tool_call",
       state: :queued,
       inserted_at: inserted_at,
       lifecycle: [lifecycle_entry(:queued, inserted_at)]
@@ -90,7 +89,7 @@ defmodule JidoCode.Conversations.ChildWork do
   @spec from_summary(map()) :: t()
   def from_summary(summary) when is_map(summary) do
     %__MODULE__{
-      id: normalize_optional_string(map_get(summary, :id)) || Ecto.UUID.generate(),
+      id: normalize_optional_string(map_get(summary, :id)) || JidoCode.UUID.generate(),
       conversation_id: normalize_optional_string(map_get(summary, :conversation_id)),
       managed_repo_id: normalize_optional_string(map_get(summary, :managed_repo_id)),
       work_item_id: normalize_optional_string(map_get(summary, :work_item_id)),

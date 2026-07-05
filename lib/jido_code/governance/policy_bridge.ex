@@ -9,8 +9,8 @@ defmodule JidoCode.Governance.PolicyBridge do
   Derives the default governance policy set from transitional managed-repo state.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{PolicySet, RepoPosture}
+  alias JidoCode.Control.ManagedRepoStore
+  alias JidoCode.Governance.{PolicySet, RecordStore}
 
   @approval_mode_auto_post "auto_post"
   @approval_mode_approval_required "approval_required"
@@ -26,17 +26,15 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   @spec sync_managed_repo(struct() | map()) :: {:ok, PolicySet.t()} | {:error, term()}
   def sync_managed_repo(%{} = managed_repo) do
-    PolicySet.upsert_default_for_managed_repo(
-      %{
-        managed_repo_id: map_get(managed_repo, :id, "id"),
-        review_policy: review_policy_from_repo(managed_repo),
-        policy_metadata: %{
-          "legacy_project_id" => map_get(managed_repo, :legacy_project_id, "legacy_project_id"),
-          "source" => "managed_repo_projection"
-        }
-      },
-      actor: Actor.factory_system_actor()
-    )
+    RecordStore.upsert_policy_set(%{
+      managed_repo_id: map_get(managed_repo, :id, "id"),
+      name: "default",
+      review_policy: review_policy_from_repo(managed_repo),
+      policy_metadata: %{
+        "legacy_project_id" => map_get(managed_repo, :legacy_project_id, "legacy_project_id"),
+        "source" => "managed_repo_projection"
+      }
+    })
   end
 
   def sync_managed_repo(_managed_repo), do: {:error, :invalid_managed_repo}
@@ -52,11 +50,11 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   @spec configured_review_policy_for_managed_repo(term()) :: {:ok, map()}
   def configured_review_policy_for_managed_repo(managed_repo_id) when is_binary(managed_repo_id) do
-    case PolicySet.get_by_managed_repo_name(managed_repo_id, "default", actor: Actor.factory_system_actor()) do
-      {:ok, policy_set} ->
+    case RecordStore.get_policy_set_by_managed_repo_name(managed_repo_id, "default") do
+      {:ok, policy_set} when not is_nil(policy_set) ->
         {:ok, normalize_review_policy(policy_set.review_policy)}
 
-      {:error, _reason} ->
+      _other ->
         {:ok, default_review_policy()}
     end
   end
@@ -65,7 +63,7 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   @spec review_policy_for_project(term()) :: {:ok, map()}
   def review_policy_for_project(project_id) when is_binary(project_id) do
-    with {:ok, managed_repo} <- ManagedRepo.get_by_legacy_project_id(project_id, actor: Actor.factory_system_actor()) do
+    with {:ok, managed_repo} when not is_nil(managed_repo) <- ManagedRepoStore.get_by_legacy_project_id(project_id) do
       review_policy_for_managed_repo(managed_repo.id)
     else
       _other -> {:ok, default_review_policy()}
@@ -309,7 +307,7 @@ defmodule JidoCode.Governance.PolicyBridge do
   end
 
   defp repo_posture(managed_repo_id) do
-    case RepoPosture.get_by_managed_repo_id(managed_repo_id, actor: Actor.factory_system_actor()) do
+    case RecordStore.get_repo_posture_by_managed_repo_id(managed_repo_id) do
       {:ok, repo_posture} -> repo_posture
       _other -> nil
     end

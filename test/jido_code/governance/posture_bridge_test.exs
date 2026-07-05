@@ -6,11 +6,18 @@ defmodule JidoCode.Governance.PostureBridgeTest do
   # covers: architecture.vsm_recursion.algedonic_escalation
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{Evidence, PostureBridge, PostureCheck, RepoPosture}
-  alias JidoCode.Operations.{Ingress, Observation}
+  alias JidoCode.Control.ManagedRepoStore
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Governance.PostureBridge
+  alias JidoCode.Governance.RecordStore, as: GovernanceStore
+  alias JidoCode.Operations.Ingress
+  alias JidoCode.Operations.RecordStore, as: OperationsStore
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "repo posture and posture checks stay explainable across observations assessments and evidence" do
     workspace_path = create_workspace_path!()
@@ -32,11 +39,9 @@ defmodule JidoCode.Governance.PostureBridgeTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
-    assert {:ok, base_posture} =
-             RepoPosture.get_by_managed_repo_id(managed_repo.id, actor: Actor.operator_actor())
+    assert {:ok, %{repo_posture: base_posture}} = PostureBridge.sync_managed_repo(managed_repo)
 
     assert base_posture.execution_readiness == "high"
     assert base_posture.validation_reliability == "high"
@@ -76,23 +81,18 @@ defmodule JidoCode.Governance.PostureBridgeTest do
     assert workflow_run.error["detail"] =~ "Validation failed"
 
     assert {:ok, [failure_evidence]} =
-             Evidence.read(
-               query: [
-                 filter: [managed_repo_id: managed_repo.id, key: "failure_context"],
-                 sort: [recorded_at: :desc],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
+             GovernanceStore.list_evidence(
+               %{
+                 managed_repo_id: managed_repo.id,
+                 key: "failure_context"
+               },
+               query: [sort: [recorded_at: :desc], limit: 1]
              )
 
     assert {:ok, [spec_observation]} =
-             Observation.read(
-               query: [
-                 filter: [managed_repo_id: managed_repo.id, source: "repo_native", category: "spec_led_state"],
-                 sort: [observed_at: :desc],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
+             OperationsStore.list(
+               :observation,
+               %{managed_repo_id: managed_repo.id, source: "repo_native", category: "spec_led_state"}
              )
 
     assert {:ok, %{repo_posture: refreshed_posture, posture_checks: posture_checks}} =
@@ -113,16 +113,11 @@ defmodule JidoCode.Governance.PostureBridgeTest do
     assert requirements_check.assessment_id == assessment.id
     assert recovery_check.evidence_id == failure_evidence.id
 
-    assert {:ok, persisted_posture} =
-             RepoPosture.get_by_managed_repo_id(managed_repo.id, actor: Actor.operator_actor())
+    assert {:ok, persisted_posture} = GovernanceStore.get_repo_posture_by_managed_repo_id(managed_repo.id)
 
     assert persisted_posture.summary =~ "Repo posture is"
 
-    assert {:ok, persisted_checks} =
-             PostureCheck.read(
-               query: [filter: [managed_repo_id: managed_repo.id]],
-               actor: Actor.operator_actor()
-             )
+    assert {:ok, persisted_checks} = GovernanceStore.list_posture_checks(%{managed_repo_id: managed_repo.id})
 
     assert length(persisted_checks) == 7
   end
@@ -153,8 +148,7 @@ defmodule JidoCode.Governance.PostureBridgeTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     assert {:ok, %{repo_posture: repo_posture, posture_checks: posture_checks}} =
              PostureBridge.sync_managed_repo(managed_repo)
@@ -225,4 +219,24 @@ defmodule JidoCode.Governance.PostureBridgeTest do
 
     File.write!(Path.join(spec_dir, "state.json"), Jason.encode!(state))
   end
+
+  defp setup_product_store do
+    store_name = :"posture_bridge_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_posture_bridge/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

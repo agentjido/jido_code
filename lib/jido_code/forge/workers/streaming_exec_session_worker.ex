@@ -10,10 +10,10 @@ defmodule JidoCode.Forge.Workers.StreamingExecSessionWorker do
 
   require Logger
 
+  alias JidoCode.ExecutionRuntime.RecordStore
   alias JidoCode.Forge.ChannelRedaction
   alias JidoCode.Forge.EventLogger
   alias JidoCode.Forge.PubSub, as: ForgePubSub
-  alias JidoCode.Forge.Resources.ExecSession
 
   @chunk_coalesce_ms 50
   @max_buffer_size 64 * 1024
@@ -170,28 +170,24 @@ defmodule JidoCode.Forge.Workers.StreamingExecSessionWorker do
   end
 
   defp create_exec_session_record(session_id, sequence, command, sprites_session_id, metadata) do
-    ExecSession
-    |> Ash.Changeset.for_create(:start, %{
+    RecordStore.create_exec_session(%{
       session_id: session_id,
       sequence: sequence,
       command: command,
       sprites_session_id: sprites_session_id,
       metadata: metadata
     })
-    |> Ash.create()
   end
 
   defp complete_exec_session(state, result_status, exit_code, duration_ms) do
     with {:ok, redacted_output} <- redact_exec_output(state, truncate_output(state.total_output)) do
-      ExecSession
-      |> Ash.get!(state.exec_session_id)
-      |> Ash.Changeset.for_update(:complete, %{
-        result_status: result_status,
+      RecordStore.update_exec_session(state.exec_session_id, %{
+        status: result_status,
         exit_code: exit_code,
         output: redacted_output,
-        duration_ms: duration_ms
+        duration_ms: duration_ms,
+        completed_at: DateTime.utc_now()
       })
-      |> Ash.update()
     end
   end
 

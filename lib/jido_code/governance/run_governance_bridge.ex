@@ -9,7 +9,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, PolicyBridge, PostureBridge}
+  alias JidoCode.Governance.{PolicyBridge, PostureBridge, RecordStore}
   alias JidoCode.Orchestration.{Run, WorkflowRun}
 
   @projection_actor Actor.factory_system_actor()
@@ -34,7 +34,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   defp sync_evidence(run, workflow_run) do
     evidence_entries(workflow_run)
     |> Enum.reduce_while({:ok, []}, fn evidence_entry, {:ok, acc} ->
-      case Evidence.upsert_for_run(evidence_attrs(run, evidence_entry), actor: @projection_actor) do
+      case RecordStore.upsert_evidence(evidence_attrs(run, evidence_entry), actor: @projection_actor) do
         {:ok, evidence} -> {:cont, {:ok, [evidence | acc]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -49,7 +49,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
     with true <- should_track_change_request?(run, workflow_run),
          latest_decision <- latest_decision_payload(workflow_run),
          attrs <- change_request_attrs(run, workflow_run, evidence_records, latest_decision),
-         {:ok, change_request} <- ChangeRequest.upsert_for_run(attrs, actor: @projection_actor) do
+         {:ok, change_request} <- RecordStore.upsert_change_request(attrs, actor: @projection_actor) do
       {:ok, change_request}
     else
       false -> {:ok, nil}
@@ -72,7 +72,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
             Enum.map(evidence_records, & &1.id)
           )
 
-        Decision.upsert_for_run(attrs, actor: @projection_actor)
+        RecordStore.upsert_decision(attrs, actor: @projection_actor)
     end
   end
 

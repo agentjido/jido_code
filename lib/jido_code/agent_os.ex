@@ -1,7 +1,7 @@
 defmodule JidoCode.AgentOS do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.dynamic_kernel_lifecycle
-  # covers: architecture.agent_os_integration.ecto_persistence_per_kernel
+  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
   # covers: architecture.agent_os_integration.kernel_naming_convention
   @moduledoc """
   Public API for JidoCode's AgentOS integration.
@@ -14,7 +14,7 @@ defmodule JidoCode.AgentOS do
 
   - One kernel per ManagedRepo (`:"repo_{managed_repo_id}"`)
   - Kernels are created on-demand and managed by a dynamic supervisor
-  - Kernel state persists via Ecto across application restarts
+  - Kernel state snapshots persist through the embedded execution-runtime store
 
   ## Usage
 

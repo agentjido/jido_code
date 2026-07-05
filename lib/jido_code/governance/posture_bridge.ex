@@ -12,10 +12,9 @@ defmodule JidoCode.Governance.PostureBridge do
   evidence, and repo governance policy.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{Actor, ManagedRepo, ManagedRepoStore}
 
   alias JidoCode.Governance.{
-    Evidence,
     PolicyBridge,
     PostureCheck,
     RepoPosture,
@@ -23,7 +22,9 @@ defmodule JidoCode.Governance.PostureBridge do
     RuntimeEvidenceBridge
   }
 
-  alias JidoCode.Operations.{Assessment, Observation, RepoNativeState}
+  alias JidoCode.Governance.RecordStore, as: GovernanceStore
+  alias JidoCode.Operations.RepoNativeState
+  alias JidoCode.Operations.RecordStore, as: OperationsStore
 
   @actor Actor.factory_system_actor(%{"id" => "system:repo-posture", "email" => "repo-posture@system.local"})
   @dimensions [
@@ -43,6 +44,7 @@ defmodule JidoCode.Governance.PostureBridge do
     managed_repo_id = map_get(managed_repo, :id, "id")
 
     with true <- is_binary(managed_repo_id) or {:error, :missing_managed_repo_id},
+         {:ok, _repo_native_sync} <- RepoNativeState.sync_managed_repo(managed_repo),
          {:ok, repo_native_state} <- RepoNativeState.latest_signal_snapshot(managed_repo_id),
          {:ok, runtime_capability_signal} <- RuntimeCapabilityBridge.sync_managed_repo(managed_repo),
          {:ok, runtime_evidence_signal} <-
@@ -74,9 +76,9 @@ defmodule JidoCode.Governance.PostureBridge do
 
   @spec sync_managed_repo_id(term()) :: sync_result()
   def sync_managed_repo_id(managed_repo_id) when is_binary(managed_repo_id) do
-    case ManagedRepo.read(query: [filter: [id: managed_repo_id], limit: 1], actor: @actor) do
-      {:ok, [%ManagedRepo{} = managed_repo | _rest]} -> sync_managed_repo(managed_repo)
-      {:ok, []} -> {:error, :managed_repo_not_found}
+    case ManagedRepoStore.get_by_id(managed_repo_id) do
+      {:ok, %ManagedRepo{} = managed_repo} -> sync_managed_repo(managed_repo)
+      {:ok, nil} -> {:error, :managed_repo_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -91,7 +93,7 @@ defmodule JidoCode.Governance.PostureBridge do
         |> Map.put(:repo_posture_id, repo_posture.id)
         |> Map.put_new(:checked_at, DateTime.utc_now() |> DateTime.truncate(:microsecond))
 
-      case PostureCheck.upsert_for_managed_repo_dimension(attrs, actor: @actor) do
+      case GovernanceStore.upsert_posture_check(attrs, actor: @actor) do
         {:ok, posture_check} -> {:cont, {:ok, [posture_check | acc]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -106,7 +108,7 @@ defmodule JidoCode.Governance.PostureBridge do
     algedonic_check =
       Enum.find(posture_checks, &(&1.dimension == @algedonic_dimension))
 
-    RepoPosture.upsert_for_managed_repo(
+    GovernanceStore.upsert_repo_posture(
       %{
         managed_repo_id: context.managed_repo_id,
         summary: posture_summary(context.dimensions, context.repo_native_state),
@@ -658,41 +660,41 @@ defmodule JidoCode.Governance.PostureBridge do
   end
 
   defp latest_repo_native_observation(managed_repo_id, category) do
-    case Observation.read(
-           query: [
-             filter: [managed_repo_id: managed_repo_id, source: "repo_native", category: category],
-             sort: [observed_at: :desc],
-             limit: 1
-           ],
+    case OperationsStore.list(
+           :observation,
+           %{managed_repo_id: managed_repo_id, source: "repo_native", category: category},
            actor: @actor
          ) do
-      {:ok, [%Observation{} = observation | _rest]} -> observation
+      {:ok, observations} -> latest_by(observations, :observed_at)
       _other -> nil
     end
   end
 
   defp latest_assessment(managed_repo_id) do
-    case Assessment.read(
-           query: [filter: [managed_repo_id: managed_repo_id], sort: [assessed_at: :desc], limit: 1],
-           actor: @actor
-         ) do
-      {:ok, [%Assessment{} = assessment | _rest]} -> assessment
+    case OperationsStore.list(:assessment, %{managed_repo_id: managed_repo_id}, actor: @actor) do
+      {:ok, assessments} -> latest_by(assessments, :assessed_at)
       _other -> nil
     end
   end
 
   defp latest_failure_evidence(managed_repo_id) do
-    case Evidence.read(
-           query: [
-             filter: [managed_repo_id: managed_repo_id, key: "failure_context"],
-             sort: [recorded_at: :desc],
-             limit: 1
-           ],
+    case GovernanceStore.list_evidence(
+           %{managed_repo_id: managed_repo_id, key: "failure_context"},
+           query: [sort: [recorded_at: :desc], limit: 1],
            actor: @actor
          ) do
-      {:ok, [%Evidence{} = evidence | _rest]} -> evidence
+      {:ok, [evidence | _rest]} -> evidence
       _other -> nil
     end
+  end
+
+  defp latest_by(records, field) when is_list(records) do
+    records
+    |> Enum.reject(&(Map.get(&1, field) == nil))
+    |> Enum.sort_by(&(Map.get(&1, field) |> DateTime.to_unix(:microsecond)), :desc)
+    |> List.first()
+  rescue
+    _error -> nil
   end
 
   defp level_score("high"), do: 2

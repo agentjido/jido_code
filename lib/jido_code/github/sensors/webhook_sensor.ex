@@ -57,7 +57,7 @@ defmodule JidoCode.GitHub.Sensors.WebhookSensor do
         coerce: true
       )
 
-  require Ash.Query
+  alias JidoCode.GitHub.{Repo, WebhookDelivery, WebhookDeliveryStore}
 
   @impl Jido.Sensor
   def init(config, context) do
@@ -88,29 +88,26 @@ defmodule JidoCode.GitHub.Sensors.WebhookSensor do
   end
 
   defp fetch_pending_deliveries(batch_size) do
-    JidoCode.GitHub.WebhookDelivery
-    |> Ash.Query.filter(status == :pending)
-    |> Ash.Query.sort(inserted_at: :asc)
-    |> Ash.Query.limit(batch_size)
-    |> Ash.Query.load(:repo)
-    |> Ash.read()
+    with {:ok, deliveries} <- WebhookDeliveryStore.list_pending(batch_size) do
+      {:ok, Enum.map(deliveries, &WebhookDeliveryStore.attach_repo/1)}
+    end
   end
 
-  defp delivery_to_signals(delivery) do
+  defp delivery_to_signals(%WebhookDelivery{repo: %Repo{} = repo} = delivery) do
     signal_type = build_signal_type(delivery.event_type, delivery.action)
 
     signal =
       Jido.Signal.new!(%{
-        source: "/sensor/github_webhook/#{delivery.repo.full_name}",
+        source: "/sensor/github_webhook/#{repo.full_name}",
         type: signal_type,
         data: %{
           delivery_id: delivery.id,
           repo: %{
-            id: delivery.repo.id,
-            owner: delivery.repo.owner,
-            name: delivery.repo.name,
-            full_name: delivery.repo.full_name,
-            settings: delivery.repo.settings
+            id: repo.id,
+            owner: repo.owner,
+            name: repo.name,
+            full_name: repo.full_name,
+            settings: repo.settings
           },
           event_type: delivery.event_type,
           action: delivery.action,
@@ -123,11 +120,16 @@ defmodule JidoCode.GitHub.Sensors.WebhookSensor do
     [{:emit, signal}]
   end
 
+  defp delivery_to_signals(%WebhookDelivery{} = delivery) do
+    mark_delivery_processed(delivery)
+    []
+  end
+
   defp build_signal_type(event_type, nil), do: "github.#{event_type}"
   defp build_signal_type(event_type, action), do: "github.#{event_type}.#{action}"
 
   defp mark_delivery_processed(delivery) do
-    case Ash.update(delivery, %{}, action: :mark_processed) do
+    case WebhookDeliveryStore.mark_processed(delivery) do
       {:ok, _} ->
         :ok
 

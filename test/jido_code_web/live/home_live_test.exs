@@ -8,7 +8,7 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.AuthProviders.ProviderConfig
+  alias JidoCode.AuthProviders.ProviderConfigStore
 
   setup do
     original_target = System.get_env("BURRITO_TARGET")
@@ -127,18 +127,15 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
   defp enable_provider_login!(provider, provider_host) do
     {:ok, config} =
-      ProviderConfig.upsert(
-        %{
-          provider: provider,
-          provider_host: provider_host,
-          enabled: true,
-          login_enabled: true,
-          broker_issuer: "https://broker.example.com",
-          broker_audience: "jido-code",
-          broker_base_url: "https://broker.example.com"
-        },
-        authorize?: false
-      )
+      ProviderConfigStore.upsert(%{
+        provider: provider,
+        provider_host: provider_host,
+        enabled: true,
+        login_enabled: true,
+        broker_issuer: "https://broker.example.com",
+        broker_audience: "jido-code",
+        broker_base_url: "https://broker.example.com"
+      })
 
     config
   end

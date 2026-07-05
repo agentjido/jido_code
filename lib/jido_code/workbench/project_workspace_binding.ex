@@ -3,8 +3,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
   Validates and updates repo-scoped workspace binding for one managed repository.
   """
 
-  alias Ash.Error.Forbidden
-  alias JidoCode.Control.ManagedRepo
+  alias JidoCode.Control.{ManagedRepo, ManagedRepoStore}
 
   @default_error_type "managed_repo_workspace_binding_update_failed"
   @missing_repo_error_type "managed_repo_workspace_binding_repo_not_found"
@@ -34,27 +33,28 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
     with {:ok, managed_repo} <- load_managed_repo(identifier, actor),
          {:ok, workspace_settings} <- next_workspace_settings(managed_repo, attrs),
          {:ok, updated_managed_repo} <-
-           ManagedRepo.update(managed_repo, %{workspace_settings: workspace_settings}, actor: actor) do
+           ManagedRepoStore.update(managed_repo, %{workspace_settings: workspace_settings}) do
       {:ok, %{managed_repo: updated_managed_repo, workspace_settings: workspace_settings}}
     else
       {:error, %{error_type: _error_type} = error} ->
         {:error, error}
 
-      {:error, %Forbidden{}} ->
-        {:error,
-         update_error(
-           @forbidden_error_type,
-           "Current actor is not allowed to update this repository workspace binding.",
-           @default_remediation
-         )}
-
       {:error, reason} ->
-        {:error,
-         update_error(
-           @default_error_type,
-           "Repository workspace binding update failed (#{format_reason(reason)}).",
-           @default_remediation
-         )}
+        if is_forbidden_error(reason) do
+          {:error,
+           update_error(
+             @forbidden_error_type,
+             "Current actor is not allowed to update this repository workspace binding.",
+             @default_remediation
+           )}
+        else
+          {:error,
+           update_error(
+             @default_error_type,
+             "Repository workspace binding update failed (#{format_reason(reason)}).",
+             @default_remediation
+           )}
+        end
     end
   end
 
@@ -69,7 +69,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
 
   defp load_managed_repo(%ManagedRepo{} = managed_repo, _actor), do: {:ok, managed_repo}
 
-  defp load_managed_repo(identifier, actor) do
+  defp load_managed_repo(identifier, _actor) do
     case normalize_managed_repo_id(identifier) do
       nil ->
         {:error,
@@ -80,11 +80,11 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
          )}
 
       managed_repo_id ->
-        case ManagedRepo.read(query: [filter: [id: managed_repo_id], limit: 1], actor: actor) do
-          {:ok, [%ManagedRepo{} = managed_repo | _rest]} ->
+        case ManagedRepoStore.get_by_id(managed_repo_id) do
+          {:ok, %ManagedRepo{} = managed_repo} ->
             {:ok, managed_repo}
 
-          {:ok, []} ->
+          {:ok, nil} ->
             {:error,
              update_error(
                @missing_repo_error_type,
@@ -92,16 +92,17 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
                @missing_repo_remediation
              )}
 
-          {:error, %Forbidden{} = error} ->
-            {:error, error}
-
           {:error, reason} ->
-            {:error,
-             update_error(
-               @default_error_type,
-               "Repository workspace binding lookup failed (#{format_reason(reason)}).",
-               @missing_repo_remediation
-             )}
+            if is_forbidden_error(reason) do
+              {:error, reason}
+            else
+              {:error,
+               update_error(
+                 @default_error_type,
+                 "Repository workspace binding lookup failed (#{format_reason(reason)}).",
+                 @missing_repo_remediation
+               )}
+            end
         end
     end
   end
@@ -262,6 +263,9 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
 
   defp fallback_optional_string(nil, fallback), do: fallback
   defp fallback_optional_string(value, _fallback), do: value
+
+  defp is_forbidden_error(%module{}), do: module |> Module.split() |> List.last() == "Forbidden"
+  defp is_forbidden_error(_reason), do: false
 
   defp update_error(error_type, detail, remediation) do
     %{

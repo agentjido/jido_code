@@ -5,11 +5,17 @@ defmodule JidoCode.ConversationsTest do
   # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{Actor, RepoBridge}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Conversations
   alias JidoCode.Conversations.Conversation
+  alias JidoCode.Conversations.RecordStore, as: ConversationStore
   alias JidoCode.Operations.{Ingress, WorkItem}
-  alias JidoCode.Projects.Project
+  alias JidoCode.Operations.RecordStore, as: OperationsStore
+
+  setup do
+    setup_product_store()
+  end
 
   test "start creates a repo-scoped pre-work conversation with explicit actor attribution" do
     managed_repo = managed_repo_fixture!("conversation-repo-scoped")
@@ -59,8 +65,8 @@ defmodule JidoCode.ConversationsTest do
     assert conversation.attachment_mode == :existing_work_item
     assert attached_work_item.id == work_item.id
 
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(query: [filter: [id: work_item.id]], actor: Actor.operator_actor())
+    assert {:ok, %WorkItem{} = persisted_work_item} =
+             OperationsStore.get(:work_item, work_item.id, actor: Actor.operator_actor())
 
     assert persisted_work_item.id == work_item.id
   end
@@ -138,7 +144,7 @@ defmodule JidoCode.ConversationsTest do
     assert resumed_work_item.id == work_item.id
 
     assert {:ok, completed_conversation} =
-             Conversation.update(
+             ConversationStore.update_conversation(
                resumed_conversation,
                %{status: :completed},
                actor: Actor.operator_actor()
@@ -168,7 +174,7 @@ defmodule JidoCode.ConversationsTest do
              )
 
     assert {:ok, in_progress_work_item} =
-             WorkItem.update(work_item, %{status: :in_progress}, actor: Actor.operator_actor())
+             OperationsStore.update_work_item(work_item, %{status: :in_progress}, actor: Actor.operator_actor())
 
     assert {:ok, %{conversation: in_progress_conversation, resumed?: true}} =
              Conversations.open_or_resume_for_work_item(
@@ -179,7 +185,7 @@ defmodule JidoCode.ConversationsTest do
     assert in_progress_conversation.id == first_conversation.id
 
     assert {:ok, blocked_work_item} =
-             WorkItem.update(in_progress_work_item, %{status: :blocked}, actor: Actor.operator_actor())
+             OperationsStore.update_work_item(in_progress_work_item, %{status: :blocked}, actor: Actor.operator_actor())
 
     assert {:ok, %{conversation: blocked_conversation, resumed?: true}} =
              Conversations.open_or_resume_for_work_item(
@@ -190,7 +196,7 @@ defmodule JidoCode.ConversationsTest do
     assert blocked_conversation.id == first_conversation.id
 
     assert {:ok, completed_work_item} =
-             WorkItem.update(blocked_work_item, %{status: :completed}, actor: Actor.operator_actor())
+             OperationsStore.update_work_item(blocked_work_item, %{status: :completed}, actor: Actor.operator_actor())
 
     assert {:ok,
             %{work_item: reconciled_work_item, active_conversation: nil, settled_conversation: settled_conversation}} =
@@ -213,7 +219,7 @@ defmodule JidoCode.ConversationsTest do
              )
 
     assert {:ok, reopened_work_item} =
-             WorkItem.update(completed_work_item, %{status: :open}, actor: Actor.operator_actor())
+             OperationsStore.update_work_item(completed_work_item, %{status: :open}, actor: Actor.operator_actor())
 
     assert {:ok, %{conversation: reopened_conversation, resumed?: false}} =
              Conversations.open_or_resume_for_work_item(
@@ -399,8 +405,8 @@ defmodule JidoCode.ConversationsTest do
              "pending_clarification" => false
            }
 
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(query: [filter: [id: work_item.id], limit: 1], actor: Actor.operator_actor())
+    assert {:ok, %WorkItem{} = persisted_work_item} =
+             OperationsStore.get(:work_item, work_item.id, actor: Actor.operator_actor())
 
     assert persisted_work_item.initiating_actor["id"] == "operator-steer-existing"
     assert List.last(persisted_work_item.audit_log)["action"] == "steered"
@@ -444,8 +450,8 @@ defmodule JidoCode.ConversationsTest do
     assert active_conversation_id == active_conversation.id
     assert attempted_conversation_id == repo_conversation.id
 
-    assert {:ok, [persisted_repo_conversation]} =
-             Conversation.read(query: [filter: [id: repo_conversation.id]], actor: Actor.operator_actor())
+    assert {:ok, %Conversation{} = persisted_repo_conversation} =
+             ConversationStore.get_conversation(repo_conversation.id, actor: Actor.operator_actor())
 
     assert persisted_repo_conversation.work_item_id == nil
     assert persisted_repo_conversation.scope == :repo_scoped
@@ -505,8 +511,8 @@ defmodule JidoCode.ConversationsTest do
              "resolved_at" => updated_conversation.conversation_metadata["last_work_resolved_at"]
            }
 
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(query: [filter: [id: work_item.id], limit: 1], actor: Actor.operator_actor())
+    assert {:ok, %WorkItem{} = persisted_work_item} =
+             OperationsStore.get(:work_item, work_item.id, actor: Actor.operator_actor())
 
     origin = persisted_work_item.work_metadata["conversation_origin"]
 
@@ -520,16 +526,13 @@ defmodule JidoCode.ConversationsTest do
   end
 
   defp managed_repo_fixture!(suffix) do
-    {:ok, project} =
-      Project.create(%{
+    {:ok, %{managed_repo: managed_repo}} =
+      RepoBridge.upsert_managed_repo(%{
         name: "conversation-#{suffix}",
-        github_full_name: "owner/conversation-#{suffix}",
+        full_name: "owner/conversation-#{suffix}",
         default_branch: "main",
         settings: %{}
       })
-
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     managed_repo
   end
@@ -552,4 +555,24 @@ defmodule JidoCode.ConversationsTest do
 
     work_item
   end
+
+  defp setup_product_store do
+    store_name = :"conversation_test_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_conversation_test_store/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

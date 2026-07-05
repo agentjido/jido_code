@@ -54,14 +54,17 @@ defmodule JidoCode.PhaseSeventyFourIntegrationTest do
       end)
 
     provenance_projection =
-      eventually_provenance!(managed_repo.id, workspace_path, fn projection ->
-        events =
-          projection.items
-          |> Enum.map(&get_in(&1, [:conversation_context, :conversation_event]))
-          |> Enum.reject(&is_nil/1)
+      eventually_provenance!(
+        managed_repo.id,
+        workspace_path,
+        fn projection ->
+          events =
+            projection.items
+            |> Enum.map(&get_in(&1, [:conversation_context, :conversation_event]))
+            |> Enum.reject(&is_nil/1)
 
-        "work_attached" in events and "turn_started" in events and "turn_completed" in events
-      end,
+          "work_attached" in events and "turn_started" in events and "turn_completed" in events
+        end,
         conversation_origin?: true,
         conversation_id: conversation.id,
         allow_stale?: true
@@ -122,18 +125,21 @@ defmodule JidoCode.PhaseSeventyFourIntegrationTest do
 
     awaiting_snapshot =
       eventually_snapshot!(conversation.id, fn snapshot ->
-        snapshot.active_turn &&
-          snapshot.active_turn.state == :awaiting_input and
+        (snapshot.active_turn &&
+           snapshot.active_turn.state == :awaiting_input) and
           get_in(snapshot, [:shared_context, "pending_clarification", "prompt", "prompt"]) ==
             "Which file or module should I inspect first?"
       end)
 
     clarification_projection =
-      eventually_provenance!(managed_repo.id, workspace_path, fn projection ->
-        Enum.any?(projection.items, fn item ->
-          get_in(item, [:conversation_context, :conversation_event]) == "clarification_requested"
-        end)
-      end,
+      eventually_provenance!(
+        managed_repo.id,
+        workspace_path,
+        fn projection ->
+          Enum.any?(projection.items, fn item ->
+            get_in(item, [:conversation_context, :conversation_event]) == "clarification_requested"
+          end)
+        end,
         conversation_origin?: true,
         conversation_id: conversation.id,
         conversation_event: "clarification_requested",
@@ -146,9 +152,12 @@ defmodule JidoCode.PhaseSeventyFourIntegrationTest do
            end)
 
     work_attachment_projection =
-      eventually_provenance!(managed_repo.id, workspace_path, fn projection ->
-        projection.items != []
-      end,
+      eventually_provenance!(
+        managed_repo.id,
+        workspace_path,
+        fn projection ->
+          projection.items != []
+        end,
         conversation_origin?: true,
         conversation_id: conversation.id,
         conversation_event: "work_attached",
@@ -224,6 +233,7 @@ defmodule JidoCode.PhaseSeventyFourIntegrationTest do
   end
 
   defp eventually_provenance!(managed_repo_id, workspace_path, predicate, opts, attempts \\ 80)
+
   defp eventually_provenance!(managed_repo_id, workspace_path, predicate, opts, attempts)
        when is_function(predicate, 1) and attempts > 1 do
     assert {:ok, projection} = ProductService.provenance(managed_repo_id, workspace_path, opts)

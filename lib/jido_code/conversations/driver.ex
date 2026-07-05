@@ -8,6 +8,7 @@ defmodule JidoCode.Conversations.Driver do
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
   alias JidoCode.Conversations.{ChildWork, Conversation, Coordinator, Persistence, Snapshot}
+  alias JidoCode.Conversations.RecordStore, as: ConversationStore
 
   @supervisor JidoCode.Conversations.DynamicSupervisor
   @registry JidoCode.Conversations.Registry
@@ -135,11 +136,9 @@ defmodule JidoCode.Conversations.Driver do
         {:ok, pid}
 
       [] ->
-        sandbox_owner = Process.get({JidoCode.Repo, :sandbox_owner})
-
         case DynamicSupervisor.start_child(
                @supervisor,
-               {Coordinator, {conversation, starter_pid: self(), sandbox_owner: sandbox_owner}}
+               {Coordinator, {conversation, starter_pid: self()}}
              ) do
           {:ok, pid} -> {:ok, pid}
           {:error, {:already_started, pid}} -> {:ok, pid}
@@ -172,9 +171,9 @@ defmodule JidoCode.Conversations.Driver do
   end
 
   defp fetch_conversation(conversation_id, actor) do
-    case Conversation.read(query: [filter: [id: conversation_id], limit: 1], actor: actor) do
-      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
-      {:ok, []} -> {:error, :conversation_not_found}
+    case ConversationStore.get_conversation(conversation_id, actor: actor) do
+      {:ok, %Conversation{} = conversation} -> {:ok, conversation}
+      {:ok, nil} -> {:error, :conversation_not_found}
       {:error, reason} -> {:error, reason}
     end
   end

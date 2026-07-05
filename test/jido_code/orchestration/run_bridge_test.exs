@@ -7,10 +7,15 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
   # covers: architecture.execution_pipeline.run_is_projection_of_workflow_state
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.ManagedRepoStore
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Operations.Ingress
-  alias JidoCode.Orchestration.{ExecutionProfile, Run, RunBridge, WorkflowRun}
+  alias JidoCode.Orchestration.{RecordStore, RunBridge, WorkflowRun}
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "workflow runs project into governed runs with execution profiles and stage state" do
     {:ok, project} =
@@ -34,8 +39,7 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     {:ok, workflow_run} =
       WorkflowRun.create(%{
@@ -51,14 +55,10 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
         started_at: ~U[2026-03-31 18:00:00Z]
       })
 
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
 
     {:ok, execution_profile} =
-      ExecutionProfile.get_by_managed_repo_name(
-        managed_repo.id,
-        "workflow:issue_triage",
-        actor: Actor.operator_actor()
-      )
+      RecordStore.get_execution_profile_by_managed_repo_name(managed_repo.id, "workflow:issue_triage")
 
     assert run.managed_repo_id == managed_repo.id
     assert run.execution_profile_id == execution_profile.id
@@ -92,7 +92,7 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
         transitioned_at: ~U[2026-03-31 18:05:00Z]
       })
 
-    {:ok, updated_run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, updated_run} = RecordStore.get_run_by_workflow_run_id(workflow_run.id)
 
     assert updated_run.status == :awaiting_approval
     assert updated_run.current_stage == "approval"
@@ -122,8 +122,7 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    {:ok, managed_repo} = ManagedRepoStore.get_by_legacy_project_id(project.id)
 
     {:ok, %{work_item: work_item}} =
       Ingress.record_operator_intake(%{
@@ -148,11 +147,7 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
       })
 
     {:ok, execution_profile} =
-      ExecutionProfile.get_by_managed_repo_name(
-        managed_repo.id,
-        "workflow:fix_failing_tests",
-        actor: Actor.operator_actor()
-      )
+      RecordStore.get_execution_profile_by_managed_repo_name(managed_repo.id, "workflow:fix_failing_tests")
 
     assert workflow_run.project_id == project.id
     assert workflow_run.inputs["work_item_id"] == work_item.id
@@ -164,4 +159,24 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
     assert execution_profile.sandbox_profile["shape"] == "large"
     assert execution_profile.validation_plan == ["tests"]
   end
+
+  defp setup_product_store do
+    store_name = :"run_bridge_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_run_bridge/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

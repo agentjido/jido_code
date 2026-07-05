@@ -46,7 +46,7 @@ defmodule JidoCode.Conversations.Command do
       type = @work_types[raw_type] ->
         {:ok,
          %{
-           id: Ecto.UUID.generate(),
+           id: JidoCode.UUID.generate(),
            class: :work,
            type: type,
            raw_type: raw_type,
@@ -58,7 +58,7 @@ defmodule JidoCode.Conversations.Command do
       type = @control_types[raw_type] ->
         {:ok,
          %{
-           id: Ecto.UUID.generate(),
+           id: JidoCode.UUID.generate(),
            class: :control,
            type: type,
            raw_type: raw_type,

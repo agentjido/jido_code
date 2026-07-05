@@ -7,7 +7,7 @@ defmodule JidoCode.Workbench.Inventory do
   """
 
   alias JidoCode.Setup.SystemConfig
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Control.{Actor, RepoBridge}
 
   alias JidoCode.Workbench.{
     IssueTriageWorkflowKickoff,
@@ -94,17 +94,11 @@ defmodule JidoCode.Workbench.Inventory do
   end
 
   defp managed_repo_rows do
-    case ManagedRepo.read(query: [sort: [display_name: :asc]], actor: Actor.operator_actor()) do
-      {:ok, managed_repos} ->
+    case RepoBridge.list_repo_scopes() do
+      {:ok, repo_scopes} ->
         {:ok,
-         Enum.map(managed_repos, fn managed_repo ->
-           managed_repo
-           |> map_get(:id, "id")
-           |> RepoBridge.repo_scope()
-           |> case do
-             {:ok, scope} -> to_inventory_row(scope)
-             {:error, _reason} -> to_inventory_row(%{managed_repo: managed_repo})
-           end
+         Enum.map(repo_scopes, fn scope ->
+           to_inventory_row(scope)
          end)}
 
       {:error, reason} ->

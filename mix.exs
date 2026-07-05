@@ -63,6 +63,7 @@ defmodule JidoCode.MixProject do
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.html": :test,
+        "control_plane.verify": :test,
         precommit: :test,
         "memory.verify": :test,
         "semantic.verify": :test,
@@ -137,32 +138,15 @@ defmodule JidoCode.MixProject do
       {:nodejs, "~> 3.1"},
       # Core framework
       {:phoenix, "~> 1.8"},
-      {:phoenix_ecto, "~> 4.5"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:bandit, "~> 1.5"},
 
-      # Ash framework and extensions
-      {:ash, "~> 3.0"},
-      {:ash_phoenix, "~> 2.0"},
-      {:ash_postgres, "~> 2.0"},
-      {:ash_json_api, "~> 1.0"},
-      {:ash_authentication, "~> 4.0"},
-      {:ash_authentication_phoenix, "~> 2.0"},
-      {:ash_admin, "~> 0.14"},
-      {:ash_archival, "~> 2.0"},
-      {:ash_paper_trail, "~> 0.5"},
-      {:ash_cloak, "~> 0.2"},
-      {:ash_jido, github: "agentjido/ash_jido", branch: "main"},
-
-      # Database
-      {:ecto_sql, "~> 3.13"},
-      {:postgrex, ">= 0.0.0"},
-
       # Security & encryption
       {:bcrypt_elixir, "~> 3.0"},
       {:cloak, "~> 1.0"},
+      {:jose, "~> 1.11"},
 
       # HTTP & API
       {:req, "~> 0.5"},
@@ -248,11 +232,8 @@ defmodule JidoCode.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "git_hooks.install", "ecto.setup", "assets.setup", "assets.build"],
+      setup: ["deps.get", "git_hooks.install", "assets.setup", "assets.build"],
       server: ["frontend.start", "phx.server"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["phoenix_vite.npm assets install"],
       "assets.build": [
         "phoenix_vite.npm vite build --manifest --emptyOutDir true",

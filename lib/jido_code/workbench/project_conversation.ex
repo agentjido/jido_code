@@ -17,7 +17,9 @@ defmodule JidoCode.Workbench.ProjectConversation do
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
   alias JidoCode.Conversations.{Conversation, WorkResolution}
+  alias JidoCode.Conversations.RecordStore, as: ConversationStore
   alias JidoCode.Operations.WorkItem
+  alias JidoCode.Operations.RecordStore, as: OperationsStore
 
   @default_objective "Coordinate repository work from the managed repository detail route."
 
@@ -81,8 +83,8 @@ defmodule JidoCode.Workbench.ProjectConversation do
   def load_attached_work_item(work_item_id, opts) when is_binary(work_item_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
 
-    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: actor) do
-      {:ok, [%WorkItem{} = work_item | _rest]} -> work_item_summary(work_item)
+    case OperationsStore.get(:work_item, work_item_id, actor: actor) do
+      {:ok, %WorkItem{} = work_item} -> work_item_summary(work_item)
       _other -> placeholder_work_item_summary(work_item_id)
     end
   end
@@ -699,9 +701,9 @@ defmodule JidoCode.Workbench.ProjectConversation do
   defp work_item_reference(_work_item_like, _actor), do: :none
 
   defp fetch_work_item(work_item_id, actor) when is_binary(work_item_id) do
-    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: actor) do
-      {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
-      {:ok, []} -> {:error, :work_item_not_found}
+    case OperationsStore.get(:work_item, work_item_id, actor: actor) do
+      {:ok, %WorkItem{} = work_item} -> {:ok, work_item}
+      {:ok, nil} -> {:error, :work_item_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -734,9 +736,9 @@ defmodule JidoCode.Workbench.ProjectConversation do
   defp fetch_conversation(nil, _actor), do: {:ok, nil}
 
   defp fetch_conversation(conversation_id, actor) when is_binary(conversation_id) do
-    case Conversation.read(query: [filter: [id: conversation_id], limit: 1], actor: actor) do
-      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
-      {:ok, []} -> {:error, :conversation_not_found}
+    case ConversationStore.get_conversation(conversation_id, actor: actor) do
+      {:ok, %Conversation{} = conversation} -> {:ok, conversation}
+      {:ok, nil} -> {:error, :conversation_not_found}
       {:error, reason} -> {:error, reason}
     end
   end

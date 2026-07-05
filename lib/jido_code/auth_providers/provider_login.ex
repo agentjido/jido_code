@@ -7,7 +7,7 @@ defmodule JidoCode.AuthProviders.ProviderLogin do
   # covers: auth.provider_login_flow.local_session_issuance
   # covers: auth.provider_login_flow.provider_neutral_session_service
 
-  alias AshAuthentication.Jwt
+  alias JidoCode.Accounts.SessionTokens
   alias JidoCode.Accounts.ProviderIdentityLinker
   alias JidoCode.Accounts.User
 
@@ -25,7 +25,7 @@ defmodule JidoCode.AuthProviders.ProviderLogin do
   def sign_in(params, opts) when is_map(params) and is_list(opts) do
     with {:ok, normalized} <- normalize_claims(params),
          {:ok, linked} <- ProviderIdentityLinker.link(normalized, opts),
-         {:ok, token, _claims} <- issue_session_token(linked.user) do
+         {:ok, token} <- issue_session_token(linked.user) do
       session_user = put_session_token(linked.user, token)
 
       {:ok,
@@ -142,11 +142,11 @@ defmodule JidoCode.AuthProviders.ProviderLogin do
   end
 
   defp issue_session_token(%User{} = user) do
-    case Jwt.token_for_user(user) do
-      {:ok, _token, _claims} = ok ->
-        ok
+    case SessionTokens.issue(user) do
+      {:ok, token} ->
+        {:ok, token}
 
-      :error ->
+      {:error, _reason} ->
         {:error,
          %{
            error_type: "provider_session_token_generation_failed",

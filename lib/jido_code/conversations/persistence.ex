@@ -11,11 +11,8 @@ defmodule JidoCode.Conversations.Persistence do
   snapshots alone.
   """
 
-  require Ash.Query
-
   alias JidoCode.Control.Actor
-  alias JidoCode.Conversations.{Conversation, Event, EventRecord, Snapshot, SnapshotRecord}
-  alias JidoCode.Repo
+  alias JidoCode.Conversations.{Conversation, RecordStore, Snapshot, SnapshotRecord}
 
   @persistence_actor Actor.factory_system_actor(%{
                        "id" => "system:conversation-persistence",
@@ -35,16 +32,12 @@ defmodule JidoCode.Conversations.Persistence do
         next_state.events
         |> Enum.filter(&(&1.sequence > Map.get(previous_state, :event_sequence, 0)))
 
-      case Repo.transaction(fn ->
-             with {:ok, event_notifications} <- persist_events(new_events),
-                  {:ok, _record, snapshot_notifications} <- upsert_snapshot(Snapshot.from_state(next_state)) do
-               event_notifications ++ snapshot_notifications
-             else
-               {:error, reason} -> Repo.rollback(reason)
-             end
-           end) do
-        {:ok, notifications} -> notify_after_commit(notifications)
-        {:error, reason} -> {:error, reason}
+      with {:ok, _event_records} <- RecordStore.append_events(new_events, actor: @persistence_actor),
+           {:ok, _snapshot_record} <-
+             RecordStore.upsert_snapshot(snapshot_record_attrs(Snapshot.from_state(next_state)),
+               actor: @persistence_actor
+             ) do
+        :ok
       end
     else
       :ok
@@ -54,13 +47,8 @@ defmodule JidoCode.Conversations.Persistence do
   @spec persist_snapshot(map()) :: :ok | {:error, term()}
   def persist_snapshot(snapshot) when is_map(snapshot) do
     if enabled?() do
-      case Repo.transaction(fn ->
-             case upsert_snapshot(snapshot) do
-               {:ok, _record, notifications} -> notifications
-               {:error, reason} -> Repo.rollback(reason)
-             end
-           end) do
-        {:ok, notifications} -> notify_after_commit(notifications)
+      case RecordStore.upsert_snapshot(snapshot_record_attrs(snapshot), actor: @persistence_actor) do
+        {:ok, _record} -> :ok
         {:error, reason} -> {:error, reason}
       end
     else
@@ -71,9 +59,9 @@ defmodule JidoCode.Conversations.Persistence do
   @spec fetch_snapshot(String.t(), map()) :: {:ok, map()} | {:error, term()}
   def fetch_snapshot(conversation_id, actor \\ @persistence_actor) when is_binary(conversation_id) and is_map(actor) do
     if enabled?() do
-      case SnapshotRecord.get_by_conversation_id(conversation_id, actor: actor) do
+      case RecordStore.get_snapshot_by_conversation_id(conversation_id, actor: actor) do
         {:ok, %SnapshotRecord{} = record} -> {:ok, snapshot_from_record(record)}
-        {:error, %Ash.Error.Query.NotFound{}} -> {:error, :conversation_snapshot_not_found}
+        {:ok, nil} -> {:error, :conversation_snapshot_not_found}
         {:error, reason} -> {:error, reason}
       end
     else
@@ -85,17 +73,7 @@ defmodule JidoCode.Conversations.Persistence do
   def events_since(conversation_id, after_sequence, actor \\ @persistence_actor)
       when is_binary(conversation_id) and is_integer(after_sequence) and after_sequence >= 0 and is_map(actor) do
     if enabled?() do
-      query =
-        EventRecord
-        |> Ash.Query.for_read(:after_sequence, %{
-          conversation_id: conversation_id,
-          after_sequence: after_sequence
-        })
-
-      case Ash.read(query, domain: JidoCode.Conversations, actor: actor) do
-        {:ok, records} -> {:ok, Enum.map(records, &event_from_record/1)}
-        {:error, reason} -> {:error, reason}
-      end
+      RecordStore.events_since(conversation_id, after_sequence, actor: actor)
     else
       {:error, :conversation_persistence_disabled}
     end
@@ -114,53 +92,6 @@ defmodule JidoCode.Conversations.Persistence do
     else
       {:ok, nil}
     end
-  end
-
-  defp persist_events(events) when is_list(events) do
-    events
-    |> Enum.reduce_while({:ok, []}, fn %Event{} = event, {:ok, notifications} ->
-      case Ash.create(EventRecord, event_record_attrs(event),
-             action: :append,
-             domain: JidoCode.Conversations,
-             actor: @persistence_actor,
-             return_notifications?: true
-           ) do
-        {:ok, _record, event_notifications} -> {:cont, {:ok, [event_notifications | notifications]}}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
-    |> case do
-      {:ok, notifications} -> {:ok, notifications |> Enum.reverse() |> List.flatten()}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp upsert_snapshot(snapshot) do
-    SnapshotRecord.upsert_for_conversation(snapshot_record_attrs(snapshot),
-      actor: @persistence_actor,
-      return_notifications?: true
-    )
-  end
-
-  defp notify_after_commit(notifications) do
-    _remaining = Ash.Notifier.notify(notifications)
-    :ok
-  end
-
-  defp event_record_attrs(%Event{} = event) do
-    %{
-      conversation_id: event.conversation_id,
-      sequence: event.sequence,
-      name: event.name,
-      actor: event.actor,
-      message_id: event.message_id,
-      turn_id: event.turn_id,
-      child_work_id: event.child_work_id,
-      tool_call_id: event.tool_call_id,
-      correlation: event.correlation,
-      payload: event.payload,
-      occurred_at: event.occurred_at
-    }
   end
 
   defp snapshot_record_attrs(snapshot) do
@@ -214,23 +145,6 @@ defmodule JidoCode.Conversations.Persistence do
       event_count: record.event_count,
       events: record.events,
       shared_context: shared_context
-    }
-  end
-
-  defp event_from_record(%EventRecord{} = record) do
-    %{
-      id: record.id,
-      sequence: record.sequence,
-      conversation_id: record.conversation_id,
-      name: record.name,
-      occurred_at: record.occurred_at,
-      actor: record.actor,
-      message_id: record.message_id,
-      turn_id: record.turn_id,
-      child_work_id: record.child_work_id,
-      tool_call_id: record.tool_call_id,
-      correlation: record.correlation,
-      payload: record.payload
     }
   end
 

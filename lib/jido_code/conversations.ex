@@ -5,24 +5,13 @@ defmodule JidoCode.Conversations do
   # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
   # covers: architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
   # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
-  use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
-
-  require Ash.Query
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Conversations.{Conversation, EventRecord, SnapshotRecord}
+  alias JidoCode.Conversations.Conversation
+  alias JidoCode.Conversations.RecordStore, as: ConversationStore
   alias JidoCode.Conversations.{Driver, LongTermProvenance, Persistence, Snapshot}
   alias JidoCode.Operations.{Ingress, WorkItem}
-
-  admin do
-    show? true
-  end
-
-  resources do
-    resource Conversation
-    resource EventRecord
-    resource SnapshotRecord
-  end
+  alias JidoCode.Operations.RecordStore, as: OperationsStore
 
   @active_statuses [:active, :paused]
   @resumable_work_item_statuses [:open, :in_progress, :blocked]
@@ -56,7 +45,7 @@ defmodule JidoCode.Conversations do
   def start(%{} = attrs) do
     with {:ok, context} <- build_start_context(attrs),
          :ok <- ensure_start_work_item_conversation_available(context),
-         {:ok, conversation} <- Conversation.create(conversation_attrs(context), actor: context.actor) do
+         {:ok, conversation} <- ConversationStore.create_conversation(conversation_attrs(context), actor: context.actor) do
       {:ok,
        %{
          conversation: conversation,
@@ -74,7 +63,7 @@ defmodule JidoCode.Conversations do
 
     with {:ok, %Conversation{} = conversation} <- fetch_conversation(conversation_id, actor),
          {:ok, resumed} <-
-           Conversation.update(
+           ConversationStore.update_conversation(
              conversation,
              %{last_activity_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)},
              actor: actor
@@ -88,12 +77,8 @@ defmodule JidoCode.Conversations do
       when is_binary(managed_repo_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
 
-    case Conversation.read(
-           query: [
-             filter: [managed_repo_id: managed_repo_id],
-             sort: [last_activity_at: :desc, inserted_at: :desc],
-             limit: 1
-           ],
+    case ConversationStore.list_conversations(%{managed_repo_id: managed_repo_id},
+           query: [sort: [last_activity_at: :desc, inserted_at: :desc], limit: 1],
            actor: actor
          ) do
       {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
@@ -108,17 +93,15 @@ defmodule JidoCode.Conversations do
       when is_binary(managed_repo_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
 
-    query =
-      Conversation
-      |> Ash.Query.filter(
-        managed_repo_id == ^managed_repo_id and
-          scope == :repo_scoped and
-          attachment_mode == :pre_work
-      )
-      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
-      |> Ash.Query.limit(1)
-
-    case Ash.read(query, domain: __MODULE__, actor: actor) do
+    case ConversationStore.list_conversations(
+           %{
+             managed_repo_id: managed_repo_id,
+             scope: :repo_scoped,
+             attachment_mode: :pre_work
+           },
+           query: [sort: [last_activity_at: :desc, inserted_at: :desc], limit: 1],
+           actor: actor
+         ) do
       {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
       {:ok, []} -> {:ok, nil}
       {:error, reason} -> {:error, reason}
@@ -130,12 +113,8 @@ defmodule JidoCode.Conversations do
       when is_binary(work_item_id) and is_list(opts) do
     actor = normalize_actor(Keyword.get(opts, :actor))
 
-    case Conversation.read(
-           query: [
-             filter: [work_item_id: work_item_id],
-             sort: [last_activity_at: :desc, inserted_at: :desc],
-             limit: 1
-           ],
+    case ConversationStore.list_conversations(%{work_item_id: work_item_id},
+           query: [sort: [last_activity_at: :desc, inserted_at: :desc], limit: 1],
            actor: actor
          ) do
       {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
@@ -151,13 +130,10 @@ defmodule JidoCode.Conversations do
     actor = normalize_actor(Keyword.get(opts, :actor))
     active_statuses = @active_statuses
 
-    query =
-      Conversation
-      |> Ash.Query.filter(work_item_id == ^work_item_id and status in ^active_statuses)
-      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
-      |> Ash.Query.limit(1)
-
-    case Ash.read(query, domain: __MODULE__, actor: actor) do
+    case ConversationStore.list_conversations(%{work_item_id: work_item_id, status: active_statuses},
+           query: [sort: [last_activity_at: :desc, inserted_at: :desc], limit: 1],
+           actor: actor
+         ) do
       {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
       {:ok, []} -> {:ok, nil}
       {:error, reason} -> {:error, reason}
@@ -171,16 +147,20 @@ defmodule JidoCode.Conversations do
     actor = normalize_actor(Keyword.get(opts, :actor))
     active_statuses = @active_statuses
 
-    query =
-      Conversation
-      |> Ash.Query.filter(work_item_id == ^work_item_id and status not in ^active_statuses)
-      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
-      |> Ash.Query.limit(1)
+    case ConversationStore.list_conversations(%{work_item_id: work_item_id},
+           query: [sort: [last_activity_at: :desc, inserted_at: :desc]],
+           actor: actor
+         ) do
+      {:ok, conversations} ->
+        conversations
+        |> Enum.reject(&(&1.status in active_statuses))
+        |> case do
+          [%Conversation{} = conversation | _rest] -> {:ok, conversation}
+          [] -> {:ok, nil}
+        end
 
-    case Ash.read(query, domain: __MODULE__, actor: actor) do
-      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
-      {:ok, []} -> {:ok, nil}
-      {:error, reason} -> {:error, reason}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -191,18 +171,16 @@ defmodule JidoCode.Conversations do
     actor = normalize_actor(Keyword.get(opts, :actor))
     active_statuses = @active_statuses
 
-    query =
-      Conversation
-      |> Ash.Query.filter(
-        managed_repo_id == ^managed_repo_id and
-          scope == :repo_scoped and
-          attachment_mode == :pre_work and
-          status in ^active_statuses
-      )
-      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
-      |> Ash.Query.limit(1)
-
-    case Ash.read(query, domain: __MODULE__, actor: actor) do
+    case ConversationStore.list_conversations(
+           %{
+             managed_repo_id: managed_repo_id,
+             scope: :repo_scoped,
+             attachment_mode: :pre_work,
+             status: active_statuses
+           },
+           query: [sort: [last_activity_at: :desc, inserted_at: :desc], limit: 1],
+           actor: actor
+         ) do
       {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
       {:ok, []} -> {:ok, nil}
       {:error, reason} -> {:error, reason}
@@ -216,16 +194,15 @@ defmodule JidoCode.Conversations do
     actor = normalize_actor(Keyword.get(opts, :actor))
     active_statuses = @active_statuses
 
-    query =
-      Conversation
-      |> Ash.Query.filter(
-        managed_repo_id == ^managed_repo_id and
-          scope == :work_item_scoped and
-          status in ^active_statuses
-      )
-      |> Ash.Query.sort(last_activity_at: :desc, inserted_at: :desc)
-
-    Ash.read(query, domain: __MODULE__, actor: actor)
+    ConversationStore.list_conversations(
+      %{
+        managed_repo_id: managed_repo_id,
+        scope: :work_item_scoped,
+        status: active_statuses
+      },
+      query: [sort: [last_activity_at: :desc, inserted_at: :desc]],
+      actor: actor
+    )
   end
 
   @spec open_or_resume_for_work_item(String.t(), keyword()) ::
@@ -545,7 +522,7 @@ defmodule JidoCode.Conversations do
          now
        ) do
     with :ok <- ensure_work_item_conversation_available(conversation, work_item, actor) do
-      case Conversation.update(
+      case ConversationStore.update_conversation(
              conversation,
              %{
                work_item_id: optional_id(work_item),
@@ -958,11 +935,8 @@ defmodule JidoCode.Conversations do
     end
   end
 
-  defp snapshot_not_found?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &snapshot_not_found?/1)
-  end
-
-  defp snapshot_not_found?(%Ash.Error.Query.NotFound{}), do: true
+  defp snapshot_not_found?(:conversation_snapshot_not_found), do: true
+  defp snapshot_not_found?(:not_found), do: true
   defp snapshot_not_found?(_reason), do: false
 
   defp snapshot_idle?(snapshot) when is_map(snapshot) do
@@ -985,7 +959,7 @@ defmodule JidoCode.Conversations do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
     metadata = terminal_lifecycle_metadata(conversation, target_status, work_item_status, now)
 
-    Conversation.update(
+    ConversationStore.update_conversation(
       conversation,
       %{
         status: target_status,
@@ -1106,17 +1080,17 @@ defmodule JidoCode.Conversations do
   end
 
   defp fetch_conversation(conversation_id, actor) do
-    case Conversation.read(query: [filter: [id: conversation_id], limit: 1], actor: actor) do
-      {:ok, [%Conversation{} = conversation | _rest]} -> {:ok, conversation}
-      {:ok, []} -> {:error, :conversation_not_found}
+    case ConversationStore.get_conversation(conversation_id, actor: actor) do
+      {:ok, %Conversation{} = conversation} -> {:ok, conversation}
+      {:ok, nil} -> {:error, :conversation_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp fetch_work_item(work_item_id, actor) do
-    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: actor) do
-      {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
-      {:ok, []} -> {:error, :work_item_not_found}
+    case OperationsStore.get(:work_item, work_item_id, actor: actor) do
+      {:ok, %WorkItem{} = work_item} -> {:ok, work_item}
+      {:ok, nil} -> {:error, :work_item_not_found}
       {:error, reason} -> {:error, reason}
     end
   end

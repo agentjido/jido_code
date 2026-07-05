@@ -19,6 +19,36 @@ defmodule JidoCode.PhaseThirtyFiveIntegrationTest do
     :decision
   ]
 
+  @control_plane_ns "https://jido.run/ontology/control-plane#"
+  @owl_class_iri RDF.iri("http://www.w3.org/2002/07/owl#Class")
+  @owl_datatype_property_iri RDF.iri("http://www.w3.org/2002/07/owl#DatatypeProperty")
+
+  @current_product_classes %{
+    control: ~w(ManagedRepo SourceRepo),
+    operations: ~w(Intake ExternalObject Event Observation Assessment WorkItem),
+    governance: ~w(Evidence ChangeRequest Decision PolicySet ReviewPolicy RepoPosture PostureCheck),
+    orchestration: ~w(Run WorkflowRun ExecutionProfile),
+    conversations: ~w(Conversation ConversationEvent ConversationSnapshot),
+    execution_runtime: ~w(ExecutionWorkflow SandboxSession RuntimeEvent Checkpoint ExecSession SpriteSpec),
+    accounts: ~w(AccountRecord User UserIdentity ApiKey Token),
+    auth_providers: ~w(ProviderConfig),
+    github: ~w(GitHubRepo WebhookDelivery IssueAnalysis),
+    security: ~w(SecurityRecord SecretRef SecretLifecycleAudit),
+    setup: ~w(SystemConfig),
+    legacy: ~w(Project WorkflowRun)
+  }
+
+  @shared_predicates ~w(
+    recordId recordKind recordStatus insertedAt updatedAt metadataJson payloadJson
+    recordLabel displayName sourceKind sourceKey provider providerHost externalId
+    canonicalKey canonicalReference title summary priority occurredAt
+  )
+
+  @forbidden_secret_predicates ~w(
+    plaintext ciphertext hashedPassword apiKeyHash tokenValue webhookSecret privateKey
+    rawLlmResponse output
+  )
+
   test "35.3.1.1 companion ontology loads alongside coding memory without namespace ambiguity" do
     assert {:ok, memory_graph} = RDF.Turtle.read_file(MemoryGraph.ontology_path())
 
@@ -36,6 +66,49 @@ defmodule JidoCode.PhaseThirtyFiveIntegrationTest do
     assert memory_source =~ "distinct from the governed control-plane jcp:Decision record"
     assert control_plane_source =~ "jcp:Decision a owl:Class"
     assert control_plane_source =~ "distinct from memory:Decision"
+  end
+
+  test "control-plane ontology covers current product record families" do
+    assert {:ok, graph} = RDF.Turtle.read_file(MemoryGraph.control_plane_ontology_path())
+
+    Enum.each(@current_product_classes, fn {_family, class_names} ->
+      Enum.each(class_names, fn class_name ->
+        assert ontology_class?(graph, class_name), "#{class_name} is missing from the control-plane ontology"
+      end)
+    end)
+  end
+
+  test "control-plane ontology keeps previous-era concepts explicit" do
+    source = File.read!(MemoryGraph.control_plane_ontology_path())
+
+    assert source =~ "A legacy project record retained for compatibility"
+    assert source =~ "A previous-era workflow run record retained as compatibility input"
+  end
+
+  test "control-plane ontology defines shared bounded projection predicates" do
+    assert {:ok, graph} = RDF.Turtle.read_file(MemoryGraph.control_plane_ontology_path())
+
+    Enum.each(@shared_predicates, fn predicate_name ->
+      assert datatype_property?(graph, predicate_name),
+             "#{predicate_name} is missing as a shared control-plane datatype predicate"
+    end)
+  end
+
+  test "control-plane ontology documents sensitive projection exclusions" do
+    assert {:ok, graph} = RDF.Turtle.read_file(MemoryGraph.control_plane_ontology_path())
+    source = File.read!(MemoryGraph.control_plane_ontology_path())
+
+    assert source =~ "API key projection excludes raw key material and key hashes"
+    assert source =~ "Token projection excludes bearer token values"
+    assert source =~ "GitHub repository projection excludes webhook secrets"
+    assert source =~ "Secret reference projection excludes plaintext values, ciphertext"
+    assert source =~ "unbounded command output is intentionally excluded"
+    assert source =~ "Raw secrets, ciphertext, key hashes, private keys, bearer tokens"
+
+    Enum.each(@forbidden_secret_predicates, fn predicate_name ->
+      refute datatype_property?(graph, predicate_name),
+             "#{predicate_name} must not be modeled as a semantic projection predicate"
+    end)
   end
 
   test "35.3.1.2 canonical governed IRI helpers remain stable for every governed record kind" do
@@ -135,4 +208,17 @@ defmodule JidoCode.PhaseThirtyFiveIntegrationTest do
   defp spec_path(relative_path) do
     Path.expand(Path.join([__DIR__, "..", "..", ".spec", relative_path]))
   end
+
+  defp ontology_class?(graph, class_name) do
+    RDF.Graph.include?(graph, {control_plane_iri(class_name), RDF.type(), @owl_class_iri})
+  end
+
+  defp datatype_property?(graph, predicate_name) do
+    RDF.Graph.include?(
+      graph,
+      {control_plane_iri(predicate_name), RDF.type(), @owl_datatype_property_iri}
+    )
+  end
+
+  defp control_plane_iri(name), do: RDF.iri(@control_plane_ns <> name)
 end

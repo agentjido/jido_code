@@ -300,6 +300,7 @@ defmodule JidoCode.AgentOS.Manager do
 
   defp shutdown_kernel_impl(kernel_name, state) do
     Logger.info("Shutting down kernel #{inspect(kernel_name)}")
+
     wait_for_termination(state.pid, fn ->
       DynamicSupervisor.terminate_child(kernel_supervisor(), state.pid)
     end)
@@ -357,15 +358,7 @@ defmodule JidoCode.AgentOS.Manager do
   defp persistence_config do
     case Application.get_env(:jido_code, :agent_os_persistence) do
       nil ->
-        # Default to Ecto if configured
-        if Code.ensure_loaded?(JidoCode.Repo) and Code.ensure_loaded?(Jido.Ecto.Storage) do
-          [
-            adapter: Jido.Ecto.Storage,
-            repo: JidoCode.Repo
-          ]
-        else
-          nil
-        end
+        nil
 
       config when is_list(config) ->
         case Keyword.get(config, :adapter) || Keyword.get(config, :module) do

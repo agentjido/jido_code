@@ -12,13 +12,6 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.Repo
-
-  setup do
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
-    :ok
-  end
-
   test "65.5.1 dashboard concern tabs keep one authenticated route while bounded panels switch in place",
        %{conn: _conn} do
     register_owner("phase65-owner@example.com", "owner-password-123")
@@ -37,7 +30,7 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     |> element("#dashboard-section-nav-runs")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=runs")
+    assert_patch(view, "/dashboard?onboarding=completed&section=runs&subject=work")
     assert has_element?(view, "#dashboard-root[data-dashboard-section='runs']")
     assert has_element?(view, "#dashboard-run-summaries")
     refute has_element?(view, "#dashboard-overview-panel")
@@ -47,34 +40,40 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     |> element("#dashboard-section-nav-conversations")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=conversations")
+    assert_patch(view, "/dashboard?onboarding=completed&section=conversations&subject=work")
     assert has_element?(view, "#dashboard-root[data-dashboard-section='conversations']")
     assert has_element?(view, "#dashboard-conversation-supervision")
     refute has_element?(view, "#dashboard-run-summaries")
 
     view
-    |> element("#dashboard-section-nav-memory")
+    |> element("#dashboard-shell-parent-subjects-knowledge")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=memory")
-    assert has_element?(view, "#dashboard-root[data-dashboard-section='memory']")
+    assert_patch(view, "/dashboard?onboarding=completed&section=memory&subject=knowledge")
+    assert has_element?(view, "#dashboard-root[data-dashboard-subject='knowledge'][data-dashboard-section='memory']")
     assert has_element?(view, "#dashboard-memory-summaries")
     refute has_element?(view, "#dashboard-conversation-supervision")
 
     view
-    |> element("#dashboard-section-nav-runtime")
+    |> element("#dashboard-shell-parent-subjects-runtime")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=runtime")
-    assert has_element?(view, "#dashboard-root[data-dashboard-section='runtime']")
+    assert_patch(view, "/dashboard?onboarding=completed&section=runtime&subject=runtime")
+    assert has_element?(view, "#dashboard-root[data-dashboard-subject='runtime'][data-dashboard-section='runtime']")
     assert has_element?(view, "#dashboard-runtime-evidence")
     refute has_element?(view, "#dashboard-memory-summaries")
+
+    view
+    |> element("#dashboard-shell-parent-subjects-work")
+    |> render_click()
+
+    assert_patch(view, "/dashboard?onboarding=completed&section=overview&subject=work")
 
     view
     |> element("#dashboard-section-nav-next_steps")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=next_steps")
+    assert_patch(view, "/dashboard?onboarding=completed&section=next_steps&subject=work")
     assert has_element?(view, "#dashboard-root[data-dashboard-section='next_steps']")
     assert has_element?(view, "#dashboard-onboarding-next-actions")
     refute has_element?(view, "#dashboard-runtime-evidence")

@@ -4,15 +4,12 @@ defmodule JidoCode.Setup.OnboardingReset do
   Resets onboarding state either to first-run bootstrap or back to the signed-in setup surface.
   """
 
-  require Ash.Query
-
-  alias JidoCode.Accounts
   alias JidoCode.Accounts.User
+  alias JidoCode.ControlPlane.Codecs.Registry
+  alias JidoCode.ControlPlane.ProductStore
+  alias JidoCode.ControlPlane.Store.Errors.NotFoundError
   alias JidoCode.GitHub.ServiceCredentials
-  alias JidoCode.Repo
-  alias JidoCode.Security
-  alias JidoCode.Security.SecretRef
-  alias JidoCode.Setup.{BootstrapStatus, SystemConfig}
+  alias JidoCode.Setup.{BootstrapStatus, OwnerStore, SystemConfig}
 
   @type mode :: :full | :keep_owner
 
@@ -81,11 +78,7 @@ defmodule JidoCode.Setup.OnboardingReset do
   defp maybe_clear_users(:keep_owner), do: {:ok, 0}
 
   defp maybe_clear_users(:full) do
-    with {:ok, users} <- Ash.read(User, domain: Accounts, authorize?: false),
-         {:ok, _result} <-
-           Ecto.Adapters.SQL.query(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", []) do
-      {:ok, length(users)}
-    end
+    OwnerStore.delete_all_users()
   end
 
   defp persist_reset_config(:full, _owner) do
@@ -111,23 +104,16 @@ defmodule JidoCode.Setup.OnboardingReset do
   end
 
   defp clear_managed_repo_inventory do
-    with {:ok, cleared_managed_repo_count} <- managed_repo_count(),
-         {:ok, _result} <-
-           Ecto.Adapters.SQL.query(
-             Repo,
-             "TRUNCATE TABLE source_repos, agent_os_kernel_snapshots RESTART IDENTITY CASCADE",
-             []
-           ) do
-      {:ok, cleared_managed_repo_count}
-    end
+    clear_record_type(:managed_repo)
   end
 
   defp clear_onboarding_github_pat_secret do
     with {:ok, secret_ref} <- onboarding_github_pat_secret_ref() do
       case secret_ref do
-        %SecretRef{} = secret_ref ->
-          case Ash.destroy(secret_ref, domain: Security, authorize?: false) do
-            :ok -> {:ok, true}
+        %{subject_iri: subject_iri} when is_binary(subject_iri) ->
+          case ProductStore.dispatch(:delete, :secret_ref, subject_iri: subject_iri) do
+            {:ok, _outcome} -> {:ok, true}
+            {:error, %NotFoundError{}} -> {:ok, false}
             {:error, reason} -> {:error, reason}
           end
 
@@ -140,27 +126,79 @@ defmodule JidoCode.Setup.OnboardingReset do
   defp onboarding_github_pat_secret_ref do
     pat_secret_ref_name = ServiceCredentials.service_secret_ref_name(:pat)
 
-    query =
-      SecretRef
-      |> Ash.Query.filter(scope == :integration and name == ^pat_secret_ref_name)
-      |> Ash.Query.limit(1)
+    case ProductStore.dispatch(:list, :secret_ref, query: %{limit: 500, offset: 0}) do
+      {:ok, %{projections: projections}} ->
+        projections
+        |> Enum.map(&decode_projection(:secret_ref, &1))
+        |> Enum.find(fn
+          {:ok, record} ->
+            record_scope(record) == "integration" and record_name(record) == pat_secret_ref_name and
+              onboarding_secret_ref?(record)
 
-    case Ash.read(query, domain: Security, authorize?: false) do
-      {:ok, [%SecretRef{source: :onboarding} = secret_ref]} -> {:ok, secret_ref}
-      {:ok, [_other_secret_ref]} -> {:ok, nil}
-      {:ok, []} -> {:ok, nil}
-      {:error, reason} -> {:error, reason}
+          _other ->
+            false
+        end)
+        |> case do
+          {:ok, record} -> {:ok, record}
+          nil -> {:ok, nil}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
-  defp managed_repo_count do
-    case Ecto.Adapters.SQL.query(Repo, "SELECT COUNT(*) FROM managed_repos", []) do
-      {:ok, %{rows: [[count]]}} when is_integer(count) and count >= 0 -> {:ok, count}
-      {:ok, _result} -> {:error, :invalid_managed_repo_count_result}
-      {:error, reason} -> {:error, reason}
+  defp clear_record_type(record_type) do
+    case ProductStore.dispatch(:list, record_type, query: %{limit: 500, offset: 0}) do
+      {:ok, %{projections: projections}} ->
+        projections
+        |> Enum.reduce_while({:ok, 0}, fn projection, {:ok, count} ->
+          subject_iri = Map.get(projection, :subject_iri) || Map.get(projection, "subject_iri")
+
+          case ProductStore.dispatch(:delete, record_type, subject_iri: subject_iri) do
+            {:ok, _outcome} -> {:cont, {:ok, count + 1}}
+            {:error, %NotFoundError{}} -> {:cont, {:ok, count}}
+            {:error, reason} -> {:halt, {:error, reason}}
+          end
+        end)
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
   defp owner_email(nil), do: nil
   defp owner_email(%User{} = owner), do: to_string(owner.email)
+
+  defp decode_projection(record_type, projection) do
+    with {:ok, record} <- Registry.decode(record_type, projection) do
+      {:ok, record}
+    end
+  end
+
+  defp record_scope(record), do: record |> map_get(:scope) |> to_string()
+  defp record_name(record), do: record |> map_get(:name) |> to_string()
+
+  defp onboarding_secret_ref?(record) do
+    metadata =
+      record
+      |> map_get(:metadata, %{})
+      |> decode_json_map()
+
+    Map.get(metadata, "source") in [nil, "onboarding"]
+  end
+
+  defp decode_json_map(value) when is_binary(value) do
+    case Jason.decode(value) do
+      {:ok, decoded} when is_map(decoded) -> decoded
+      _other -> %{}
+    end
+  end
+
+  defp decode_json_map(value) when is_map(value), do: value
+  defp decode_json_map(_value), do: %{}
+
+  defp map_get(map, key, default \\ nil)
+  defp map_get(map, key, default) when is_map(map), do: Map.get(map, key, Map.get(map, Atom.to_string(key), default))
+  defp map_get(_map, _key, default), do: default
 end

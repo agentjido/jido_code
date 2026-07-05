@@ -1249,7 +1249,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
           work_item_id: work_item.id,
           decision: :approve,
           actor: %{"id" => "owner-4", "email" => "memory-run-recall@example.com"},
-          rationale: "Use bounded conversation-origin recall here and reopen the canonical conversation route for full continuity.",
+          rationale:
+            "Use bounded conversation-origin recall here and reopen the canonical conversation route for full continuity.",
           decision_metadata: %{"source" => "run_detail_live_test"},
           decided_at: DateTime.utc_now()
         },

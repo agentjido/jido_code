@@ -19,6 +19,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Conversations.PubSub, as: ConversationPubSub
+  alias JidoCode.ControlPlane.Health, as: ControlPlaneHealth
   alias JidoCode.Conversations.RuntimeReadiness
   alias JidoCode.ManagedRepoRoutes
   alias JidoCode.LLMSelection
@@ -61,6 +62,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:conversation_stream_degraded_reason, nil)
      |> assign(:conversation_stream_discontinuity_count, 0)
      |> assign(:conversation_degraded_mode_message, @conversation_degraded_mode_message)
+     |> assign(:control_plane_health, ControlPlaneHealth.status())
      |> assign(:selected_work_item_id, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, @repositories_path)
@@ -454,6 +456,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           Launch builtin workflows from the managed-repository control view with governed run traceability.
         </p>
       </section>
+
+      <.operator_state_notice
+        id="project-detail-control-plane-health"
+        title="Control-plane store status"
+        state={@control_plane_health.notice}
+        kind={@control_plane_health.kind}
+        compact={true}
+      />
 
       <.operator_state_notice
         :if={@project_load_error}

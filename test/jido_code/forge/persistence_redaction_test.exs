@@ -1,8 +1,9 @@
 defmodule JidoCode.Forge.PersistenceRedactionTest do
   use JidoCode.DataCase, async: false
 
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.ExecutionRuntime.RecordStore
   alias JidoCode.Forge.Persistence
-  alias JidoCode.Forge.Resources.Session
   alias JidoCode.Security.LogRedactor
 
   defmodule FailingRedactor do
@@ -18,6 +19,12 @@ defmodule JidoCode.Forge.PersistenceRedactionTest do
   setup do
     original_redactor = Application.get_env(:jido_code, :forge_channel_redactor, LogRedactor)
     original_persistence_config = Application.get_env(:jido_code, JidoCode.Forge.Persistence)
+    original_store = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    store_name = :"forge_persistence_redaction_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_forge_persistence_redaction/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
 
     on_exit(fn ->
       Application.put_env(:jido_code, :forge_channel_redactor, original_redactor)
@@ -27,6 +34,9 @@ defmodule JidoCode.Forge.PersistenceRedactionTest do
       else
         Application.delete_env(:jido_code, JidoCode.Forge.Persistence)
       end
+
+      restore_env(:control_plane_product_store_server, original_store)
+      File.rm_rf!(path)
     end)
 
     Application.put_env(:jido_code, :forge_channel_redactor, LogRedactor)
@@ -46,7 +56,7 @@ defmodule JidoCode.Forge.PersistenceRedactionTest do
                runner_state: %{api_token: secret}
              })
 
-    reloaded = Ash.get!(Session, session.id)
+    {:ok, reloaded} = RecordStore.get_sandbox_session(session.id)
 
     assert is_binary(reloaded.output_buffer)
     assert reloaded.output_buffer =~ "Authorization: Bearer [REDACTED"
@@ -77,17 +87,22 @@ defmodule JidoCode.Forge.PersistenceRedactionTest do
     assert typed_error.operation == :record_execution_complete
     assert typed_error.reason_type == "forced_redaction_failure"
 
-    reloaded = Ash.get!(Session, session.id)
+    {:ok, reloaded} = RecordStore.get_sandbox_session(session.id)
     assert reloaded.phase == :created
     assert is_nil(reloaded.output_buffer)
   end
 
   defp create_session!(session_id) do
-    Session
-    |> Ash.Changeset.for_create(:create, %{
-      name: session_id,
-      spec: %{}
-    })
-    |> Ash.create!()
+    {:ok, session} =
+      RecordStore.upsert_sandbox_session(%{
+        name: session_id,
+        phase: :created,
+        spec: %{}
+      })
+
+    session
   end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

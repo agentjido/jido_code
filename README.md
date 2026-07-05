@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/mikehostetler/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/mikehostetler/jido_code/actions/workflows/ci.yml)
 
-Jido.Code is the primary product and implementation repo in this workspace. It is a Phoenix + LiveView application built on Ash, Postgres, and the Jido runtime, with a separate Tauri desktop packaging path.
+Jido.Code is the primary product and implementation repo in this workspace. It is a Phoenix + LiveView application built on the embedded triple-store control plane and the Jido runtime, with a separate Tauri desktop packaging path.
 
 Status today is alpha and developer-focused. The repo is real, runnable software, but it is still evolving toward the broader product shape described in the repo-local spec workspace.
 
@@ -13,13 +13,7 @@ Status today is alpha and developer-focused. The repo is real, runnable software
 <!-- covers: docs.product_foundation.readme_source_graph_orientation_present -->
 ## Quickstart
 
-Normal repository development uses the repo root and a host PostgreSQL instance.
-
-Expected local defaults:
-
-- PostgreSQL on `localhost:5432`
-- username/password `postgres` / `postgres`
-- databases `jido_code_dev` and `jido_code_test*`
+Normal repository development uses the repo root and repository-local embedded store state.
 
 ```bash
 git clone https://github.com/mikehostetler/jido_code.git
@@ -32,13 +26,13 @@ mix server
 
 Then open http://localhost:4100
 
-For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix server` is the preferred start path and prepares browser dependencies or bundles first when the current LiveVue/Vite output is missing. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md).
+For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies and builds assets. `mix server` is the preferred start path and prepares browser dependencies or bundles first when the current LiveVue/Vite output is missing. Desktop packaging is separate and lives in [`tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md).
 
 ## What This Repo Contains
 
 Jido.Code currently centers on a few concrete areas:
 
-- a Phoenix web app with AshAuthentication-backed sign-in, settings, setup, and dashboard/workbench routes
+- a Phoenix web app with product-owned sign-in, settings, setup, and dashboard/workbench routes
 - a repo-scoped conversation orchestration layer with interruptible turns, durable event history, bounded shared context, and governed work steering
 - Forge, an OTP subsystem for isolated execution sessions with observable events
 - GitHub integration primitives for repos, webhook deliveries, analyses, and automation-oriented workflows
@@ -71,12 +65,11 @@ mix assets.build
 mix frontend.verify
 mix server
 mix test
-mix ecto.reset
 mix onboarding.reset --keep-owner
 mix onboarding.reset --full
 ```
 
-`.env.example` includes the main runtime overrides. For normal repo-root development, `config/runtime.exs` now auto-loads ignored `.env`, `.env.local`, and `.env.dev.local` files during dev boot so local values like `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` can be set without exporting them in your shell. Shell env vars still take precedence, and the important rule is still: leave `DATABASE_URL` unset and use the checked-in `config/dev.exs` and `config/test.exs` defaults.
+`.env.example` includes the main runtime overrides. For normal repo-root development, `config/runtime.exs` now auto-loads ignored `.env`, `.env.local`, and `.env.dev.local` files during dev boot so local values like `JIDO_CODE_SECRET_REF_ENCRYPTION_KEY` can be set without exporting them in your shell. Shell env vars still take precedence, and the important rule is still: leave `DATABASE_URL` unset and use the embedded store defaults.
 
 You may also need extra credentials depending on what you are exercising:
 
@@ -84,10 +77,9 @@ You may also need extra credentials depending on what you are exercising:
 - `SPRITES_API_TOKEN` for live Sprites-backed execution
 - mail provider settings such as `RESEND_API_KEY`
 
-Ash resource changes stay manual in this repo. Development browser requests do
-not auto-run Ash code generation or migrations. When you change Ash resources,
-use `mix ash.codegen --dev` while iterating, then `mix ash.codegen <name>` once
-the change set is ready to keep.
+Product record shape changes are explicit in this repo. Update the embedded
+store codec, ontology, and query projection together so runtime records and
+semantic projections stay aligned.
 
 ## Source Code Graph
 
@@ -154,7 +146,7 @@ Productive coding conversations are managed-repository scoped and usually attach
 ## Day-To-Day Commands
 
 ```bash
-mix setup               # deps, ecto.setup, and asset build
+mix setup               # deps and asset build
 mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
@@ -162,10 +154,9 @@ mix source_graph.verify # run the repo-owned semantic graph verification suite
 mix memory.verify       # verify the ontology pair, typed governed links, and repo-owned memory recovery path
 mix semantic.verify     # run the full product-facing semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
-mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
 mix onboarding.reset --keep-owner # keep the bootstrap owner, clear managed repos, and rewind to signed-in /setup
 mix onboarding.reset --full       # clear bootstrap users plus managed repos and return to first-run bootstrap
-mix test                # create/migrate the test DB and run tests
+mix test                # run tests
 mix q                   # fast merge-safe quality gate
 mix quality             # fast gate plus frontend verification, doctor, and dialyzer debt surfacing
 mix precommit           # compile, format, and test
@@ -228,7 +219,7 @@ The verification and cutover seam is explicit too:
 - new memory and provenance code should emit typed `governed_references`
   directly; generic artifact-style governed links are legacy recovery-only
   state, not the contract for new work
-- governed truth still lives in Ash-backed control-plane records such as
+- governed truth still lives in embedded product records such as
   `ManagedRepo`, `WorkItem`, `Run`, `Evidence`, and governed `Decision`; the
   semantic graphs store supporting recall, provenance, and cross-links
 
@@ -244,10 +235,10 @@ deployment of the memory graph capability, see the
 
 ```text
 assets/   frontend assets
-config/   Phoenix, Ash, and runtime configuration
+config/   Phoenix, embedded store, and runtime configuration
 deploy/   container and deploy helper files
 lib/      application and web code
-priv/     repo migrations, seeds, and static assets
+priv/     static assets
 tauri/    desktop packaging app
 test/     tests and support code
 .planning/ phased implementation and migration plans
@@ -259,8 +250,8 @@ test/     tests and support code
 | --- | --- |
 | [`phoenix`](https://github.com/phoenixframework/phoenix) | Web framework and router |
 | [`phoenix_live_view`](https://github.com/phoenixframework/phoenix_live_view) | Interactive server-rendered UI |
-| [`ash`](https://ash-hq.org) | Resource modeling and application layer |
-| [`ash_postgres`](https://github.com/ash-project/ash_postgres) | Primary data layer integration |
+| [`triple_store`](https://github.com/mikehostetler/triple_store) | Embedded RDF-backed product store |
+| [`sparql`](https://github.com/mikehostetler/sparql) | Query layer for embedded product and semantic projections |
 | [`jido`](https://github.com/agentjido/jido) | Agent runtime, signals, and orchestration patterns |
 | [`req`](https://github.com/wojtekmach/req) | HTTP client |
 | [`burrito`](https://github.com/burrito-elixir/burrito) | Phoenix desktop sidecar packaging |

@@ -7,20 +7,16 @@ defmodule JidoCode.Accounts.Checks.RegistrationAllowed do
   # covers: users.admin_system.registration_guardrails
   # covers: users.admin_system.admin_managed_provisioning
 
-  use Ash.Policy.SimpleCheck
-
   alias JidoCode.Setup.BootstrapStatus
 
   @restricted_registration_actions [:register_with_password]
 
-  @impl true
   def match?(_actor, %{action: %{name: action_name}}, _opts) do
     {:ok, registration_allowed?(action_name)}
   end
 
   def match?(_actor, _context, _opts), do: {:ok, true}
 
-  @impl true
   def describe(_opts) do
     "registration actions are restricted once the first local user exists"
   end

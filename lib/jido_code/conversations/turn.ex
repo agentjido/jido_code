@@ -49,7 +49,7 @@ defmodule JidoCode.Conversations.Turn do
     inserted_at = command.admitted_at
 
     %__MODULE__{
-      id: Ecto.UUID.generate(),
+      id: JidoCode.UUID.generate(),
       conversation_id: conversation_id,
       command_id: command.id,
       command_type: command.raw_type,
@@ -66,7 +66,7 @@ defmodule JidoCode.Conversations.Turn do
   @spec from_summary(map()) :: t()
   def from_summary(summary) when is_map(summary) do
     %__MODULE__{
-      id: normalize_optional_string(map_get(summary, :id)) || Ecto.UUID.generate(),
+      id: normalize_optional_string(map_get(summary, :id)) || JidoCode.UUID.generate(),
       conversation_id: normalize_optional_string(map_get(summary, :conversation_id)),
       command_id: normalize_optional_string(map_get(summary, :command_id)),
       command_type: normalize_optional_string(map_get(summary, :command_type)),

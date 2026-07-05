@@ -1,10 +1,10 @@
 defmodule JidoCodeWeb.AuthController do
   # covers: auth.system.ready_state_local_auth_handoff
   use JidoCodeWeb, :controller
-  use AshAuthentication.Phoenix.Controller
 
   require Logger
 
+  alias JidoCode.Accounts.{SessionTokens, UserStore}
   alias JidoCode.Setup.BootstrapStatus
 
   @sign_out_success_message "You are now signed out"
@@ -22,33 +22,16 @@ defmodule JidoCodeWeb.AuthController do
 
     conn
     |> delete_session(:return_to)
-    |> store_in_session(user)
-    # If your resource has a different name, update the assign name here (i.e :current_admin)
+    |> configure_session(renew: true)
+    |> put_product_session(user)
     |> assign(:current_user, user)
     |> put_flash(:info, message)
     |> redirect(to: return_to)
   end
 
-  def failure(conn, activity, reason) do
-    message =
-      case {activity, reason} do
-        {_,
-         %AshAuthentication.Errors.AuthenticationFailed{
-           caused_by: %Ash.Error.Forbidden{
-             errors: [%AshAuthentication.Errors.CannotConfirmUnconfirmedUser{}]
-           }
-         }} ->
-          """
-          You have already signed in another way, but have not confirmed your account.
-          You can confirm your account using the link we sent to you, or by resetting your password.
-          """
-
-        _ ->
-          "Incorrect email or password"
-      end
-
+  def failure(conn, _activity, _reason) do
     conn
-    |> put_flash(:error, message)
+    |> put_flash(:error, "Incorrect email or password")
     |> redirect(to: ~p"/sign-in")
   end
 
@@ -90,7 +73,38 @@ defmodule JidoCodeWeb.AuthController do
     end
   end
 
-  defp default_sign_out_invalidator(conn, otp_app), do: clear_session(conn, otp_app)
+  defp default_sign_out_invalidator(conn, _otp_app), do: configure_session(conn, drop: true)
+
+  defp put_product_session(conn, user) do
+    with {:ok, product_user} <- product_user_for(user),
+         {:ok, token} <- SessionTokens.issue(product_user) do
+      conn
+      |> put_session("product_user_token", token)
+      |> put_session("product_user_email", to_string(product_user.email))
+    else
+      _error -> conn
+    end
+  end
+
+  defp product_user_for(user) do
+    email = user |> Map.get(:email) |> to_string()
+
+    case UserStore.get_by_email(email) do
+      {:ok, nil} ->
+        UserStore.upsert(%{
+          user_id: user |> Map.get(:id) |> to_string(),
+          email: email,
+          is_admin: Map.get(user, :is_admin, false),
+          confirmed_at: Map.get(user, :confirmed_at)
+        })
+
+      {:ok, product_user} ->
+        {:ok, product_user}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
   defp default_return_to do
     case BootstrapStatus.current().state do

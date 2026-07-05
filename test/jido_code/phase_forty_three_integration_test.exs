@@ -270,9 +270,7 @@ defmodule JidoCode.PhaseFortyThreeIntegrationTest do
            ]
 
     assert Enum.map(replayed_events, & &1.sequence) ==
-             Enum.to_list(
-               (checkpoint_sequence + 1)..(checkpoint_sequence + length(replayed_events))
-             )
+             Enum.to_list((checkpoint_sequence + 1)..(checkpoint_sequence + length(replayed_events)))
 
     assert :ok = Driver.stop(conversation.id)
   end

@@ -3,7 +3,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   Validates and launches manual workflow runs from `/workflows`.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Control.RepoBridge
 
   @default_error_type "workflow_manual_run_creation_failed"
   @validation_error_type "workflow_run_validation_failed"
@@ -23,11 +23,6 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   @repository_lookup_remediation """
   Ensure the repository is imported and available, then retry kickoff from `/workflows`.
   """
-  @repository_loader_actor Actor.operator_actor(%{
-                             "id" => "system:manual-run-kickoff",
-                             "email" => "manual-run-kickoff@system.local"
-                           })
-
   @workflow_definition_remediation """
   Verify workflow definition metadata and retry kickoff from `/workflows`.
   """
@@ -185,15 +180,12 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   @doc false
   @spec default_repository_loader() :: {:ok, [map()]} | {:error, kickoff_error()}
   def default_repository_loader do
-    case ManagedRepo.read(query: [sort: [display_name: :asc]], actor: @repository_loader_actor) do
-      {:ok, managed_repos} ->
+    case RepoBridge.list_repo_scopes() do
+      {:ok, repo_scopes} ->
         {:ok,
-         managed_repos
+         repo_scopes
          |> Enum.map(fn managed_repo ->
-           case RepoBridge.repo_scope(managed_repo.id) do
-             {:ok, scope} -> to_repository_option(scope)
-             {:error, _reason} -> to_repository_option(managed_repo)
-           end
+           to_repository_option(managed_repo)
          end)
          |> Enum.reject(&is_nil/1)}
 
@@ -523,6 +515,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
     workflow_name = Map.fetch!(workflow_definition, :name)
     workflow_version = Map.fetch!(workflow_definition, :version)
     repo_id = Map.fetch!(repository_scope, :repo_id)
+
     repository_defaults = %{
       default_branch: Map.fetch!(repository_scope, :default_branch),
       github_full_name: Map.get(repository_scope, :github_full_name)

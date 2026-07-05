@@ -14,12 +14,8 @@ defmodule JidoCodeWeb.HomeLive do
   # covers: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
   use JidoCodeWeb, :live_view
 
-  require Ash.Query
-
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
-  alias JidoCode.AuthProviders
   alias JidoCode.AuthProviders.ProviderConfig
+  alias JidoCode.AuthProviders.ProviderConfigStore
   alias JidoCode.Setup.BootstrapStatus
   alias JidoCode.Setup.DeploymentMode
   alias JidoCode.Setup.OwnerBootstrap
@@ -573,34 +569,15 @@ defmodule JidoCodeWeb.HomeLive do
   defp prereq_status_label(status), do: status |> to_string() |> String.capitalize()
 
   defp owner_sign_in_with_token_path(token) do
-    strategy = Info.strategy!(User, :password)
-
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
     query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
+    "/auth/setup/owner/sign-in?#{query}"
   end
 
   defp github_login_enabled? do
     if not BootstrapStatus.provider_login_available?() do
       false
     else
-      ProviderConfig
-      |> Ash.Query.filter(provider == ^:github and provider_host == ^"github.com")
-      |> Ash.read_one(domain: AuthProviders, authorize?: false)
-      |> case do
+      case ProviderConfigStore.get_by_provider_host(:github, "github.com") do
         {:ok, %ProviderConfig{enabled: true, login_enabled: true}} -> true
         _other -> false
       end

@@ -8,20 +8,32 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   # covers: auth.provider_login_flow.redirect_path_completion
   use JidoCodeWeb.ConnCase, async: false
 
-  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
-  alias JidoCode.Accounts.UserIdentity
+  alias JidoCode.Accounts.UserIdentityStore
+  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfigStore}
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Setup.OwnerStore
 
   @resolver_env :provider_auth_broker_jwks_resolver
 
   setup do
+    store_name = :"provider_auth_controller_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_provider_auth_controller/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
     BrokerNonceStore.reset!()
     original_resolver = Application.get_env(:jido_code, @resolver_env, :__missing__)
+    original_store = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    original_system_config = Application.get_env(:jido_code, :system_config, :__missing__)
+
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+    mark_onboarding_complete!()
 
     on_exit(fn ->
-      case original_resolver do
-        :__missing__ -> Application.delete_env(:jido_code, @resolver_env)
-        value -> Application.put_env(:jido_code, @resolver_env, value)
-      end
+      restore_app_env(@resolver_env, original_resolver)
+      restore_app_env(:control_plane_product_store_server, original_store)
+      restore_app_env(:system_config, original_system_config)
+      File.rm_rf!(path)
     end)
 
     :ok
@@ -30,7 +42,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   test "start defaults ready-state provider sign-in to dashboard when no redirect override is present", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!()
     enable_provider_login!(:github, "github.com")
 
     conn = get(conn, ~p"/auth/providers/github/start?provider_host=github.com")
@@ -43,7 +55,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   end
 
   test "start redirects to the broker start contract URL", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!()
     enable_provider_login!(:github, "github.com")
 
     conn =
@@ -60,7 +72,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   test "complete validates the broker handoff, signs in locally, and redirects to the signed path", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!()
     enable_provider_login!(:github, "github.com")
     {issued_state, handoff_token} = valid_broker_handoff("controller-nonce")
 
@@ -73,7 +85,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     assert redirected_to(conn, 302) == "/dashboard"
     assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Your local account was created and signed in with GitHub."
 
-    session_token = get_session(conn, "user_token")
+    session_token = get_session(conn, "product_user_token")
     assert is_binary(session_token)
 
     welcome_html =
@@ -85,26 +97,23 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     assert welcome_html =~ "octocat@example.com"
     assert welcome_html =~ "Sign Out"
 
-    {:ok, identities} = UserIdentity.list_for_user(%{user_id: current_user_id(conn)}, authorize?: false)
+    {:ok, identities} = UserIdentityStore.list_for_user(current_user_id(conn))
     assert Enum.map(identities, & &1.provider_subject) == ["12345"]
   end
 
   test "complete rejects provider login when provider config is disabled", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!()
 
     {:ok, _config} =
-      ProviderConfig.upsert(
-        %{
-          provider: :github,
-          provider_host: "github.com",
-          enabled: false,
-          login_enabled: false,
-          broker_issuer: "https://broker.example.com",
-          broker_audience: "jido-code",
-          broker_base_url: "https://broker.example.com"
-        },
-        authorize?: false
-      )
+      ProviderConfigStore.upsert(%{
+        provider: :github,
+        provider_host: "github.com",
+        enabled: false,
+        login_enabled: false,
+        broker_issuer: "https://broker.example.com",
+        broker_audience: "jido-code",
+        broker_base_url: "https://broker.example.com"
+      })
 
     {issued_state, handoff_token} = valid_broker_handoff("disabled-nonce")
 
@@ -121,23 +130,20 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   test "complete does not issue a session when the provider identity is not allowlisted", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!()
 
     {:ok, _config} =
-      ProviderConfig.upsert(
-        %{
-          provider: :github,
-          provider_host: "github.com",
-          enabled: true,
-          login_enabled: true,
-          allowlist_mode: :organizations,
-          allowlist_values: ["agentjido"],
-          broker_issuer: "https://broker.example.com",
-          broker_audience: "jido-code",
-          broker_base_url: "https://broker.example.com"
-        },
-        authorize?: false
-      )
+      ProviderConfigStore.upsert(%{
+        provider: :github,
+        provider_host: "github.com",
+        enabled: true,
+        login_enabled: true,
+        allowlist_mode: :organizations,
+        allowlist_values: ["agentjido"],
+        broker_issuer: "https://broker.example.com",
+        broker_audience: "jido-code",
+        broker_base_url: "https://broker.example.com"
+      })
 
     {issued_state, handoff_token} =
       valid_broker_handoff("blocked-nonce", %{
@@ -154,7 +160,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     response = json_response(response_conn, 422)
 
     assert response["error"]["error_type"] == "provider_identity_not_allowlisted"
-    assert get_session(response_conn, "user_token") == nil
+    assert get_session(response_conn, "product_user_token") == nil
   end
 
   defp valid_broker_handoff(nonce, claim_overrides \\ %{}, redirect_path \\ "/dashboard") do
@@ -206,21 +212,36 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
 
   defp enable_provider_login!(provider, provider_host) do
     {:ok, config} =
-      ProviderConfig.upsert(
-        %{
-          provider: provider,
-          provider_host: provider_host,
-          enabled: true,
-          login_enabled: true,
-          broker_issuer: "https://broker.example.com",
-          broker_audience: "jido-code",
-          broker_base_url: "https://broker.example.com"
-        },
-        authorize?: false
-      )
+      ProviderConfigStore.upsert(%{
+        provider: provider,
+        provider_host: provider_host,
+        enabled: true,
+        login_enabled: true,
+        broker_issuer: "https://broker.example.com",
+        broker_audience: "jido-code",
+        broker_base_url: "https://broker.example.com"
+      })
 
     config
   end
+
+  defp seed_owner! do
+    {:ok, owner} = OwnerStore.create_owner(%{email: "owner@example.com"})
+    owner
+  end
+
+  defp mark_onboarding_complete! do
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: true,
+      onboarding_step: 8,
+      onboarding_state: %{},
+      default_environment: :sprite,
+      workspace_root: nil
+    })
+  end
+
+  defp restore_app_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_app_env(key, value), do: Application.put_env(:jido_code, key, value)
 
   defp handoff_token(jwk, overrides) do
     claims =

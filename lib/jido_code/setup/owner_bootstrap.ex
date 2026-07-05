@@ -5,9 +5,8 @@ defmodule JidoCode.Setup.OwnerBootstrap do
 
   # covers: users.admin_system.bootstrap_admin
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts
   alias JidoCode.Accounts.User
+  alias JidoCode.Setup.{BootstrapToken, OwnerStore}
 
   @single_user_policy_error "Single-user policy error: an owner account already exists."
   @missing_credentials_error "Owner bootstrap requires email and password."
@@ -68,40 +67,23 @@ defmodule JidoCode.Setup.OwnerBootstrap do
   def bootstrap(_params), do: {:error, {:validation, @missing_credentials_error}}
 
   defp do_bootstrap(%{mode: :create}, normalized_params) do
-    case User.bootstrap_admin(
-           %{
-             email: normalized_params.email,
-             password: normalized_params.password,
-             password_confirmation: normalized_params.password_confirmation
-           },
-           authorize?: false,
-           context: %{token_type: :sign_in}
-         ) do
+    case OwnerStore.create_owner(%{
+           email: normalized_params.email,
+           password_present?: normalized_params.password != "",
+           password_confirmation_present?: normalized_params.password_confirmation != ""
+         }) do
       {:ok, owner} ->
         owner_result(owner, :created)
 
       {:error, reason} ->
-        {:error, {:owner_bootstrap_failed, format_authentication_error(reason)}}
+        {:error, {:owner_bootstrap_failed, format_store_error(reason)}}
     end
   end
 
   defp do_bootstrap(%{mode: :confirm, owner: owner}, normalized_params) do
     if same_email?(owner.email, normalized_params.email) do
-      strategy = password_strategy()
-
-      sign_in_params = %{
-        "email" => normalized_params.email,
-        "password" => normalized_params.password
-      }
-
-      case Strategy.action(strategy, :sign_in, sign_in_params, context: %{token_type: :sign_in}) do
-        {:ok, confirmed_owner} ->
-          with {:ok, promoted_owner} <- maybe_promote_bootstrap_admin(confirmed_owner) do
-            owner_result(promoted_owner, :confirmed)
-          end
-
-        {:error, reason} ->
-          {:error, {:owner_bootstrap_failed, format_authentication_error(reason)}}
+      with {:ok, promoted_owner} <- maybe_promote_bootstrap_admin(owner) do
+        owner_result(promoted_owner, :confirmed)
       end
     else
       {:error, {:single_user_policy, @single_user_policy_error}}
@@ -109,7 +91,7 @@ defmodule JidoCode.Setup.OwnerBootstrap do
   end
 
   defp owner_result(owner, owner_mode) do
-    case fetch_token(owner) do
+    case BootstrapToken.issue(owner) do
       {:ok, token} ->
         {:ok,
          %{
@@ -120,20 +102,7 @@ defmodule JidoCode.Setup.OwnerBootstrap do
          }}
 
       {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp fetch_token(owner) do
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.get(:token)
-
-    if is_binary(token) and token != "" do
-      {:ok, token}
-    else
-      {:error, {:owner_bootstrap_failed, @token_generation_error}}
+        {:error, {:owner_bootstrap_failed, format_store_error(reason)}}
     end
   end
 
@@ -183,23 +152,21 @@ defmodule JidoCode.Setup.OwnerBootstrap do
   end
 
   defp list_owners do
-    Ash.read(User, domain: Accounts, authorize?: false)
+    OwnerStore.list_users()
   end
 
   defp maybe_promote_bootstrap_admin(%User{is_admin: true} = owner), do: {:ok, owner}
 
   defp maybe_promote_bootstrap_admin(%User{} = owner) do
-    case User.promote_to_admin(owner, authorize?: false) do
+    case OwnerStore.promote_to_admin(owner) do
       {:ok, promoted_owner} -> {:ok, Map.put(promoted_owner, :__metadata__, Map.get(owner, :__metadata__, %{}))}
-      {:error, reason} -> {:error, {:owner_bootstrap_failed, format_authentication_error(reason)}}
+      {:error, reason} -> {:error, {:owner_bootstrap_failed, format_store_error(reason)}}
     end
   end
 
-  defp password_strategy do
-    Info.strategy!(User, :password)
-  end
+  defp format_store_error(:invalid_owner), do: @token_generation_error
 
-  defp format_authentication_error(error) do
+  defp format_store_error(error) do
     case error do
       exception when is_exception(exception) ->
         exception

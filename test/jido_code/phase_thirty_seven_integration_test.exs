@@ -18,6 +18,7 @@ defmodule JidoCode.PhaseThirtySevenIntegrationTest do
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Governance.{Decision, Evidence}
   alias JidoCode.MemoryGraph
+
   alias JidoCode.MemoryGraph.{
     CaptureEnvelope,
     DurableMemoryEnvelope,
@@ -55,6 +56,7 @@ defmodule JidoCode.PhaseThirtySevenIntegrationTest do
     workspace_path: workspace_path
   } do
     {project, managed_repo} = create_project_and_repo!("phase-37-query", workspace_path)
+
     {run, evidence, decision, revision, memory_resource_iri, plan_resource_iri} =
       seed_governed_memory_context!(project, managed_repo, workspace_path)
 
@@ -149,6 +151,7 @@ defmodule JidoCode.PhaseThirtySevenIntegrationTest do
     workspace_path: workspace_path
   } do
     {project, managed_repo} = create_project_and_repo!("phase-37-services", workspace_path)
+
     {run, evidence, decision, revision, memory_resource_iri, _plan_resource_iri} =
       seed_governed_memory_context!(project, managed_repo, workspace_path)
 

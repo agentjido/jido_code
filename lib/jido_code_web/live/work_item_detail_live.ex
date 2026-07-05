@@ -15,9 +15,10 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.Decision
+  alias JidoCode.Governance.RecordStore, as: GovernanceRecordStore
   alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
-  alias JidoCode.Operations.WorkItem
-  alias JidoCode.Orchestration.Run
+  alias JidoCode.Operations.{RecordStore, WorkItem}
+  alias JidoCode.Orchestration.RecordStore, as: OrchestrationRecordStore
 
   @surface_label "this governed work-item surface"
 
@@ -525,11 +526,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
   defp load_work_item_state(project_id, work_item_id) do
     with {:ok, scope} <- RepoBridge.repo_scope(project_id),
          managed_repo_id when is_binary(managed_repo_id) <- managed_repo_id(scope),
-         {:ok, [%WorkItem{} = work_item]} <-
-           WorkItem.read(
-             query: [filter: [id: work_item_id, managed_repo_id: managed_repo_id], limit: 1],
-             actor: Actor.operator_actor()
-           ) do
+         {:ok, %WorkItem{} = work_item} <- load_scoped_work_item(work_item_id, managed_repo_id) do
       route_repo_id = route_repo_id(scope) || managed_repo_id
       workspace_path = load_repo_workspace_path(scope)
 
@@ -555,6 +552,15 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
        }}
     else
       _other -> {:error, :not_found}
+    end
+  end
+
+  defp load_scoped_work_item(work_item_id, managed_repo_id) do
+    case RecordStore.get(:work_item, work_item_id) do
+      {:ok, %WorkItem{managed_repo_id: ^managed_repo_id} = work_item} -> {:ok, work_item}
+      {:ok, %WorkItem{}} -> {:error, :not_found}
+      {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -585,8 +591,9 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
   end
 
   defp load_related_runs(managed_repo_id, work_item_id) do
-    case Run.read(
-           query: [filter: [managed_repo_id: managed_repo_id, work_item_id: work_item_id], sort: [started_at: :desc]],
+    case OrchestrationRecordStore.list_runs(
+           %{managed_repo_id: managed_repo_id, work_item_id: work_item_id},
+           query: [sort: [started_at: :desc]],
            actor: Actor.operator_actor()
          ) do
       {:ok, runs} -> runs
@@ -595,8 +602,9 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
   end
 
   defp load_related_decisions(managed_repo_id, work_item_id) do
-    case Decision.read(
-           query: [filter: [managed_repo_id: managed_repo_id, work_item_id: work_item_id], sort: [decided_at: :desc]],
+    case GovernanceRecordStore.list_decisions(
+           %{managed_repo_id: managed_repo_id, work_item_id: work_item_id},
+           query: [sort: [decided_at: :desc]],
            actor: Actor.operator_actor()
          ) do
       {:ok, decisions} -> decisions

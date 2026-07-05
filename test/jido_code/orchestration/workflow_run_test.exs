@@ -3,6 +3,7 @@ defmodule JidoCode.Orchestration.WorkflowRunTest do
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.Actor
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
   alias JidoCode.Projects.Project
 
@@ -24,6 +25,7 @@ defmodule JidoCode.Orchestration.WorkflowRunTest do
     end)
 
     Application.put_env(:jido_code, :workflow_run_event_broadcaster, Phoenix.PubSub)
+    setup_product_store()
     :ok
   end
 
@@ -131,7 +133,7 @@ defmodule JidoCode.Orchestration.WorkflowRunTest do
     {:ok, project} = create_project("owner/repo-run-policy")
     Actor.clear_policy_actor()
 
-    assert {:error, %Ash.Error.Forbidden{}} =
+    assert {:error, %{type: :forbidden}} =
              WorkflowRun.create(%{
                project_id: project.id,
                run_id: "run-policy-denied",
@@ -1529,4 +1531,21 @@ defmodule JidoCode.Orchestration.WorkflowRunTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp setup_product_store do
+    store_name = :"workflow_run_test_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_workflow_run_test/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

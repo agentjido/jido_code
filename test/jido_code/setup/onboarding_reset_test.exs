@@ -1,51 +1,49 @@
 defmodule JidoCode.Setup.OnboardingResetTest do
   # covers: setup.onboarding.reset_mix_task
-  use JidoCode.DataCase, async: false
+  use ExUnit.Case, async: false
 
-  alias JidoCode.AgentOS.Manager.PersistedKernel
-  alias JidoCode.Accounts.User
-  alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
+  alias JidoCode.ControlPlane.{ProductStore, StoreServer}
   alias JidoCode.GitHub.ServiceCredentials
-  alias JidoCode.Security.{SecretRef, SecretRefs}
-  alias JidoCode.Setup.{BootstrapStatus, OnboardingReset, ProjectImport, SystemConfig}
+  alias JidoCode.Setup.{BootstrapStatus, OnboardingReset, OwnerStore, SystemConfig, SystemConfigPersistence}
 
   setup do
-    original_config = Application.get_env(:jido_code, :system_config, :__missing__)
+    store_name = :"onboarding_reset_store_#{System.unique_integer([:positive])}"
+    store_path = Path.join(System.tmp_dir!(), "jido_code_onboarding_reset/#{store_name}")
     workspace_root = create_workspace_root!()
 
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: store_path, reset_policy: :reset_on_start})
+
+    original_store_server = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    original_loader = Application.get_env(:jido_code, :system_config_loader, :__missing__)
+    original_saver = Application.get_env(:jido_code, :system_config_saver, :__missing__)
+
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+    Application.put_env(:jido_code, :system_config_loader, &SystemConfigPersistence.load/0)
+    Application.put_env(:jido_code, :system_config_saver, &SystemConfigPersistence.save/1)
+
+    assert {:ok, _config} =
+             SystemConfig.save(%SystemConfig{
+               onboarding_completed: true,
+               onboarding_step: 8,
+               onboarding_state: %{"7" => %{"selected_repository" => "owner/repo-one"}},
+               default_environment: :local,
+               workspace_root: workspace_root
+             })
+
     on_exit(fn ->
-      restore_env(:system_config, original_config)
+      restore_env(:control_plane_product_store_server, original_store_server)
+      restore_env(:system_config_loader, original_loader)
+      restore_env(:system_config_saver, original_saver)
+      File.rm_rf!(store_path)
     end)
-
-    Ecto.Adapters.SQL.query!(
-      Repo,
-      "TRUNCATE TABLE secret_refs, secret_lifecycle_audits, agent_os_kernel_snapshots, source_repos, users RESTART IDENTITY CASCADE",
-      []
-    )
-
-    Application.put_env(:jido_code, :system_config, %{
-      onboarding_completed: true,
-      onboarding_step: 8,
-      onboarding_state: %{"7" => %{"selected_repository" => "owner/repo-one"}},
-      default_environment: :local,
-      workspace_root: workspace_root
-    })
 
     :ok
   end
 
   test "full reset returns onboarding to first-run bootstrap and clears onboarding-managed GitHub PAT" do
     bootstrap_owner!()
-    managed_repo_id = import_managed_repo!("owner/repo-one")
-    persist_kernel_snapshot!(managed_repo_id)
-
-    assert {:ok, _metadata} =
-             SecretRefs.persist_operational_secret(%{
-               scope: :integration,
-               name: ServiceCredentials.service_secret_ref_name(:pat),
-               value: "ghp_onboarding_reset_test",
-               source: :onboarding
-             })
+    import_managed_repo!("owner/repo-one")
+    persist_secret_ref!(:onboarding)
 
     assert {:ok, report} = OnboardingReset.reset(:full)
 
@@ -63,30 +61,14 @@ defmodule JidoCode.Setup.OnboardingResetTest do
     assert config.workspace_root == nil
 
     assert BootstrapStatus.current().state == :bootstrap_required
-
-    assert {:error, %{error_type: "secret_ref_missing"}} =
-             SecretRefs.operational_secret_value(:integration, "vcs/github/pat")
-
-    assert repo_inventory_counts() == %{managed_repos: 0, source_repos: 0, kernel_snapshots: 0}
+    refute secret_ref_present?()
+    assert managed_repo_count() == 0
   end
 
   test "keep-owner rewinds onboarding to the signed-in setup surface and preserves non-onboarding PAT secrets" do
     bootstrap_owner!()
-    managed_repo_id = import_managed_repo!("owner/repo-two")
-    persist_kernel_snapshot!(managed_repo_id)
-
-    assert {:ok, %SecretRef{} = _secret_ref} =
-             SecretRef.create(
-               %{
-                 scope: :integration,
-                 name: ServiceCredentials.service_secret_ref_name(:pat),
-                 ciphertext: "ciphertext",
-                 key_version: 7,
-                 source: :rotation,
-                 last_rotated_at: ~U[2026-04-24 12:00:00Z]
-               },
-               authorize?: false
-             )
+    import_managed_repo!("owner/repo-two")
+    persist_secret_ref!(:rotation)
 
     assert {:ok, report} = OnboardingReset.reset(:keep_owner)
 
@@ -117,30 +99,16 @@ defmodule JidoCode.Setup.OnboardingResetTest do
     assert status.user_count == 1
     assert status.primary_user_email == "owner@example.com"
 
-    assert {:ok, %SecretRef{source: :rotation, key_version: 7}} =
-             SecretRef.get_by_scope_name(
-               :integration,
-               ServiceCredentials.service_secret_ref_name(:pat),
-               authorize?: false
-             )
-
-    assert repo_inventory_counts() == %{managed_repos: 0, source_repos: 0, kernel_snapshots: 0}
+    assert secret_ref_present?()
+    assert managed_repo_count() == 0
   end
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 
   defp bootstrap_owner! do
-    assert {:ok, _owner} =
-             User.bootstrap_admin(
-               %{
-                 email: "owner@example.com",
-                 password: "owner-password-123",
-                 password_confirmation: "owner-password-123"
-               },
-               authorize?: false,
-               context: %{token_type: :sign_in}
-             )
+    assert {:ok, owner} = OwnerStore.create_owner(%{email: "owner@example.com"})
+    owner
   end
 
   defp create_workspace_root! do
@@ -153,50 +121,46 @@ defmodule JidoCode.Setup.OnboardingResetTest do
   end
 
   defp import_managed_repo!(full_name) when is_binary(full_name) do
-    onboarding_state = %{
-      "4" => %{
-        "github_credentials" => %{
-          "paths" => [
-            %{
-              "status" => "ready",
-              "repositories" => [
-                %{"full_name" => full_name, "default_branch" => "main"}
-              ]
-            }
-          ]
-        }
-      }
-    }
+    repo_id = full_name |> String.replace("/", "-")
 
-    report = ProjectImport.run(nil, full_name, onboarding_state)
+    assert {:ok, _outcome} =
+             ProductStore.dispatch(:upsert, :managed_repo,
+               record: %{
+                 managed_repo_id: repo_id,
+                 source_key: "github:#{full_name}",
+                 display_name: full_name,
+                 updated_at: DateTime.utc_now()
+               }
+             )
 
-    refute ProjectImport.blocked?(report)
-    report.project_record.id
+    repo_id
   end
 
-  defp persist_kernel_snapshot!(managed_repo_id) when is_binary(managed_repo_id) do
-    attrs = %{
-      kernel_name: "managed_repo_#{managed_repo_id}",
-      managed_repo_id: managed_repo_id,
-      snapshot_data: :erlang.term_to_binary(%{managed_repo_id: managed_repo_id, status: :persisted})
-    }
-
-    %PersistedKernel{}
-    |> PersistedKernel.changeset(attrs)
-    |> Repo.insert!()
+  defp persist_secret_ref!(source) do
+    assert {:ok, _outcome} =
+             ProductStore.dispatch(:create, :secret_ref,
+               record: %{
+                 secret_ref_id: "github-pat-#{source}",
+                 scope: "integration",
+                 name: ServiceCredentials.service_secret_ref_name(:pat),
+                 provider: "github",
+                 updated_at: DateTime.utc_now(),
+                 metadata: %{"source" => Atom.to_string(source), "key_version" => 7}
+               }
+             )
   end
 
-  defp repo_inventory_counts do
-    {:ok, managed_repos} =
-      ManagedRepo.read(query: [sort: [inserted_at: :asc]], actor: Actor.operator_actor())
+  defp secret_ref_present? do
+    case ProductStore.dispatch(:list, :secret_ref, query: %{limit: 500, offset: 0}) do
+      {:ok, %{projections: projections}} -> projections != []
+      _other -> false
+    end
+  end
 
-    {:ok, source_repos} =
-      SourceRepo.read(query: [sort: [inserted_at: :asc]], actor: Actor.operator_actor())
-
-    %{
-      managed_repos: length(managed_repos),
-      source_repos: length(source_repos),
-      kernel_snapshots: Repo.aggregate(PersistedKernel, :count, :id)
-    }
+  defp managed_repo_count do
+    case ProductStore.dispatch(:list, :managed_repo, query: %{limit: 500, offset: 0}) do
+      {:ok, %{metadata: %{total_count: count}}} -> count
+      _other -> 0
+    end
   end
 end

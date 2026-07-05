@@ -1,11 +1,5 @@
 import Config
 config :live_vue, vite_host: "http://localhost:5173", ssr_module: LiveVue.SSR.ViteJS
-config :ash, policies: [show_policy_breakdowns?: true]
-
-# Keep Ash codegen explicit in this repo. The default AshPhoenix dev plug can
-# offer a browser action that runs `mix ash.codegen --dev` and migrations from
-# a request failure page, which is too eager for this workspace.
-config :jido_code, ash_codegen_status_check?: false
 
 config :git_ops,
   mix_project: JidoCode.MixProject,
@@ -13,16 +7,6 @@ config :git_ops,
   repository_url: "https://github.com/epic-creative/jido_code",
   manage_mix_version?: true,
   version_tag_prefix: "v"
-
-# Configure your database
-config :jido_code, JidoCode.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "jido_code_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -110,11 +94,6 @@ config :jido_code,
   # AgentOS kernel manager configuration
   agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
   agent_os_registry: JidoCode.AgentOS.Manager.Registry,
-  # Ecto persistence for kernels and pods
-  agent_os_persistence: [
-    adapter: Jido.Ecto.Storage,
-    repo: JidoCode.Repo
-  ],
   # Source code graph configuration (enabled in dev with conservative defaults)
   source_code_graph_enabled: true,
   # 5 minutes

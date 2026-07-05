@@ -15,7 +15,6 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   alias JidoCode.Control.RepoBridge
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
-  alias JidoCode.Repo
 
   setup do
     original_loader = Application.get_env(:jido_code, :dashboard_run_summary_loader, :__missing__)
@@ -51,8 +50,6 @@ defmodule JidoCodeWeb.DashboardLiveTest do
         original_issue_triage_workflow_launcher
       )
     end)
-
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
 
     :ok
   end
@@ -605,8 +602,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
          %{
            id: "dashboard-run-summary-#{run_id}",
            run_id: run_id,
-           project_id: Ecto.UUID.generate(),
-           managed_repo_id: Ecto.UUID.generate(),
+           project_id: JidoCode.UUID.generate(),
+           managed_repo_id: JidoCode.UUID.generate(),
            workflow_name: "fix_failing_tests",
            status: "awaiting_approval",
            current_stage: "approval",
@@ -642,7 +639,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
          %{
            id: "conversation-summary-1",
            route_id: "repo-conversation-dashboard",
-           managed_repo_id: Ecto.UUID.generate(),
+           managed_repo_id: JidoCode.UUID.generate(),
            repo_label: "owner/repo-conversation-dashboard",
            role_scope: "work_item_scoped",
            role_attachment_mode: "governed_work",
@@ -718,7 +715,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
        [
          %{
            id: "runtime-posture-1",
-           managed_repo_id: Ecto.UUID.generate(),
+           managed_repo_id: JidoCode.UUID.generate(),
            repo_label: "repo-runtime-dashboard",
            status: "degraded",
            summary:
@@ -787,7 +784,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
          %{
            id: "memory-summary-1",
            route_id: "repo-memory-dashboard",
-           managed_repo_id: Ecto.UUID.generate(),
+           managed_repo_id: JidoCode.UUID.generate(),
            repo_label: "owner/repo-memory-dashboard",
            state: "invalidated",
            label: "Memory graph invalidated",

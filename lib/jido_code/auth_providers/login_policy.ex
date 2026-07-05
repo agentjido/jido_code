@@ -2,10 +2,8 @@ defmodule JidoCode.AuthProviders.LoginPolicy do
   # covers: auth.provider_login_policy.provider_enablement
   # covers: auth.provider_login_policy.allowlist_evaluation
   # covers: auth.provider_login_policy.provider_neutral_logic
-  require Ash.Query
-
-  alias JidoCode.AuthProviders
   alias JidoCode.AuthProviders.ProviderConfig
+  alias JidoCode.AuthProviders.ProviderConfigStore
 
   @list_modes [:organizations, :teams, :groups, :workspaces]
 
@@ -23,10 +21,7 @@ defmodule JidoCode.AuthProviders.LoginPolicy do
   def authorize(_params), do: {:error, invalid_input_error(:invalid_provider_login_policy_input)}
 
   defp load_config(provider, provider_host) do
-    ProviderConfig
-    |> Ash.Query.filter(provider == ^provider and provider_host == ^provider_host)
-    |> Ash.read_one(domain: AuthProviders, authorize?: false)
-    |> case do
+    case ProviderConfigStore.get_by_provider_host(provider, provider_host) do
       {:ok, %ProviderConfig{} = config} ->
         {:ok, config}
 

@@ -2,8 +2,8 @@ defmodule JidoCodeWeb.AuthBoundaryLiveTest do
   # covers: auth.system.revocable_credentials
   use JidoCodeWeb.ConnCase, async: false
 
-  alias AshAuthentication.TokenResource.Actions
-  alias JidoCode.Accounts.Token
+  alias JidoCode.Accounts.SessionTokens
+  alias JidoCode.Setup.OwnerStore
 
   test "anonymous landing requests stay anonymous", %{conn: conn} do
     welcome_html =
@@ -34,8 +34,10 @@ defmodule JidoCodeWeb.AuthBoundaryLiveTest do
   } do
     register_owner("owner@example.com", "owner-password-123")
     {authed_conn, session_token} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+    {:ok, owner} = OwnerStore.get_by_email("owner@example.com")
     assert is_binary(session_token)
-    assert :ok = Actions.revoke(Token, session_token)
+    assert {:ok, revoked_count} = SessionTokens.revoke_all_for_user(owner)
+    assert revoked_count >= 1
 
     response =
       authed_conn
@@ -48,6 +50,6 @@ defmodule JidoCodeWeb.AuthBoundaryLiveTest do
     refute welcome_html =~ "Create Account"
     refute welcome_html =~ "owner@example.com"
     refute welcome_html =~ "Sign Out"
-    assert get_session(response, "user_token") == nil
+    assert get_session(response, "product_user_token") == nil
   end
 end

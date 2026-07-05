@@ -20,6 +20,7 @@ defmodule JidoCodeWeb.SetupLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.Actor
+  alias JidoCode.ControlPlane.Health, as: ControlPlaneHealth
   alias JidoCode.GitHub.ServiceCredentials
   alias JidoCode.Setup.EnvironmentDefaults
   alias JidoCode.Setup.DeploymentMode
@@ -478,6 +479,14 @@ defmodule JidoCodeWeb.SetupLive do
               <.icon name="hero-exclamation-triangle-mini" class="size-5" />
               <span>{@diagnostic}</span>
             </div>
+
+            <.operator_state_notice
+              id="setup-control-plane-health"
+              title="Control-plane store status"
+              state={@control_plane_health.notice}
+              kind={@control_plane_health.kind}
+              compact={true}
+            />
 
             <div :if={@save_error} id="setup-save-error" class="alert alert-error">
               <.icon name="hero-x-circle-mini" class="size-5" />
@@ -1026,6 +1035,7 @@ defmodule JidoCodeWeb.SetupLive do
     |> assign(:runtime_environment_options, @runtime_environment_options)
     |> assign(:start_options, start_options(deployment_mode))
     |> assign(:diagnostic, diagnostic)
+    |> assign(:control_plane_health, ControlPlaneHealth.status())
     |> assign(:buttons_disabled?, buttons_disabled?)
     |> assign(:github_repository_listing_report, github_repository_listing_report)
     |> assign(:github_repository_options, GitHubRepositoryListing.repository_options(github_repository_listing_report))

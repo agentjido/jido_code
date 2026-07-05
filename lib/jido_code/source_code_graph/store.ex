@@ -28,7 +28,8 @@ defmodule JidoCode.SourceCodeGraph.Store do
     with :ok <- ensure_parent_directory(canonical_store_path),
          :ok <- ResourceLimits.validate_disk_space(canonical_store_path, estimated_size_bytes, opts),
          :ok <- reset_directory(staging_store_path),
-         {:ok, load_counts} <- build_staged_store(staging_store_path, analysis_result.load_artifacts, named_graph, timeout),
+         {:ok, load_counts} <-
+           build_staged_store(staging_store_path, analysis_result.load_artifacts, named_graph, timeout),
          :ok <- promote_store(staging_store_path, canonical_store_path) do
       imported_at = DateTime.utc_now()
 
@@ -80,9 +81,10 @@ defmodule JidoCode.SourceCodeGraph.Store do
   end
 
   defp build_staged_store(staging_store_path, load_artifacts, named_graph, timeout) do
-    task = Task.async(fn ->
-      do_build_staged_store(staging_store_path, load_artifacts, named_graph)
-    end)
+    task =
+      Task.async(fn ->
+        do_build_staged_store(staging_store_path, load_artifacts, named_graph)
+      end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
@@ -117,15 +119,21 @@ defmodule JidoCode.SourceCodeGraph.Store do
   end
 
   defp load_schema_artifacts_with_retry(store, schema_artifacts, named_graph) do
-    RetryPolicy.retry(fn ->
-      load_schema_artifacts(store, schema_artifacts, named_graph)
-    end, max_retries: 2)
+    RetryPolicy.retry(
+      fn ->
+        load_schema_artifacts(store, schema_artifacts, named_graph)
+      end,
+      max_retries: 2
+    )
   end
 
   defp load_graph_with_retry(store, graph, named_graph) do
-    RetryPolicy.retry(fn ->
-      TripleStore.load_graph(store, graph, graph: named_graph)
-    end, max_retries: 2)
+    RetryPolicy.retry(
+      fn ->
+        TripleStore.load_graph(store, graph, graph: named_graph)
+      end,
+      max_retries: 2
+    )
   end
 
   defp load_schema_artifacts(store, schema_artifacts, named_graph) do

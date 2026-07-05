@@ -3,6 +3,7 @@
 <!-- covers: docs.product_foundation.source_code_ontology_guide_present -->
 <!-- covers: docs.product_foundation.memory_ontology_guide_present -->
 <!-- covers: docs.product_foundation.workflow_provenance_ontology_guide_present -->
+<!-- covers: docs.product_foundation.control_plane_ontology_guide_present -->
 
 These guides explain `jido_code` in contributor terms.
 
@@ -56,6 +57,12 @@ These guides explain `jido_code` in contributor terms.
 17. [`14-repository-mental-map.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/14-repository-mental-map.md)
     Use this as a fast "where things live" index when you want to browse the
     codebase without reconstructing the repo layout from scratch.
+18. [`15-control-plane-diagnostics.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/15-control-plane-diagnostics.md)
+    Inspect embedded control-plane health, safe query output, and bounded raw
+    SPARQL diagnostics.
+19. [`16-control-plane-ontology-and-query-examples.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/16-control-plane-ontology-and-query-examples.md)
+    Go one level deeper on the product control-plane store: graph topology,
+    codec projection, ontology terms, and query examples.
 
 ## How To Use These Guides
 

@@ -16,8 +16,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
-  alias JidoCode.Repo
+  alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfigStore}
 
   @checker_env :setup_github_credential_checker
   @resolver_env :provider_auth_broker_jwks_resolver
@@ -40,8 +39,6 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
 
     Application.delete_env(:jido_code, :system_config_loader)
     Application.delete_env(:jido_code, @checker_env)
-
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -113,24 +110,7 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
 
     enable_provider_login!(:github, "github.com")
 
-    {:ok, sign_in_view, _html} = live(conn, ~p"/sign-in", on_error: :warn)
-
-    sign_in_view
-    |> form("form[action='/auth/user/password/sign_in']", %{
-      "user" => %{
-        "email" => "phase60-owner@example.com",
-        "password" => "owner-password-123"
-      }
-    })
-    |> render_submit()
-
-    auth_redirect_path =
-      sign_in_view
-      |> assert_redirect()
-      |> redirect_path()
-
-    auth_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(auth_response, 302) == "/dashboard"
+    auth_response = authenticate_owner_conn(conn, "phase60-owner@example.com", "owner-password-123")
 
     {:ok, welcome_view, _html} = live(recycle(auth_response), ~p"/welcome", on_error: :warn)
 
@@ -288,11 +268,11 @@ defmodule JidoCodeWeb.PhaseSixtyIntegrationTest do
       }
       |> Map.merge(Map.new(overrides))
 
-    {:ok, config} = ProviderConfig.upsert(attrs, authorize?: false)
+    {:ok, config} = ProviderConfigStore.upsert(attrs)
     config
   end
 
-  defp valid_broker_handoff(nonce, claim_overrides \\ %{}) do
+  defp valid_broker_handoff(nonce, claim_overrides) do
     {:ok, issued_state} = issue_state(nonce)
 
     jwk = JOSE.JWK.generate_key({:okp, :Ed25519})

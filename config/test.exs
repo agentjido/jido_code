@@ -3,20 +3,6 @@ config :live_vue, ssr: false, enable_props_diff: false
 config :jido_code, token_signing_secret: "HzvQA7aDEqgO64zKrIKG0mZWQ1bIBZLQ"
 config :jido_code, secret_ref_encryption_key: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
 config :bcrypt_elixir, log_rounds: 1
-config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
-
-# Configure your database
-#
-# The MIX_TEST_PARTITION environment variable can be used
-# to provide built-in test partitioning in CI environment.
-# Run `mix help test` for more information.
-config :jido_code, JidoCode.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "jido_code_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -48,7 +34,10 @@ config :phoenix,
 # Use in-memory SystemConfig for tests (no DB persistence)
 config :jido_code,
   system_config_loader: &JidoCode.Setup.SystemConfig.default_loader/0,
-  system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1
+  system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1,
+  control_plane_store_path: nil,
+  control_plane_store_reset_policy: :reset_on_start,
+  control_plane_store_open_timeout_ms: 5_000
 
 config :jido_code,
   source_code_graph_file_watcher_enabled: false,
@@ -70,8 +59,4 @@ config :jido_code, :ontology_enabled, false
 config :jido_code,
   agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
   agent_os_registry: JidoCode.AgentOS.Manager.Registry,
-  agent_workspace_specialist_runner: JidoCode.AgentWorkspace.DeterministicSpecialistRunner,
-  agent_os_persistence: [
-    adapter: Jido.Ecto.Storage,
-    repo: JidoCode.Repo
-  ]
+  agent_workspace_specialist_runner: JidoCode.AgentWorkspace.DeterministicSpecialistRunner

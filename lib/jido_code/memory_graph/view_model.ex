@@ -443,7 +443,8 @@ defmodule JidoCode.MemoryGraph.ViewModel do
   defp supporting_artifacts(_rows), do: []
 
   defp conversation_group_key(binding) when is_map(binding) do
-    value(binding, "turnId") || value(binding, "commandId") || value(binding, "conversationId") || value(binding, "resource")
+    value(binding, "turnId") || value(binding, "commandId") || value(binding, "conversationId") ||
+      value(binding, "resource")
   end
 
   defp sort_rows_by_latest_event(rows) when is_list(rows) do
@@ -505,7 +506,7 @@ defmodule JidoCode.MemoryGraph.ViewModel do
   defp known_kind_suffix?(nil, _suffixes), do: false
 
   defp known_kind_suffix?(value, suffixes) when is_binary(value) do
-    Enum.any?(suffixes, &String.ends_with?(value, "##{&1}") or String.ends_with?(value, "/#{&1}"))
+    Enum.any?(suffixes, &(String.ends_with?(value, "##{&1}") or String.ends_with?(value, "/#{&1}")))
   end
 
   defp known_kind_suffix?(_value, _suffixes), do: false
@@ -522,15 +523,20 @@ defmodule JidoCode.MemoryGraph.ViewModel do
 
   defp decimal_value(binding, key) do
     case value(binding, key) do
-      value when is_float(value) -> value
-      value when is_integer(value) -> value / 1
+      value when is_float(value) ->
+        value
+
+      value when is_integer(value) ->
+        value / 1
+
       value when is_binary(value) ->
         case Float.parse(value) do
           {parsed, ""} -> parsed
           _other -> nil
         end
 
-      _other -> nil
+      _other ->
+        nil
     end
   end
 

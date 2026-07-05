@@ -8,7 +8,7 @@ defmodule JidoCode.Operations.RepoNativeState do
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Operations.{Observation, WorkItem}
+  alias JidoCode.Operations.{Observation, RecordStore}
 
   @observer Actor.factory_system_actor(%{
               "id" => "system:repo-native-state",
@@ -88,7 +88,8 @@ defmodule JidoCode.Operations.RepoNativeState do
     if latest && latest.source_metadata["digest"] == signal.digest do
       {:ok, latest}
     else
-      Observation.create(
+      RecordStore.create(
+        :observation,
         %{
           managed_repo_id: managed_repo_id,
           source: @source,
@@ -107,15 +108,12 @@ defmodule JidoCode.Operations.RepoNativeState do
   end
 
   defp latest_observation(managed_repo_id, category) do
-    case Observation.read(
-           query: [
-             filter: [managed_repo_id: managed_repo_id, source: @source, category: category],
-             sort: [observed_at: :desc],
-             limit: 1
-           ],
+    case RecordStore.list(
+           :observation,
+           %{managed_repo_id: managed_repo_id, source: @source, category: category},
            actor: @observer
          ) do
-      {:ok, [%Observation{} = observation | _rest]} -> observation
+      {:ok, observations} -> latest_by_observed_at(observations)
       _other -> nil
     end
   end
@@ -325,14 +323,20 @@ defmodule JidoCode.Operations.RepoNativeState do
   end
 
   defp open_work_item_ids(managed_repo_id) do
-    case WorkItem.read(
-           query: [filter: [managed_repo_id: managed_repo_id, status: :open]],
-           actor: @observer
-         ) do
+    case RecordStore.list(:work_item, %{managed_repo_id: managed_repo_id, status: :open}, actor: @observer) do
       {:ok, work_items} -> Enum.map(work_items, & &1.id)
       _other -> []
     end
   end
+
+  defp latest_by_observed_at([]), do: nil
+
+  defp latest_by_observed_at(observations) do
+    Enum.max_by(observations, &datetime_sort_key(&1.observed_at), fn -> nil end)
+  end
+
+  defp datetime_sort_key(%DateTime{} = datetime), do: DateTime.to_unix(datetime, :microsecond)
+  defp datetime_sort_key(_datetime), do: -1
 
   defp signal_digest(category, payload) do
     digest_source = Jason.encode!(%{"category" => category, "payload" => payload})

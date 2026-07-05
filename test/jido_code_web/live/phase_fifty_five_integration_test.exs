@@ -157,21 +157,21 @@ defmodule JidoCodeWeb.PhaseFiftyFiveIntegrationTest do
     {:ok, work_item_view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/repos/#{route_id}/work-items/#{Ecto.UUID.generate()}",
+        ~p"/repos/#{route_id}/work-items/#{JidoCode.UUID.generate()}",
         on_error: :warn
       )
 
     {:ok, evidence_view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/repos/#{route_id}/evidence/#{Ecto.UUID.generate()}",
+        ~p"/repos/#{route_id}/evidence/#{JidoCode.UUID.generate()}",
         on_error: :warn
       )
 
     {:ok, decision_view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/repos/#{route_id}/decisions/#{Ecto.UUID.generate()}",
+        ~p"/repos/#{route_id}/decisions/#{JidoCode.UUID.generate()}",
         on_error: :warn
       )
 

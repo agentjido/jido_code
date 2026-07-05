@@ -31,7 +31,8 @@ defmodule JidoCode.MemoryGraph.ConversationMemoryAdoption do
          actor = actor(opts),
          {:ok, actor_id} <- required_string(actor["id"] || actor[:id], :actor_id),
          {:ok, classification} <- classification(opts),
-         {:ok, capture} <- durable_memory_capture(kind, managed_repo_id, revision, actor_id, item, classification, opts),
+         {:ok, capture} <-
+           durable_memory_capture(kind, managed_repo_id, revision, actor_id, item, classification, opts),
          {:ok, record} <-
            AgentWorkspace.record_memory_graph(
              managed_repo_id,
@@ -146,12 +147,14 @@ defmodule JidoCode.MemoryGraph.ConversationMemoryAdoption do
 
     source =
       normalize_optional_string(
-        Map.get(classification, :source) || Map.get(classification, "source") || Keyword.get(opts, :classification_source)
+        Map.get(classification, :source) || Map.get(classification, "source") ||
+          Keyword.get(opts, :classification_source)
       )
 
     reason =
       normalize_optional_string(
-        Map.get(classification, :reason) || Map.get(classification, "reason") || Keyword.get(opts, :classification_reason)
+        Map.get(classification, :reason) || Map.get(classification, "reason") ||
+          Keyword.get(opts, :classification_reason)
       )
 
     label =
@@ -174,7 +177,9 @@ defmodule JidoCode.MemoryGraph.ConversationMemoryAdoption do
   end
 
   defp revision(%{graph: graph}, _workspace_path, opts) when is_map(graph) do
-    case normalize_optional_string(Keyword.get(opts, :revision) || graph[:validated_revision] || graph[:current_revision]) do
+    case normalize_optional_string(
+           Keyword.get(opts, :revision) || graph[:validated_revision] || graph[:current_revision]
+         ) do
       nil -> {:error, :missing_conversation_memory_revision}
       revision -> {:ok, revision}
     end
@@ -193,8 +198,11 @@ defmodule JidoCode.MemoryGraph.ConversationMemoryAdoption do
     end
   end
 
-  defp content(:fact, item, opts), do: Keyword.get(opts, :content) || Map.get(item, :content_preview) || Map.get(item, :origin_summary)
-  defp content(_kind, item, opts), do: Keyword.get(opts, :content) || Map.get(item, :origin_summary) || Map.get(item, :content_preview)
+  defp content(:fact, item, opts),
+    do: Keyword.get(opts, :content) || Map.get(item, :content_preview) || Map.get(item, :origin_summary)
+
+  defp content(_kind, item, opts),
+    do: Keyword.get(opts, :content) || Map.get(item, :origin_summary) || Map.get(item, :content_preview)
 
   defp rationale(:decision, item, opts) do
     Keyword.get(opts, :rationale) ||

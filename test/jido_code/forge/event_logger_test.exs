@@ -1,5 +1,5 @@
 defmodule JidoCode.Forge.EventLoggerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
@@ -30,7 +30,7 @@ defmodule JidoCode.Forge.EventLoggerTest do
     Process.put(:event_logger_test_pid, self())
 
     original_redactor = Application.get_env(:jido_code, :forge_log_redactor, LogRedactor)
-    original_writer = Application.get_env(:jido_code, :forge_event_writer, EventLogger.AshEventWriter)
+    original_writer = Application.get_env(:jido_code, :forge_event_writer, EventLogger.StoreEventWriter)
 
     on_exit(fn ->
       Process.delete(:event_logger_test_pid)

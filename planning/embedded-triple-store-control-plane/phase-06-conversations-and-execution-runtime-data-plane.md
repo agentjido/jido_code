@@ -38,25 +38,29 @@ Back to plan: [README](./README.md)
 
 **Description:** This section classifies legacy Forge pieces, preserves useful execution-runtime abstractions, and replaces Forge Ash/Postgres persistence with semantic records.
 
-- [ ] 6.2 Section - Execution runtime disposition and persistence.
+- [x] 6.2 Section - Execution runtime disposition and persistence.
 
   Description: Sandbox sessions and execution sessions should keep resumability and auditability without preserving Forge as a first-class product domain.
 
-  - [ ] 6.2.1 Task - Classify and rename legacy Forge concepts.
+  - [x] 6.2.1 Task - Classify and rename legacy Forge concepts.
 
     Description: The current `JidoCode.Forge` namespace should be split into runtime pieces to keep, stale surfaces to delete, and Ash/Postgres data-plane pieces to replace.
 
-    - [ ] 6.2.1.1 Subtask - Inventory `JidoCode.Forge` modules into keep, rename, and delete categories.
-    - [ ] 6.2.1.2 Subtask - Mark `JidoCode.Forge.Resources.*`, `JidoCode.Forge.Persistence`, `JidoCode.Forge.Domain`, Forge migrations, and Forge snapshots as Ash/Postgres removal targets.
-    - [ ] 6.2.1.3 Subtask - Rename product-facing references from Forge to execution runtime or sandbox sessions, and remove stale Forge LiveView planning assumptions.
+    - [x] 6.2.1.1 Subtask - Inventory `JidoCode.Forge` modules into keep, rename, and delete categories.
+    - [x] 6.2.1.2 Subtask - Mark `JidoCode.Forge.Resources.*`, `JidoCode.Forge.Persistence`, `JidoCode.Forge.Domain`, Forge migrations, and Forge snapshots as Ash/Postgres removal targets.
+    - [x] 6.2.1.3 Subtask - Rename product-facing references from Forge to execution runtime or sandbox sessions, and remove stale Forge LiveView planning assumptions.
 
-  - [ ] 6.2.2 Task - Implement execution runtime codecs and services.
+    Disposition notes: keep `Manager`, `SpriteSession`, runners, `SpriteClient`, PubSub, redaction, `StepHandler`, and streaming workers as runtime implementation modules until the namespace removal pass. Replace/delete targets are `JidoCode.Forge.Resources.*`, `JidoCode.Forge.Domain`, Forge Ash migrations, Forge resource snapshots, and Ash-shaped test fixtures. `JidoCode.Forge.Persistence` is now a compatibility facade over `JidoCode.ExecutionRuntime.RecordStore` and remains only until callers move to execution-runtime naming.
+
+  - [x] 6.2.2 Task - Implement execution runtime codecs and services.
 
     Description: Runtime records need lifecycle updates, event logging, checkpoint links, execution session output metadata, and redaction without Ash resources.
 
-    - [ ] 6.2.2.1 Subtask - Implement codecs for execution workflow, sandbox session, runtime event, checkpoint, exec session, and sprite spec records.
-    - [ ] 6.2.2.2 Subtask - Rewire runtime persistence, runtime operations, and streaming exec session worker writes to the product store.
-    - [ ] 6.2.2.3 Subtask - Preserve channel and prompt redaction, store bounded output summaries in graph records, and keep full output only in an explicit artifact store.
+    - [x] 6.2.2.1 Subtask - Implement codecs for execution workflow, sandbox session, runtime event, checkpoint, exec session, and sprite spec records.
+    - [x] 6.2.2.2 Subtask - Rewire runtime persistence, runtime operations, and streaming exec session worker writes to the product store.
+    - [x] 6.2.2.3 Subtask - Preserve channel and prompt redaction, store bounded output summaries in graph records, and keep full output only in an explicit artifact store.
+
+    Section verification: `mix test test/jido_code/execution_runtime/record_store_test.exs test/jido_code/forge/persistence_redaction_test.exs test/jido_code/forge/event_logger_test.exs test/jido_code/forge/pubsub_redaction_test.exs` proves sandbox lifecycle, event logging, exec summaries, checkpoint links, and redaction through isolated embedded product stores. `mix test test/jido_code/control_plane/codecs_test.exs test/jido_code/control_plane/semantic_identity_test.exs test/jido_code/control_plane/ontology_topology_integration_test.exs` proves the new execution-runtime codecs and ontology topology.
 
 ## 6.3 Section - Runtime Query Projections
 

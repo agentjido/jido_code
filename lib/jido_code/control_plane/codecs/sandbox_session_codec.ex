@@ -1,6 +1,6 @@
-defmodule JidoCode.ControlPlane.Codecs.RuntimeEventCodec do
+defmodule JidoCode.ControlPlane.Codecs.SandboxSessionCodec do
   @moduledoc """
-  RDF projection codec for execution runtime event records.
+  RDF projection codec for sandbox session records.
   """
 
   @behaviour JidoCode.ControlPlane.Codecs.Codec
@@ -8,17 +8,25 @@ defmodule JidoCode.ControlPlane.Codecs.RuntimeEventCodec do
   alias JidoCode.ControlPlane.Codecs.MapRecord
   alias JidoCode.ControlPlane.SemanticIdentity
 
-  @record_type :runtime_event
+  @record_type :sandbox_session
   @field_mappings %{
     managed_repo_id: "managedRepoId",
-    runtime_event_id: "runtimeEventId",
     sandbox_session_id: "sandboxSessionId",
-    exec_session_sequence: "execSessionSequence",
-    event_type: "eventName",
-    source_kind: "sourceKind",
-    title: "title",
-    occurred_at: "occurredAt",
-    payload: "payloadJson",
+    name: "name",
+    phase: "recordStatus",
+    runner_type: "runnerType",
+    runner_config: "runnerConfigJson",
+    runner_state: "runnerStateJson",
+    spec: "specJson",
+    sprite_id: "spriteId",
+    sprite_name: "spriteName",
+    last_checkpoint_id: "lastCheckpointId",
+    execution_count: "executionCount",
+    output_buffer: "outputSummary",
+    last_error: "lastErrorJson",
+    started_at: "startedAt",
+    completed_at: "completedAt",
+    last_activity_at: "lastActivityAt",
     inserted_at: "insertedAt",
     updated_at: "updatedAt",
     metadata: "metadataJson"
@@ -34,7 +42,7 @@ defmodule JidoCode.ControlPlane.Codecs.RuntimeEventCodec do
   def class_iri, do: SemanticIdentity.class_iri(@record_type)
   @impl true
   def subject_iri(record),
-    do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :runtime_event_id)
+    do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :sandbox_session_id)
 
   @impl true
   def identity_queries(record) do
@@ -42,9 +50,9 @@ defmodule JidoCode.ControlPlane.Codecs.RuntimeEventCodec do
 
     [
       %{
-        identity: :unique_runtime_event_id,
-        predicate: "runtimeEventId",
-        value: value_for(record, :runtime_event_id)
+        identity: :unique_name,
+        predicate: "name",
+        value: value_for(record, :name)
       }
     ]
   end
@@ -62,10 +70,7 @@ defmodule JidoCode.ControlPlane.Codecs.RuntimeEventCodec do
   def decode(projection), do: MapRecord.decode(@record_type, projection, @field_mappings)
 
   defp normalized_record(record) do
-    record
-    |> Map.put_new(:runtime_event_id, value_for(record, :runtime_event_id) || value_for(record, :id))
-    |> Map.put_new(:payload, value_for(record, :payload) || value_for(record, :data))
-    |> Map.put_new(:event_type, value_for(record, :event_type) || value_for(record, :name))
+    Map.put_new(record, :sandbox_session_id, value_for(record, :sandbox_session_id) || value_for(record, :id))
   end
 
   defp value_for(record, key), do: Map.get(record, key) || Map.get(record, to_string(key))

@@ -745,6 +745,173 @@ jcp:spriteSpecId a owl:DatatypeProperty ;
     rdfs:domain jcp:SpriteSpec ;
     rdfs:range xsd:string .
 
+jcp:description a owl:DatatypeProperty ;
+    rdfs:label "description" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:version a owl:DatatypeProperty ;
+    rdfs:label "version" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:integer .
+
+jcp:stepsJson a owl:DatatypeProperty ;
+    rdfs:label "steps JSON" ;
+    rdfs:domain jcp:ExecutionWorkflow ;
+    rdfs:range xsd:string .
+
+jcp:timeoutMs a owl:DatatypeProperty ;
+    rdfs:label "timeout milliseconds" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:integer .
+
+jcp:onError a owl:DatatypeProperty ;
+    rdfs:label "on error" ;
+    rdfs:domain jcp:ExecutionWorkflow ;
+    rdfs:range xsd:string .
+
+jcp:maxRetries a owl:DatatypeProperty ;
+    rdfs:label "max retries" ;
+    rdfs:domain jcp:ExecutionWorkflow ;
+    rdfs:range xsd:integer .
+
+jcp:tagsJson a owl:DatatypeProperty ;
+    rdfs:label "tags JSON" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:runnerType a owl:DatatypeProperty ;
+    rdfs:label "runner type" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:runnerConfigJson a owl:DatatypeProperty ;
+    rdfs:label "runner config JSON" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:runnerStateJson a owl:DatatypeProperty ;
+    rdfs:label "runner state JSON" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:runnerStateSnapshotJson a owl:DatatypeProperty ;
+    rdfs:label "runner state snapshot JSON" ;
+    rdfs:domain jcp:Checkpoint ;
+    rdfs:range xsd:string .
+
+jcp:specJson a owl:DatatypeProperty ;
+    rdfs:label "spec JSON" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:spriteId a owl:DatatypeProperty ;
+    rdfs:label "sprite id" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:spriteName a owl:DatatypeProperty ;
+    rdfs:label "sprite name" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:lastCheckpointId a owl:DatatypeProperty ;
+    rdfs:label "last checkpoint id" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:executionCount a owl:DatatypeProperty ;
+    rdfs:label "execution count" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:integer .
+
+jcp:outputSummary a owl:DatatypeProperty ;
+    rdfs:label "output summary" ;
+    rdfs:comment "Bounded runtime output summary. Full command output must stay outside semantic graph literals." ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:lastErrorJson a owl:DatatypeProperty ;
+    rdfs:label "last error JSON" ;
+    rdfs:domain jcp:SandboxSession ;
+    rdfs:range xsd:string .
+
+jcp:spritesCheckpointId a owl:DatatypeProperty ;
+    rdfs:label "Sprites checkpoint id" ;
+    rdfs:domain jcp:Checkpoint ;
+    rdfs:range xsd:string .
+
+jcp:execSessionSequence a owl:DatatypeProperty ;
+    rdfs:label "execution session sequence" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:integer .
+
+jcp:command a owl:DatatypeProperty ;
+    rdfs:label "command" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:string .
+
+jcp:exitCode a owl:DatatypeProperty ;
+    rdfs:label "exit code" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:integer .
+
+jcp:outputSizeBytes a owl:DatatypeProperty ;
+    rdfs:label "output size bytes" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:integer .
+
+jcp:costUsd a owl:DatatypeProperty ;
+    rdfs:label "cost USD" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:string .
+
+jcp:durationMs a owl:DatatypeProperty ;
+    rdfs:label "duration milliseconds" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:integer .
+
+jcp:spritesSessionId a owl:DatatypeProperty ;
+    rdfs:label "Sprites session id" ;
+    rdfs:domain jcp:ExecSession ;
+    rdfs:range xsd:string .
+
+jcp:baseImage a owl:DatatypeProperty ;
+    rdfs:label "base image" ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:envJson a owl:DatatypeProperty ;
+    rdfs:label "environment JSON" ;
+    rdfs:comment "Bounded environment projection with secrets redacted before storage." ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:bootstrapStepsJson a owl:DatatypeProperty ;
+    rdfs:label "bootstrap steps JSON" ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:fileInjectionJson a owl:DatatypeProperty ;
+    rdfs:label "file injection JSON" ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:timeoutsJson a owl:DatatypeProperty ;
+    rdfs:label "timeouts JSON" ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:resourceLimitsJson a owl:DatatypeProperty ;
+    rdfs:label "resource limits JSON" ;
+    rdfs:domain jcp:SpriteSpec ;
+    rdfs:range xsd:string .
+
+jcp:createdAt a owl:DatatypeProperty ;
+    rdfs:label "created at" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:dateTime .
+
 jcp:userId a owl:DatatypeProperty ;
     rdfs:label "user id" ;
     rdfs:domain jcp:User ;
@@ -1321,7 +1488,7 @@ jcp:stepResultsJson a owl:DatatypeProperty ;
 
 jcp:errorJson a owl:DatatypeProperty ;
     rdfs:label "error JSON" ;
-    rdfs:domain jcp:WorkflowRun ;
+    rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
 jcp:statusTransitionsJson a owl:DatatypeProperty ;

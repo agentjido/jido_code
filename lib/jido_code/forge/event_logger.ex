@@ -7,17 +7,14 @@ defmodule JidoCode.Forge.EventLogger do
 
   alias JidoCode.Security.LogRedactor
 
-  defmodule AshEventWriter do
+  defmodule StoreEventWriter do
     @moduledoc false
 
+    alias JidoCode.ExecutionRuntime.RecordStore
     alias JidoCode.Forge.Resources.Event
 
     @spec create(map()) :: {:ok, Event.t()} | {:error, term()}
-    def create(attrs) do
-      Event
-      |> Ash.Changeset.for_create(:log, attrs)
-      |> Ash.create()
-    end
+    def create(attrs), do: RecordStore.create_runtime_event(attrs)
   end
 
   @spec log_event(String.t(), String.t(), map(), keyword()) :: :ok
@@ -93,7 +90,7 @@ defmodule JidoCode.Forge.EventLogger do
   end
 
   defp event_writer_module do
-    Application.get_env(:jido_code, :forge_event_writer, AshEventWriter)
+    Application.get_env(:jido_code, :forge_event_writer, StoreEventWriter)
   end
 
   defp emit_redaction_failure(session_id, event_type, reason) do

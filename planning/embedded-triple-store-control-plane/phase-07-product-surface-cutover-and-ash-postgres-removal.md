@@ -62,25 +62,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section replaces database sandbox fixtures with embedded store fixtures.
 
-- [ ] 7.3 Section - Test and fixture cutover.
+- [x] 7.3 Section - Test and fixture cutover.
 
   Description: Tests should create records through product service helpers and isolated embedded store paths.
 
-  - [ ] 7.3.1 Task - Replace test data helpers.
+  - [x] 7.3.1 Task - Replace test data helpers.
 
     Description: DataCase and factory helpers should no longer start Ecto sandbox owners.
 
-    - [ ] 7.3.1.1 Subtask - Replace `JidoCode.DataCase` sandbox setup with store fixture setup.
-    - [ ] 7.3.1.2 Subtask - Add helper functions for managed repo, work item, run, user, conversation, and execution runtime fixtures.
-    - [ ] 7.3.1.3 Subtask - Ensure async tests use unique store paths or fake store instances.
+    - [x] 7.3.1.1 Subtask - Replace `JidoCode.DataCase` sandbox setup with store fixture setup.
+    - [x] 7.3.1.2 Subtask - Add helper functions for managed repo, work item, run, user, conversation, and execution runtime fixtures.
+    - [x] 7.3.1.3 Subtask - Ensure async tests use unique store paths or fake store instances.
 
-  - [ ] 7.3.2 Task - Replace generated resource assertions.
+  - [x] 7.3.2 Task - Replace generated resource assertions.
 
     Description: Tests should assert product projections and graph facts, not Ash struct internals.
 
-    - [ ] 7.3.2.1 Subtask - Replace changeset assertions with validation result assertions.
-    - [ ] 7.3.2.2 Subtask - Replace preload assumptions with explicit product projection assertions.
-    - [ ] 7.3.2.3 Subtask - Add graph-level assertions only in store integration tests.
+    - [x] 7.3.2.1 Subtask - Replace changeset assertions with validation result assertions.
+    - [x] 7.3.2.2 Subtask - Replace preload assumptions with explicit product projection assertions.
+    - [x] 7.3.2.3 Subtask - Add graph-level assertions only in store integration tests.
 
 ## 7.4 Section - Integration Tests
 

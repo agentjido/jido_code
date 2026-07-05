@@ -617,7 +617,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
     turn =
       Turn.new("conversation-1", %{
-        id: Ecto.UUID.generate(),
+        id: JidoCode.UUID.generate(),
         raw_type: "turn.submit",
         payload: %{},
         admitted_at: now
@@ -643,7 +643,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
     turn =
       Turn.new(conversation.id, %{
-        id: Ecto.UUID.generate(),
+        id: JidoCode.UUID.generate(),
         raw_type: "turn.submit",
         payload: %{},
         admitted_at: now
@@ -699,9 +699,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
   end
 
   defp start_coordinator!(conversation) do
-    start_supervised!(
-      {Coordinator, {conversation, starter_pid: self(), sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner})}}
-    )
+    start_supervised!({Coordinator, {conversation, starter_pid: self()}})
   end
 
   defp coordinator_child_worker_pid(conversation_id, child_work_id) do
@@ -722,7 +720,7 @@ defmodule JidoCode.ConversationsCoordinatorTest do
 
     turn =
       Turn.new(conversation.id, %{
-        id: Ecto.UUID.generate(),
+        id: JidoCode.UUID.generate(),
         raw_type: "turn.submit",
         payload: %{},
         admitted_at: now

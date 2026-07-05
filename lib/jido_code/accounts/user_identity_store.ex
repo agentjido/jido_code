@@ -14,9 +14,10 @@ defmodule JidoCode.Accounts.UserIdentityStore do
   def upsert(attrs, opts \\ []) when is_map(attrs) do
     record = identity_record(attrs)
 
-    case ProductStore.dispatch(:upsert, :user_identity, Keyword.merge([record: record], opts)) do
-      {:ok, %{record: saved_record}} -> {:ok, to_identity(saved_record)}
-      {:error, reason} -> {:error, reason}
+    with :ok <- ensure_provider_subject_available(record, opts),
+         {:ok, %{record: saved_record}} <-
+           ProductStore.dispatch(:upsert, :user_identity, Keyword.merge([record: record], opts)) do
+      {:ok, to_identity(saved_record)}
     end
   end
 
@@ -66,6 +67,23 @@ defmodule JidoCode.Accounts.UserIdentityStore do
 
   def source_key(provider, provider_host, provider_subject) do
     "#{provider}:#{provider_host}:#{provider_subject}"
+  end
+
+  defp ensure_provider_subject_available(record, opts) do
+    with {:ok, %UserIdentity{} = existing} <-
+           get_by_provider_subject(record.provider, record.provider_host, record.provider_subject, opts),
+         false <- to_string(existing.user_id) == to_string(record.user_id) do
+      {:error,
+       %{
+         type: :conflict,
+         field: :provider_subject,
+         message: "provider subject has already been taken"
+       }}
+    else
+      {:ok, nil} -> :ok
+      true -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   def to_identity(record) when is_map(record) do

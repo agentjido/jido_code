@@ -16,12 +16,6 @@ defmodule JidoCodeWeb.PhaseSixtySixIntegrationTest do
   alias JidoCode.Control.RepoBridge
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
-  alias JidoCode.Repo
-
-  setup do
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
-    :ok
-  end
 
   test "66.3.1 dashboard keeps one route while overview becomes a sidebar-led repository monitoring list",
        %{conn: _conn} do
@@ -72,25 +66,27 @@ defmodule JidoCodeWeb.PhaseSixtySixIntegrationTest do
     assert has_element?(view, "#dashboard-sidebar-shell")
     assert has_element?(view, "#dashboard-section-nav-next_steps")
     assert has_element?(view, "#dashboard-overview-repository-list", "owner/repo-phase66-newer")
-    assert has_element?(view, "#dashboard-overview-repository-list", "Latest run: implement_task running")
+    assert has_element?(view, "#dashboard-overview-repository-list", "Recent run outcome")
+    assert has_element?(view, "#dashboard-overview-repository-list", "running")
+    assert has_element?(view, "#dashboard-overview-repository-list", "phase66-newer-run")
 
     assert string_position(html, "owner/repo-phase66-newer") <
              string_position(html, "owner/repo-phase66-older")
 
     view
-    |> element("#dashboard-section-nav-runtime")
+    |> element("#dashboard-shell-parent-subjects-runtime")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=runtime")
-    assert has_element?(view, "#dashboard-root[data-dashboard-section='runtime']")
+    assert_patch(view, "/dashboard?onboarding=completed&section=runtime&subject=runtime")
+    assert has_element?(view, "#dashboard-root[data-dashboard-subject='runtime'][data-dashboard-section='runtime']")
     assert has_element?(view, "#dashboard-runtime-evidence")
     refute has_element?(view, "#dashboard-overview-panel")
 
     view
-    |> element("#dashboard-section-nav-overview")
+    |> element("#dashboard-shell-parent-subjects-work")
     |> render_click()
 
-    assert_patch(view, "/dashboard?onboarding=completed&section=overview")
+    assert_patch(view, "/dashboard?onboarding=completed&section=overview&subject=work")
     assert has_element?(view, "#dashboard-overview-panel")
     assert has_element?(view, "#dashboard-overview-repository-list")
   end

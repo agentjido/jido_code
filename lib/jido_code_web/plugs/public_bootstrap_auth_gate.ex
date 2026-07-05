@@ -9,6 +9,8 @@ defmodule JidoCodeWeb.Plugs.PublicBootstrapAuthGate do
   import Plug.Conn
 
   alias JidoCode.Setup.BootstrapStatus
+  alias JidoCode.Setup.BootstrapToken
+  alias JidoCode.Accounts.SessionTokens
 
   @magic_auth_paths ["/auth/user/magic_link", "/auth/user/magic_link/request"]
 
@@ -17,6 +19,7 @@ defmodule JidoCodeWeb.Plugs.PublicBootstrapAuthGate do
   def call(%Plug.Conn{halted: true} = conn, _opts), do: conn
 
   def call(conn, _opts) do
+    conn = clear_stale_product_session(conn)
     status = BootstrapStatus.current()
 
     cond do
@@ -49,5 +52,29 @@ defmodule JidoCodeWeb.Plugs.PublicBootstrapAuthGate do
     conn
     |> redirect(to: "/welcome")
     |> halt()
+  end
+
+  defp clear_stale_product_session(conn) do
+    case get_session(conn, "product_user_token") || get_session(conn, :product_user_token) do
+      token when is_binary(token) and token != "" ->
+        if valid_product_token?(token) do
+          conn
+        else
+          conn
+          |> delete_session("product_user_token")
+          |> delete_session(:product_user_token)
+          |> delete_session("product_user_email")
+          |> delete_session(:product_user_email)
+          |> delete_session("user_token")
+          |> delete_session(:user_token)
+        end
+
+      _other ->
+        conn
+    end
+  end
+
+  defp valid_product_token?(token) do
+    match?({:ok, _user}, SessionTokens.verify(token)) or match?({:ok, _claims}, BootstrapToken.verify(token))
   end
 end

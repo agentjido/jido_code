@@ -28,8 +28,6 @@ defmodule JidoCodeWeb.ConnCase do
   alias JidoCode.Orchestration.RecordStore, as: OrchestrationRecordStore
   alias JidoCode.Setup.OwnerStore
 
-  import Phoenix.ConnTest, only: [recycle: 1]
-
   using do
     quote do
       # The default endpoint for testing
@@ -87,8 +85,13 @@ defmodule JidoCodeWeb.ConnCase do
       |> Plug.Conn.put_session("product_user_token", session_token)
       |> Plug.Conn.put_session("product_user_email", to_string(owner.email))
 
+    session = %{
+      "product_user_token" => session_token,
+      "product_user_email" => to_string(owner.email)
+    }
+
     auth_result(
-      recycle(auth_response),
+      persist_product_session(auth_response, session),
       session_token,
       owner,
       Keyword.get(opts, :include_session_token, false),
@@ -188,6 +191,13 @@ defmodule JidoCodeWeb.ConnCase do
   defp auth_result(conn, session_token, _owner, true, false), do: {conn, session_token}
   defp auth_result(conn, _session_token, owner, false, true), do: {conn, owner}
   defp auth_result(conn, session_token, owner, true, true), do: {conn, session_token, owner}
+
+  defp persist_product_session(conn, session) do
+    conn
+    |> Phoenix.ConnTest.dispatch(JidoCodeWeb.Endpoint, :get, "/welcome", nil)
+    |> Phoenix.ConnTest.recycle()
+    |> Plug.Test.init_test_session(session)
+  end
 
   defp seed_product_owner!(email) do
     case OwnerStore.get_by_email(email) do

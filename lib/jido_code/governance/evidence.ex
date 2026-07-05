@@ -3,4 +3,9 @@ defmodule JidoCode.Governance.Evidence do
   @moduledoc false
 
   use JidoCode.ControlPlane.RecordStruct
+
+  alias JidoCode.Governance.RecordStore
+
+  @spec create(map(), keyword()) :: {:ok, t()} | {:error, term()}
+  def create(attrs, opts \\ []) when is_map(attrs), do: RecordStore.upsert_evidence(attrs, opts)
 end

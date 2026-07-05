@@ -229,6 +229,11 @@ defmodule JidoCode.Orchestration.RecordStore do
     list(:run, filters, opts, &to_run/1)
   end
 
+  @spec list_workflow_runs(map(), keyword()) :: {:ok, [WorkflowRun.t()]} | {:error, term()}
+  def list_workflow_runs(filters \\ %{}, opts \\ []) when is_map(filters) do
+    list(:workflow_run, filters, opts, &to_workflow_run/1)
+  end
+
   def to_execution_profile(record) when is_map(record) do
     record = normalize_record_map(record)
 
@@ -297,6 +302,7 @@ defmodule JidoCode.Orchestration.RecordStore do
     %WorkflowRun{
       id: map_get(record, :workflow_run_id) || map_get(record, :id),
       managed_repo_id: map_get(record, :managed_repo_id),
+      legacy_project_id: map_get(record, :legacy_project_id),
       project_id: map_get(record, :legacy_project_id),
       run_id: map_get(record, :run_id),
       workflow_name: normalize_string(map_get(record, :workflow_name), "unknown_workflow"),
@@ -546,9 +552,15 @@ defmodule JidoCode.Orchestration.RecordStore do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       normalized_key = normalize_key(key)
       normalized_value = normalize_record_value(normalized_key, nested_value)
-      Map.put(acc, normalized_key, normalized_value)
+      put_normalized_value(acc, normalized_key, normalized_value)
     end)
   end
+
+  defp put_normalized_value(acc, key, nil) do
+    if Map.has_key?(acc, key), do: acc, else: Map.put(acc, key, nil)
+  end
+
+  defp put_normalized_value(acc, key, value), do: Map.put(acc, key, value)
 
   defp normalize_key(key) when is_atom(key), do: Map.get(@atom_key_aliases, key, key)
 
@@ -639,6 +651,8 @@ defmodule JidoCode.Orchestration.RecordStore do
       normalized -> normalized
     end
   end
+
+  defp normalize_optional_string(value) when value in [nil, nil], do: nil
 
   defp normalize_optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> normalize_optional_string()

@@ -20,7 +20,6 @@ defmodule JidoCodeWeb.SetupLiveTest do
   use JidoCodeWeb.ConnCase, async: false
 
   alias JidoCode.Security.SecretRefs
-  alias JidoCode.Repo
   alias JidoCode.Setup.OwnerStore
 
   import Phoenix.LiveViewTest
@@ -1652,7 +1651,6 @@ defmodule JidoCodeWeb.SetupLiveTest do
   defp redirect_path(path) when is_binary(path), do: path
 
   defp reset_owner_state! do
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
     assert {:ok, _count} = OwnerStore.delete_all_users()
   end
 

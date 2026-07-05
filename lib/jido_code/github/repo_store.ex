@@ -11,8 +11,12 @@ defmodule JidoCode.GitHub.RepoStore do
   alias JidoCode.ControlPlane.Store.ActorContext
   alias JidoCode.GitHub.Repo
 
+  require Logger
+
   @github_settings_key "github_repo"
   @webhook_secret_placeholder "__managed_by_secret_ref__"
+  @plaintext_secret_error_type "plaintext_secret_persistence_blocked"
+  @plaintext_secret_policy "operational_secret_plaintext_forbidden"
 
   @spec list(keyword()) :: {:ok, [Repo.t()]} | {:error, term()}
   def list(opts \\ []) do
@@ -106,9 +110,11 @@ defmodule JidoCode.GitHub.RepoStore do
   def create(attrs, opts \\ [])
 
   def create(attrs, opts) when is_map(attrs) do
+    actor = Keyword.get(opts, :actor)
     opts = store_opts(opts)
 
-    with {:ok, full_name} <- full_name(attrs),
+    with :ok <- reject_plaintext_webhook_secret(attrs, actor),
+         {:ok, full_name} <- full_name(attrs),
          {:ok, %{managed_repo: managed_repo, source_repo: source_repo}} <-
            RepoBridge.upsert_managed_repo(%{
              full_name: full_name,
@@ -124,9 +130,11 @@ defmodule JidoCode.GitHub.RepoStore do
 
   @spec update(Repo.t() | String.t(), map(), keyword()) :: {:ok, Repo.t()} | {:error, term()}
   def update(repo_or_id, attrs, opts \\ []) when is_map(attrs) do
+    actor = Keyword.get(opts, :actor)
     opts = store_opts(opts)
 
-    with {:ok, %Repo{} = repo} <- repo_from(repo_or_id, opts),
+    with :ok <- reject_plaintext_webhook_secret(attrs, actor),
+         {:ok, %Repo{} = repo} <- repo_from(repo_or_id, opts),
          {:ok, %ManagedRepo{} = managed_repo} <- ManagedRepoStore.get_by_id(repo.id, opts),
          {:ok, managed_repo} <- update_github_settings(managed_repo, attrs, opts),
          {:ok, %SourceRepo{} = source_repo} <- SourceRepoStore.get_by_id(managed_repo.source_repo_id, opts) do
@@ -154,6 +162,48 @@ defmodule JidoCode.GitHub.RepoStore do
   defp repo_from(%Repo{} = repo, _opts), do: {:ok, repo}
   defp repo_from(id, opts) when is_binary(id), do: get_by_id(id, opts)
   defp repo_from(_repo, _opts), do: {:error, :repo_not_found}
+
+  defp reject_plaintext_webhook_secret(attrs, actor) do
+    case map_get(attrs, :webhook_secret) do
+      nil ->
+        :ok
+
+      @webhook_secret_placeholder ->
+        :ok
+
+      "" ->
+        :ok
+
+      _plaintext ->
+        audit_plaintext_secret_rejection(actor)
+        {:error, plaintext_secret_error()}
+    end
+  end
+
+  defp audit_plaintext_secret_rejection(actor) do
+    actor = normalize_map(actor)
+
+    Logger.warning(
+      "security_audit=blocked_plaintext_secret_persistence actor_id=#{Map.get(actor, "id")} actor_email=#{Map.get(actor, "email")}"
+    )
+  end
+
+  defp plaintext_secret_error do
+    %{
+      type: :validation,
+      errors: [
+        %{
+          field: :webhook_secret,
+          message: "plaintext webhook secret persistence is forbidden",
+          vars: [
+            error_type: @plaintext_secret_error_type,
+            policy: @plaintext_secret_policy,
+            remediation: "Persist webhook secrets through SecretRef instead of plaintext repository fields."
+          ]
+        }
+      ]
+    }
+  end
 
   defp repo_for_managed_repo(%ManagedRepo{} = managed_repo, opts) do
     with {:ok, %SourceRepo{} = source_repo} <- SourceRepoStore.get_by_id(managed_repo.source_repo_id, opts) do

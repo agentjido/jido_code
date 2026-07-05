@@ -45,9 +45,9 @@ defmodule JidoCode.Governance.PolicySetTest do
 
     Actor.clear_policy_actor()
 
-    assert {:error, %Ash.Error.Forbidden{}} = SourceRepo.upsert_identity(attrs)
+    assert {:error, %{type: :forbidden}} = SourceRepo.upsert_identity(attrs)
 
-    assert {:error, %Ash.Error.Forbidden{}} =
+    assert {:error, %{type: :forbidden}} =
              SourceRepo.upsert_identity(attrs, actor: Actor.external_ingress_actor())
 
     assert {:ok, source_repo} =

@@ -157,7 +157,7 @@ defmodule JidoCode.Setup.ProjectImportPhaseOneIntegrationTest do
     {:ok, managed_repo} =
       ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
 
-    assert {:error, %Ash.Error.Forbidden{}} =
+    assert {:error, %{type: :forbidden}} =
              PolicySet.upsert_default_for_managed_repo(
                %{
                  managed_repo_id: managed_repo.id,

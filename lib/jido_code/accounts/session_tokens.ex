@@ -54,6 +54,7 @@ defmodule JidoCode.Accounts.SessionTokens do
     else
       {:ok, nil} -> {:error, :user_not_found}
       {:ok, _claims} -> {:error, :invalid_purpose}
+      {:error, :invalid} -> {:error, :invalid_token}
       {:error, reason} -> {:error, reason}
     end
   end

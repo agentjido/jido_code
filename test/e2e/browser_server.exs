@@ -1,5 +1,3 @@
-alias Ecto.Adapters.SQL.Sandbox
-alias JidoCode.Repo
 alias JidoCodeWeb.BrowserSetup
 alias JidoCodeWeb.Endpoint
 
@@ -14,7 +12,6 @@ Application.put_env(
   Keyword.merge(endpoint_config, url: [host: "localhost", port: port, scheme: "http"])
 )
 
-Sandbox.mode(Repo, :auto)
 BrowserSetup.apply_scenario!("normal")
 
 IO.puts("setup browser server ready on port #{port}")

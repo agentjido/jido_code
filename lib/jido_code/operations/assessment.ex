@@ -3,4 +3,9 @@ defmodule JidoCode.Operations.Assessment do
   @moduledoc false
 
   use JidoCode.ControlPlane.RecordStruct
+
+  alias JidoCode.Operations.RecordStore
+
+  @spec create(map(), keyword()) :: {:ok, t()} | {:error, term()}
+  def create(attrs, opts \\ []) when is_map(attrs), do: RecordStore.create(:assessment, attrs, opts)
 end

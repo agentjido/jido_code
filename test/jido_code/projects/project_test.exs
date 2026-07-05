@@ -38,7 +38,7 @@ defmodule JidoCode.Projects.ProjectTest do
   test "requires an explicit actor when no compatibility policy actor is present" do
     Actor.clear_policy_actor()
 
-    assert {:error, %Ash.Error.Forbidden{}} =
+    assert {:error, %{type: :forbidden}} =
              Project.create(%{
                name: "repo-policy",
                github_full_name: "owner/repo-policy",

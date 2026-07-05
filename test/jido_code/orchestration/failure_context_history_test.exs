@@ -117,7 +117,7 @@ defmodule JidoCode.Orchestration.FailureContextHistoryTest do
   end
 
   defp create_repo_scope(github_full_name) do
-    legacy_project_id = Ecto.UUID.generate()
+    legacy_project_id = JidoCode.UUID.generate()
 
     with {:ok, %{managed_repo: managed_repo}} <-
            RepoBridge.upsert_managed_repo(%{
@@ -133,7 +133,7 @@ defmodule JidoCode.Orchestration.FailureContextHistoryTest do
 
   defp create_failed_run(repo_scope, run_id, started_at, failed_at, failure_context) do
     RecordStore.upsert_run(%{
-      workflow_run_id: Ecto.UUID.generate(),
+      workflow_run_id: JidoCode.UUID.generate(),
       managed_repo_id: repo_scope.managed_repo_id,
       legacy_project_id: repo_scope.legacy_project_id,
       run_id: run_id,
@@ -153,7 +153,7 @@ defmodule JidoCode.Orchestration.FailureContextHistoryTest do
 
   defp create_completed_run(repo_scope, run_id, started_at, completed_at) do
     RecordStore.upsert_run(%{
-      workflow_run_id: Ecto.UUID.generate(),
+      workflow_run_id: JidoCode.UUID.generate(),
       managed_repo_id: repo_scope.managed_repo_id,
       legacy_project_id: repo_scope.legacy_project_id,
       run_id: run_id,

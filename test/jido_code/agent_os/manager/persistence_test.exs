@@ -25,7 +25,7 @@ defmodule JidoCode.AgentOS.Manager.PersistenceTest do
     kernel_name = :"kernel_#{System.unique_integer([:positive])}"
 
     state = %KernelState{
-      managed_repo_id: Ecto.UUID.generate(),
+      managed_repo_id: JidoCode.UUID.generate(),
       pid: self(),
       created_at: ~U[2026-02-15 12:00:00Z],
       pods: %{

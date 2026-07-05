@@ -30,7 +30,7 @@ defmodule JidoCode.Orchestration.RunActionsTest do
     {:ok, %WorkflowRun{} = workflow_run} =
       RecordStore.upsert_workflow_run_compatibility(%{
         managed_repo_id: managed_repo.id,
-        project_id: Ecto.UUID.generate(),
+        project_id: JidoCode.UUID.generate(),
         run_id: "run-actions-approval",
         workflow_name: "implement_task",
         workflow_version: 1,

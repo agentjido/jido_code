@@ -7,16 +7,9 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
   # covers: architecture.factory_control_plane.settings_github_add_uses_canonical_repo_import
   use JidoCodeWeb.ConnCase, async: false
 
-  require Ash.Query
-
   import Phoenix.LiveViewTest
 
-  alias AshAuthentication.{Info, Jwt, Strategy}
-  alias AshAuthentication.TokenResource.Actions
-  alias JidoCode.Accounts
-  alias JidoCode.Accounts.ApiKey
-  alias JidoCode.Accounts.Token
-  alias JidoCode.Accounts.User
+  alias JidoCode.Accounts.{ApiKeys, SessionTokens}
   alias JidoCode.Control.RepoBridge
   alias JidoCode.GitHub.Repo
   alias JidoCode.Security.SecretRefs
@@ -30,7 +23,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
 
     %{api_key: api_key, api_key_record: api_key_record} = issue_api_key(owner)
 
-    {:ok, %{"jti" => session_jti}} = Jwt.peek(session_token)
+    {:ok, session_jti} = session_jti(session_token)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/security", on_error: :warn)
 
@@ -44,7 +37,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     assert has_element?(view, "#settings-security-token-status-#{session_jti}", "Revoked")
     refute has_element?(view, "#settings-security-token-revoked-at-#{session_jti}", "Not revoked")
 
-    refute Actions.valid_jti?(Token, session_jti)
+    assert {:error, _reason} = SessionTokens.verify(session_token)
 
     view
     |> element("#settings-security-revoke-api-key-#{api_key_record.id}")
@@ -58,14 +51,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
              "Not revoked"
            )
 
-    api_key_strategy = Info.strategy!(User, :api_key)
-
-    assert {:error, _reason} =
-             Strategy.action(
-               api_key_strategy,
-               :sign_in,
-               %{"api_key" => api_key}
-             )
+    assert {:error, _reason} = ApiKeys.verify(api_key)
 
     assert has_element?(view, "#settings-security-audit-log", "revoked at")
   end
@@ -104,14 +90,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     unchanged_api_key = read_api_key!(api_key_record.id)
     assert DateTime.compare(unchanged_api_key.revoked_at, revoked_api_key.revoked_at) == :eq
 
-    api_key_strategy = Info.strategy!(User, :api_key)
-
-    assert {:error, _reason} =
-             Strategy.action(
-               api_key_strategy,
-               :sign_in,
-               %{"api_key" => api_key}
-             )
+    assert {:error, _reason} = ApiKeys.verify(api_key)
   end
 
   test "security tab persists encrypted SecretRef metadata and never renders plaintext values", %{
@@ -507,15 +486,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
       settings_import_report(full_name, managed_repo, checked_at)
     end)
 
-    {:ok, _owner} =
-      User.bootstrap_admin(
-        %{
-          email: "settings-import-owner@example.com",
-          password: "owner-password-123",
-          password_confirmation: "owner-password-123"
-        },
-        authorize?: false
-      )
+    register_owner("settings-import-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
       authenticate_owner_conn(
@@ -574,15 +545,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
       }
     end)
 
-    {:ok, _owner} =
-      User.bootstrap_admin(
-        %{
-          email: "settings-import-blocked@example.com",
-          password: "owner-password-123",
-          password_confirmation: "owner-password-123"
-        },
-        authorize?: false
-      )
+    register_owner("settings-import-blocked@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
       authenticate_owner_conn(
@@ -622,33 +585,23 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
   end
 
   defp issue_api_key(owner) do
-    expires_at = DateTime.add(DateTime.utc_now(), 3600, :second)
+    {:ok, issued} = ApiKeys.issue(owner, ttl_seconds: 3600)
+    {:ok, api_key_record} = ApiKeys.get(issued.id)
 
-    {:ok, api_key_record} =
-      Ash.create(
-        ApiKey,
-        %{user_id: owner.id, expires_at: expires_at},
-        domain: Accounts,
-        authorize?: false
-      )
-
-    api_key =
-      api_key_record
-      |> Map.get(:__metadata__, %{})
-      |> Map.fetch!(:plaintext_api_key)
-
-    %{api_key: api_key, api_key_record: api_key_record}
+    %{api_key: issued.api_key, api_key_record: api_key_record}
   end
 
   defp read_api_key!(api_key_id) do
-    query =
-      ApiKey
-      |> Ash.Query.filter(id == ^api_key_id)
-      |> Ash.Query.limit(1)
-
-    {:ok, [api_key]} = Ash.read(query, domain: Accounts, authorize?: false)
+    {:ok, api_key} = ApiKeys.get(api_key_id)
 
     api_key
+  end
+
+  defp session_jti(session_token) do
+    with {:ok, %{"jti" => jti}} <-
+           Phoenix.Token.verify(JidoCodeWeb.Endpoint, "account-session", session_token, max_age: 2_592_000) do
+      {:ok, jti}
+    end
   end
 
   defp settings_import_report(full_name, managed_repo, checked_at) do

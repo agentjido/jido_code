@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.PhaseEighteenIntegrationTest do
   import Phoenix.LiveViewTest
 
   alias JidoCode.Control.Actor
+  alias JidoCode.ControlPlane.ProductStore
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
 
@@ -43,7 +44,7 @@ defmodule JidoCodeWeb.PhaseEighteenIntegrationTest do
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
-    :ok = Ash.destroy(run, actor: Actor.factory_system_actor())
+    assert {:ok, %{status: :deleted}} = ProductStore.dispatch(:delete, :run, subject_iri: run_subject_iri(run))
 
     {:ok, missing_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
@@ -58,5 +59,11 @@ defmodule JidoCodeWeb.PhaseEighteenIntegrationTest do
       )
 
     assert persisted_workflow_run.id == workflow_run.id
+  end
+
+  defp run_subject_iri(run) do
+    run.__metadata__
+    |> Map.fetch!(:control_plane_record)
+    |> Map.fetch!(:subject_iri)
   end
 end

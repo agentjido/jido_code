@@ -8,6 +8,7 @@ defmodule JidoCode.ControlPlane.ProductStore do
   """
 
   alias JidoCode.ControlPlane.{EmbeddedStore, Policy, Store, StoreServer}
+  alias JidoCode.ControlPlane.Store.ActorContext
   alias JidoCode.ControlPlane.Store.Request
 
   @read_operations [:get, :list, :query]
@@ -49,11 +50,30 @@ defmodule JidoCode.ControlPlane.ProductStore do
   def store(opts \\ []) do
     Keyword.get(opts, :store) ||
       Keyword.get(opts, :server) ||
-      Application.get_env(:jido_code, :control_plane_product_store_server, StoreServer)
+      configured_store()
+  end
+
+  defp configured_store do
+    configured = Application.get_env(:jido_code, :control_plane_product_store_server, StoreServer)
+
+    cond do
+      configured == StoreServer -> StoreServer
+      live_server?(configured) -> configured
+      true -> StoreServer
+    end
+  end
+
+  defp live_server?(server) do
+    case GenServer.whereis(server) do
+      pid when is_pid(pid) -> Process.alive?(pid)
+      _not_found -> false
+    end
+  rescue
+    ArgumentError -> false
   end
 
   defp request_attrs(opts, operation, record_type) do
-    actor = Keyword.get(opts, :actor, Policy.system_actor("system:product-store"))
+    actor = store_actor(Keyword.get(opts, :actor))
 
     attrs =
       opts
@@ -85,4 +105,17 @@ defmodule JidoCode.ControlPlane.ProductStore do
   defp default_authorization(operation, record_type, actor) when operation in @mutate_operations do
     Policy.authorize_mutation(operation, record_type, actor)
   end
+
+  defp store_actor(%ActorContext{} = actor), do: actor
+  defp store_actor(nil), do: Policy.system_actor("system:product-store")
+
+  defp store_actor(actor) when is_map(actor) do
+    Policy.system_actor("system:legacy-product-store", %{
+      legacy_actor_id: Map.get(actor, :id) || Map.get(actor, "id"),
+      legacy_actor_class: Map.get(actor, :actor_class) || Map.get(actor, "actor_class"),
+      legacy_actor_email: Map.get(actor, :email) || Map.get(actor, "email")
+    })
+  end
+
+  defp store_actor(_actor), do: Policy.system_actor("system:product-store")
 end

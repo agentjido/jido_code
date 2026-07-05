@@ -58,7 +58,7 @@ defmodule JidoCode.Actions.UpdateWorkItemStatusTest do
     assert {:error, :invalid_status, "Invalid status: waiting"} =
              UpdateWorkItemStatus.run(
                %{
-                 work_item_id: Ecto.UUID.generate(),
+                 work_item_id: JidoCode.UUID.generate(),
                  status: "waiting",
                  message: nil
                },

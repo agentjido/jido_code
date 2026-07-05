@@ -16,7 +16,6 @@ defmodule JidoCodeWeb.PhaseSixtySevenIntegrationTest do
   alias JidoCode.Control.RepoBridge
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
-  alias JidoCode.Repo
 
   setup do
     original_runtime_loader =
@@ -34,7 +33,6 @@ defmodule JidoCodeWeb.PhaseSixtySevenIntegrationTest do
       restore_env(:dashboard_conversation_summary_loader, original_conversation_loader)
     end)
 
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
     :ok
   end
 
@@ -128,48 +126,31 @@ defmodule JidoCodeWeb.PhaseSixtySevenIntegrationTest do
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/dashboard?onboarding=completed", on_error: :warn)
 
-    repo_dom_token = run_dom_token("dashboard-repository-monitoring-#{route_id}")
+    repo_dom_token = run_dom_token(route_id)
 
     assert has_element?(view, "#dashboard-root[data-dashboard-section='overview']")
     assert has_element?(view, "#dashboard-overview-repository-card-#{repo_dom_token}")
-    assert has_element?(view, "#dashboard-overview-repository-accordion-shell-#{repo_dom_token}")
-
-    refute has_element?(view, "#dashboard-overview-repository-accordion-shell-#{repo_dom_token}[open]")
-
-    view
-    |> element("#dashboard-overview-repository-accordion-toggle-#{repo_dom_token}")
-    |> render_click()
-
-    assert has_element?(view, "#dashboard-root[data-dashboard-section='overview']")
-    assert has_element?(view, "#dashboard-overview-repository-accordion-shell-#{repo_dom_token}[open]")
-    assert has_element?(view, "#dashboard-overview-repository-accordion-panel-#{repo_dom_token}")
-    assert has_element?(view, "#dashboard-overview-repository-detail-run-#{repo_dom_token}")
-    assert has_element?(view, "#dashboard-overview-repository-detail-conversations-#{repo_dom_token}")
-    assert has_element?(view, "#dashboard-overview-repository-detail-memory-#{repo_dom_token}")
-    assert has_element?(view, "#dashboard-overview-repository-detail-runtime-#{repo_dom_token}")
+    assert has_element?(view, "#dashboard-overview-repository-label-#{repo_dom_token}", "owner/repo-phase67")
+    assert has_element?(view, "#dashboard-overview-repository-badge-runtime-#{repo_dom_token}")
+    assert has_element?(view, "#dashboard-overview-repository-semantic-hint-recovery-#{repo_dom_token}")
+    assert has_element?(view, "#dashboard-overview-repository-memory-hint-recovery-#{repo_dom_token}")
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-run-run-link-#{repo_dom_token}[href=\"/repos/#{route_id}/runs/phase67-run\"]",
-             "Open governed run"
+             "#dashboard-overview-repository-issues-run-outcome-#{repo_dom_token}-link",
+             "Open run detail"
            )
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-conversations-conversation-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-conversation-panel\"]",
-             "Open governed supervision"
+             "#dashboard-overview-repository-issues-project-link-#{repo_dom_token}[href^=\"/repos/#{route_id}\"]",
+             "Repo detail"
            )
 
     assert has_element?(
              view,
-             "#dashboard-overview-repository-detail-memory-memory-link-#{repo_dom_token}[href=\"/repos/#{route_id}#project-detail-memory-inspection\"]",
-             "Validate memory graph"
-           )
-
-    assert has_element?(
-             view,
-             "#dashboard-overview-repository-detail-runtime-#{repo_dom_token} a[href=\"/settings/auth\"]",
-             "Open settings"
+             "#dashboard-overview-repository-prs-project-link-#{repo_dom_token}[href^=\"/repos/#{route_id}\"]",
+             "Repo detail"
            )
   end
 

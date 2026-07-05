@@ -36,25 +36,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section maps product records into RDF quads and back into product projections.
 
-- [ ] 3.2 Section - RDF projection codecs.
+- [x] 3.2 Section - RDF projection codecs.
 
   Description: Codecs should be explicit modules per record family, not ad hoc string builders scattered through services.
 
-  - [ ] 3.2.1 Task - Define codec behaviour and registry.
+  - [x] 3.2.1 Task - Define codec behaviour and registry.
 
     Description: Every product record family should declare its class IRI, graph, subject builder, identity keys, and field mappings.
 
-    - [ ] 3.2.1.1 Subtask - Add callbacks for encode, decode, subject_iri, class_iri, graph_iri, and identity_queries.
-    - [ ] 3.2.1.2 Subtask - Add a registry that maps product type names to codec modules.
-    - [ ] 3.2.1.3 Subtask - Validate at compile or test time that all planned classes have codecs or explicit exclusions.
+    - [x] 3.2.1.1 Subtask - Add callbacks for encode, decode, subject_iri, class_iri, graph_iri, and identity_queries.
+    - [x] 3.2.1.2 Subtask - Add a registry that maps product type names to codec modules.
+    - [x] 3.2.1.3 Subtask - Validate at compile or test time that all planned classes have codecs or explicit exclusions.
 
-  - [ ] 3.2.2 Task - Implement core scalar and metadata mapping.
+  - [x] 3.2.2 Task - Implement core scalar and metadata mapping.
 
     Description: Shared scalar encoding keeps ids, atoms, timestamps, booleans, arrays, and maps consistent.
 
-    - [ ] 3.2.2.1 Subtask - Encode ids and atoms as strings with explicit normalization.
-    - [ ] 3.2.2.2 Subtask - Encode datetimes as `xsd:dateTime` literals.
-    - [ ] 3.2.2.3 Subtask - Encode bounded maps as canonical JSON literals until promoted to semantic nodes.
+    - [x] 3.2.2.1 Subtask - Encode ids and atoms as strings with explicit normalization.
+    - [x] 3.2.2.2 Subtask - Encode datetimes as `xsd:dateTime` literals.
+    - [x] 3.2.2.3 Subtask - Encode bounded maps as canonical JSON literals until promoted to semantic nodes.
 
 ## 3.3 Section - Validation And Authorization Replacement
 

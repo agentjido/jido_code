@@ -66,25 +66,27 @@ Back to plan: [README](./README.md)
 
 **Description:** This section provides read models for conversation and execution runtime operator surfaces.
 
-- [ ] 6.3 Section - Runtime query projections.
+- [x] 6.3 Section - Runtime query projections.
 
   Description: Operator surfaces need efficient projections without relying on Ash preload or SQL sorting.
 
-  - [ ] 6.3.1 Task - Add conversation projections.
+  - [x] 6.3.1 Task - Add conversation projections.
 
     Description: Conversation routes and dashboards need active, historical, clarification, and degraded-state projections.
 
-    - [ ] 6.3.1.1 Subtask - Query active conversations by managed repo and work item.
-    - [ ] 6.3.1.2 Subtask - Query event windows by conversation sequence.
-    - [ ] 6.3.1.3 Subtask - Query latest snapshot and reset-aware prompt projection metadata.
+    - [x] 6.3.1.1 Subtask - Query active conversations by managed repo and work item.
+    - [x] 6.3.1.2 Subtask - Query event windows by conversation sequence.
+    - [x] 6.3.1.3 Subtask - Query latest snapshot and reset-aware prompt projection metadata.
 
-  - [ ] 6.3.2 Task - Add execution runtime projections.
+  - [x] 6.3.2 Task - Add execution runtime projections.
 
     Description: Runtime surfaces need sandbox session status, latest checkpoint, execution history, and event streams.
 
-    - [ ] 6.3.2.1 Subtask - Query sandbox sessions by managed repo, status, workflow, and updated time.
-    - [ ] 6.3.2.2 Subtask - Query latest checkpoint and execution session summary.
-    - [ ] 6.3.2.3 Subtask - Query event history with bounded limits.
+    - [x] 6.3.2.1 Subtask - Query sandbox sessions by managed repo, status, workflow, and updated time.
+    - [x] 6.3.2.2 Subtask - Query latest checkpoint and execution session summary.
+    - [x] 6.3.2.3 Subtask - Query event history with bounded limits.
+
+    Section verification: `mix test test/jido_code/conversations/projections_test.exs test/jido_code/execution_runtime/projections_test.exs test/jido_code/conversations/embedded_store_persistence_test.exs test/jido_code/execution_runtime/record_store_test.exs` proves active, historical, clarification, event-window, reset-aware snapshot, sandbox-session, latest-checkpoint, execution-history, and bounded runtime-event projections against isolated embedded product stores.
 
 ## 6.4 Section - Integration Tests
 

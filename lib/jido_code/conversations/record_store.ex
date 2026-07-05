@@ -271,6 +271,11 @@ defmodule JidoCode.Conversations.RecordStore do
     end
   end
 
+  @spec list_snapshot_records(map(), keyword()) :: {:ok, [SnapshotRecord.t()]} | {:error, term()}
+  def list_snapshot_records(filters \\ %{}, opts \\ []) when is_map(filters) do
+    list(:conversation_snapshot, filters, opts, &to_snapshot_record/1)
+  end
+
   defp get_existing(:conversation, attrs, opts) do
     Store.get_by_identity(
       :conversation,

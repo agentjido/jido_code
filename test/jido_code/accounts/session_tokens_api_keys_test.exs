@@ -3,7 +3,7 @@ defmodule JidoCode.Accounts.SessionTokensApiKeysTest do
   # covers: auth.system.api_key_session_lifecycle
   use ExUnit.Case, async: false
 
-  alias JidoCode.Accounts.{ApiKeys, SessionTokens, UserStore}
+  alias JidoCode.Accounts.{ApiKeys, SecurityTokens, SessionTokens, UserStore}
   alias JidoCode.ControlPlane.StoreServer
 
   setup do
@@ -34,6 +34,30 @@ defmodule JidoCode.Accounts.SessionTokensApiKeysTest do
 
     assert :ok = ApiKeys.revoke(issued.id)
     assert {:error, :api_key_revoked} = ApiKeys.verify(issued.api_key)
+  end
+
+  test "security settings token status and revocation use embedded records" do
+    user = create_user!("security-owner@example.com")
+
+    assert {:ok, session_token} = SessionTokens.issue(user)
+    assert {:ok, %{"jti" => session_jti}} = Phoenix.Token.verify(JidoCodeWeb.Endpoint, "account-session", session_token)
+    assert {:ok, issued_api_key} = ApiKeys.issue(user, name: "Security settings")
+
+    assert {:ok, %{tokens: [token_status], api_keys: [api_key_status]}} =
+             SecurityTokens.list_owner_credentials(user.id)
+
+    assert token_status.id == session_jti
+    assert token_status.status == :active
+    assert api_key_status.id == issued_api_key.id
+    assert api_key_status.status == :active
+
+    assert {:ok, token_audit} = SecurityTokens.revoke_owner_token(user.id, session_jti)
+    assert token_audit.status == :revoked
+    assert {:error, :token_revoked} = SessionTokens.verify(session_token)
+
+    assert {:ok, api_key_audit} = SecurityTokens.revoke_owner_api_key(user.id, issued_api_key.id)
+    assert api_key_audit.status == :revoked
+    assert {:error, :api_key_revoked} = ApiKeys.verify(issued_api_key.api_key)
   end
 
   defp create_user!(email) do

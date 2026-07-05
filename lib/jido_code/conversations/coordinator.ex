@@ -484,7 +484,6 @@ defmodule JidoCode.Conversations.Coordinator do
       shared_context: shared_context,
       turn_payload: normalize_map(turn.payload),
       child_work_result: normalize_map(child_work.result),
-      sandbox_owner: Process.get({JidoCode.Repo, :sandbox_owner}),
       starter_pid: self()
     }
   end
@@ -1762,30 +1761,8 @@ defmodule JidoCode.Conversations.Coordinator do
   end
 
   defp maybe_allow_test_sandbox(sandbox_owner, starter_pid) do
-    [sandbox_owner, starter_pid]
-    |> Enum.filter(&is_pid/1)
-    |> Enum.uniq()
-    |> Enum.reduce_while(:ok, fn owner_pid, :ok ->
-      case allow_test_sandbox(owner_pid) do
-        :ok -> {:halt, :ok}
-        :error -> {:cont, :ok}
-      end
-    end)
-  end
-
-  defp allow_test_sandbox(owner_pid) when is_pid(owner_pid) do
-    if Code.ensure_loaded?(Ecto.Adapters.SQL.Sandbox) do
-      try do
-        Ecto.Adapters.SQL.Sandbox.allow(JidoCode.Repo, owner_pid, self())
-        :ok
-      rescue
-        _exception -> :error
-      catch
-        _kind, _reason -> :error
-      end
-    else
-      :error
-    end
+    _ = {sandbox_owner, starter_pid}
+    :ok
   end
 
   defp turn_event_name(nil, %Turn{state: :queued}), do: "turn.queued"

@@ -20,7 +20,7 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
   }
 
   alias JidoCode.Orchestration.RunBridge
-  alias JidoCode.Operations.WorkItem
+  alias JidoCode.Operations.RecordStore
   alias JidoCode.Projects.Project
 
   setup do
@@ -69,11 +69,7 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
     assert adoption.work_item.work_metadata["memory_finding"]["freshness"]["state"] == "ready"
     assert adoption.work_item.work_metadata["memory_finding"]["provenance"]["projection_kind"] == "memories"
 
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(
-               query: [filter: [id: adoption.work_item.id]],
-               actor: JidoCode.Control.Actor.operator_actor()
-             )
+    assert {:ok, persisted_work_item} = RecordStore.get(:work_item, adoption.work_item.id)
 
     assert persisted_work_item.work_metadata["memory_finding"]["summary"] == adoption.finding.summary
 
@@ -231,6 +227,7 @@ defmodule JidoCode.MemoryGraphGovernedAdoptionTest do
              )
 
     assert adoption.work_item.work_metadata["workflow_memory"]["retrieval_policy"]["intent"] == "review_risks"
+
     assert Enum.any?(adoption.work_item.work_metadata["workflow_memory"]["governed_references"], fn reference ->
              reference["kind"] == "run" and reference["id"] == "run-32"
            end)

@@ -38,6 +38,7 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
     TokenCodec,
     UserCodec,
     UserIdentityCodec,
+    WebhookDeliveryCodec,
     WorkflowRunCodec,
     WorkItemCodec
   }
@@ -74,6 +75,7 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
     api_key: ApiKeyCodec,
     token: TokenCodec,
     provider_config: ProviderConfigCodec,
+    webhook_delivery: WebhookDeliveryCodec,
     event: EventCodec,
     secret_ref: SecretRefCodec,
     secret_lifecycle_audit: SecretLifecycleAuditCodec

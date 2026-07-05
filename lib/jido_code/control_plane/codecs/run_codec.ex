@@ -31,6 +31,7 @@ defmodule JidoCode.ControlPlane.Codecs.RunCodec do
     execution_engine: "executionEngine",
     workflow_state_ref: "workflowStateRefJson",
     run_metadata: "runMetadataJson",
+    error: "errorJson",
     retry_of_run_id: "retryOfRunId",
     retry_attempt: "retryAttempt",
     retry_lineage: "retryLineageJson",

@@ -56,8 +56,8 @@ defmodule JidoCode.Orchestration.RunBridge do
 
     with {:ok, managed_repo} <- managed_repo_for_work_item(work_item),
          {:ok, workflow_attrs} <- build_workflow_run_attrs(work_item, managed_repo, attrs),
-         {:ok, workflow_run} <- WorkflowRun.create(workflow_attrs, actor: @launch_actor),
-         {:ok, run} <- RecordStore.get_run_by_workflow_run_id(workflow_run.id, actor: @launch_actor) do
+         {:ok, workflow_run} <- RecordStore.upsert_workflow_run_compatibility(workflow_attrs, actor: @launch_actor),
+         {:ok, run} <- sync_workflow_run(workflow_run) do
       {:ok, %{workflow_run: workflow_run, run: run}}
     end
   end

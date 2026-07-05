@@ -12,27 +12,27 @@ Back to plan: [README](./README.md)
 
 **Description:** This section removes direct calls to Ash, Ash domains, Ash resources, and `JidoCode.Repo` from product code.
 
-- [ ] 7.1 Section - Product caller cutover.
+- [x] 7.1 Section - Product caller cutover.
 
   Description: Web, workflow, agent, setup, and runtime modules should call product services backed by the store behaviour.
 
   Phase 5.1 deletion target note: `Project` references left after managed-repo/source-repo cutover are concentrated in `lib/jido_code/projects*`, `lib/jido_code/orchestration/workflow_run.ex`, `test/support/conn_case.ex`, `test/support/browser_setup.ex`, and older LiveView/integration fixtures that still create WorkflowRun-era projects. Remove these alongside the product caller and fixture cutover once Phase 5.2, Phase 5.3, and Phase 6 replacement services are in place.
 
-  - [ ] 7.1.1 Task - Rewire web and LiveView surfaces.
+  - [x] 7.1.1 Task - Rewire web and LiveView surfaces.
 
     Description: Operator routes should read shaped projections from product services, not Ash query results.
 
-    - [ ] 7.1.1.1 Subtask - Rewire dashboard, managed repo detail, workbench, settings, setup, run detail, and conversation surfaces.
-    - [ ] 7.1.1.2 Subtask - Replace form changeset assumptions with product validation result rendering.
-    - [ ] 7.1.1.3 Subtask - Preserve degraded and empty states when store graphs are not ready.
+    - [x] 7.1.1.1 Subtask - Rewire dashboard, managed repo detail, workbench, settings, setup, run detail, and conversation surfaces.
+    - [x] 7.1.1.2 Subtask - Replace form changeset assumptions with product validation result rendering.
+    - [x] 7.1.1.3 Subtask - Preserve degraded and empty states when store graphs are not ready.
 
-  - [ ] 7.1.2 Task - Rewire workflow, agent, and service callers.
+  - [x] 7.1.2 Task - Rewire workflow, agent, and service callers.
 
     Description: Background flows and agent workspace helpers should use the same product boundaries as UI callers.
 
-    - [ ] 7.1.2.1 Subtask - Rewire AgentWorkspace, workflow services, GitHub webhook pipeline, source watchers, memory adoption, and governed follow-up services.
-    - [ ] 7.1.2.2 Subtask - Replace Ash query filters with named product query helpers.
-    - [ ] 7.1.2.3 Subtask - Replace Ash changesets with command builders and validators.
+    - [x] 7.1.2.1 Subtask - Rewire AgentWorkspace, workflow services, GitHub webhook pipeline, source watchers, memory adoption, and governed follow-up services.
+    - [x] 7.1.2.2 Subtask - Replace Ash query filters with named product query helpers.
+    - [x] 7.1.2.3 Subtask - Replace Ash changesets with command builders and validators.
 
 ## 7.2 Section - Dependency And Supervision Removal
 

@@ -15,7 +15,7 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
-  alias JidoCode.Operations.{WorkItem, WorkSynthesis}
+  alias JidoCode.Operations.{RecordStore, WorkItem, WorkSynthesis}
   alias JidoCode.SourceCodeGraph.{Finding, Materialization, MemoryCapture, ProductFeedback}
 
   @adoption_actor Actor.factory_system_actor(%{
@@ -325,7 +325,7 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
 
   defp preserve_work_item_metadata(nil, _finding, _action, _opts), do: {:ok, nil}
 
-  defp preserve_work_item_metadata(%WorkItem{} = work_item, finding, action, opts) do
+  defp preserve_work_item_metadata(%WorkItem{} = work_item, finding, action, _opts) do
     metadata =
       work_item.work_metadata
       |> normalize_map()
@@ -344,7 +344,7 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
         }
       )
 
-    WorkItem.update(work_item, %{work_metadata: metadata}, actor: actor(opts))
+    RecordStore.update_work_item(work_item, %{work_metadata: metadata})
   end
 
   defp actor(opts) do

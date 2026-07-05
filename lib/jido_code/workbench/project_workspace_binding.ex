@@ -3,7 +3,6 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
   Validates and updates repo-scoped workspace binding for one managed repository.
   """
 
-  alias Ash.Error.Forbidden
   alias JidoCode.Control.{ManagedRepo, ManagedRepoStore}
 
   @default_error_type "managed_repo_workspace_binding_update_failed"
@@ -40,21 +39,22 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
       {:error, %{error_type: _error_type} = error} ->
         {:error, error}
 
-      {:error, %Forbidden{}} ->
-        {:error,
-         update_error(
-           @forbidden_error_type,
-           "Current actor is not allowed to update this repository workspace binding.",
-           @default_remediation
-         )}
-
       {:error, reason} ->
-        {:error,
-         update_error(
-           @default_error_type,
-           "Repository workspace binding update failed (#{format_reason(reason)}).",
-           @default_remediation
-         )}
+        if is_forbidden_error(reason) do
+          {:error,
+           update_error(
+             @forbidden_error_type,
+             "Current actor is not allowed to update this repository workspace binding.",
+             @default_remediation
+           )}
+        else
+          {:error,
+           update_error(
+             @default_error_type,
+             "Repository workspace binding update failed (#{format_reason(reason)}).",
+             @default_remediation
+           )}
+        end
     end
   end
 
@@ -92,16 +92,17 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
                @missing_repo_remediation
              )}
 
-          {:error, %Forbidden{} = error} ->
-            {:error, error}
-
           {:error, reason} ->
-            {:error,
-             update_error(
-               @default_error_type,
-               "Repository workspace binding lookup failed (#{format_reason(reason)}).",
-               @missing_repo_remediation
-             )}
+            if is_forbidden_error(reason) do
+              {:error, reason}
+            else
+              {:error,
+               update_error(
+                 @default_error_type,
+                 "Repository workspace binding lookup failed (#{format_reason(reason)}).",
+                 @missing_repo_remediation
+               )}
+            end
         end
     end
   end
@@ -262,6 +263,9 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
 
   defp fallback_optional_string(nil, fallback), do: fallback
   defp fallback_optional_string(value, _fallback), do: value
+
+  defp is_forbidden_error(%module{}), do: module |> Module.split() |> List.last() == "Forbidden"
+  defp is_forbidden_error(_reason), do: false
 
   defp update_error(error_type, detail, remediation) do
     %{

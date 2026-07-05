@@ -13,7 +13,7 @@ defmodule JidoCodeWeb.SettingsLive do
 
   alias JidoCode.Accounts.SecurityTokens
   alias JidoCode.Control.Actor
-  alias JidoCode.GitHub.Repo
+  alias JidoCode.GitHub.RepoStore
   alias JidoCode.Security.SecretRefs
   alias JidoCode.Setup.ProjectImport
   alias JidoCodeWeb.OperatorAuthSettings
@@ -1044,13 +1044,13 @@ defmodule JidoCodeWeb.SettingsLive do
   @impl true
   def handle_event("toggle_repo", %{"id" => id}, socket) do
     actor = settings_actor(socket)
-    repo = Repo.get_by_id!(id, actor: actor)
+    repo = RepoStore.get_by_id!(id, actor: actor)
 
     result =
       if repo.enabled do
-        Repo.disable(repo, actor: actor)
+        RepoStore.disable(repo, actor: actor)
       else
-        Repo.enable(repo, actor: actor)
+        RepoStore.enable(repo, actor: actor)
       end
 
     case result do
@@ -1067,9 +1067,9 @@ defmodule JidoCodeWeb.SettingsLive do
 
   def handle_event("delete_repo", %{"id" => id}, socket) do
     actor = settings_actor(socket)
-    repo = Repo.get_by_id!(id, actor: actor)
+    repo = RepoStore.get_by_id!(id, actor: actor)
 
-    case Ash.destroy(repo, actor: actor) do
+    case RepoStore.delete(repo, actor: actor) do
       :ok ->
         {:noreply,
          socket
@@ -1082,12 +1082,7 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   def handle_event("open_add_modal", _params, socket) do
-    form =
-      Repo
-      |> AshPhoenix.Form.for_create(:create, actor: settings_actor(socket))
-      |> to_form()
-
-    {:noreply, assign(socket, show_add_modal: true, form: form, repo_save_error: nil)}
+    {:noreply, assign(socket, show_add_modal: true, form: repo_form(), repo_save_error: nil)}
   end
 
   def handle_event("close_add_modal", _params, socket) do
@@ -1095,57 +1090,23 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   def handle_event("validate", %{"form" => params}, socket) do
-    form =
-      socket.assigns.form.source
-      |> AshPhoenix.Form.validate(params)
-      |> to_form()
-
-    {:noreply, assign(socket, form: form, repo_save_error: nil)}
+    {:noreply, assign(socket, form: repo_form(params), repo_save_error: nil)}
   end
 
   def handle_event("save_repo", %{"form" => params}, socket) do
-    validated_form = AshPhoenix.Form.validate(socket.assigns.form.source, params)
+    with {:ok, repo_identity} <- normalize_repo_identity(params),
+         {:ok, import_report} <- import_settings_repo(repo_identity.full_name),
+         {:ok, _repo} <- ensure_settings_repo_anchor(repo_identity, settings_actor(socket)) do
+      socket =
+        socket
+        |> load_repos()
+        |> assign(show_add_modal: false, form: nil, repo_save_error: nil)
+        |> put_flash(:info, settings_repo_import_success_message(import_report))
 
-    cond do
-      validated_form.valid? != true ->
-        {:noreply, assign(socket, form: to_form(validated_form), repo_save_error: nil)}
-
-      true ->
-        with {:ok, repo_identity} <- normalize_repo_identity(params),
-             {:ok, import_report} <- import_settings_repo(repo_identity.full_name),
-             {:ok, _repo} <- ensure_settings_repo_anchor(repo_identity, settings_actor(socket)) do
-          socket =
-            socket
-            |> load_repos()
-            |> assign(show_add_modal: false, form: nil, repo_save_error: nil)
-            |> put_flash(:info, settings_repo_import_success_message(import_report))
-
-          {:noreply, socket}
-        else
-          {:error, {:validation, message}} ->
-            {:noreply,
-             assign(
-               socket,
-               form: to_form(validated_form),
-               repo_save_error: message
-             )}
-
-          {:error, {:import_failed, message}} ->
-            {:noreply,
-             assign(
-               socket,
-               form: to_form(validated_form),
-               repo_save_error: message
-             )}
-
-          {:error, {:anchor_failed, message}} ->
-            {:noreply,
-             assign(
-               socket,
-               form: to_form(validated_form),
-               repo_save_error: message
-             )}
-        end
+      {:noreply, socket}
+    else
+      {:error, {_kind, message}} ->
+        {:noreply, assign(socket, form: repo_form(params), repo_save_error: message)}
     end
   end
 
@@ -1312,7 +1273,11 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   defp load_repos(socket) do
-    repos = Repo.read!(actor: settings_actor(socket))
+    repos =
+      case RepoStore.list(actor: settings_actor(socket)) do
+        {:ok, repos} -> repos
+        {:error, _reason} -> []
+      end
 
     socket
     |> assign(:repo_count, length(repos))
@@ -1335,7 +1300,7 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   defp ensure_settings_repo_anchor(%{full_name: full_name} = repo_identity, actor) do
-    case Repo.get_by_full_name(full_name, actor: actor) do
+    case RepoStore.get_by_full_name(full_name, actor: actor) do
       {:ok, repo} ->
         {:ok, repo}
 
@@ -1345,12 +1310,12 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   defp create_settings_repo_anchor(%{owner: owner, name: name}, actor) do
-    case Repo.create(%{owner: owner, name: name}, actor: actor) do
+    case RepoStore.create(%{owner: owner, name: name}, actor: actor) do
       {:ok, repo} ->
         {:ok, repo}
 
       {:error, reason} ->
-        case Repo.get_by_full_name("#{owner}/#{name}", actor: actor) do
+        case RepoStore.get_by_full_name("#{owner}/#{name}", actor: actor) do
           {:ok, repo} ->
             {:ok, repo}
 
@@ -1360,6 +1325,13 @@ defmodule JidoCodeWeb.SettingsLive do
               "Repository import succeeded, but the settings GitHub anchor could not be saved (#{inspect(reason)})."}}
         end
     end
+  end
+
+  defp repo_form(params \\ %{}) do
+    params
+    |> Map.put_new("owner", "")
+    |> Map.put_new("name", "")
+    |> to_form(as: :form)
   end
 
   defp normalize_repo_identity(params) when is_map(params) do

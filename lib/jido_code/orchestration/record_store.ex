@@ -433,6 +433,7 @@ defmodule JidoCode.Orchestration.RecordStore do
       execution_engine: normalize_string(map_get(attrs, :execution_engine), @default_runic_engine),
       workflow_state_ref: decode_json_map(map_get(attrs, :workflow_state_ref, %{})),
       run_metadata: decode_json_map(map_get(attrs, :run_metadata, %{})),
+      error: decode_json_map(map_get(attrs, :error, %{})),
       retry_of_run_id: normalize_optional_string(map_get(attrs, :retry_of_run_id)),
       retry_attempt: normalize_positive_integer(map_get(attrs, :retry_attempt), 1),
       retry_lineage: decode_json_list(map_get(attrs, :retry_lineage, []), []),

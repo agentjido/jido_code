@@ -373,15 +373,8 @@ defmodule JidoCode.Conversations.ChildWorker do
   defp maybe_allow_test_sandbox(_runtime_pid, _runtime_spec), do: :ok
 
   defp allow_test_sandbox(owner_pid, runtime_pid) when is_pid(owner_pid) and is_pid(runtime_pid) do
-    if Code.ensure_loaded?(Ecto.Adapters.SQL.Sandbox) do
-      try do
-        Ecto.Adapters.SQL.Sandbox.allow(JidoCode.Repo, owner_pid, runtime_pid)
-      rescue
-        _exception -> :ok
-      catch
-        _kind, _reason -> :ok
-      end
-    end
+    _ = {owner_pid, runtime_pid}
+    :ok
   end
 
   defp maybe_put(map, _key, nil), do: map

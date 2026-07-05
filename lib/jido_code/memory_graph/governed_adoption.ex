@@ -14,7 +14,7 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.{CaptureEnvelope, Finding, GovernedReference, Materialization, ProductFeedback}
-  alias JidoCode.Operations.{WorkItem, WorkSynthesis}
+  alias JidoCode.Operations.{RecordStore, WorkItem, WorkSynthesis}
 
   @adoption_actor Actor.factory_system_actor(%{
                     "id" => "system:memory-graph-governed-adoption",
@@ -322,7 +322,7 @@ defmodule JidoCode.MemoryGraph.GovernedAdoption do
       )
       |> maybe_put_workflow_memory(workflow_context)
 
-    WorkItem.update(work_item, %{work_metadata: metadata}, actor: actor(opts))
+    RecordStore.update_work_item(work_item, %{work_metadata: metadata})
   end
 
   defp workflow_context(opts) do

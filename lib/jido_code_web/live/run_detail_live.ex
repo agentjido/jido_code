@@ -17,11 +17,13 @@ defmodule JidoCodeWeb.RunDetailLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.{Actor, RepoBridge}
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
+  alias JidoCode.Governance.RepoPosture
+  alias JidoCode.Governance.RecordStore, as: GovernanceRecordStore
   alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
-  alias JidoCode.Operations.WorkItem
-  alias JidoCode.Orchestration.{Run, RunPubSub}
+  alias JidoCode.Operations.{RecordStore, WorkItem}
+  alias JidoCode.Orchestration.{Run, RunActions, RunPubSub}
+  alias JidoCode.Orchestration.RecordStore, as: OrchestrationRecordStore
   alias JidoCode.Workbench.ProjectConversation
   alias JidoCodeWeb.OperatorShell
 
@@ -92,7 +94,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   @impl true
   def handle_event("approve_run", _params, %{assigns: %{run: %Run{} = run}} = socket) do
-    case Run.approve(run, %{
+    case RunActions.approve(run, %{
            actor: approving_actor(socket),
            current_step: "resume_execution"
          }) do
@@ -121,7 +123,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       |> map_get(:rationale, "rationale")
       |> normalize_optional_string()
 
-    case Run.reject(run, %{
+    case RunActions.reject(run, %{
            actor: approving_actor(socket),
            rationale: rationale
          }) do
@@ -145,7 +147,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   @impl true
   def handle_event("retry_run", _params, %{assigns: %{run: %Run{} = run}} = socket) do
-    case Run.retry(run, %{actor: approving_actor(socket)}) do
+    case RunActions.retry(run, %{actor: approving_actor(socket)}) do
       {:ok, %Run{} = retried_run} ->
         {:noreply,
          socket
@@ -174,7 +176,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   @impl true
   def handle_event("retry_step", _params, %{assigns: %{run: %Run{} = run}} = socket) do
-    case Run.retry_step(run, %{actor: approving_actor(socket)}) do
+    case RunActions.retry_step(run, %{actor: approving_actor(socket)}) do
       {:ok, %Run{} = retried_run} ->
         {:noreply,
          socket
@@ -1746,7 +1748,11 @@ defmodule JidoCodeWeb.RunDetailLive do
         {:error, :governed_run_not_found}
 
       true ->
-        case Run.get_by_managed_repo_and_run_id(managed_repo_id, normalized_run_id, actor: Actor.operator_actor()) do
+        case OrchestrationRecordStore.get_run_by_managed_repo_and_run_id(
+               managed_repo_id,
+               normalized_run_id,
+               actor: Actor.operator_actor()
+             ) do
           {:ok, %Run{} = run} -> {:ok, run}
           {:ok, nil} -> {:error, :governed_run_not_found}
           {:error, reason} -> {:error, reason}
@@ -1755,8 +1761,9 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_evidence_records(%Run{} = run) do
-    case Evidence.read(
-           query: [filter: [run_id: run.id], sort: [recorded_at: :asc]],
+    case GovernanceRecordStore.list_evidence(
+           %{run_id: run.id},
+           query: [sort: [recorded_at: :asc]],
            actor: Actor.operator_actor()
          ) do
       {:ok, evidence_records} -> evidence_records
@@ -1774,8 +1781,8 @@ defmodule JidoCodeWeb.RunDetailLive do
 
     case work_item_id do
       work_item_id when is_binary(work_item_id) ->
-        case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: Actor.operator_actor()) do
-          {:ok, [work_item | _rest]} -> work_item
+        case RecordStore.get(:work_item, work_item_id) do
+          {:ok, %WorkItem{} = work_item} -> work_item
           _other -> placeholder_work_item(work_item_id)
         end
 
@@ -1805,7 +1812,11 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_change_request(%Run{} = run) do
-    case ChangeRequest.read(query: [filter: [run_id: run.id], limit: 1], actor: Actor.operator_actor()) do
+    case GovernanceRecordStore.list_change_requests(
+           %{run_id: run.id},
+           query: [limit: 1],
+           actor: Actor.operator_actor()
+         ) do
       {:ok, [change_request | _rest]} -> change_request
       _other -> nil
     end
@@ -1814,8 +1825,9 @@ defmodule JidoCodeWeb.RunDetailLive do
   defp load_change_request(_run), do: nil
 
   defp load_decisions(%Run{} = run) do
-    case Decision.read(
-           query: [filter: [run_id: run.id], sort: [decided_at: :desc]],
+    case GovernanceRecordStore.list_decisions(
+           %{run_id: run.id},
+           query: [sort: [decided_at: :desc]],
            actor: Actor.operator_actor()
          ) do
       {:ok, decisions} -> decisions
@@ -2924,7 +2936,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   defp normalize_retry_lineage_entries(_entries), do: []
 
   defp step_retry_state(%Run{} = run) do
-    case Run.step_retry_contract(run) do
+    case RunActions.step_retry_contract(run) do
       {:ok, step_retry_contract} ->
         %{
           available: true,
@@ -3362,8 +3374,13 @@ defmodule JidoCodeWeb.RunDetailLive do
   defp normalize_optional_string(value) when is_atom(value),
     do: value |> Atom.to_string() |> normalize_optional_string()
 
-  defp normalize_optional_string(%Ash.CiString{} = value),
-    do: value |> to_string() |> normalize_optional_string()
+  defp normalize_optional_string(%_{} = value) do
+    value
+    |> to_string()
+    |> normalize_optional_string()
+  rescue
+    _error -> nil
+  end
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(value) when is_float(value), do: :erlang.float_to_binary(value)

@@ -14,10 +14,12 @@ defmodule JidoCodeWeb.DecisionDetailLive do
   import JidoCodeWeb.GovernedMemoryHelpers
 
   alias JidoCode.Control.{Actor, RepoBridge}
-  alias JidoCode.Governance.{Decision, Evidence}
+  alias JidoCode.Governance.Decision
+  alias JidoCode.Governance.RecordStore, as: GovernanceRecordStore
   alias JidoCode.MemoryGraph.{FollowUpSurface, GovernedSurfaceContext, OperatorService, ProductService, SurfaceFeedback}
-  alias JidoCode.Operations.WorkItem
+  alias JidoCode.Operations.{RecordStore, WorkItem}
   alias JidoCode.Orchestration.Run
+  alias JidoCode.Orchestration.RecordStore, as: OrchestrationRecordStore
 
   @surface_label "this governed decision surface"
 
@@ -541,8 +543,9 @@ defmodule JidoCodeWeb.DecisionDetailLive do
     with {:ok, scope} <- RepoBridge.repo_scope(project_id),
          managed_repo_id when is_binary(managed_repo_id) <- managed_repo_id(scope),
          {:ok, [%Decision{} = decision]} <-
-           Decision.read(
-             query: [filter: [id: decision_id, managed_repo_id: managed_repo_id], limit: 1],
+           GovernanceRecordStore.list_decisions(
+             %{id: decision_id, managed_repo_id: managed_repo_id},
+             query: [limit: 1],
              actor: Actor.operator_actor()
            ) do
       route_repo_id = route_repo_id(scope) || managed_repo_id
@@ -604,8 +607,9 @@ defmodule JidoCodeWeb.DecisionDetailLive do
   end
 
   defp load_related_run(managed_repo_id, run_internal_id) do
-    case Run.read(
-           query: [filter: [id: run_internal_id, managed_repo_id: managed_repo_id], limit: 1],
+    case OrchestrationRecordStore.list_runs(
+           %{id: run_internal_id, managed_repo_id: managed_repo_id},
+           query: [limit: 1],
            actor: Actor.operator_actor()
          ) do
       {:ok, [%Run{} = run]} -> run
@@ -616,11 +620,8 @@ defmodule JidoCodeWeb.DecisionDetailLive do
   defp load_related_work_item(_managed_repo_id, nil), do: nil
 
   defp load_related_work_item(managed_repo_id, work_item_id) do
-    case WorkItem.read(
-           query: [filter: [id: work_item_id, managed_repo_id: managed_repo_id], limit: 1],
-           actor: Actor.operator_actor()
-         ) do
-      {:ok, [%WorkItem{} = work_item]} -> work_item
+    case RecordStore.get(:work_item, work_item_id) do
+      {:ok, %WorkItem{managed_repo_id: ^managed_repo_id} = work_item} -> work_item
       _other -> nil
     end
   end
@@ -628,8 +629,9 @@ defmodule JidoCodeWeb.DecisionDetailLive do
   defp load_related_evidence(managed_repo_id, %Decision{} = decision) do
     evidence_ids = Map.get(decision, :evidence_ids, [])
 
-    case Evidence.read(
-           query: [filter: [managed_repo_id: managed_repo_id, run_id: decision.run_id], sort: [recorded_at: :asc]],
+    case GovernanceRecordStore.list_evidence(
+           %{managed_repo_id: managed_repo_id, run_id: decision.run_id},
+           query: [sort: [recorded_at: :asc]],
            actor: Actor.operator_actor()
          ) do
       {:ok, evidence_records} ->

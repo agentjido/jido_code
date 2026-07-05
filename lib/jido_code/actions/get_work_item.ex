@@ -6,7 +6,8 @@ defmodule JidoCode.Actions.GetWorkItem do
   Retrieves the current state, instructions, and context for a WorkItem.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{ManagedRepo, ManagedRepoStore}
+  alias JidoCode.Operations.RecordStore
   alias JidoCode.Operations.WorkItem
 
   use Jido.Action,
@@ -17,11 +18,6 @@ defmodule JidoCode.Actions.GetWorkItem do
     ]
 
   @impl true
-  @actor Actor.managed_repo_orchestrator_actor(%{
-           "id" => "system:agent-os-get-work-item",
-           "email" => "agent-os-get-work-item@system.local"
-         })
-
   def run(%{work_item_id: work_item_id}, _context) do
     case fetch_work_item(work_item_id) do
       {:ok, %WorkItem{} = work_item} ->
@@ -45,9 +41,9 @@ defmodule JidoCode.Actions.GetWorkItem do
   end
 
   defp fetch_work_item(work_item_id) when is_binary(work_item_id) do
-    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: @actor) do
-      {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
-      {:ok, []} -> {:error, :not_found}
+    case RecordStore.get(:work_item, work_item_id) do
+      {:ok, %WorkItem{} = work_item} -> {:ok, work_item}
+      {:ok, nil} -> {:error, :not_found}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -55,8 +51,8 @@ defmodule JidoCode.Actions.GetWorkItem do
   defp fetch_work_item(_work_item_id), do: {:error, :not_found}
 
   defp workspace_path(managed_repo_id) when is_binary(managed_repo_id) do
-    case ManagedRepo.read(query: [filter: [id: managed_repo_id], limit: 1], actor: @actor) do
-      {:ok, [%ManagedRepo{} = managed_repo | _rest]} ->
+    case ManagedRepoStore.get_by_id(managed_repo_id) do
+      {:ok, %ManagedRepo{} = managed_repo} ->
         managed_repo
         |> Map.get(:workspace_settings, %{})
         |> Map.get("workspace_path")

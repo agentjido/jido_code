@@ -6,7 +6,7 @@ defmodule JidoCode.Actions.UpdateWorkItemStatus do
   Updates the status of a WorkItem to reflect progress in the workflow.
   """
 
-  alias JidoCode.Control.Actor
+  alias JidoCode.Operations.RecordStore
   alias JidoCode.Operations.WorkItem
 
   use Jido.Action,
@@ -19,29 +19,14 @@ defmodule JidoCode.Actions.UpdateWorkItemStatus do
     ]
 
   @impl true
-  @actor Actor.managed_repo_orchestrator_actor(%{
-           "id" => "system:agent-os-update-work-item",
-           "email" => "agent-os-update-work-item@system.local"
-         })
-
   def run(%{work_item_id: work_item_id, status: status, message: message}, _context) do
-    valid_statuses = [:open, :in_progress, :blocked, :completed, :cancelled, :suppressed]
-
-    status_atom =
-      if is_binary(status) do
-        String.to_existing_atom(status)
-      else
-        status
-      end
-
-    if status_atom in valid_statuses do
+    if status_atom = normalize_status(status) do
       with {:ok, %WorkItem{} = work_item} <- fetch_work_item(work_item_id),
            audit_log = append_audit_log(work_item.audit_log, status_atom, message),
            {:ok, updated_work_item} <-
-             WorkItem.update(
+             RecordStore.update_work_item(
                work_item,
-               %{status: status_atom, audit_log: audit_log},
-               actor: @actor
+               %{status: status_atom, audit_log: audit_log}
              ) do
         {:ok,
          %{
@@ -53,20 +38,37 @@ defmodule JidoCode.Actions.UpdateWorkItemStatus do
     else
       {:error, :invalid_status, "Invalid status: #{status}"}
     end
-  rescue
-    ArgumentError ->
-      {:error, :invalid_status, "Invalid status: #{status}"}
   end
 
   defp fetch_work_item(work_item_id) when is_binary(work_item_id) do
-    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: @actor) do
-      {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
-      {:ok, []} -> {:error, :work_item_not_found}
+    case RecordStore.get(:work_item, work_item_id) do
+      {:ok, %WorkItem{} = work_item} -> {:ok, work_item}
+      {:ok, nil} -> {:error, :work_item_not_found}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp fetch_work_item(_work_item_id), do: {:error, :work_item_not_found}
+
+  defp normalize_status(status)
+       when is_atom(status) and status in [:open, :in_progress, :blocked, :completed, :cancelled, :suppressed],
+       do: status
+
+  defp normalize_status(status) when is_binary(status) do
+    status
+    |> String.downcase()
+    |> case do
+      "open" -> :open
+      "in_progress" -> :in_progress
+      "blocked" -> :blocked
+      "completed" -> :completed
+      "cancelled" -> :cancelled
+      "suppressed" -> :suppressed
+      _other -> nil
+    end
+  end
+
+  defp normalize_status(_status), do: nil
 
   defp append_audit_log(audit_log, status, message) when is_list(audit_log) do
     audit_log ++

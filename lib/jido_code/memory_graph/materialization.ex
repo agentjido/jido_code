@@ -7,8 +7,10 @@ defmodule JidoCode.MemoryGraph.Materialization do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Governance.Evidence
+  alias JidoCode.Governance.RecordStore, as: GovernanceRecordStore
   alias JidoCode.MemoryGraph.{Finding, ProductFeedback}
   alias JidoCode.Operations.{Assessment, Event, Observation}
+  alias JidoCode.Operations.RecordStore, as: OperationsRecordStore
 
   @materialization_actor Actor.factory_system_actor(%{
                            "id" => "system:memory-graph-materialization",
@@ -18,7 +20,7 @@ defmodule JidoCode.MemoryGraph.Materialization do
   @spec materialize_observation(map(), keyword()) :: {:ok, Observation.t()} | {:error, term()}
   def materialize_observation(projection_or_finding, opts \\ []) do
     with {:ok, finding} <- ensure_finding(projection_or_finding, opts) do
-      Observation.create(observation_attrs(finding, opts), actor: actor(opts))
+      OperationsRecordStore.create(:observation, observation_attrs(finding, opts), actor: actor(opts))
     end
   end
 
@@ -28,8 +30,9 @@ defmodule JidoCode.MemoryGraph.Materialization do
   def materialize_assessment(projection_or_finding, opts \\ []) do
     with {:ok, finding} <- ensure_finding(projection_or_finding, opts),
          {:ok, observation} <- materialize_observation(finding, opts),
-         {:ok, event} <- Event.create(event_attrs(finding, observation), actor: actor(opts)),
-         {:ok, assessment} <- Assessment.create(assessment_attrs(finding, observation, event), actor: actor(opts)) do
+         {:ok, event} <- OperationsRecordStore.create(:event, event_attrs(finding, observation), actor: actor(opts)),
+         {:ok, assessment} <-
+           OperationsRecordStore.create(:assessment, assessment_attrs(finding, observation, event), actor: actor(opts)) do
       {:ok, %{finding: finding, observation: observation, event: event, assessment: assessment}}
     end
   end
@@ -136,7 +139,7 @@ defmodule JidoCode.MemoryGraph.Materialization do
            normalize_optional_string(Keyword.get(opts, :run_id)) || {:error, :missing_run_id},
          {:ok, attrs} <- evidence_input(finding, opts),
          {:ok, evidence} <-
-           Evidence.create(
+           GovernanceRecordStore.upsert_evidence(
              Map.merge(attrs, %{run_id: run_id, recorded_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)}),
              actor: actor(opts)
            ) do

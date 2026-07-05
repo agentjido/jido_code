@@ -3,8 +3,7 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
   Queries failed run context history for dashboard trend review.
   """
 
-  alias JidoCode.Control.Actor
-  alias JidoCode.Orchestration.WorkflowRun
+  alias JidoCode.Orchestration.RecordStore
 
   @default_window_days 30
   @default_limit 200
@@ -66,10 +65,7 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
   @spec default_loader(query_params()) ::
           {:ok, [failure_history_entry()]} | {:error, typed_error()}
   def default_loader(query_params) when is_map(query_params) do
-    case WorkflowRun.read(
-           query: [filter: [status: :failed], sort: [completed_at: :desc]],
-           actor: Actor.operator_actor()
-         ) do
+    case RecordStore.list_runs(%{status: :failed}, query: [sort: [completed_at: :desc]]) do
       {:ok, runs} ->
         failure_history =
           runs
@@ -262,10 +258,7 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
   end
 
   defp to_failure_history_entry(run) when is_map(run) do
-    error =
-      run
-      |> map_get(:error, "error", %{})
-      |> normalize_map()
+    error = run_error(run)
 
     %{
       run_id:
@@ -275,7 +268,10 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
       project_id:
         run
         |> map_get(:project_id, "project_id")
-        |> normalize_optional_string(),
+        |> normalize_optional_string() ||
+          run
+          |> map_get(:legacy_project_id, "legacy_project_id")
+          |> normalize_optional_string(),
       workflow_name:
         run
         |> map_get(:workflow_name, "workflow_name")
@@ -309,6 +305,26 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
       last_successful_step: @default_last_successful_step,
       remediation_hint: String.trim(@default_remediation_hint)
     }
+  end
+
+  defp run_error(run) when is_map(run) do
+    [
+      map_get(run, :error, "error", %{}),
+      run
+      |> map_get(:__metadata__, "__metadata__", %{})
+      |> normalize_map()
+      |> map_get(:control_plane_record, "control_plane_record", %{})
+      |> normalize_map()
+      |> map_get(:error, "error", %{}),
+      run
+      |> map_get(:run_metadata, "run_metadata", %{})
+      |> normalize_map()
+      |> map_get(:workflow_audit, "workflow_audit", %{})
+      |> normalize_map()
+      |> map_get(:error, "error", %{})
+    ]
+    |> Enum.map(&normalize_map/1)
+    |> Enum.find(%{}, &(&1 != %{}))
   end
 
   defp resolve_failed_at(run, error) do

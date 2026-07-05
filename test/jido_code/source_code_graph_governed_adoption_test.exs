@@ -9,7 +9,7 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Governance.Evidence
-  alias JidoCode.Operations.WorkItem
+  alias JidoCode.Operations.RecordStore
   alias JidoCode.Orchestration.RunBridge
   alias JidoCode.Projects.Project
   alias JidoCode.SourceCodeGraph.{GovernedAdoption, ProductService}
@@ -66,11 +66,7 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
     assert adoption.work_item.work_metadata["semantic_finding"]["freshness"]["state"] == "ready"
     assert adoption.work_item.work_metadata["semantic_finding"]["provenance"]["projection_kind"] == "impact"
 
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(
-               query: [filter: [id: adoption.work_item.id]],
-               actor: JidoCode.Control.Actor.operator_actor()
-             )
+    assert {:ok, persisted_work_item} = RecordStore.get(:work_item, adoption.work_item.id)
 
     assert persisted_work_item.work_metadata["semantic_finding"]["summary"] == adoption.finding.summary
 

@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase replaces the primary product control-plane resource families with embedded TripleStore-backed services. It covers managed repositories, source repositories, external objects, observations, assessments, work items, runs, evidence, change requests, decisions, policies, posture, and execution profiles.
 
-- [ ] 5 Phase - Control, operations, governance, and orchestration data plane.
+- [x] 5 Phase - Control, operations, governance, and orchestration data plane.
 
   Description: Move core product truth from Ash resources to semantic records and product services.
 
@@ -88,22 +88,24 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves the core control plane can create, query, and govern work without Ash/Postgres.
 
-- [ ] 5.4 Section - Integration tests.
+- [x] 5.4 Section - Integration tests.
 
   Description: End-to-end tests should follow a demand item from source observation through governed run and decision records.
 
-  - [ ] 5.4.1 Task - Add operations-to-work integration coverage.
+  - [x] 5.4.1 Task - Add operations-to-work integration coverage.
 
     Description: Operations tests should validate the replacement for current repo-native work synthesis flows.
 
-    - [ ] 5.4.1.1 Subtask - Create a managed repo, external object, observation, assessment, and work item in one scenario.
-    - [ ] 5.4.1.2 Subtask - Prove duplicate external demand reuses the expected semantic identity.
-    - [ ] 5.4.1.3 Subtask - Prove dashboard and workbench projections return the expected work roster.
+    - [x] 5.4.1.1 Subtask - Create a managed repo, external object, observation, assessment, and work item in one scenario.
+    - [x] 5.4.1.2 Subtask - Prove duplicate external demand reuses the expected semantic identity.
+    - [x] 5.4.1.3 Subtask - Prove dashboard and workbench projections return the expected work roster.
 
-  - [ ] 5.4.2 Task - Add governance and orchestration integration coverage.
+  - [x] 5.4.2 Task - Add governance and orchestration integration coverage.
 
     Description: Governance tests should validate run lifecycle and review records over the embedded store.
 
-    - [ ] 5.4.2.1 Subtask - Launch a governed run for a work item and record evidence.
-    - [ ] 5.4.2.2 Subtask - Create a change request and governed decision linked to the run.
-    - [ ] 5.4.2.3 Subtask - Query repo posture and policy projections without Ash relationship loading.
+    - [x] 5.4.2.1 Subtask - Launch a governed run for a work item and record evidence.
+    - [x] 5.4.2.2 Subtask - Create a change request and governed decision linked to the run.
+    - [x] 5.4.2.3 Subtask - Query repo posture and policy projections without Ash relationship loading.
+
+    Section verification: `mix test test/jido_code/control_plane/embedded_store_phase_five_integration_test.exs --trace` proves operations, governance, orchestration, posture, and policy projections through isolated embedded product stores.

@@ -60,25 +60,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section decides which named graph owns each kind of product fact.
 
-- [ ] 1.3 Section - Named graph topology.
+- [x] 1.3 Section - Named graph topology.
 
   Description: Keep product records, events, auth, security, conversations, execution runtime, memory, workflow provenance, and source code isolated but linkable.
 
-  - [ ] 1.3.1 Task - Define graph ownership rules.
+  - [x] 1.3.1 Task - Define graph ownership rules.
 
     Description: Every write path should know which graph receives its triples before store adapters exist.
 
-    - [ ] 1.3.1.1 Subtask - Assign control, operations, governance, and orchestration records to `control_plane`.
-    - [ ] 1.3.1.2 Subtask - Assign append-only lifecycle events to `control_plane_events` unless they belong to conversation or execution runtime graphs.
-    - [ ] 1.3.1.3 Subtask - Assign auth, security, conversations, and execution runtime records to their dedicated named graphs.
+    - [x] 1.3.1.1 Subtask - Assign control, operations, governance, and orchestration records to `control_plane`.
+    - [x] 1.3.1.2 Subtask - Assign append-only lifecycle events to `control_plane_events` unless they belong to conversation or execution runtime graphs.
+    - [x] 1.3.1.3 Subtask - Assign auth, security, conversations, and execution runtime records to their dedicated named graphs.
 
-  - [ ] 1.3.2 Task - Define cross-graph link rules.
+  - [x] 1.3.2 Task - Define cross-graph link rules.
 
     Description: Cross-graph links should use object IRIs and product-owned helpers, not raw graph traversal from UI code.
 
-    - [ ] 1.3.2.1 Subtask - Define how memory and workflow provenance link to governed records.
-    - [ ] 1.3.2.2 Subtask - Define how source-code entities link to work items, runs, evidence, and memories.
-    - [ ] 1.3.2.3 Subtask - Define degraded behavior when a sibling graph is stale, missing, or unavailable.
+    - [x] 1.3.2.1 Subtask - Define how memory and workflow provenance link to governed records.
+    - [x] 1.3.2.2 Subtask - Define how source-code entities link to work items, runs, evidence, and memories.
+    - [x] 1.3.2.3 Subtask - Define degraded behavior when a sibling graph is stale, missing, or unavailable.
 
 ## 1.4 Section - Integration Tests
 

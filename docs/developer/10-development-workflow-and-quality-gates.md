@@ -10,16 +10,16 @@ Useful implementation sources:
 
 ## Normal Local Workflow
 
-The normal contributor path is the repo-root Phoenix workflow with host
-Postgres.
+The normal contributor path is the repo-root Phoenix workflow backed by the
+embedded control-plane `TripleStore`. A local Postgres server is not part of the
+current product data plane.
 
 Typical flow:
 
 1. `asdf install`
-2. start local Postgres
-3. `mix setup`
-4. `mix server`
-5. `mix test`
+2. `mix setup`
+3. `mix server`
+4. `mix test`
 
 Desktop packaging and runtime work are separate and live under
 [`../../tauri/README.md`](https://github.com/mikehostetler/jido_code/blob/main/tauri/README.md).
@@ -44,6 +44,10 @@ before editing:
 | `mix frontend.verify` | verify LiveVue and Vite browser pipeline |
 | `mix source_graph.verify` | verify semantic source-code graph stack |
 | `mix memory.verify` | verify memory graph and capture-plane behavior |
+| `mix control_plane.integrity` | check embedded control-plane graph topology, ontology version, identities, and dangling links |
+| `mix control_plane.query --named health` | inspect bounded control-plane store health without raw SPARQL |
+| `mix control_plane.export priv/tmp/control-plane.nq` | export control-plane graphs with auth and security graph redaction enabled by default |
+| `mix test test/jido_code/embedded_store_removal_gate_test.exs` | verify Ash/Postgres removal, codec coverage, store boundary, and export redaction guardrails |
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_seventy_eight_integration_test.exs` | verify prompt context memory adapter and runtime integration |
 | `mix test test/jido_code/conversations_driver_test.exs test/jido_code/conversations_coordinator_test.exs test/jido_code/conversations_test.exs test/jido_code/conversations_pubsub_test.exs test/jido_code/conversations/context_memory_test.exs --seed 871949 --max-cases 1 --max-failures 1` | verify the historical conversation child-supervisor lifecycle regression |
 | `mix test test/jido_code/conversations/context_memory_test.exs test/jido_code/phase_fifty_two_integration_test.exs test/jido_code/phase_eighty_three_integration_test.exs --max-cases 1 --max-failures 1` | verify prompt-memory fixture isolation with deterministic routing and refactor-routing integration |
@@ -58,6 +62,9 @@ before editing:
 Run the narrower verification commands when you touch those boundaries:
 
 - browser stack or `live_vue` changes -> `mix frontend.verify`
+- embedded control-plane store, codecs, graph topology, product record stores,
+  recovery tooling, or persistence guardrails -> `mix control_plane.integrity`
+  and `mix test test/jido_code/embedded_store_removal_gate_test.exs`
 - source graph boundaries -> `mix source_graph.verify`
 - memory graph or capture boundaries -> `mix memory.verify`
 - prompt context memory adapter or conversation prompt recall changes -> run the
@@ -155,7 +162,14 @@ pretending the local state is durable.
 ## Guardrails Worth Remembering
 
 - keep product truth in governed records
+- keep governed records in the embedded control-plane store through product
+  query and record helpers
 - keep runtime topology behind `AgentWorkspace`
+- do not reintroduce Ash, Ecto, Repo, Postgres, or database migrations for
+  product persistence
+- do not call `TripleStore` directly from LiveView, workflow, or product
+  service modules; use `JidoCode.ControlPlane.RecordStore`, product-specific
+  stores, `StoreQuery`, or safe diagnostics
 - prefer one module per file
 - use `Req` for HTTP work
 - do not add a parallel React frontend

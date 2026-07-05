@@ -60,25 +60,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section updates contributor guidance so future work uses the embedded store correctly.
 
-- [ ] 8.3 Section - Documentation and guardrails.
+- [x] 8.3 Section - Documentation and guardrails.
 
   Description: The new persistence architecture should become the default mental model in docs, tests, and code review.
 
-  - [ ] 8.3.1 Task - Update developer documentation.
+  - [x] 8.3.1 Task - Update developer documentation.
 
     Description: Docs should explain the store boundary, ontology, codecs, graph topology, and verification commands.
 
-    - [ ] 8.3.1.1 Subtask - Update repository mental map and development workflow docs.
-    - [ ] 8.3.1.2 Subtask - Add a control-plane ontology and query examples guide.
-    - [ ] 8.3.1.3 Subtask - Document when to use product query helpers versus explicit SPARQL.
+    - [x] 8.3.1.1 Subtask - Update repository mental map and development workflow docs.
+    - [x] 8.3.1.2 Subtask - Add a control-plane ontology and query examples guide.
+    - [x] 8.3.1.3 Subtask - Document when to use product query helpers versus explicit SPARQL.
 
-  - [ ] 8.3.2 Task - Add regression guardrails.
+  - [x] 8.3.2 Task - Add regression guardrails.
 
     Description: Future contributors should get fast feedback if they reintroduce the removed data plane or bypass product boundaries.
 
-    - [ ] 8.3.2.1 Subtask - Add static checks for forbidden Ash/Ecto imports and direct TripleStore calls outside allowed modules.
-    - [ ] 8.3.2.2 Subtask - Add codec registry completeness checks.
-    - [ ] 8.3.2.3 Subtask - Add graph redaction checks for auth and security records.
+    - [x] 8.3.2.1 Subtask - Add static checks for forbidden Ash/Ecto imports and direct TripleStore calls outside allowed modules.
+    - [x] 8.3.2.2 Subtask - Add codec registry completeness checks.
+    - [x] 8.3.2.3 Subtask - Add graph redaction checks for auth and security records.
 
 ## 8.4 Section - Integration Tests
 

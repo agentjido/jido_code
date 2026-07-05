@@ -14,34 +14,36 @@ These are the fastest orientation points in the repo:
 2. [`../../lib/jido_code/application.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/application.ex)
    The main supervision tree and long-running process boundaries.
 3. [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
-   The product-owned seam into AgentOS runtime, conversations, and graph
+   The product-owned boundary into AgentOS runtime, conversations, and graph
    behavior.
 4. [`../../lib/jido_code/control/repo_bridge.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/control/repo_bridge.ex)
    The repo-scope bridge that turns route or setup input into canonical
    `ManagedRepo` and `SourceRepo` context.
-5. [`../../docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md)
+5. [`../../lib/jido_code/control_plane/record_store.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/control_plane/record_store.ex)
+   The map-level helper used by product services to create, update, list, and
+   decode embedded control-plane records.
+6. [`../../docs/developer/README.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/README.md)
    The rest of the explanatory guide set.
 
 ## Top-Level Layout
 
 | Path | What it is for |
 | --- | --- |
-| `.planning/` | Phased implementation and migration plans. |
+| `planning/` | Phased implementation and migration plans. |
 | `docs/developer/` | Explanatory contributor guides that translate the current architecture into a faster mental model. |
 | `lib/jido_code/` | Product plane, runtime boundary, semantic services, setup, security, and supporting modules. |
 | `lib/jido_code_web/` | Phoenix router, LiveViews, components, controllers, and browser-facing boundaries. |
 | `assets/` | Vite, LiveVue, CSS, and browser build inputs. |
-| `priv/ontologies/` | The semantic ontology assets, especially `jido-memory.ttl` and `jido-control-plane.ttl`. |
-| `priv/repo/migrations/` | Database schema history for the Ash and Phoenix application. |
+| `priv/ontologies/` | The semantic ontology assets, especially `jido-control-plane.ttl`, `jido-memory.ttl`, and workflow provenance terms. |
 | `config/` | Environment and runtime configuration. |
 | `compat/` | Version-controlled compatibility packages such as local `jido_workflow`. |
 | `test/` | Subsystem and phase-oriented coverage that mirrors the repo architecture. |
 
 ## The Main `lib/jido_code/` Zones
 
-### 1. Domain Entry Points
+### 1. Product Entry Points
 
-These are the Ash domain modules that give the repo its top-level vocabulary:
+These modules and directories give the repo its top-level product vocabulary:
 
 - [`../../lib/jido_code/accounts.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/accounts.ex)
 - [`../../lib/jido_code/auth_providers.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/auth_providers.ex)
@@ -59,7 +61,34 @@ Read these first when you need to understand the main product records:
 - `Governance`: evidence, posture, change requests, decisions
 - `Conversations`: durable productive conversation state
 
-### 2. Product Plane And Record Bridges
+The durable record writes behind these areas flow through product-specific
+stores or `JidoCode.ControlPlane.RecordStore`, not through Ash resources or a
+Postgres repo.
+
+### 2. Embedded Control-Plane Store
+
+The product data plane is the embedded control-plane store under:
+
+- `lib/jido_code/control_plane/`
+- `lib/jido_code/control_plane/codecs/`
+- `lib/jido_code/control_plane/store/`
+
+Use this area when you are touching:
+
+- graph topology and named graph assignment
+- canonical subject IRIs and identity contracts
+- codec projection between maps and RDF triples
+- typed command and query boundaries
+- integrity, recovery, diagnostics, and telemetry
+- the product store contract used by product services
+
+Normal callers should prefer product helpers such as
+`JidoCode.ControlPlane.RecordStore`, `JidoCode.Control.ManagedRepoStore`,
+`JidoCode.Operations.RecordStore`, `JidoCode.Governance.RecordStore`,
+`JidoCode.Conversations.RecordStore`, and `JidoCode.ExecutionRuntime.RecordStore`.
+Reach for raw SPARQL only through the explicit diagnostic boundary.
+
+### 3. Product Plane And Record Bridges
 
 These directories turn the control-plane model into usable product behavior:
 
@@ -79,9 +108,9 @@ These directories turn the control-plane model into usable product behavior:
 If you are following a managed repository from import to governed work, these
 are usually the first directories to inspect.
 
-### 3. Runtime Boundary
+### 4. Runtime Boundary
 
-These files are the main runtime seam:
+These files are the main runtime boundary:
 
 - [`../../lib/jido_code/agent_workspace.ex`](https://github.com/mikehostetler/jido_code/blob/main/lib/jido_code/agent_workspace.ex)
 - `lib/jido_code/agent_workspace/`
@@ -111,7 +140,7 @@ Their roles are different:
 If you need to change runtime behavior, start at `AgentWorkspace` and work
 downward. Do not start from a LiveView and reach directly into a pod.
 
-### 4. Conversation Orchestration
+### 5. Conversation Orchestration
 
 The conversation-specific implementation lives in `lib/jido_code/conversations/`.
 
@@ -128,7 +157,7 @@ Important files:
 This is where repo-scoped intake, work-item-scoped productive threads,
 interruptible turns, event logs, snapshots, and workflow routing actually live.
 
-### 5. Semantic Source Graph
+### 6. Semantic Source Graph
 
 The source graph lives under:
 
@@ -143,7 +172,7 @@ Use this area when you are touching:
 - semantic workflow inputs
 - governed semantic finding adoption
 
-### 6. Memory Graph And Workflow Provenance
+### 7. Memory Graph And Workflow Provenance
 
 The memory stack lives under:
 
@@ -160,7 +189,7 @@ This area covers:
 - cross-graph navigation
 - operator-facing memory actions
 
-### 7. Setup, Auth, And Provider Integration
+### 8. Setup, Auth, And Provider Integration
 
 These directories matter when orientation starts from bootstrap or identity
 flows rather than repo work:
@@ -181,7 +210,11 @@ That is the cluster to read for:
 - secret and token handling
 - repo or conversation LLM selection
 
-### 8. Transitional Or Narrower Areas
+Auth and security metadata are embedded control-plane records. Secret material,
+credential hashes, bearer tokens, webhook secrets, and private keys stay out of
+RDF projections and out of default exports.
+
+### 9. Transitional Or Narrower Areas
 
 A few directories still exist but are not the center of the current model:
 
@@ -191,7 +224,8 @@ A few directories still exist but are not the center of the current model:
 - `lib/jido_code/orchestration/workflow_run.ex`
   - older `WorkflowRun` vocabulary still exists alongside governed `Run`
 - `lib/jido_code/forge/`
-  - lower-level execution and sprite-session support
+  - legacy namespace for lower-level execution and sprite-session support;
+    prefer `execution_runtime` naming for new product-facing work
 - `lib/jido_code/github_issue_bot/`
   - narrower GitHub bot flows and supporting tests
 - `lib/jido_code/workflow_runtime/`
@@ -236,7 +270,7 @@ The `test/` tree is a good second mental map:
 
 There are also phase-oriented integration tests such as `phase_forty_*` or
 `phase_fifty_*`. Those usually reflect architectural rollout slices recorded in
-`.planning/`, and they are often the fastest way to see the intended
+`planning/`, and they are often the fastest way to see the intended
 behavior of a cross-cutting feature.
 
 ## Follow One Request Through The Repo

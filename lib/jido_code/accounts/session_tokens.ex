@@ -15,7 +15,7 @@ defmodule JidoCode.Accounts.SessionTokens do
   @spec issue(User.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def issue(%User{} = user, opts \\ []) do
     expires_at = DateTime.utc_now() |> DateTime.add(ttl_seconds(opts), :second)
-    jti = Ecto.UUID.generate()
+    jti = JidoCode.UUID.generate()
 
     token =
       Phoenix.Token.sign(Endpoint, salt(opts), %{

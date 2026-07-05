@@ -299,7 +299,7 @@ defmodule JidoCode.Governance.RecordStore do
     %{
       evidence_id:
         existing_id(existing, :evidence_id) ||
-          normalize_optional_string(map_get(attrs, :evidence_id) || map_get(attrs, :id)) || Ecto.UUID.generate(),
+          normalize_optional_string(map_get(attrs, :evidence_id) || map_get(attrs, :id)) || JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       run_id: normalize_optional_string(map_get(attrs, :run_id)),
       work_item_id: normalize_optional_string(map_get(attrs, :work_item_id)),
@@ -323,7 +323,7 @@ defmodule JidoCode.Governance.RecordStore do
       change_request_id:
         existing_id(existing, :change_request_id) ||
           normalize_optional_string(map_get(attrs, :change_request_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       run_id: normalize_optional_string(map_get(attrs, :run_id)),
       source_key: change_request_source_key(attrs),
@@ -351,7 +351,7 @@ defmodule JidoCode.Governance.RecordStore do
       decision_id:
         existing_id(existing, :decision_id) ||
           normalize_optional_string(map_get(attrs, :decision_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       decision_key: decision_key,
       run_id: normalize_optional_string(map_get(attrs, :run_id)),
@@ -376,7 +376,7 @@ defmodule JidoCode.Governance.RecordStore do
       policy_set_id:
         existing_id(existing, :policy_set_id) ||
           normalize_optional_string(map_get(attrs, :policy_set_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       name: normalize_string(map_get(attrs, :name), "default"),
       source_key: policy_set_source_key(attrs),
@@ -395,7 +395,7 @@ defmodule JidoCode.Governance.RecordStore do
       repo_posture_id:
         existing_id(existing, :repo_posture_id) ||
           normalize_optional_string(map_get(attrs, :repo_posture_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       source_key: repo_posture_source_key(attrs),
       summary: normalize_string(map_get(attrs, :summary), "Repo posture is pending."),
@@ -424,7 +424,7 @@ defmodule JidoCode.Governance.RecordStore do
       posture_check_id:
         existing_id(existing, :posture_check_id) ||
           normalize_optional_string(map_get(attrs, :posture_check_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       source_key: posture_check_source_key(attrs),
       repo_posture_id: normalize_optional_string(map_get(attrs, :repo_posture_id)),
@@ -682,8 +682,6 @@ defmodule JidoCode.Governance.RecordStore do
   defp normalize_comparable(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize_comparable(value), do: value
 
-  defp normalize_record_map(%Ash.NotLoaded{}), do: %{}
-
   defp normalize_record_map(%_{} = value) do
     value
     |> Map.from_struct()
@@ -711,8 +709,6 @@ defmodule JidoCode.Governance.RecordStore do
 
   defp normalize_record_value(key, value) when key in @map_fields, do: decode_json_map(value)
   defp normalize_record_value(key, value) when key in @list_fields, do: decode_json_list(value, [])
-  defp normalize_record_value(_key, %Ash.NotLoaded{}), do: nil
-  defp normalize_record_value(_key, %Ecto.Schema.Metadata{}), do: nil
   defp normalize_record_value(_key, %DateTime{} = value), do: DateTime.truncate(value, :microsecond)
   defp normalize_record_value(_key, %NaiveDateTime{} = value), do: value
   defp normalize_record_value(_key, value) when is_map(value), do: normalize_map(value)
@@ -726,8 +722,6 @@ defmodule JidoCode.Governance.RecordStore do
     end
   end
 
-  defp decode_json_map(%Ash.NotLoaded{}), do: %{}
-  defp decode_json_map(%Ecto.Schema.Metadata{}), do: %{}
   defp decode_json_map(%_{} = value), do: value |> Map.from_struct() |> normalize_map()
   defp decode_json_map(value) when is_map(value), do: normalize_map(value)
   defp decode_json_map(_value), do: %{}
@@ -742,9 +736,6 @@ defmodule JidoCode.Governance.RecordStore do
   defp decode_json_list(value, _default) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp decode_json_list(_value, default), do: default
 
-  defp normalize_map(%Ash.NotLoaded{}), do: %{}
-  defp normalize_map(%Ecto.Schema.Metadata{}), do: %{}
-
   defp normalize_map(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       Map.put(acc, to_string(key), normalize_nested_value(nested_value))
@@ -752,9 +743,6 @@ defmodule JidoCode.Governance.RecordStore do
   end
 
   defp normalize_map(_value), do: %{}
-
-  defp normalize_nested_value(%Ash.NotLoaded{}), do: nil
-  defp normalize_nested_value(%Ecto.Schema.Metadata{}), do: nil
 
   defp normalize_nested_value(%DateTime{} = value),
     do: value |> DateTime.truncate(:microsecond) |> DateTime.to_iso8601()

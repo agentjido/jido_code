@@ -13,6 +13,7 @@ defmodule JidoCode.MemoryGraph.ProductService do
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.MemoryGraph
+
   alias JidoCode.MemoryGraph.{
     ConversationMemoryAdoption,
     CrossGraphNavigation,

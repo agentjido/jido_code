@@ -271,12 +271,13 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
   defp load_graph_with_timeout(store, graph, envelope) do
     timeout = Config.store_timeout([])
 
-    load_task = Task.async(fn ->
-      Retry.with_write_retry(
-        fn -> TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) end,
-        attempt_context: %{resource_id: envelope.resource_id, kind: envelope.kind}
-      )
-    end)
+    load_task =
+      Task.async(fn ->
+        Retry.with_write_retry(
+          fn -> TripleStore.load_graph(store, graph, graph: MemoryGraph.memory_named_graph_resource()) end,
+          attempt_context: %{resource_id: envelope.resource_id, kind: envelope.kind}
+        )
+      end)
 
     case Task.yield(load_task, timeout) || Task.shutdown(load_task, :brutal_kill) do
       {:ok, result} -> result
@@ -308,7 +309,8 @@ defmodule JidoCode.MemoryGraph.DurableMemoryWriter do
   end
 
   defp estimate_triple_count(envelope) do
-    base_count = 20 # Base triples for a memory
+    # Base triples for a memory
+    base_count = 20
     tags_count = length(envelope.tags) * 3
     governed_count = length(envelope.governed_references) * 7
     anchor_count = length(envelope.source_code_anchors) * 2

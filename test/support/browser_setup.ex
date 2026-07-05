@@ -4,14 +4,11 @@ defmodule JidoCodeWeb.BrowserSetup do
   # covers: architecture.conversation_orchestration.llm_readiness_and_failure_states_are_explicit
   @moduledoc false
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
-  alias JidoCode.Repo
   alias JidoCode.AgentWorkspace
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.RepoBridge
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.CaptureEnvelope
-  alias JidoCode.Projects.Project
+  alias JidoCode.Setup.OwnerStore
 
   @checked_at ~U[2026-02-13 12:34:56Z]
   @owner_email "owner@example.com"
@@ -46,7 +43,7 @@ defmodule JidoCodeWeb.BrowserSetup do
   end
 
   defp reset_browser_state! do
-    Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
+    OwnerStore.delete_all_users()
 
     Application.delete_env(:jido_code, :setup_github_credential_checker)
     Application.delete_env(:jido_code, :setup_github_http_client)
@@ -85,27 +82,12 @@ defmodule JidoCodeWeb.BrowserSetup do
   end
 
   defp seed_owner! do
-    strategy = Info.strategy!(User, :password)
-
-    case Strategy.action(
-           strategy,
-           :register,
-           %{
-             "email" => @owner_email,
-             "password" => @owner_password,
-             "password_confirmation" => @owner_password
-           },
-           context: %{token_type: :sign_in}
-         ) do
+    case OwnerStore.create_owner(%{email: @owner_email}) do
       {:ok, _owner} ->
         :ok
 
       {:error, reason} ->
-        if owner_already_registered?(reason) do
-          :ok
-        else
-          raise "browser scenario owner seed failed: #{inspect(reason)}"
-        end
+        raise "browser scenario owner seed failed: #{inspect(reason)}"
     end
   end
 
@@ -159,16 +141,16 @@ defmodule JidoCodeWeb.BrowserSetup do
 
     project =
       upsert_conversation_project!(%{
-      name: "browser-conversation-ready",
-      github_full_name: "owner/browser-conversation-ready",
-      default_branch: "main",
-      settings: %{
-        "workspace" => ready_workspace_settings(workspace_path),
-        "execution" => %{
-          "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+        name: "browser-conversation-ready",
+        github_full_name: "owner/browser-conversation-ready",
+        default_branch: "main",
+        settings: %{
+          "workspace" => ready_workspace_settings(workspace_path),
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
         }
-      }
-    })
+      })
 
     seed_conversation_memory!(project, workspace_path)
   end
@@ -282,30 +264,33 @@ defmodule JidoCodeWeb.BrowserSetup do
   end
 
   defp upsert_conversation_project!(attrs) when is_map(attrs) do
-    actor = Actor.operator_actor()
     github_full_name = Map.fetch!(attrs, :github_full_name)
+    name = Map.get(attrs, :name) || github_full_name |> String.split("/") |> List.last()
 
-    case Project.get_by_github_full_name(github_full_name, actor: actor) do
-      {:ok, project} ->
-        {:ok, project} = Project.update(project, attrs, actor: actor)
-        project
+    repo_attrs = %{
+      source: "github",
+      provider: :github,
+      provider_id: github_full_name,
+      full_name: github_full_name,
+      name: name,
+      default_branch: Map.get(attrs, :default_branch, "main"),
+      display_name: name,
+      workspace_settings: attrs |> Map.get(:settings, %{}) |> Map.get("workspace", %{}),
+      availability: :available
+    }
+
+    case RepoBridge.upsert_managed_repo(repo_attrs) do
+      {:ok, %{managed_repo: managed_repo}} ->
+        managed_repo
 
       {:error, reason} ->
-        if project_not_found?(reason) do
-          {:ok, project} = Project.create(attrs, actor: actor)
-          project
-        else
-          raise "browser scenario project upsert failed: #{inspect(reason)}"
-        end
+        raise "browser scenario project upsert failed: #{inspect(reason)}"
     end
   end
 
-  defp seed_conversation_memory!(project, workspace_path)
-       when is_map(project) and is_binary(workspace_path) do
+  defp seed_conversation_memory!(managed_repo, workspace_path)
+       when is_map(managed_repo) and is_binary(workspace_path) do
     Application.put_env(:jido_code, :memory_graph_enabled, true)
-
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     revision = "browser-conversation-recall"
     session_id = "browser-conversation-memory"
@@ -353,34 +338,4 @@ defmodule JidoCodeWeb.BrowserSetup do
         revision: revision
       )
   end
-
-  defp project_not_found?(%Ash.Error.Query.NotFound{}), do: true
-
-  defp project_not_found?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &project_not_found?/1)
-  end
-
-  defp project_not_found?(%{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &project_not_found?/1)
-  end
-
-  defp project_not_found?(_reason), do: false
-
-  defp owner_already_registered?(%Ash.Error.Changes.InvalidAttribute{
-         field: :email,
-         message: message
-       })
-       when is_binary(message) do
-    String.contains?(message, "already been taken")
-  end
-
-  defp owner_already_registered?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &owner_already_registered?/1)
-  end
-
-  defp owner_already_registered?(%{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &owner_already_registered?/1)
-  end
-
-  defp owner_already_registered?(_reason), do: false
 end

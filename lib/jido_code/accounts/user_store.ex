@@ -99,7 +99,7 @@ defmodule JidoCode.Accounts.UserStore do
     now = DateTime.utc_now()
 
     %{
-      user_id: map_get(attrs, :user_id) || map_get(attrs, :id) || Ecto.UUID.generate(),
+      user_id: map_get(attrs, :user_id) || map_get(attrs, :id) || JidoCode.UUID.generate(),
       email: email,
       is_admin: truthy?(map_get(attrs, :is_admin, false)),
       confirmed_at: normalize_datetime(map_get(attrs, :confirmed_at)),

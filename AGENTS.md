@@ -35,7 +35,7 @@ This repo uses `bw` (beadwork) for durable local agent work state.
 
 - Use `Req` for HTTP calls. Do not introduce `HTTPoison`, `Tesla`, or `:httpc`.
 - Do not use `String.to_atom/1` on user input.
-- Do not use map-access syntax on structs (`changeset[:field]`); use struct fields or APIs like `Ecto.Changeset.get_field/2`.
+- Do not use map-access syntax on structs (`record[:field]`); use struct fields or product APIs.
 - Keep one module per file.
 - Prefer `Task.async_stream/3` with back-pressure for concurrent enumeration.
 
@@ -96,9 +96,4 @@ When touching these packages, consult usage rules first:
 - `deps/jido_ai/usage-rules.md`
 - `deps/jido_memory/usage-rules.md`
 - `deps/jido/usage-rules.md`
-- `deps/ash/usage-rules.md`
-- `deps/ash_postgres/usage-rules.md`
-- `deps/ash_json_api/usage-rules.md`
-- `deps/ash_authentication/usage-rules.md`
-- `deps/ash_phoenix/usage-rules.md`
 - `deps/phoenix/usage-rules/`

@@ -88,6 +88,7 @@ defmodule JidoCode.PhaseEightyNineIntegrationTest do
              })
 
     assert status["summary_count"] == 1
+
     assert [%{"summary_text" => "Work item one summary."}] =
              AgentWorkspace.context_compaction_summaries(managed_repo_id, work_item_1)
 

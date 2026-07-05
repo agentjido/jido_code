@@ -10,13 +10,11 @@ defmodule JidoCode.Application do
     children =
       [
         JidoCodeWeb.Telemetry,
-        JidoCode.Repo,
         JidoCode.ControlPlane.StoreServer,
         {DNSCluster, query: Application.get_env(:jido_code, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: JidoCode.PubSub},
         JidoCode.Jido,
         JidoCodeWeb.Endpoint,
-        {AshAuthentication.Supervisor, [otp_app: :jido_code]},
         # Conversation coordination
         {Registry, keys: :unique, name: JidoCode.Conversations.Registry},
         {DynamicSupervisor, name: JidoCode.Conversations.DynamicSupervisor, strategy: :one_for_one},
@@ -27,8 +25,8 @@ defmodule JidoCode.Application do
         {DynamicSupervisor, name: JidoCode.Forge.ExecSessionSupervisor, strategy: :one_for_one},
         JidoCode.Forge.Manager,
         # Repository source-change monitoring
-        {Registry, keys: :unique, name: JidoCode.RepoMonitor.SourceWatcherRegistry},
-        {DynamicSupervisor, name: JidoCode.RepoMonitor.SourceWatcherSupervisor, strategy: :one_for_one},
+        {Registry, keys: :unique, name: JidoCode.SourceMonitor.SourceWatcherRegistry},
+        {DynamicSupervisor, name: JidoCode.SourceMonitor.SourceWatcherSupervisor, strategy: :one_for_one},
         {Registry, keys: :unique, name: JidoCode.SourceCodeGraph.RefreshSchedulerRegistry},
         {DynamicSupervisor, name: JidoCode.SourceCodeGraph.RefreshSchedulerSupervisor, strategy: :one_for_one},
         {Task.Supervisor, name: JidoCode.SourceCodeGraph.RefreshTaskSupervisor},

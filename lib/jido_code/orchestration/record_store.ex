@@ -351,7 +351,7 @@ defmodule JidoCode.Orchestration.RecordStore do
       execution_profile_id:
         existing_id(existing, :execution_profile_id) ||
           normalize_optional_string(map_get(attrs, :execution_profile_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       name: normalize_string(map_get(attrs, :name), "default"),
       source_key: execution_profile_source_key(attrs),
@@ -376,7 +376,7 @@ defmodule JidoCode.Orchestration.RecordStore do
       workflow_run_id:
         existing_id(existing, :workflow_run_id) ||
           normalize_optional_string(map_get(attrs, :workflow_run_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       legacy_project_id: normalize_optional_string(map_get(attrs, :legacy_project_id)),
       run_id: normalize_string(map_get(attrs, :run_id), generated_run_id()),
@@ -411,7 +411,7 @@ defmodule JidoCode.Orchestration.RecordStore do
       run_record_id:
         existing_id(existing, :run_record_id) ||
           normalize_optional_string(map_get(attrs, :run_record_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
+          JidoCode.UUID.generate(),
       workflow_run_id: normalize_optional_string(map_get(attrs, :workflow_run_id)),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id)),
       work_item_id: normalize_optional_string(map_get(attrs, :work_item_id)),
@@ -535,8 +535,6 @@ defmodule JidoCode.Orchestration.RecordStore do
   defp normalize_comparable(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize_comparable(value), do: value
 
-  defp normalize_record_map(%Ash.NotLoaded{}), do: %{}
-
   defp normalize_record_map(%_{} = value) do
     value
     |> Map.from_struct()
@@ -564,8 +562,6 @@ defmodule JidoCode.Orchestration.RecordStore do
 
   defp normalize_record_value(key, value) when key in @map_fields, do: decode_json_map(value)
   defp normalize_record_value(key, value) when key in @list_fields, do: decode_json_list(value, [])
-  defp normalize_record_value(_key, %Ash.NotLoaded{}), do: nil
-  defp normalize_record_value(_key, %Ecto.Schema.Metadata{}), do: nil
   defp normalize_record_value(_key, %DateTime{} = value), do: DateTime.truncate(value, :microsecond)
   defp normalize_record_value(_key, %NaiveDateTime{} = value), do: value
   defp normalize_record_value(_key, value) when is_map(value), do: normalize_map(value)
@@ -579,8 +575,6 @@ defmodule JidoCode.Orchestration.RecordStore do
     end
   end
 
-  defp decode_json_map(%Ash.NotLoaded{}), do: %{}
-  defp decode_json_map(%Ecto.Schema.Metadata{}), do: %{}
   defp decode_json_map(%_{} = value), do: value |> Map.from_struct() |> normalize_map()
   defp decode_json_map(value) when is_map(value), do: normalize_map(value)
   defp decode_json_map(_value), do: %{}
@@ -595,9 +589,6 @@ defmodule JidoCode.Orchestration.RecordStore do
   defp decode_json_list(value, _default) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp decode_json_list(_value, default), do: default
 
-  defp normalize_map(%Ash.NotLoaded{}), do: %{}
-  defp normalize_map(%Ecto.Schema.Metadata{}), do: %{}
-
   defp normalize_map(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       Map.put(acc, to_string(key), normalize_nested_value(nested_value))
@@ -605,9 +596,6 @@ defmodule JidoCode.Orchestration.RecordStore do
   end
 
   defp normalize_map(_value), do: %{}
-
-  defp normalize_nested_value(%Ash.NotLoaded{}), do: nil
-  defp normalize_nested_value(%Ecto.Schema.Metadata{}), do: nil
 
   defp normalize_nested_value(%DateTime{} = value),
     do: value |> DateTime.truncate(:microsecond) |> DateTime.to_iso8601()

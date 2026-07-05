@@ -106,7 +106,7 @@ defmodule JidoCode.Setup.OwnerStore do
 
     {:ok,
      %{
-       user_id: map_get(attrs, :user_id) || Ecto.UUID.generate(),
+       user_id: map_get(attrs, :user_id) || JidoCode.UUID.generate(),
        email: email,
        is_admin: true,
        confirmed_at: now,

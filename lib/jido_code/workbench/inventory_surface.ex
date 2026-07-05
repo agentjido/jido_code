@@ -5,6 +5,7 @@ defmodule JidoCode.Workbench.InventorySurface do
   """
 
   alias JidoCode.ManagedRepoRoutes
+
   alias JidoCode.Workbench.{
     Inventory,
     IssueTriageWorkflowKickoff,

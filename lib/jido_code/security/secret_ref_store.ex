@@ -148,7 +148,7 @@ defmodule JidoCode.Security.SecretRefStore do
          {:ok, name} <- required_string(map_get(attrs, :name), :invalid_name),
          {:ok, source} <- normalize_source(map_get(attrs, :source, :onboarding)),
          {:ok, key_version} <- normalize_integer(map_get(attrs, :key_version, 1), :invalid_key_version) do
-      id = map_get(attrs, :secret_ref_id) || map_get(attrs, :id) || Ecto.UUID.generate()
+      id = map_get(attrs, :secret_ref_id) || map_get(attrs, :id) || JidoCode.UUID.generate()
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
       {:ok,
@@ -182,7 +182,7 @@ defmodule JidoCode.Security.SecretRefStore do
       {:ok,
        %{
          secret_lifecycle_audit_id:
-           map_get(attrs, :secret_lifecycle_audit_id) || map_get(attrs, :id) || Ecto.UUID.generate(),
+           map_get(attrs, :secret_lifecycle_audit_id) || map_get(attrs, :id) || JidoCode.UUID.generate(),
          secret_ref_id: secret_ref_id,
          scope: Atom.to_string(scope),
          name: name,

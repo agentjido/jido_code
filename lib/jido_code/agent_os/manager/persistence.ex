@@ -1,5 +1,4 @@
 defmodule JidoCode.AgentOS.Manager.Persistence do
-  # covers: architecture.agent_os_integration.ecto_persistence_per_kernel
   # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
   @moduledoc false
 

@@ -105,11 +105,12 @@ defmodule JidoCode.SourceCodeGraph.Health do
         triple_count = extract_count(results)
         graph_size = get_graph_size_bytes(Keyword.get(opts, :graph_store_path))
 
-        %{base_status |
-          ready?: true,
-          stale?: check_stale?(opts),
-          triple_count: triple_count,
-          graph_size_bytes: graph_size
+        %{
+          base_status
+          | ready?: true,
+            stale?: check_stale?(opts),
+            triple_count: triple_count,
+            graph_size_bytes: graph_size
         }
 
       {:error, _reason} ->

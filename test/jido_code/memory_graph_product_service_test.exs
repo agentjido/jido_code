@@ -210,7 +210,8 @@ defmodule JidoCode.MemoryGraphProductServiceTest do
                  memory_kind: :open_question,
                  content: "Conversation-derived open question about repository scope.",
                  classification_source: "memory_graph_product_service_test",
-                 classification_reason: "Explicit operator-style adoption turned bounded conversation recall into durable memory."
+                 classification_reason:
+                   "Explicit operator-style adoption turned bounded conversation recall into durable memory."
                )
 
       assert adoption.status == :conversation_memory_adopted

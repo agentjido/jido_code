@@ -67,7 +67,7 @@ defmodule JidoCode.Conversations.Event do
         DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
     %__MODULE__{
-      id: optional_string(map_get(attrs, :id)) || Ecto.UUID.generate(),
+      id: optional_string(map_get(attrs, :id)) || JidoCode.UUID.generate(),
       sequence: sequence,
       conversation_id: conversation_id,
       name: name,
@@ -103,7 +103,7 @@ defmodule JidoCode.Conversations.Event do
   @spec from_summary(map()) :: t()
   def from_summary(summary) when is_map(summary) do
     %__MODULE__{
-      id: optional_string(map_get(summary, :id)) || Ecto.UUID.generate(),
+      id: optional_string(map_get(summary, :id)) || JidoCode.UUID.generate(),
       sequence: normalize_sequence(map_get(summary, :sequence)),
       conversation_id: optional_string(map_get(summary, :conversation_id)),
       name: optional_string(map_get(summary, :name)) || "unknown",

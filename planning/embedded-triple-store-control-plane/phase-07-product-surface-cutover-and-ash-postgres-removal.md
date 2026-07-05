@@ -38,25 +38,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section removes the old persistence stack from application configuration and runtime supervision.
 
-- [ ] 7.2 Section - Dependency and supervision removal.
+- [x] 7.2 Section - Dependency and supervision removal.
 
   Description: Runtime should no longer compile or start Ash/Postgres components after product callers have moved.
 
-  - [ ] 7.2.1 Task - Remove Ash/Postgres dependencies and config.
+  - [x] 7.2.1 Task - Remove Ash/Postgres dependencies and config.
 
     Description: Mix dependencies and application config should match the new embedded store architecture.
 
-    - [ ] 7.2.1.1 Subtask - Remove `ash`, Ash extensions, `phoenix_ecto`, `ecto_sql`, and `postgrex` dependencies when no longer referenced.
-    - [ ] 7.2.1.2 Subtask - Remove `ecto_repos`, Ash domain config, repo config, and AshAuthentication supervisor setup.
-    - [ ] 7.2.1.3 Subtask - Replace Phoenix repo status checks and Ecto sandbox test setup.
+    - [x] 7.2.1.1 Subtask - Remove `ash`, Ash extensions, `phoenix_ecto`, `ecto_sql`, and `postgrex` dependencies when no longer referenced.
+    - [x] 7.2.1.2 Subtask - Remove `ecto_repos`, Ash domain config, repo config, and AshAuthentication supervisor setup.
+    - [x] 7.2.1.3 Subtask - Replace Phoenix repo status checks and Ecto sandbox test setup.
 
-  - [ ] 7.2.2 Task - Remove Ash resources, migrations, and snapshots.
+  - [x] 7.2.2 Task - Remove Ash resources, migrations, and snapshots.
 
     Description: Generated resource metadata should leave the repo once it is not runtime truth.
 
-    - [ ] 7.2.2.1 Subtask - Delete Ash resource modules replaced by product services.
-    - [ ] 7.2.2.2 Subtask - Delete obsolete migrations and resource snapshots.
-    - [ ] 7.2.2.3 Subtask - Remove Ash usage rules from local dependency guidance if the dependency is gone.
+    - [x] 7.2.2.1 Subtask - Delete Ash resource modules replaced by product services.
+    - [x] 7.2.2.2 Subtask - Delete obsolete migrations and resource snapshots.
+    - [x] 7.2.2.3 Subtask - Remove Ash usage rules from local dependency guidance if the dependency is gone.
 
 ## 7.3 Section - Test And Fixture Cutover
 

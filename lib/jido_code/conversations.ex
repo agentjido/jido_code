@@ -5,24 +5,13 @@ defmodule JidoCode.Conversations do
   # covers: architecture.work_synthesis.productive_conversations_route_through_work_resolution
   # covers: architecture.work_synthesis.historical_conversation_lineage_stays_attached_to_work_item
   # covers: architecture.work_synthesis.work_item_origin_can_preserve_conversation_context
-  use Ash.Domain, otp_app: :jido_code, extensions: [AshAdmin.Domain]
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Conversations.{Conversation, EventRecord, SnapshotRecord}
+  alias JidoCode.Conversations.Conversation
   alias JidoCode.Conversations.RecordStore, as: ConversationStore
   alias JidoCode.Conversations.{Driver, LongTermProvenance, Persistence, Snapshot}
   alias JidoCode.Operations.{Ingress, WorkItem}
   alias JidoCode.Operations.RecordStore, as: OperationsStore
-
-  admin do
-    show? true
-  end
-
-  resources do
-    resource Conversation
-    resource EventRecord
-    resource SnapshotRecord
-  end
 
   @active_statuses [:active, :paused]
   @resumable_work_item_statuses [:open, :in_progress, :blocked]
@@ -946,11 +935,8 @@ defmodule JidoCode.Conversations do
     end
   end
 
-  defp snapshot_not_found?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
-    Enum.any?(errors, &snapshot_not_found?/1)
-  end
-
-  defp snapshot_not_found?(%Ash.Error.Query.NotFound{}), do: true
+  defp snapshot_not_found?(:conversation_snapshot_not_found), do: true
+  defp snapshot_not_found?(:not_found), do: true
   defp snapshot_not_found?(_reason), do: false
 
   defp snapshot_idle?(snapshot) when is_map(snapshot) do

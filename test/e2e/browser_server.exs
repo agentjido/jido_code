@@ -7,6 +7,7 @@ port = String.to_integer(System.get_env("PORT", "4100"))
 endpoint_config = Application.get_env(:jido_code, Endpoint, [])
 
 Application.put_env(:jido_code, :runtime_mode, :prod)
+
 Application.put_env(
   :jido_code,
   Endpoint,

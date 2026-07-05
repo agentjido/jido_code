@@ -66,7 +66,9 @@ defmodule JidoCode.PhaseNinetyTwoIntegrationTest do
       diagnostics: %{source_span_ids: ["turn-a", "tool-a"]}
     }
 
-    assert {:ok, _status} = AgentWorkspace.record_context_observation(managed_repo_id, work_item_id, trimmed_observation)
+    assert {:ok, _status} =
+             AgentWorkspace.record_context_observation(managed_repo_id, work_item_id, trimmed_observation)
+
     assert {:ok, status} = AgentWorkspace.record_context_observation(managed_repo_id, work_item_id, trimmed_observation)
     assert status["state"] == "recommend_compaction"
 

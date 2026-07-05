@@ -31,8 +31,7 @@ defmodule JidoCode.MemoryGraph.Finding do
         category: Keyword.get(opts, :category, default_category(kind)),
         priority: Keyword.get(opts, :priority, default_priority(kind, graph, selected_items)),
         urgency: Keyword.get(opts, :urgency, default_urgency(kind, graph, selected_items)),
-        recommended_action:
-          Keyword.get(opts, :recommended_action, default_recommended_action(kind)),
+        recommended_action: Keyword.get(opts, :recommended_action, default_recommended_action(kind)),
         graph: graph,
         provenance: provenance,
         payload: %{

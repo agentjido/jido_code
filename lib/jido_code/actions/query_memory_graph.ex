@@ -62,8 +62,7 @@ defmodule JidoCode.Actions.QueryMemoryGraph do
              feedback: ProductFeedback.for_graph(normalized_graph, %{type: :memory_graph_not_ready}),
              error: %{
                type: :memory_graph_not_ready,
-               detail:
-                 "The memory graph foundation must be refreshed and validated before memory queries can run."
+               detail: "The memory graph foundation must be refreshed and validated before memory queries can run."
              }
            }}
 
@@ -74,8 +73,7 @@ defmodule JidoCode.Actions.QueryMemoryGraph do
              feedback: ProductFeedback.for_graph(normalized_graph, %{type: :memory_graph_stale}),
              error: %{
                type: :memory_graph_stale,
-               detail:
-                 "The memory graph must be revalidated for the requested revision before memory queries can run."
+               detail: "The memory graph must be revalidated for the requested revision before memory queries can run."
              }
            }}
 

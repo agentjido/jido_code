@@ -228,7 +228,7 @@ defmodule JidoCode.ExecutionRuntime.RecordStore do
       |> normalize_record_map()
       |> put_session_scope(opts)
       |> Map.put_new(:status, :started)
-      |> Map.put_new(:exec_session_id, Ecto.UUID.generate())
+      |> Map.put_new(:exec_session_id, JidoCode.UUID.generate())
 
     upsert(:exec_session, attrs, opts, &exec_session_record/2, &to_exec_session/1, &existing_exec_session/2)
   end
@@ -254,7 +254,7 @@ defmodule JidoCode.ExecutionRuntime.RecordStore do
       attrs
       |> normalize_record_map()
       |> put_session_scope(opts)
-      |> Map.put_new(:runtime_event_id, Ecto.UUID.generate())
+      |> Map.put_new(:runtime_event_id, JidoCode.UUID.generate())
       |> Map.put_new(:source_kind, "execution_runtime")
 
     upsert(:runtime_event, attrs, opts, &runtime_event_record/2, &to_event/1, &existing_runtime_event/2)
@@ -266,7 +266,7 @@ defmodule JidoCode.ExecutionRuntime.RecordStore do
       attrs
       |> normalize_record_map()
       |> put_session_scope(opts)
-      |> Map.put_new(:checkpoint_id, Ecto.UUID.generate())
+      |> Map.put_new(:checkpoint_id, JidoCode.UUID.generate())
 
     upsert(:checkpoint, attrs, opts, &checkpoint_record/2, &to_checkpoint/1, &existing_checkpoint/2)
   end
@@ -693,7 +693,7 @@ defmodule JidoCode.ExecutionRuntime.RecordStore do
   defp normalize_nested_value(value), do: value
 
   defp id_from(attrs, id_field),
-    do: normalize_optional_string(map_get(attrs, id_field) || map_get(attrs, :id)) || Ecto.UUID.generate()
+    do: normalize_optional_string(map_get(attrs, id_field) || map_get(attrs, :id)) || JidoCode.UUID.generate()
 
   defp existing_id(nil, _field), do: nil
   defp existing_id(existing, field), do: normalize_optional_string(map_get(existing, field) || map_get(existing, :id))

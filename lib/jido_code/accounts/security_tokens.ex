@@ -73,7 +73,7 @@ defmodule JidoCode.Accounts.SecurityTokens do
   @doc """
   Lists session-token and API key status for an owner account.
   """
-  @spec list_owner_credentials(Ecto.UUID.t() | String.t()) ::
+  @spec list_owner_credentials(JidoCode.UUID.t() | String.t()) ::
           {:ok, %{tokens: [credential_status()], api_keys: [credential_status()]}}
           | {:error, typed_error()}
   def list_owner_credentials(owner_id) do
@@ -99,7 +99,7 @@ defmodule JidoCode.Accounts.SecurityTokens do
   @doc """
   Revokes a stored session token for the owner account.
   """
-  @spec revoke_owner_token(Ecto.UUID.t() | String.t(), String.t()) ::
+  @spec revoke_owner_token(JidoCode.UUID.t() | String.t(), String.t()) ::
           {:ok, revocation_audit_entry()} | {:error, typed_error()}
   def revoke_owner_token(owner_id, token_jti) when is_binary(token_jti) and token_jti != "" do
     with {:ok, _owner_id, owner_subject} <- owner_identity(owner_id),
@@ -146,7 +146,7 @@ defmodule JidoCode.Accounts.SecurityTokens do
   @doc """
   Revokes an API key for the owner account.
   """
-  @spec revoke_owner_api_key(Ecto.UUID.t() | String.t(), Ecto.UUID.t() | String.t()) ::
+  @spec revoke_owner_api_key(JidoCode.UUID.t() | String.t(), JidoCode.UUID.t() | String.t()) ::
           {:ok, revocation_audit_entry()} | {:error, typed_error()}
   def revoke_owner_api_key(owner_id, api_key_id)
       when is_binary(api_key_id) and api_key_id != "" do

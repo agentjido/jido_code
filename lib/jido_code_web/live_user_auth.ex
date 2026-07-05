@@ -17,10 +17,7 @@ defmodule JidoCodeWeb.LiveUserAuth do
   # To use, place the following at the top of that liveview:
   # on_mount {JidoCodeWeb.LiveUserAuth, :current_user}
   def on_mount(:current_user, _params, session, socket) do
-    socket =
-      socket
-      |> AshAuthentication.Phoenix.LiveSession.assign_new_resources(session)
-      |> assign_product_session_user(session)
+    socket = assign_product_session_user(socket, session)
 
     {:cont, socket}
   end

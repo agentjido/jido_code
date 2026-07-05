@@ -23,7 +23,10 @@ defmodule JidoCode.PhaseFortyIntegrationTest do
     assert {:ok, running_snapshot} =
              Driver.handle_command(
                conversation.id,
-               %{type: "turn.submit", payload: %{instruction: "Inspect the current issue.", tool_call_id: "phase40-tool-1"}},
+               %{
+                 type: "turn.submit",
+                 payload: %{instruction: "Inspect the current issue.", tool_call_id: "phase40-tool-1"}
+               },
                actor: Actor.operator_actor()
              )
 
@@ -75,7 +78,10 @@ defmodule JidoCode.PhaseFortyIntegrationTest do
     assert {:ok, running_snapshot} =
              Driver.handle_command(
                conversation.id,
-               %{type: "turn.submit", payload: %{instruction: "Run the fast analysis.", tool_call_id: "phase40-tool-2"}},
+               %{
+                 type: "turn.submit",
+                 payload: %{instruction: "Run the fast analysis.", tool_call_id: "phase40-tool-2"}
+               },
                actor: Actor.operator_actor()
              )
 
@@ -93,8 +99,11 @@ defmodule JidoCode.PhaseFortyIntegrationTest do
 
     assert completed_turn.state == :completed
     assert completed_child_work.state == :completed
+
     assert {:error, :child_work_already_settled} =
-             Driver.cancel_child_work(conversation.id, running_snapshot.active_child_work_id, actor: Actor.operator_actor())
+             Driver.cancel_child_work(conversation.id, running_snapshot.active_child_work_id,
+               actor: Actor.operator_actor()
+             )
 
     assert :ok = Driver.stop(conversation.id)
   end

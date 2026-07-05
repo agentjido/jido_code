@@ -60,7 +60,7 @@ defmodule JidoCode.Security.SecretRefs do
   Non-sensitive SecretRef fields safe for settings displays.
   """
   @type secret_metadata :: %{
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           key_version: integer(),
@@ -73,8 +73,8 @@ defmodule JidoCode.Security.SecretRefs do
   Persisted lifecycle audit entry for secret create/rotate/revoke actions.
   """
   @type secret_lifecycle_audit :: %{
-          id: Ecto.UUID.t(),
-          secret_ref_id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
+          secret_ref_id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           action_type: :create | :rotate | :revoke,
@@ -88,7 +88,7 @@ defmodule JidoCode.Security.SecretRefs do
   Revocation metadata returned when a SecretRef is revoked.
   """
   @type revoked_secret :: %{
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           revoked_at: DateTime.t()
@@ -104,7 +104,7 @@ defmodule JidoCode.Security.SecretRefs do
   """
   @type provider_credential_context :: %{
           provider: provider(),
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :integration,
           name: String.t(),
           key_version: integer(),
@@ -146,7 +146,7 @@ defmodule JidoCode.Security.SecretRefs do
   Decrypted operational secret value with non-sensitive metadata.
   """
   @type operational_secret_value :: %{
-          id: Ecto.UUID.t(),
+          id: JidoCode.UUID.t(),
           scope: :instance | :project | :integration,
           name: String.t(),
           key_version: integer(),

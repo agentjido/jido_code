@@ -12,8 +12,8 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
   alias JidoCode.SourceCodeGraph
   alias JidoCode.SourceCodeGraph.RefreshScheduler
 
-  @registry JidoCode.RepoMonitor.SourceWatcherRegistry
-  @supervisor JidoCode.RepoMonitor.SourceWatcherSupervisor
+  @registry JidoCode.SourceMonitor.SourceWatcherRegistry
+  @supervisor JidoCode.SourceMonitor.SourceWatcherSupervisor
   @repo_pod_id "repo-pod"
 
   @type source_change_event :: %{

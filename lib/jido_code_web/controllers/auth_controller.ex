@@ -1,7 +1,6 @@
 defmodule JidoCodeWeb.AuthController do
   # covers: auth.system.ready_state_local_auth_handoff
   use JidoCodeWeb, :controller
-  use AshAuthentication.Phoenix.Controller
 
   require Logger
 
@@ -23,34 +22,16 @@ defmodule JidoCodeWeb.AuthController do
 
     conn
     |> delete_session(:return_to)
-    |> store_in_session(user)
+    |> configure_session(renew: true)
     |> put_product_session(user)
-    # If your resource has a different name, update the assign name here (i.e :current_admin)
     |> assign(:current_user, user)
     |> put_flash(:info, message)
     |> redirect(to: return_to)
   end
 
-  def failure(conn, activity, reason) do
-    message =
-      case {activity, reason} do
-        {_,
-         %AshAuthentication.Errors.AuthenticationFailed{
-           caused_by: %Ash.Error.Forbidden{
-             errors: [%AshAuthentication.Errors.CannotConfirmUnconfirmedUser{}]
-           }
-         }} ->
-          """
-          You have already signed in another way, but have not confirmed your account.
-          You can confirm your account using the link we sent to you, or by resetting your password.
-          """
-
-        _ ->
-          "Incorrect email or password"
-      end
-
+  def failure(conn, _activity, _reason) do
     conn
-    |> put_flash(:error, message)
+    |> put_flash(:error, "Incorrect email or password")
     |> redirect(to: ~p"/sign-in")
   end
 
@@ -92,7 +73,7 @@ defmodule JidoCodeWeb.AuthController do
     end
   end
 
-  defp default_sign_out_invalidator(conn, otp_app), do: clear_session(conn, otp_app)
+  defp default_sign_out_invalidator(conn, _otp_app), do: configure_session(conn, drop: true)
 
   defp put_product_session(conn, user) do
     with {:ok, product_user} <- product_user_for(user),

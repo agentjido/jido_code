@@ -318,7 +318,7 @@ defmodule JidoCode.Operations.RecordStore do
   defp record(record_type, attrs) do
     with {:ok, id_field} <- id_field(record_type) do
       now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
-      id = normalize_optional_string(map_get(attrs, id_field) || map_get(attrs, :id)) || Ecto.UUID.generate()
+      id = normalize_optional_string(map_get(attrs, id_field) || map_get(attrs, :id)) || JidoCode.UUID.generate()
 
       record =
         attrs

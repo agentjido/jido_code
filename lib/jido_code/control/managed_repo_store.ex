@@ -121,7 +121,7 @@ defmodule JidoCode.Control.ManagedRepoStore do
            (existing_managed_repo && existing_managed_repo.id) ||
              map_get(attrs, :managed_repo_id) ||
              map_get(attrs, :id) ||
-             Ecto.UUID.generate(),
+             JidoCode.UUID.generate(),
          source_key: map_get(attrs, :source_key),
          source_repo_id: source_repo_id,
          legacy_project_id: normalize_optional_string(map_get(attrs, :legacy_project_id)),

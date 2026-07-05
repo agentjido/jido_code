@@ -116,16 +116,12 @@ defmodule JidoCode.ConversationsDriverTest do
     turn_id = initial_snapshot.active_turn_id
 
     assert {:ok, awaiting_input_snapshot} =
-             Driver.transition_turn(conversation.id, turn_id, :awaiting_input,
-               actor: Actor.operator_actor()
-             )
+             Driver.transition_turn(conversation.id, turn_id, :awaiting_input, actor: Actor.operator_actor())
 
     assert awaiting_input_snapshot.active_turn.state == :awaiting_input
 
     assert {:ok, completed_snapshot} =
-             Driver.transition_turn(conversation.id, turn_id, :completed,
-               actor: Actor.operator_actor()
-             )
+             Driver.transition_turn(conversation.id, turn_id, :completed, actor: Actor.operator_actor())
 
     completed_turn = Enum.find(completed_snapshot.turns, &(&1.id == turn_id))
 
@@ -167,9 +163,7 @@ defmodule JidoCode.ConversationsDriverTest do
     assert running_snapshot.active_child_work.tool_call_id == "tool-driver-1"
 
     assert {:ok, cancellation_snapshot} =
-             Driver.cancel_child_work(conversation.id, child_work_id,
-               actor: Actor.operator_actor()
-             )
+             Driver.cancel_child_work(conversation.id, child_work_id, actor: Actor.operator_actor())
 
     assert cancellation_snapshot.active_child_work.state == :cancel_acknowledged
 
@@ -289,9 +283,7 @@ defmodule JidoCode.ConversationsDriverTest do
     assert stopping_snapshot.last_event_sequence > first_snapshot.last_event_sequence
 
     assert {:ok, replayed_events} =
-             Driver.events_since(conversation.id, first_snapshot.last_event_sequence,
-               actor: Actor.operator_actor()
-             )
+             Driver.events_since(conversation.id, first_snapshot.last_event_sequence, actor: Actor.operator_actor())
 
     assert Enum.map(replayed_events, & &1.name) == [
              "conversation.message_added",

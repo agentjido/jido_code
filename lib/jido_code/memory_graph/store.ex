@@ -176,13 +176,23 @@ defmodule JidoCode.MemoryGraph.Store do
   defp load_ontology_graph(store, named_graph_resource, opts \\ []) do
     timeout = Config.validation_timeout(opts)
 
-    load_task = Task.async(fn ->
-      load_ontology_graph_with_retry(store, named_graph_resource)
-    end)
+    load_task =
+      Task.async(fn ->
+        load_ontology_graph_with_retry(store, named_graph_resource)
+      end)
 
     case Task.yield(load_task, timeout) || Task.shutdown(load_task, :brutal_kill) do
-      {:ok, result} -> result
-      nil -> {:error, %{stage: :load_ontology_graph, named_graph_iri: to_string(named_graph_resource), reason: :timeout, timeout_ms: timeout}}
+      {:ok, result} ->
+        result
+
+      nil ->
+        {:error,
+         %{
+           stage: :load_ontology_graph,
+           named_graph_iri: to_string(named_graph_resource),
+           reason: :timeout,
+           timeout_ms: timeout
+         }}
     end
   end
 
@@ -263,9 +273,10 @@ defmodule JidoCode.MemoryGraph.Store do
     create_if_missing = Keyword.get(opts, :create_if_missing, false)
     timeout = Config.store_timeout(opts)
 
-    open_task = Task.async(fn ->
-      open_store_with_retry(store_path, create_if_missing)
-    end)
+    open_task =
+      Task.async(fn ->
+        open_store_with_retry(store_path, create_if_missing)
+      end)
 
     case Task.yield(open_task, timeout) || Task.shutdown(open_task, :brutal_kill) do
       {:ok, {:ok, store}} ->

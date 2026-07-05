@@ -136,8 +136,8 @@ defmodule JidoCode.GitHub.WebhookDeliveryStore do
       webhook_delivery_id:
         existing_id(existing, :webhook_delivery_id) ||
           normalize_optional_string(map_get(attrs, :webhook_delivery_id) || map_get(attrs, :id)) ||
-          Ecto.UUID.generate(),
-      github_delivery_id: normalize_string(map_get(attrs, :github_delivery_id), Ecto.UUID.generate()),
+          JidoCode.UUID.generate(),
+      github_delivery_id: normalize_string(map_get(attrs, :github_delivery_id), JidoCode.UUID.generate()),
       managed_repo_id: normalize_optional_string(map_get(attrs, :managed_repo_id) || map_get(attrs, :repo_id)),
       repo_id: normalize_optional_string(map_get(attrs, :repo_id)),
       event_type: normalize_string(map_get(attrs, :event_type), "unknown"),

@@ -15,7 +15,7 @@ defmodule JidoCode.Accounts.ApiKeys do
 
   @spec issue(User.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def issue(%User{} = user, opts \\ []) do
-    api_key_id = Ecto.UUID.generate()
+    api_key_id = JidoCode.UUID.generate()
     expires_at = DateTime.utc_now() |> DateTime.add(Keyword.get(opts, :ttl_seconds, @default_ttl_seconds), :second)
 
     key =

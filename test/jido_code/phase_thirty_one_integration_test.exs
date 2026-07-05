@@ -79,12 +79,12 @@ defmodule JidoCode.PhaseThirtyOneIntegrationTest do
                actor_id: "system:phase-thirty-one",
                workspace_path: workspace_path,
                work_item_id: work_item_id,
-                query: %{module_name: "PhaseThirtyOneOne", function_name: "greet"},
-                memory_kind: :fact,
-                classification_reason: "Explicit recovery should restore bounded durable memory capture.",
-                content: "PhaseThirtyOneOne.greet/1 remains a durable greeting fact.",
-                confidence: 0.96
-              )
+               query: %{module_name: "PhaseThirtyOneOne", function_name: "greet"},
+               memory_kind: :fact,
+               classification_reason: "Explicit recovery should restore bounded durable memory capture.",
+               content: "PhaseThirtyOneOne.greet/1 remains a durable greeting fact.",
+               confidence: 0.96
+             )
 
     assert workflow_memory.record.status == :durable_memory_recorded
 

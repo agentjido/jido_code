@@ -118,7 +118,7 @@ defmodule JidoCode.Control.SourceRepoStore do
            source_repo_id ||
              map_get(attrs, :source_repo_id) ||
              map_get(attrs, :id) ||
-             Ecto.UUID.generate(),
+             JidoCode.UUID.generate(),
          source_key: source_key(provider, full_name),
          provider: Atom.to_string(provider),
          owner: owner,

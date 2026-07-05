@@ -26,7 +26,7 @@ defmodule JidoCode.Setup.OwnerRecovery do
   """
   @type audit_metadata :: %{
           route: String.t(),
-          owner_id: Ecto.UUID.t() | String.t(),
+          owner_id: JidoCode.UUID.t() | String.t(),
           owner_email: String.t(),
           recovery_mode: :bootstrap,
           verified_at: DateTime.t(),

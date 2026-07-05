@@ -36,7 +36,8 @@ defmodule JidoCode.ControlPlane.Codecs.ExternalObjectCodec do
   @impl true
   def class_iri, do: SemanticIdentity.class_iri(@record_type)
   @impl true
-  def subject_iri(record), do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :external_object_id)
+  def subject_iri(record),
+    do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :external_object_id)
 
   @impl true
   def identity_queries(record) do

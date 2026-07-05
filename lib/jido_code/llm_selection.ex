@@ -143,8 +143,7 @@ defmodule JidoCode.LLMSelection do
   def missing_selection_error do
     %{
       "error_type" => "conversation_runtime_llm_selection_missing",
-      "detail" =>
-        "LLM provider and model selection is missing for real coding execution.",
+      "detail" => "LLM provider and model selection is missing for real coding execution.",
       "remediation" =>
         "Set a concrete provider and model in conversation metadata, managed-repo execution settings, or system configuration and retry."
     }
@@ -247,8 +246,7 @@ defmodule JidoCode.LLMSelection do
         model: model,
         model_spec: "#{provider}:#{model}",
         llm_opts: normalize_keyword_options(Map.get(config, "llm_opts"), @llm_opt_key_map),
-        req_http_options:
-          normalize_keyword_options(Map.get(config, "req_http_options"), @req_http_option_key_map)
+        req_http_options: normalize_keyword_options(Map.get(config, "req_http_options"), @req_http_option_key_map)
       }
     else
       nil

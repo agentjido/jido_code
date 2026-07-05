@@ -64,8 +64,8 @@ defmodule JidoCode.PhaseFortySixIntegrationTest do
 
     awaiting_snapshot =
       eventually_snapshot!(conversation.id, fn snapshot ->
-        snapshot.active_turn &&
-          snapshot.active_turn.state == :awaiting_input and
+        (snapshot.active_turn &&
+           snapshot.active_turn.state == :awaiting_input) and
           get_in(snapshot, [:shared_context, "pending_clarification", "prompt", "prompt"]) ==
             "Which file or module should I inspect first?"
       end)

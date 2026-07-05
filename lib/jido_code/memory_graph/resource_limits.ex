@@ -53,7 +53,8 @@ defmodule JidoCode.MemoryGraph.ResourceLimits do
   """
   @spec validate_disk_space(Path.t(), pos_integer(), keyword()) :: limit_result()
   def validate_disk_space(store_path, estimated_addition_bytes, _opts \\ []) do
-    required_space_mb = div(estimated_addition_bytes, 1024 * 1024) + 100 # 100MB buffer
+    # 100MB buffer
+    required_space_mb = div(estimated_addition_bytes, 1024 * 1024) + 100
 
     case get_available_disk_space_mb(store_path) do
       {:ok, available_mb} when available_mb < required_space_mb ->
@@ -92,7 +93,6 @@ defmodule JidoCode.MemoryGraph.ResourceLimits do
 
       {:ok, _active_count} ->
         :ok
-
     end
   end
 

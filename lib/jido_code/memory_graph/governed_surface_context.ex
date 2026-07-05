@@ -303,7 +303,15 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     )
   end
 
-  defp attach_navigation(items, managed_repo_id, workspace_path, run_route, route_project_id, repo_detail_return_to, opts)
+  defp attach_navigation(
+         items,
+         managed_repo_id,
+         workspace_path,
+         run_route,
+         route_project_id,
+         repo_detail_return_to,
+         opts
+       )
        when is_list(items) do
     Enum.map(items, fn item ->
       resource_iri = Map.get(item, :memory_iri) || Map.get(item, :resource_iri)

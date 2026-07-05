@@ -61,7 +61,8 @@ defmodule JidoCode.Conversations.LongTermProvenance do
   end
 
   @spec capture_turn_started(map(), map(), map()) :: :ok
-  def capture_turn_started(runtime_spec, request, readiness) when is_map(runtime_spec) and is_map(request) and is_map(readiness) do
+  def capture_turn_started(runtime_spec, request, readiness)
+      when is_map(runtime_spec) and is_map(request) and is_map(readiness) do
     conversation_event =
       if clarification_resume?(request) do
         "turn_resumed"

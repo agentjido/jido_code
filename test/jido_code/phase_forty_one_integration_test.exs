@@ -29,6 +29,7 @@ defmodule JidoCode.PhaseFortyOneIntegrationTest do
              )
 
     assert Enum.map(running_snapshot.events, & &1.sequence) == Enum.to_list(1..running_snapshot.event_count)
+
     assert Enum.map(running_snapshot.events, & &1.name) == [
              "conversation.message_added",
              "turn.queued",

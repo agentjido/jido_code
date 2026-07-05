@@ -17,20 +17,12 @@ Thank you for your interest in contributing to JidoCode! This document provides 
    asdf install
    ```
 
-3. Start PostgreSQL locally.
-
-   Normal contributor development uses the defaults from `config/dev.exs` and `config/test.exs`:
-
-   - `localhost:5432`
-   - username/password `postgres` / `postgres`
-   - databases `jido_code_dev` and `jido_code_test*`
-
-4. Install dependencies and set up the development database:
+3. Install dependencies and build the local browser assets:
    ```bash
    mix setup
    ```
 
-5. Start the development server:
+4. Start the development server:
    ```bash
    mix server
    ```
@@ -44,16 +36,14 @@ For day-to-day development:
 - `mix memory.verify` verifies the ontology pair, typed governed links, and the repo-owned memory recovery path
 - `mix semantic.verify` runs the full product-facing semantic graph verification suite
 - `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
-- `mix test` provisions the test database and runs the test suite
-- `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
+- `mix test` runs the test suite
 - `mix onboarding.reset --keep-owner` rewinds onboarding to signed-in `/setup` while preserving the bootstrap owner and clearing imported managed repos
 - `mix onboarding.reset --full` returns the install to first-run bootstrap and clears local bootstrap users plus imported managed repos
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
-Ash resource changes are explicit in this workspace. Browser requests do not
-auto-run Ash codegen or migrations. When resource DSL changes require generated
-files, run `mix ash.codegen --dev` while iterating and `mix ash.codegen <name>`
-before you finalize the change set.
+Product record shape changes are explicit in this workspace. Update the
+embedded store codec, ontology, and query projection together before finalizing
+the change set.
 
 ## Route Orientation
 
@@ -117,7 +107,7 @@ The memory graph follows the same bounded rule:
   introducing fresh generic artifact-path contracts
 - generic artifact-style governed links now count as legacy recovery-only store
   state and should be rebuilt or revalidated instead of extended
-- governed product records remain the canonical Ash-backed truth; memory and
+- governed product records remain the canonical embedded-store truth; memory and
   provenance graphs store supporting semantic context and navigation only
 
 Use `mix memory.verify` when this stack changes to confirm:

@@ -16,6 +16,8 @@ Back to plan: [README](./README.md)
 
   Description: Web, workflow, agent, setup, and runtime modules should call product services backed by the store behaviour.
 
+  Phase 5.1 deletion target note: `Project` references left after managed-repo/source-repo cutover are concentrated in `lib/jido_code/projects*`, `lib/jido_code/orchestration/workflow_run.ex`, `test/support/conn_case.ex`, `test/support/browser_setup.ex`, and older LiveView/integration fixtures that still create WorkflowRun-era projects. Remove these alongside the product caller and fixture cutover once Phase 5.2, Phase 5.3, and Phase 6 replacement services are in place.
+
   - [ ] 7.1.1 Task - Rewire web and LiveView surfaces.
 
     Description: Operator routes should read shaped projections from product services, not Ash query results.

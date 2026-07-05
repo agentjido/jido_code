@@ -54,12 +54,38 @@ defmodule JidoCode.ControlPlane.CodecsTest do
     assert encoded.class_iri == @jcp <> "ManagedRepo"
     assert encoded.subject_iri == "https://jido.run/control/managed-repos/repo-codec"
 
-    assert %{identity: :unique_source_key, predicate: "sourceKey", value: "github:agentjido/jido_code"} in encoded.identity_queries
+    assert %{identity: :unique_source_key, predicate: "managedSourceKey", value: "github:agentjido/jido_code"} in encoded.identity_queries
 
     assert triple_value(encoded, "managedRepoId") == "repo-codec"
-    assert triple_value(encoded, "sourceKey") == "github:agentjido/jido_code"
+    assert triple_value(encoded, "managedSourceKey") == "github:agentjido/jido_code"
     assert triple_value(encoded, "metadataJson") == ~s({"a":1,"b":2})
     assert has_type_triple?(encoded, "ManagedRepo")
+  end
+
+  test "source repo codec keeps provider identity separate from managed repo references" do
+    record = %{
+      source_repo_id: "source-repo-codec",
+      provider: :github,
+      owner: "agentjido",
+      name: "jido_code",
+      full_name: "agentjido/jido_code",
+      default_branch: "main",
+      source_metadata: %{visibility: "private"}
+    }
+
+    assert {:ok, encoded} = Registry.encode(:source_repo, record)
+
+    assert encoded.graph_name == :control_plane
+    assert encoded.class_iri == @jcp <> "SourceRepo"
+    assert encoded.subject_iri == "https://jido.run/control/source-repos/source-repo-codec"
+
+    assert %{identity: :unique_provider_full_name, predicate: "sourceKey", value: "github:agentjido/jido_code"} in encoded.identity_queries
+
+    assert triple_value(encoded, "sourceRepoId") == "source-repo-codec"
+    assert triple_value(encoded, "sourceKey") == "github:agentjido/jido_code"
+    assert triple_value(encoded, "fullName") == "agentjido/jido_code"
+    assert triple_value(encoded, "sourceMetadataJson") == ~s({"visibility":"private"})
+    assert has_type_triple?(encoded, "SourceRepo")
   end
 
   test "repo-scoped work item and append event codecs place records in expected graphs" do

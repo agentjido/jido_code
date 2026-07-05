@@ -16,6 +16,7 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
     RuntimeEventCodec,
     SecretLifecycleAuditCodec,
     SecretRefCodec,
+    SourceRepoCodec,
     SystemConfigCodec,
     TokenCodec,
     UserCodec,
@@ -25,6 +26,7 @@ defmodule JidoCode.ControlPlane.Codecs.Registry do
 
   @codec_modules %{
     system_config: SystemConfigCodec,
+    source_repo: SourceRepoCodec,
     managed_repo: ManagedRepoCodec,
     work_item: WorkItemCodec,
     decision: DecisionCodec,

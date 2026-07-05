@@ -29,7 +29,7 @@ defmodule JidoCodeWeb.ConnCase do
 
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Control.{Actor, ManagedRepoStore, RepoBridge}
   alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Orchestration.{Run, WorkflowRun}
   alias JidoCode.Projects.Project
@@ -236,12 +236,7 @@ defmodule JidoCodeWeb.ConnCase do
   end
 
   def read_managed_repo!(managed_repo_id) when is_binary(managed_repo_id) do
-    {:ok, [managed_repo]} =
-      ManagedRepo.read(
-        query: [filter: [id: managed_repo_id], limit: 1],
-        actor: Actor.operator_actor()
-      )
-
+    {:ok, managed_repo} = ManagedRepoStore.get_by_id(managed_repo_id)
     managed_repo
   end
 

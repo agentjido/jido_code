@@ -5,10 +5,11 @@ defmodule JidoCode.PhaseSixtyTwoIntegrationTest do
   # covers: setup.onboarding.runtime_defaults_seed_repo_scoped_workspace_binding
   # covers: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
   # covers: architecture.conversation_orchestration.runtime_readiness_uses_managed_repo_workspace_binding
-  use JidoCode.DataCase, async: false
+  use ExUnit.Case, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
+  alias JidoCode.Control.{ManagedRepoStore, SourceRepoStore}
   alias JidoCode.Conversations.RuntimeReadiness
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Setup.ProjectImport
   alias JidoCode.Workbench.ProjectDetail
 
@@ -35,6 +36,7 @@ defmodule JidoCode.PhaseSixtyTwoIntegrationTest do
     Application.delete_env(:jido_code, :setup_project_clone_provisioner)
     Application.delete_env(:jido_code, :setup_project_baseline_syncer)
     Application.put_env(:jido_code, :system_config, system_config(:sprite, nil))
+    setup_product_store()
 
     :ok
   end
@@ -63,10 +65,10 @@ defmodule JidoCode.PhaseSixtyTwoIntegrationTest do
     assert report.baseline_metadata.workspace_path == Path.expand(explicit_workspace_path)
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
+      SourceRepoStore.get_by_provider_and_full_name(:github, "owner/repo-one")
 
     {:ok, managed_repo} =
-      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+      ManagedRepoStore.get_by_source_repo_id(source_repo.id)
 
     assert managed_repo.workspace_settings["workspace_path"] == Path.expand(explicit_workspace_path)
 
@@ -209,4 +211,21 @@ defmodule JidoCode.PhaseSixtyTwoIntegrationTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp setup_product_store do
+    store_name = :"phase_sixty_two_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_phase_sixty_two/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

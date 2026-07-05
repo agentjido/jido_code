@@ -11,10 +11,16 @@ defmodule JidoCode.ControlPlane.Codecs.ManagedRepoCodec do
   @record_type :managed_repo
   @field_mappings %{
     managed_repo_id: "managedRepoId",
-    source_key: "sourceKey",
+    source_key: "managedSourceKey",
+    source_repo_id: "sourceRepoRef",
+    legacy_project_id: "legacyProjectId",
     display_name: "displayName",
     record_label: "recordLabel",
     workspace_path: "workspacePath",
+    workspace_settings: "workspaceSettingsJson",
+    execution_settings: "executionSettingsJson",
+    integration_settings: "integrationSettingsJson",
+    inserted_at: "insertedAt",
     updated_at: "updatedAt",
     metadata: "metadataJson"
   }
@@ -37,8 +43,9 @@ defmodule JidoCode.ControlPlane.Codecs.ManagedRepoCodec do
   @impl true
   def identity_queries(record) do
     [
-      identity(:unique_source_key, "sourceKey", record[:source_key] || record["source_key"]),
-      identity(:unique_source_repo, "sourceRepoId", record[:source_repo_id] || record["source_repo_id"])
+      identity(:unique_source_repo, "sourceRepoRef", record[:source_repo_id] || record["source_repo_id"]),
+      identity(:unique_legacy_project_id, "legacyProjectId", record[:legacy_project_id] || record["legacy_project_id"]),
+      identity(:unique_source_key, "managedSourceKey", record[:source_key] || record["source_key"])
     ]
     |> Enum.reject(&is_nil(&1.value))
   end

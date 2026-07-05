@@ -1,9 +1,10 @@
 defmodule JidoCode.Workbench.ProjectWorkspaceBindingTest do
   # covers: architecture.factory_control_plane.managed_repos_own_repo_scoped_workspace_binding
   # covers: setup.runtime_environment_defaults.repo_scoped_workspace_binding_is_canonical
-  use JidoCode.DataCase, async: false
+  use ExUnit.Case, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge, SourceRepo}
+  alias JidoCode.Control.{Actor, ManagedRepoStore, RepoBridge, SourceRepoStore}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Workbench.ProjectWorkspaceBinding
 
   @managed_env_keys [:system_config]
@@ -20,6 +21,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBindingTest do
       end)
     end)
 
+    setup_product_store()
     :ok
   end
 
@@ -178,9 +180,9 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBindingTest do
 
   defp reloaded_managed_repo!(full_name) do
     with {:ok, source_repo} <-
-           SourceRepo.get_by_provider_and_full_name(:github, full_name, actor: Actor.operator_actor()),
+           SourceRepoStore.get_by_provider_and_full_name(:github, full_name),
          {:ok, managed_repo} <-
-           ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor()) do
+           ManagedRepoStore.get_by_source_repo_id(source_repo.id) do
       {:ok, managed_repo}
     end
   end
@@ -196,4 +198,21 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBindingTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp setup_product_store do
+    store_name = :"workspace_binding_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_workspace_binding/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

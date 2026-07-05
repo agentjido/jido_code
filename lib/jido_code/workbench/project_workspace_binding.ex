@@ -4,7 +4,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
   """
 
   alias Ash.Error.Forbidden
-  alias JidoCode.Control.ManagedRepo
+  alias JidoCode.Control.{ManagedRepo, ManagedRepoStore}
 
   @default_error_type "managed_repo_workspace_binding_update_failed"
   @missing_repo_error_type "managed_repo_workspace_binding_repo_not_found"
@@ -34,7 +34,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
     with {:ok, managed_repo} <- load_managed_repo(identifier, actor),
          {:ok, workspace_settings} <- next_workspace_settings(managed_repo, attrs),
          {:ok, updated_managed_repo} <-
-           ManagedRepo.update(managed_repo, %{workspace_settings: workspace_settings}, actor: actor) do
+           ManagedRepoStore.update(managed_repo, %{workspace_settings: workspace_settings}) do
       {:ok, %{managed_repo: updated_managed_repo, workspace_settings: workspace_settings}}
     else
       {:error, %{error_type: _error_type} = error} ->
@@ -69,7 +69,7 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
 
   defp load_managed_repo(%ManagedRepo{} = managed_repo, _actor), do: {:ok, managed_repo}
 
-  defp load_managed_repo(identifier, actor) do
+  defp load_managed_repo(identifier, _actor) do
     case normalize_managed_repo_id(identifier) do
       nil ->
         {:error,
@@ -80,11 +80,11 @@ defmodule JidoCode.Workbench.ProjectWorkspaceBinding do
          )}
 
       managed_repo_id ->
-        case ManagedRepo.read(query: [filter: [id: managed_repo_id], limit: 1], actor: actor) do
-          {:ok, [%ManagedRepo{} = managed_repo | _rest]} ->
+        case ManagedRepoStore.get_by_id(managed_repo_id) do
+          {:ok, %ManagedRepo{} = managed_repo} ->
             {:ok, managed_repo}
 
-          {:ok, []} ->
+          {:ok, nil} ->
             {:error,
              update_error(
                @missing_repo_error_type,

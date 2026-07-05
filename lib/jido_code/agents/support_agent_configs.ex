@@ -3,8 +3,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   Reads and updates per-repository Issue Bot configuration.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Governance.{PolicyBridge, PostureBridge}
+  alias JidoCode.Control.{ManagedRepo, ManagedRepoStore, RepoBridge}
 
   @load_error_type "support_agent_config_load_failed"
   @validation_error_type "support_agent_config_validation_failed"
@@ -45,11 +44,6 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @approval_mode_approval_required "approval_required"
   @default_issue_bot_approval_mode @approval_mode_approval_required
   @approval_mode_source "support_agent_config.github_issue_bot.approval_mode"
-  @project_actor Actor.operator_actor(%{
-                   "id" => "system:support-agent-configs",
-                   "email" => "support-agent-configs@system.local"
-                 })
-
   @supported_issue_bot_approval_modes [
     @approval_mode_auto_post,
     @approval_mode_approval_required
@@ -187,15 +181,9 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @doc false
   @spec default_loader() :: {:ok, [map()]} | {:error, typed_error()}
   def default_loader do
-    case ManagedRepo.read(query: [sort: [display_name: :asc]], actor: @project_actor) do
-      {:ok, managed_repos} when is_list(managed_repos) ->
-        {:ok,
-         Enum.map(managed_repos, fn managed_repo ->
-           case RepoBridge.repo_scope(managed_repo.id) do
-             {:ok, scope} -> scope
-             {:error, _reason} -> %{managed_repo: managed_repo}
-           end
-         end)}
+    case RepoBridge.list_repo_scopes() do
+      {:ok, repo_scopes} when is_list(repo_scopes) ->
+        {:ok, repo_scopes}
 
       {:ok, other} ->
         {:error,
@@ -354,12 +342,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @doc false
   @spec default_updater(ManagedRepo.t(), map()) :: {:ok, ManagedRepo.t()} | {:error, term()}
   def default_updater(managed_repo, update_attributes) do
-    with {:ok, updated_managed_repo} <-
-           ManagedRepo.update(managed_repo, update_attributes, actor: @project_actor),
-         {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(updated_managed_repo),
-         {:ok, _posture_projection} <- PostureBridge.sync_managed_repo(updated_managed_repo) do
-      {:ok, updated_managed_repo}
-    end
+    ManagedRepoStore.update(managed_repo, update_attributes)
   end
 
   defp safe_invoke_updater(updater, project, update_attributes) do

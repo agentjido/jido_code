@@ -465,6 +465,18 @@ jcp:sourceRepoId a owl:DatatypeProperty ;
     rdfs:domain jcp:SourceRepo ;
     rdfs:range xsd:string .
 
+jcp:sourceRepoRef a owl:DatatypeProperty ;
+    rdfs:label "source repo reference" ;
+    rdfs:comment "References the canonical SourceRepo id from a ManagedRepo without colliding with the SourceRepo's own identity predicate." ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:legacyProjectId a owl:DatatypeProperty ;
+    rdfs:label "legacy project id" ;
+    rdfs:comment "Compatibility identifier for previous-era Project records while ManagedRepo remains canonical." ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
 jcp:projectId a owl:DatatypeProperty ;
     rdfs:label "project id" ;
     rdfs:domain jcp:Project ;
@@ -697,6 +709,38 @@ jcp:sourceKey a owl:DatatypeProperty ;
     rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
+jcp:managedSourceKey a owl:DatatypeProperty ;
+    rdfs:label "managed source key" ;
+    rdfs:comment "A managed-repository lookup key derived from source-provider identity without sharing the SourceRepo sourceKey identity predicate." ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:owner a owl:DatatypeProperty ;
+    rdfs:label "owner" ;
+    rdfs:domain jcp:SourceRepo ;
+    rdfs:range xsd:string .
+
+jcp:name a owl:DatatypeProperty ;
+    rdfs:label "name" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:fullName a owl:DatatypeProperty ;
+    rdfs:label "full name" ;
+    rdfs:domain jcp:SourceRepo ;
+    rdfs:range xsd:string .
+
+jcp:defaultBranch a owl:DatatypeProperty ;
+    rdfs:label "default branch" ;
+    rdfs:domain jcp:SourceRepo ;
+    rdfs:range xsd:string .
+
+jcp:sourceMetadataJson a owl:DatatypeProperty ;
+    rdfs:label "source metadata JSON" ;
+    rdfs:comment "Bounded provider metadata for a source repository; credentials and webhook secrets must not be projected here." ;
+    rdfs:domain jcp:SourceRepo ;
+    rdfs:range xsd:string .
+
 jcp:credentialSource a owl:DatatypeProperty ;
     rdfs:label "credential source" ;
     rdfs:comment "Non-sensitive origin for a SecretRef lifecycle version, such as env, onboarding, or rotation." ;
@@ -792,6 +836,24 @@ jcp:revokedAt a owl:DatatypeProperty ;
 
 jcp:workspacePath a owl:DatatypeProperty ;
     rdfs:label "workspace path" ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:workspaceSettingsJson a owl:DatatypeProperty ;
+    rdfs:label "workspace settings JSON" ;
+    rdfs:comment "Bounded workspace binding and readiness settings for a managed repository." ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:executionSettingsJson a owl:DatatypeProperty ;
+    rdfs:label "execution settings JSON" ;
+    rdfs:comment "Bounded execution defaults for a managed repository." ;
+    rdfs:domain jcp:ManagedRepo ;
+    rdfs:range xsd:string .
+
+jcp:integrationSettingsJson a owl:DatatypeProperty ;
+    rdfs:label "integration settings JSON" ;
+    rdfs:comment "Bounded integration settings for a managed repository." ;
     rdfs:domain jcp:ManagedRepo ;
     rdfs:range xsd:string .
 

@@ -1,10 +1,15 @@
 defmodule JidoCode.Control.RepoBridgeTest do
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: package.jido_code.version_controlled_quality_surfaces
-  use JidoCode.DataCase, async: false
+  use ExUnit.Case, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge, SourceRepo}
+  alias JidoCode.Control.{ManagedRepoStore, RepoBridge, SourceRepoStore}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Workbench.ProjectDetail
+
+  setup do
+    setup_product_store()
+  end
 
   test "upsert_managed_repo provisions source repo and managed repo from canonical attrs" do
     {:ok, %{managed_repo: managed_repo, source_repo: source_repo}} =
@@ -58,15 +63,14 @@ defmodule JidoCode.Control.RepoBridgeTest do
       })
 
     {:ok, fetched_source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
+      SourceRepoStore.get_by_provider_and_full_name(:github, "owner/repo-one")
 
     {:ok, fetched_managed_repo} =
-      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+      ManagedRepoStore.get_by_source_repo_id(source_repo.id)
 
-    {:ok, source_repos} =
-      SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]], actor: Actor.operator_actor())
+    {:ok, source_repos} = SourceRepoStore.list()
 
-    assert length(source_repos) == 1
+    assert Enum.count(source_repos, &(&1.full_name == "owner/repo-one")) == 1
     assert fetched_source_repo.default_branch == "release"
     assert updated_managed_repo.id == original_managed_repo.id
     assert fetched_managed_repo.id == original_managed_repo.id
@@ -113,4 +117,24 @@ defmodule JidoCode.Control.RepoBridgeTest do
     on_exit(fn -> File.rm_rf!(workspace_path) end)
     workspace_path
   end
+
+  defp setup_product_store do
+    store_name = :"repo_bridge_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_repo_bridge/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

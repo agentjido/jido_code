@@ -8,8 +8,7 @@ defmodule JidoCode.Setup.ProjectImport do
   Imports the selected repository during setup step 7 and initializes baseline project metadata.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Operations.Ingress
+  alias JidoCode.Control.{ManagedRepo, RepoBridge}
   alias JidoCode.Setup.SystemConfig
 
   @default_selection_remediation "Select one of the repositories validated in step 4 and retry import."
@@ -17,10 +16,6 @@ defmodule JidoCode.Setup.ProjectImport do
   @default_clone_retry_remediation "Retry step 7 after confirming workspace provisioning and repository access."
   @default_sync_retry_remediation "Retry step 7 after confirming baseline sync can target the configured default branch."
   @default_branch "main"
-  @project_actor Actor.operator_actor(%{
-                   "id" => "system:project-import",
-                   "email" => "project-import@system.local"
-                 })
   @clone_stage_error_type "project_clone_failed"
   @baseline_sync_stage_error_type "project_baseline_sync_failed"
   @clone_status_update_error_type "project_clone_status_update_failed"
@@ -328,28 +323,43 @@ defmodule JidoCode.Setup.ProjectImport do
 
   defp record_project_import_intake(project, selected_repository, default_branch, available_repositories)
        when is_map(project) and is_binary(selected_repository) and is_list(available_repositories) do
-    case Ingress.record_operator_intake(%{
-           channel: "setup",
-           intent: "project_import",
-           project_id: map_get(project, :id, "id"),
-           payload: %{
-             "selected_repository" => selected_repository,
-             "project_name" =>
-               map_get(project, :display_name, "display_name") ||
-                 map_get(project, :name, "name"),
-             "default_branch" => default_branch
-           },
-           source_metadata: %{
-             "available_repositories" => available_repositories,
-             "source_step" => "setup.project_import"
-           }
-         }) do
-      {:ok, _intake} ->
-        :ok
+    intake_recorder = Application.get_env(:jido_code, :setup_project_import_intake_recorder, :disabled)
 
-      {:error, reason} ->
-        {:error,
-         {"project_import_intake_record_failed", "Project import intake could not be recorded (#{inspect(reason)})."}}
+    intake_attrs = %{
+      channel: "setup",
+      intent: "project_import",
+      project_id: map_get(project, :id, "id"),
+      payload: %{
+        "selected_repository" => selected_repository,
+        "project_name" =>
+          map_get(project, :display_name, "display_name") ||
+            map_get(project, :name, "name"),
+        "default_branch" => default_branch
+      },
+      source_metadata: %{
+        "available_repositories" => available_repositories,
+        "source_step" => "setup.project_import"
+      }
+    }
+
+    case intake_recorder do
+      recorder when is_function(recorder, 1) ->
+        case recorder.(intake_attrs) do
+          :ok ->
+            :ok
+
+          {:ok, _intake} ->
+            :ok
+
+          {:error, reason} ->
+            {:error, {"project_import_intake_record_failed", format_reason(reason)}}
+
+          other ->
+            {:error, {"project_import_intake_record_failed", "Invalid intake recorder result: #{inspect(other)}."}}
+        end
+
+      _disabled ->
+        :ok
     end
   end
 
@@ -551,8 +561,7 @@ defmodule JidoCode.Setup.ProjectImport do
       :local ->
         cond do
           is_binary(explicit_workspace_path) and Path.type(explicit_workspace_path) != :absolute ->
-            {:error,
-             {"workspace_path_invalid", "Local workspace path must be an absolute path."}}
+            {:error, {"workspace_path_invalid", "Local workspace path must be an absolute path."}}
 
           is_binary(explicit_workspace_path) ->
             case File.mkdir_p(explicit_workspace_path) do
@@ -573,7 +582,8 @@ defmodule JidoCode.Setup.ProjectImport do
 
           is_nil(workspace_root) ->
             {:error,
-             {"workspace_root_missing", "Local workspace binding is missing both workspace path and workspace root for clone provisioning."}}
+             {"workspace_root_missing",
+              "Local workspace binding is missing both workspace path and workspace root for clone provisioning."}}
 
           Path.type(workspace_root) != :absolute ->
             {:error, {"workspace_root_invalid", "Local workspace root must be an absolute path."}}
@@ -986,7 +996,7 @@ defmodule JidoCode.Setup.ProjectImport do
         )
       end
 
-    case ManagedRepo.update(project, %{workspace_settings: workspace_settings}, actor: @project_actor) do
+    case JidoCode.Control.ManagedRepoStore.update(project, %{workspace_settings: workspace_settings}) do
       {:ok, updated_project} ->
         {:ok, updated_project}
 
@@ -1191,11 +1201,11 @@ defmodule JidoCode.Setup.ProjectImport do
       explicit_workspace_root ||
         workspace_root_from_path(explicit_workspace_path) ||
         environment_defaults
-      |> map_get(
+        |> map_get(
           :workspace_root,
           "workspace_root"
         )
-      |> normalize_workspace_root()
+        |> normalize_workspace_root()
 
     %{
       workspace_environment: workspace_environment,

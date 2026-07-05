@@ -12,25 +12,27 @@ Back to plan: [README](./README.md)
 
 **Description:** This section makes managed repositories and source repository records canonical semantic entities.
 
-- [ ] 5.1 Section - Managed repositories and source records.
+- [x] 5.1 Section - Managed repositories and source records.
 
   Description: Managed repo services become the root lookup and scoping boundary for most other product records.
 
-  - [ ] 5.1.1 Task - Implement managed repo and source repo services.
+  - [x] 5.1.1 Task - Implement managed repo and source repo services.
 
     Description: Repo import, workspace binding, runtime readiness, and settings surfaces should operate through store-backed projections.
 
-    - [ ] 5.1.1.1 Subtask - Implement source repo and managed repo codecs.
-    - [ ] 5.1.1.2 Subtask - Rewire project import to create source and managed repo records through product services.
-    - [ ] 5.1.1.3 Subtask - Rewire workspace binding and runtime readiness reads away from Ash.
+    - [x] 5.1.1.1 Subtask - Implement source repo and managed repo codecs.
+    - [x] 5.1.1.2 Subtask - Rewire project import to create source and managed repo records through product services.
+    - [x] 5.1.1.3 Subtask - Rewire workspace binding and runtime readiness reads away from Ash.
 
-  - [ ] 5.1.2 Task - Remove legacy project as a preferred data path.
+  - [x] 5.1.2 Task - Remove legacy project as a preferred data path.
 
     Description: Since the project is greenfield, `Project` should exist only if needed for naming compatibility during code removal.
 
-    - [ ] 5.1.2.1 Subtask - Replace product callers that create or query `Projects.Project`.
-    - [ ] 5.1.2.2 Subtask - Remove legacy project fixtures from tests that can seed managed repos directly.
-    - [ ] 5.1.2.3 Subtask - Document any remaining `Project` references as deletion targets for Phase 7.
+    - [x] 5.1.2.1 Subtask - Replace product callers that create or query `Projects.Project`.
+    - [x] 5.1.2.2 Subtask - Remove legacy project fixtures from tests that can seed managed repos directly.
+    - [x] 5.1.2.3 Subtask - Document any remaining `Project` references as deletion targets for Phase 7.
+
+    Phase 7 deletion target note: after the Section 5.1 cutover, `Project` remains only in legacy Ash resource definitions, WorkflowRun compatibility relations, browser/conn setup helpers that still create WorkflowRun-era fixtures, and older LiveView/integration tests. A scan during this section found 247 remaining `Project` references across runtime and test code. Phase 7.1 and 7.3 should remove those references after operations, governance, orchestration, conversation, and runtime records have equivalent store-backed services.
 
 ## 5.2 Section - Operations Records
 

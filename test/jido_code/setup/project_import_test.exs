@@ -1,9 +1,10 @@
 defmodule JidoCode.Setup.ProjectImportTest do
   # covers: setup.onboarding.repo_source_per_project
   # covers: setup.runtime_environment_defaults.import_uses_persisted_runtime_defaults
-  use JidoCode.DataCase, async: false
+  use ExUnit.Case, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
+  alias JidoCode.Control.{ManagedRepoStore, SourceRepoStore}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Setup.ProjectImport
 
   @managed_env_keys [
@@ -29,6 +30,7 @@ defmodule JidoCode.Setup.ProjectImportTest do
     Application.delete_env(:jido_code, :setup_project_clone_provisioner)
     Application.delete_env(:jido_code, :setup_project_baseline_syncer)
     Application.put_env(:jido_code, :system_config, %{})
+    setup_product_store()
     :ok
   end
 
@@ -65,10 +67,10 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert %DateTime{} = report.baseline_metadata.last_synced_at
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
+      SourceRepoStore.get_by_provider_and_full_name(:github, "owner/repo-one")
 
     {:ok, managed_repo} =
-      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+      ManagedRepoStore.get_by_source_repo_id(source_repo.id)
 
     assert report.project_record.id == managed_repo.id
     assert source_repo.full_name == "owner/repo-one"
@@ -107,14 +109,12 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert first_report.project_record.import_mode == :created
     assert second_report.project_record.import_mode == :existing
 
-    {:ok, source_repos} =
-      SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]], actor: Actor.operator_actor())
+    {:ok, source_repos} = SourceRepoStore.list()
+    {:ok, managed_repos} = ManagedRepoStore.list()
 
-    {:ok, managed_repos} =
-      ManagedRepo.read(query: [sort: [inserted_at: :asc]], actor: Actor.operator_actor())
-
-    assert length(source_repos) == 1
-    assert length(managed_repos) == 1
+    assert Enum.count(source_repos, &(&1.full_name == "owner/repo-one")) == 1
+    source_repo_ids = Enum.map(source_repos, fn source_repo -> source_repo.id end)
+    assert Enum.count(managed_repos, fn managed_repo -> managed_repo.source_repo_id in source_repo_ids end) == 1
     assert first_report.project_record.id == second_report.project_record.id
   end
 
@@ -145,13 +145,10 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert report.project_record == nil
     assert report.baseline_metadata == nil
 
-    {:ok, source_repos} =
-      SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]], actor: Actor.operator_actor())
+    {:ok, source_repos} = SourceRepoStore.list()
+    {:ok, managed_repos} = ManagedRepoStore.list()
 
-    {:ok, managed_repos} =
-      ManagedRepo.read(query: [sort: [inserted_at: :asc]], actor: Actor.operator_actor())
-
-    assert source_repos == []
+    assert Enum.filter(source_repos, &(&1.full_name == "owner/repo-one")) == []
     assert managed_repos == []
   end
 
@@ -190,10 +187,10 @@ defmodule JidoCode.Setup.ProjectImportTest do
            ]
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
+      SourceRepoStore.get_by_provider_and_full_name(:github, "owner/repo-one")
 
     {:ok, managed_repo} =
-      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+      ManagedRepoStore.get_by_source_repo_id(source_repo.id)
 
     assert managed_repo.workspace_settings["clone_status"] == "error"
     assert managed_repo.workspace_settings["last_error_type"] == "baseline_sync_unavailable"
@@ -291,10 +288,10 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert File.dir?(explicit_workspace_path)
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
+      SourceRepoStore.get_by_provider_and_full_name(:github, "owner/repo-one")
 
     {:ok, managed_repo} =
-      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+      ManagedRepoStore.get_by_source_repo_id(source_repo.id)
 
     assert managed_repo.workspace_settings["workspace_path"] == explicit_workspace_path
     assert managed_repo.workspace_settings["workspace_root"] == Path.dirname(explicit_workspace_path)
@@ -333,6 +330,23 @@ defmodule JidoCode.Setup.ProjectImportTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp setup_product_store do
+    store_name = :"project_import_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_project_import/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 
   defp tmp_workspace_path! do
     workspace_path =

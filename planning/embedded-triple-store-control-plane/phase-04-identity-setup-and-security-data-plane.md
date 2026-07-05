@@ -12,25 +12,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section makes onboarding and runtime defaults read from the embedded control-plane store.
 
-- [ ] 4.1 Section - Setup and system config.
+- [x] 4.1 Section - Setup and system config.
 
   Description: System config becomes a singleton semantic record with explicit reset and bootstrap semantics.
 
-  - [ ] 4.1.1 Task - Replace `SystemConfigRecord` persistence.
+  - [x] 4.1.1 Task - Replace `SystemConfigRecord` persistence.
 
     Description: Setup state should be stored through the new product store, not Ash resources or Ecto.
 
-    - [ ] 4.1.1.1 Subtask - Implement system config codec and singleton identity.
-    - [ ] 4.1.1.2 Subtask - Rewire `SystemConfigPersistence` to the store behaviour.
-    - [ ] 4.1.1.3 Subtask - Preserve test-mode in-memory config overrides where tests need isolation.
+    - [x] 4.1.1.1 Subtask - Implement system config codec and singleton identity.
+    - [x] 4.1.1.2 Subtask - Rewire `SystemConfigPersistence` to the store behaviour.
+    - [x] 4.1.1.3 Subtask - Preserve test-mode in-memory config overrides where tests need isolation.
 
-  - [ ] 4.1.2 Task - Replace setup bootstrap reads and writes.
+  - [x] 4.1.2 Task - Replace setup bootstrap reads and writes.
 
     Description: Owner bootstrap, onboarding reset, and readiness checks must use product services.
 
-    - [ ] 4.1.2.1 Subtask - Rewire owner bootstrap user lookup and creation calls.
-    - [ ] 4.1.2.2 Subtask - Rewire onboarding reset to delete or reset store-backed setup records.
-    - [ ] 4.1.2.3 Subtask - Rewire bootstrap status and prerequisite checks away from Ash reads.
+    - [x] 4.1.2.1 Subtask - Rewire owner bootstrap user lookup and creation calls.
+    - [x] 4.1.2.2 Subtask - Rewire onboarding reset to delete or reset store-backed setup records.
+    - [x] 4.1.2.3 Subtask - Rewire bootstrap status and prerequisite checks away from Ash reads.
 
 ## 4.2 Section - Local Users And Provider Identities
 

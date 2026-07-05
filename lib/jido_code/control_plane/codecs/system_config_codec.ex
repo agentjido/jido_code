@@ -11,6 +11,11 @@ defmodule JidoCode.ControlPlane.Codecs.SystemConfigCodec do
   @record_type :system_config
   @field_mappings %{
     key: "systemConfigId",
+    onboarding_completed: "onboardingCompleted",
+    onboarding_step: "onboardingStep",
+    onboarding_state: "onboardingStateJson",
+    default_environment: "defaultEnvironment",
+    workspace_root: "workspaceRoot",
     display_name: "displayName",
     metadata: "metadataJson",
     updated_at: "updatedAt"

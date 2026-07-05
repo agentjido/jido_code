@@ -12,6 +12,8 @@ defmodule JidoCode.ControlPlane.Codecs.UserCodec do
   @field_mappings %{
     user_id: "userId",
     email: "sourceKey",
+    is_admin: "isAdmin",
+    confirmed_at: "confirmedAt",
     display_name: "displayName",
     updated_at: "updatedAt",
     metadata: "metadataJson"

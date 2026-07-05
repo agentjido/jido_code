@@ -16,8 +16,6 @@ defmodule JidoCodeWeb.HomeLive do
 
   require Ash.Query
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
   alias JidoCode.AuthProviders
   alias JidoCode.AuthProviders.ProviderConfig
   alias JidoCode.Setup.BootstrapStatus
@@ -573,24 +571,8 @@ defmodule JidoCodeWeb.HomeLive do
   defp prereq_status_label(status), do: status |> to_string() |> String.capitalize()
 
   defp owner_sign_in_with_token_path(token) do
-    strategy = Info.strategy!(User, :password)
-
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
     query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
+    "/auth/setup/owner/sign-in?#{query}"
   end
 
   defp github_login_enabled? do

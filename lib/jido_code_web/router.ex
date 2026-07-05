@@ -78,6 +78,7 @@ defmodule JidoCodeWeb.Router do
 
     get("/auth/providers/:provider/start", ProviderAuthController, :start)
     get("/auth/providers/:provider/complete", ProviderAuthController, :complete)
+    get("/auth/setup/owner/sign-in", SetupAuthController, :sign_in)
 
     ash_authentication_live_session :public_routes,
       on_mount: [{JidoCodeWeb.LiveUserAuth, :live_user_optional}] do

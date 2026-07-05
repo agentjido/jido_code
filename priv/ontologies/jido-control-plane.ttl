@@ -650,6 +650,32 @@ jcp:systemConfigId a owl:DatatypeProperty ;
     rdfs:domain jcp:SystemConfig ;
     rdfs:range xsd:string .
 
+jcp:onboardingCompleted a owl:DatatypeProperty ;
+    rdfs:label "onboarding completed" ;
+    rdfs:domain jcp:SystemConfig ;
+    rdfs:range xsd:boolean .
+
+jcp:onboardingStep a owl:DatatypeProperty ;
+    rdfs:label "onboarding step" ;
+    rdfs:domain jcp:SystemConfig ;
+    rdfs:range xsd:integer .
+
+jcp:onboardingStateJson a owl:DatatypeProperty ;
+    rdfs:label "onboarding state JSON" ;
+    rdfs:comment "Bounded serialized setup progress state. This predicate must not contain plaintext credentials, tokens, ciphertext, hashes, or provider secret material." ;
+    rdfs:domain jcp:SystemConfig ;
+    rdfs:range xsd:string .
+
+jcp:defaultEnvironment a owl:DatatypeProperty ;
+    rdfs:label "default environment" ;
+    rdfs:domain jcp:SystemConfig ;
+    rdfs:range xsd:string .
+
+jcp:workspaceRoot a owl:DatatypeProperty ;
+    rdfs:label "workspace root" ;
+    rdfs:domain jcp:SystemConfig ;
+    rdfs:range xsd:string .
+
 jcp:recordLabel a owl:DatatypeProperty ;
     rdfs:label "record label" ;
     rdfs:comment "A human-facing label for bounded product projections over governed records." ;
@@ -670,6 +696,16 @@ jcp:sourceKey a owl:DatatypeProperty ;
     rdfs:comment "A bounded source-specific lookup key for records that need stable provider or ingestion identity without storing raw payloads." ;
     rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
+
+jcp:isAdmin a owl:DatatypeProperty ;
+    rdfs:label "is admin" ;
+    rdfs:domain jcp:User ;
+    rdfs:range xsd:boolean .
+
+jcp:confirmedAt a owl:DatatypeProperty ;
+    rdfs:label "confirmed at" ;
+    rdfs:domain jcp:User ;
+    rdfs:range xsd:dateTime .
 
 jcp:workspacePath a owl:DatatypeProperty ;
     rdfs:label "workspace path" ;

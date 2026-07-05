@@ -2,6 +2,7 @@ defmodule JidoCodeWeb.LiveUserAuth do
   @moduledoc """
   Helpers for authenticating users in LiveViews.
   """
+
   # covers: auth.system.ready_state_local_auth_handoff
 
   require Logger
@@ -9,16 +10,24 @@ defmodule JidoCodeWeb.LiveUserAuth do
   import Phoenix.Component
   use JidoCodeWeb, :verified_routes
 
-  alias JidoCode.Setup.BootstrapStatus
+  alias JidoCode.Accounts.User
+  alias JidoCode.Setup.{BootstrapStatus, BootstrapToken, OwnerStore}
 
   # This is used for nested liveviews to fetch the current user.
   # To use, place the following at the top of that liveview:
   # on_mount {JidoCodeWeb.LiveUserAuth, :current_user}
   def on_mount(:current_user, _params, session, socket) do
-    {:cont, AshAuthentication.Phoenix.LiveSession.assign_new_resources(socket, session)}
+    socket =
+      socket
+      |> AshAuthentication.Phoenix.LiveSession.assign_new_resources(session)
+      |> assign_product_session_user(session)
+
+    {:cont, socket}
   end
 
-  def on_mount(:live_user_optional, _params, _session, socket) do
+  def on_mount(:live_user_optional, _params, session, socket) do
+    socket = assign_product_session_user(socket, session)
+
     if socket.assigns[:current_user] do
       {:cont, socket}
     else
@@ -26,7 +35,9 @@ defmodule JidoCodeWeb.LiveUserAuth do
     end
   end
 
-  def on_mount(:live_user_required, _params, _session, socket) do
+  def on_mount(:live_user_required, _params, session, socket) do
+    socket = assign_product_session_user(socket, session)
+
     case {socket.assigns[:current_user], BootstrapStatus.current().state} do
       {nil, _state} ->
         log_auth_boundary(:deny, socket, "missing_or_expired_session")
@@ -46,7 +57,8 @@ defmodule JidoCodeWeb.LiveUserAuth do
     end
   end
 
-  def on_mount(:live_no_user, _params, _session, socket) do
+  def on_mount(:live_no_user, _params, session, socket) do
+    socket = assign_product_session_user(socket, session)
     status = BootstrapStatus.current()
 
     cond do
@@ -71,4 +83,30 @@ defmodule JidoCodeWeb.LiveUserAuth do
   defp log_auth_boundary(:deny, socket, reason) do
     Logger.warning("auth_boundary_check outcome=deny live_view=#{inspect(socket.view)} reason=#{reason}")
   end
+
+  defp assign_product_session_user(socket, session) do
+    if socket.assigns[:current_user] do
+      socket
+    else
+      case product_session_user(session) do
+        {:ok, %User{} = user} -> assign(socket, :current_user, user)
+        _error -> socket
+      end
+    end
+  end
+
+  defp product_session_user(session) when is_map(session) do
+    token =
+      Map.get(session, "product_user_token") ||
+        Map.get(session, :product_user_token) ||
+        Map.get(session, "user_token") ||
+        Map.get(session, :user_token)
+
+    with {:ok, %{"email" => email}} <- BootstrapToken.verify(token),
+         {:ok, %User{} = owner} <- OwnerStore.get_by_email(email) do
+      {:ok, owner}
+    end
+  end
+
+  defp product_session_user(_session), do: {:error, :missing_session}
 end

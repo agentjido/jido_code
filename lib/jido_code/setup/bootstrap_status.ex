@@ -5,9 +5,8 @@ defmodule JidoCode.Setup.BootstrapStatus do
   Resolves the public bootstrap state for first-run entry, auth routing, and setup gating.
   """
 
-  alias JidoCode.Accounts
   alias JidoCode.Accounts.User
-  alias JidoCode.Setup.SystemConfig
+  alias JidoCode.Setup.{OwnerStore, SystemConfig}
 
   @typedoc """
   Product-level first-run state for public entry and onboarding.
@@ -154,7 +153,7 @@ defmodule JidoCode.Setup.BootstrapStatus do
   end
 
   defp load_users do
-    case Ash.read(User, domain: Accounts, authorize?: false) do
+    case OwnerStore.list_users() do
       {:ok, users} when is_list(users) ->
         {:ok, users}
 

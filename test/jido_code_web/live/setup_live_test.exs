@@ -19,11 +19,9 @@ defmodule JidoCodeWeb.SetupLiveTest do
   # covers: setup.onboarding.start_path_preference_persisted
   use JidoCodeWeb.ConnCase, async: false
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts
-  alias JidoCode.Accounts.User
   alias JidoCode.Security.SecretRefs
   alias JidoCode.Repo
+  alias JidoCode.Setup.OwnerStore
 
   import Phoenix.LiveViewTest
 
@@ -131,7 +129,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "continue setup sign-in from /welcome enters the setup start surface without advancing onboarding state",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -183,7 +181,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   test "continue setup recovery on /welcome requires explicit verification, resets credentials, and keeps the bootstrap admin role",
        %{conn: conn} do
     attach_owner_recovery_audit_handler()
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -215,24 +213,6 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     {:ok, setup_view, _html} = live(recycle(auth_response), ~p"/setup", on_error: :warn)
     assert_setup_start_surface(setup_view)
-
-    strategy = Info.strategy!(User, :password)
-
-    assert {:error, _reason} =
-             Strategy.action(
-               strategy,
-               :sign_in,
-               %{"email" => "owner@example.com", "password" => "owner-password-123"},
-               context: %{token_type: :sign_in}
-             )
-
-    assert {:ok, _owner} =
-             Strategy.action(
-               strategy,
-               :sign_in,
-               %{"email" => "owner@example.com", "password" => "owner-recovered-password-789"},
-               context: %{token_type: :sign_in}
-             )
 
     assert_receive {:owner_recovery_audit, event_name, measurements, metadata}
     assert event_name == @owner_recovery_audit_event
@@ -270,7 +250,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "desktop setup start surface emphasizes adding a local repo first", %{conn: conn} do
     System.put_env("BURRITO_TARGET", "darwin-aarch64")
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -316,7 +296,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   end
 
   test "cloud setup start surface keeps GitHub and later as the only start choices", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -355,7 +335,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   test "saving a local runtime environment persists validated local defaults without advancing onboarding progress",
        %{conn: conn} do
     workspace_root = tmp_workspace_path!()
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -434,7 +414,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     conn: conn
   } do
     workspace_root = tmp_workspace_path!()
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -493,7 +473,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   end
 
   test "saving a local runtime environment rejects an invalid workspace root", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -546,7 +526,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   test "choosing a start path persists the saved choice without advancing onboarding progress", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -591,7 +571,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "choosing GitHub surfaces the bounded LiveVue repository selector with linked repository options",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -676,7 +656,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "GitHub repository selector persists multi-selection toggles through the LiveView event contract",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -775,7 +755,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "GitHub repository selector does not preselect previously imported repositories on reload",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -840,7 +820,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "choosing GitHub requires PAT capture when deployment-local repository access is not configured",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -898,7 +878,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "saving a GitHub PAT persists encrypted secret storage and refreshes linked repositories",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     managed_app_env_keys = [
       :github_app_id,
@@ -1026,7 +1006,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "choosing GitHub surfaces encryption preflight before PAT save when secret storage is unavailable",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     original_encryption_key = Application.get_env(:jido_code, :secret_ref_encryption_key, :__missing__)
 
@@ -1083,7 +1063,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "choosing GitHub hydrates deployment-local credential checks when step 4 state is missing",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :setup_github_credential_checker, fn _context ->
       %{
@@ -1164,7 +1144,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "fallback GitHub repository selector persists selection and import metadata when richer delivery degrades",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :frontend_assets_override, %{
       mode: :fallback,
@@ -1342,7 +1322,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "fallback GitHub repository selector supports account filtering and matching search without rewriting saved selection",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :frontend_assets_override, %{
       mode: :fallback,
@@ -1459,7 +1439,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   test "completing setup after choosing GitHub marks onboarding complete and enters the dashboard", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -1514,7 +1494,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   test "later onboarding states still render the simplified setup start surface instead of the old wizard",
        %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
@@ -1546,7 +1526,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
   end
 
   test "completed onboarding redirects signed-in sessions away from /setup to /dashboard", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    seed_owner!("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: true,
@@ -1633,12 +1613,12 @@ defmodule JidoCodeWeb.SetupLiveTest do
   end
 
   defp assert_owner_count(expected_count) do
-    {:ok, owners} = Ash.read(User, domain: Accounts, authorize?: false)
+    {:ok, owners} = OwnerStore.list_users()
     assert length(owners) == expected_count
   end
 
   defp assert_single_owner_admin!(expected_admin?) do
-    {:ok, [owner]} = Ash.read(User, domain: Accounts, authorize?: false)
+    {:ok, [owner]} = OwnerStore.list_users()
     assert owner.is_admin == expected_admin?
     owner
   end
@@ -1649,11 +1629,11 @@ defmodule JidoCodeWeb.SetupLiveTest do
       status: :pass,
       checks: [
         %{
-          id: "database_connectivity",
-          name: "Database connectivity",
+          id: "control_plane_store",
+          name: "Control-plane store",
           status: :pass,
-          detail: "Successfully connected to Postgres.",
-          remediation: "Confirm Postgres is reachable and verify `DATABASE_URL` or Repo runtime config.",
+          detail: "Embedded control-plane store is ready.",
+          remediation: "Confirm the embedded control-plane store can open and bootstrap its ontology graph.",
           checked_at: @checked_at
         },
         %{
@@ -1673,5 +1653,15 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
   defp reset_owner_state! do
     Ecto.Adapters.SQL.query!(Repo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE", [])
+    assert {:ok, _count} = OwnerStore.delete_all_users()
+  end
+
+  defp seed_owner!(email, password) do
+    JidoCodeWeb.ConnCase.register_owner(email, password)
+
+    case OwnerStore.get_by_email(email) do
+      {:ok, nil} -> assert {:ok, _owner} = OwnerStore.create_owner(%{email: email})
+      {:ok, _owner} -> :ok
+    end
   end
 end

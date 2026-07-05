@@ -3,7 +3,7 @@ defmodule JidoCode.Setup.PrerequisiteChecks do
   Validates setup prerequisites before step 1 can advance.
   """
 
-  alias JidoCode.Repo
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCodeWeb.Endpoint
 
   @default_timeout_ms 3_000
@@ -122,18 +122,24 @@ defmodule JidoCode.Setup.PrerequisiteChecks do
     checks =
       [
         run_check(
-          "database_connectivity",
-          "Database connectivity",
-          "Confirm Postgres is reachable and verify `DATABASE_URL` or Repo runtime config.",
+          "control_plane_store",
+          "Control-plane store",
+          "Confirm the embedded control-plane store can open and bootstrap its ontology graph.",
           checked_at,
           timeout_ms,
           fn ->
-            case Ecto.Adapters.SQL.query(Repo, "SELECT 1", [], timeout: timeout_ms) do
-              {:ok, _query_result} ->
-                {:ok, "Successfully connected to Postgres."}
+            case StoreServer.health(StoreServer) do
+              %{ready?: true, ontology_bootstrap: %{state: :ready}} ->
+                {:ok, "Embedded control-plane store is ready."}
 
-              {:error, reason} ->
-                {:error, "Failed to connect to Postgres: #{inspect(reason)}"}
+              %{ready?: true, ontology_bootstrap: bootstrap} ->
+                {:error, "Control-plane ontology bootstrap is not ready: #{inspect(bootstrap)}"}
+
+              health when is_map(health) ->
+                {:error, "Control-plane store is not ready: #{inspect(health)}"}
+
+              other ->
+                {:error, "Control-plane store returned an unexpected health result: #{inspect(other)}"}
             end
           end
         )
@@ -310,7 +316,8 @@ defmodule JidoCode.Setup.PrerequisiteChecks do
           name: "Prerequisite checker",
           status: :timeout,
           detail: "Prerequisite checks timed out after #{timeout_ms}ms.",
-          remediation: "Retry setup. If the check still hangs, inspect the prerequisite checker configuration and runtime dependencies.",
+          remediation:
+            "Retry setup. If the check still hangs, inspect the prerequisite checker configuration and runtime dependencies.",
           checked_at: checked_at
         }
       ]

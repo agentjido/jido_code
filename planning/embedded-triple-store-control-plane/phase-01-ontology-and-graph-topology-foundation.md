@@ -36,25 +36,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section defines deterministic IRIs so resources can be written, replaced, linked, and queried without database surrogate assumptions.
 
-- [ ] 1.2 Section - Canonical IRI rules.
+- [x] 1.2 Section - Canonical IRI rules.
 
   Description: Use stable product IRIs based on resource class and record id, with explicit rules for natural identities.
 
-  - [ ] 1.2.1 Task - Define IRI templates for every record class.
+  - [x] 1.2.1 Task - Define IRI templates for every record class.
 
     Description: Each class needs one canonical subject IRI template and any alternate lookup keys must be modeled as predicates.
 
-    - [ ] 1.2.1.1 Subtask - Define templates under `https://jido.run/control/...` for product-owned records.
-    - [ ] 1.2.1.2 Subtask - Define repo-scoped templates for records whose identity is local to a managed repository.
-    - [ ] 1.2.1.3 Subtask - Define external-object templates that preserve provider, host, object type, and external id.
+    - [x] 1.2.1.1 Subtask - Define templates under `https://jido.run/control/...` for product-owned records.
+    - [x] 1.2.1.2 Subtask - Define repo-scoped templates for records whose identity is local to a managed repository.
+    - [x] 1.2.1.3 Subtask - Define external-object templates that preserve provider, host, object type, and external id.
 
-  - [ ] 1.2.2 Task - Define identity and uniqueness contracts.
+  - [x] 1.2.2 Task - Define identity and uniqueness contracts.
 
     Description: Ash identities must become explicit semantic uniqueness rules enforced by store code.
 
-    - [ ] 1.2.2.1 Subtask - Inventory current identity constraints and map each to an IRI template or uniqueness query.
-    - [ ] 1.2.2.2 Subtask - Define conflict errors for duplicate natural identities.
-    - [ ] 1.2.2.3 Subtask - Define idempotent upsert semantics for singleton, projection, and external-object records.
+    - [x] 1.2.2.1 Subtask - Inventory current identity constraints and map each to an IRI template or uniqueness query.
+    - [x] 1.2.2.2 Subtask - Define conflict errors for duplicate natural identities.
+    - [x] 1.2.2.3 Subtask - Define idempotent upsert semantics for singleton, projection, and external-object records.
 
 ## 1.3 Section - Named Graph Topology
 

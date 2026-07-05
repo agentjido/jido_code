@@ -12,25 +12,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section adds the operational tools needed to trust the embedded store.
 
-- [ ] 8.1 Section - Integrity and recovery tooling.
+- [x] 8.1 Section - Integrity and recovery tooling.
 
   Description: Operators and contributors need explicit ways to validate, inspect, reset, back up, and restore the control-plane store.
 
-  - [ ] 8.1.1 Task - Add integrity checks.
+  - [x] 8.1.1 Task - Add integrity checks.
 
     Description: Integrity checks should verify graph presence, ontology version, required singleton records, identity uniqueness, and dangling links.
 
-    - [ ] 8.1.1.1 Subtask - Check required named graphs and ontology bootstrap triples.
-    - [ ] 8.1.1.2 Subtask - Check uniqueness identities for every codec registry entry.
-    - [ ] 8.1.1.3 Subtask - Check object links for missing target subjects where targets should exist.
+    - [x] 8.1.1.1 Subtask - Check required named graphs and ontology bootstrap triples.
+    - [x] 8.1.1.2 Subtask - Check uniqueness identities for every codec registry entry.
+    - [x] 8.1.1.3 Subtask - Check object links for missing target subjects where targets should exist.
 
-  - [ ] 8.1.2 Task - Add backup, restore, and reset commands.
+  - [x] 8.1.2 Task - Add backup, restore, and reset commands.
 
     Description: Embedded storage needs first-class lifecycle commands instead of database-specific procedures.
 
-    - [ ] 8.1.2.1 Subtask - Add export to TriG or N-Quads with redaction rules for auth and security graphs.
-    - [ ] 8.1.2.2 Subtask - Add restore from exported graph files with ontology and version checks.
-    - [ ] 8.1.2.3 Subtask - Add dev/test reset commands that clear control-plane graphs and reload ontologies.
+    - [x] 8.1.2.1 Subtask - Add export to TriG or N-Quads with redaction rules for auth and security graphs.
+    - [x] 8.1.2.2 Subtask - Add restore from exported graph files with ontology and version checks.
+    - [x] 8.1.2.3 Subtask - Add dev/test reset commands that clear control-plane graphs and reload ontologies.
 
 ## 8.2 Section - Observability And Diagnostics
 

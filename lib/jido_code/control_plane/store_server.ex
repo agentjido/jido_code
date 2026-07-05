@@ -1,7 +1,7 @@
 defmodule JidoCode.ControlPlane.StoreServer do
   use GenServer
 
-  alias JidoCode.ControlPlane.{GraphTopology, StoreConfig}
+  alias JidoCode.ControlPlane.{GraphTopology, Recovery, StoreConfig}
   alias JidoCode.MemoryGraph
 
   @type health :: %{
@@ -37,6 +37,32 @@ defmodule JidoCode.ControlPlane.StoreServer do
 
   @spec reset(GenServer.server()) :: {:ok, health()} | {:error, term()}
   def reset(server \\ __MODULE__), do: GenServer.call(server, :reset, :infinity)
+
+  @spec export(Path.t()) :: {:ok, Recovery.export_report()} | {:error, term()}
+  def export(path) when is_binary(path), do: export(__MODULE__, path, [])
+
+  @spec export(Path.t(), keyword()) :: {:ok, Recovery.export_report()} | {:error, term()}
+  def export(path, opts) when is_binary(path) and is_list(opts), do: export(__MODULE__, path, opts)
+
+  @spec export(GenServer.server(), Path.t()) :: {:ok, Recovery.export_report()} | {:error, term()}
+  def export(server, path) when is_binary(path), do: export(server, path, [])
+
+  @spec export(GenServer.server(), Path.t(), keyword()) :: {:ok, Recovery.export_report()} | {:error, term()}
+  def export(server, path, opts) when is_binary(path) and is_list(opts),
+    do: GenServer.call(server, {:export, path, opts}, :infinity)
+
+  @spec restore(Path.t()) :: {:ok, Recovery.restore_report()} | {:error, term()}
+  def restore(path) when is_binary(path), do: restore(__MODULE__, path, [])
+
+  @spec restore(Path.t(), keyword()) :: {:ok, Recovery.restore_report()} | {:error, term()}
+  def restore(path, opts) when is_binary(path) and is_list(opts), do: restore(__MODULE__, path, opts)
+
+  @spec restore(GenServer.server(), Path.t()) :: {:ok, Recovery.restore_report()} | {:error, term()}
+  def restore(server, path) when is_binary(path), do: restore(server, path, [])
+
+  @spec restore(GenServer.server(), Path.t(), keyword()) :: {:ok, Recovery.restore_report()} | {:error, term()}
+  def restore(server, path, opts) when is_binary(path) and is_list(opts),
+    do: GenServer.call(server, {:restore, path, opts}, :infinity)
 
   @spec with_store(GenServer.server(), (map() -> term())) :: {:ok, term()} | {:error, term()}
   def with_store(server \\ __MODULE__, fun) when is_function(fun, 1) do
@@ -84,6 +110,51 @@ defmodule JidoCode.ControlPlane.StoreServer do
       {:error, reason} ->
         {:reply, {:error, reason},
          %{state | store: nil, ontology_bootstrap: %{state: :failed, reason: inspect(reason)}}}
+    end
+  end
+
+  def handle_call({:export, _path, _opts}, _from, %{store: nil} = state) do
+    {:reply, {:error, :store_unavailable}, state}
+  end
+
+  def handle_call({:export, path, opts}, _from, state) do
+    {:reply, Recovery.export_store(state.store, path, opts), state}
+  end
+
+  def handle_call({:restore, path, opts}, _from, state) do
+    close_store(state.store)
+
+    restore_result =
+      try do
+        Recovery.restore_store_path(path, state.path, opts)
+      rescue
+        exception -> {:error, {exception.__struct__, Exception.message(exception)}}
+      catch
+        kind, reason -> {:error, {kind, reason}}
+      end
+
+    case open_bootstrapped_store(state.path, :bootstrap_if_empty, state.open_timeout_ms) do
+      {:ok, store, bootstrap} ->
+        next_state = %{state | store: store, ontology_bootstrap: bootstrap}
+
+        reply =
+          case restore_result do
+            {:ok, report} -> {:ok, Map.put(report, :health, health_from_state(next_state))}
+            {:error, reason} -> {:error, reason}
+          end
+
+        {:reply, reply, next_state}
+
+      {:error, reopen_reason} ->
+        next_state = %{state | store: nil, ontology_bootstrap: %{state: :failed, reason: inspect(reopen_reason)}}
+
+        reply =
+          case restore_result do
+            {:ok, _report} -> {:error, {:restore_reopen_failed, reopen_reason}}
+            {:error, reason} -> {:error, {:restore_failed_and_reopen_failed, reason, reopen_reason}}
+          end
+
+        {:reply, reply, next_state}
     end
   end
 

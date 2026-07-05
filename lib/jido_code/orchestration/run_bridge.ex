@@ -132,7 +132,8 @@ defmodule JidoCode.Orchestration.RunBridge do
     {:ok,
      %{
        run_id: run_id,
-       project_id: managed_repo.legacy_project_id,
+       managed_repo_id: managed_repo.id,
+       project_id: managed_repo.legacy_project_id || managed_repo.id,
        workflow_name: workflow_name,
        workflow_version: workflow_version,
        trigger: %{

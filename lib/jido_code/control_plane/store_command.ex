@@ -205,8 +205,9 @@ defmodule JidoCode.ControlPlane.StoreCommand do
   defp assert_identity_available(store, graph_resource, subject, identity) when is_map(identity) do
     with {:ok, predicate} <- identity_predicate(identity),
          {:ok, value} <- identity_value(identity),
-         {:ok, subjects} <- subjects_for_identity(store, graph_resource, predicate, value) do
-      conflicting_subjects = Enum.reject(subjects, &(to_string(&1) == to_string(subject)))
+         {:ok, subjects} <- subjects_for_identity(store, graph_resource, predicate, value),
+         {:ok, identity_subjects} <- filter_identity_subjects(store, graph_resource, identity, subjects) do
+      conflicting_subjects = Enum.reject(identity_subjects, &(to_string(&1) == to_string(subject)))
 
       case conflicting_subjects do
         [] -> :ok
@@ -216,6 +217,23 @@ defmodule JidoCode.ControlPlane.StoreCommand do
   end
 
   defp assert_identity_available(_store, _graph_resource, _subject, _identity), do: {:error, :invalid_identity}
+
+  defp filter_identity_subjects(store, graph_resource, identity, subjects) do
+    case identity_class_iri(identity) do
+      nil ->
+        {:ok, subjects}
+
+      class_iri ->
+        {:ok, Enum.filter(subjects, &subject_has_class?(store, graph_resource, &1, class_iri))}
+    end
+  end
+
+  defp subject_has_class?(store, graph_resource, subject, class_iri) do
+    case objects_for(store, graph_resource, subject, RDF.type()) do
+      {:ok, class_terms} -> Enum.any?(class_terms, &(to_string(&1) == to_string(class_iri)))
+      {:error, _reason} -> false
+    end
+  end
 
   defp subjects_for_identity(store, graph_resource, predicate, object) do
     with {:ok, graph_id} <- lookup_id(store, graph_resource),
@@ -315,6 +333,14 @@ defmodule JidoCode.ControlPlane.StoreCommand do
   end
 
   defp identity_name(identity), do: get_attr(identity, :identity, :identity)
+
+  defp identity_class_iri(identity) do
+    case get_attr(identity, :class_iri) do
+      %RDF.IRI{} = iri -> iri
+      value when is_binary(value) and value != "" -> RDF.iri(value)
+      _other -> nil
+    end
+  end
 
   defp comparable_term(%RDF.Literal{} = term) do
     case RDF.Literal.value(term) do

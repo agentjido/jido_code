@@ -261,10 +261,16 @@ defmodule JidoCode.ControlPlane.EmbeddedStore do
     end
   end
 
-  defp identity_for_command(%{identity_queries: [identity | _rest]}) do
+  defp identity_for_command(%{identity_queries: [identity | _rest]} = encoded) do
     case identity do
       %{predicate: predicate, value: value} when not is_nil(value) ->
-        {:ok, %{identity: identity.identity, predicate_iri: control_iri(predicate), value: value}}
+        {:ok,
+         %{
+           identity: identity.identity,
+           predicate_iri: control_iri(predicate),
+           value: value,
+           class_iri: Map.get(identity, :class_iri) || Map.get(encoded, :class_iri)
+         }}
 
       _other ->
         {:error, :missing_identity}

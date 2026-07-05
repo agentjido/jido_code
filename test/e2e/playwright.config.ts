@@ -22,7 +22,7 @@ export default defineConfig({
     channel: "chrome",
   },
   webServer: {
-    command: `bash -lc 'export MIX_ENV=test; mix ecto.create --quiet >/dev/null 2>&1 || true; mix ecto.migrate --quiet; PHX_SERVER=true PORT=${port} mix run --no-halt test/e2e/browser_server.exs'`,
+    command: `bash -lc 'export MIX_ENV=test; PHX_SERVER=true PORT=${port} mix run --no-halt test/e2e/browser_server.exs'`,
     cwd: repoRoot,
     url: `${baseURL}/welcome`,
     reuseExistingServer: false,

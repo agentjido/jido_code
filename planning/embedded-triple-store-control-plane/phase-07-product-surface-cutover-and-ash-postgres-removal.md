@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase cuts product callers over to TripleStore-backed services and removes Ash/Postgres from the runtime. Because the project is greenfield, this phase removes the old data plane instead of keeping compatibility shims.
 
-- [ ] 7 Phase - Product surface cutover and Ash/Postgres removal.
+- [x] 7 Phase - Product surface cutover and Ash/Postgres removal.
 
   Description: Finish the replacement by deleting direct Ash/Ecto dependencies from runtime paths, tests, config, and generated artifacts.
 
@@ -86,22 +86,22 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves the application runs without Ash/Postgres installed or configured.
 
-- [ ] 7.4 Section - Integration tests.
+- [x] 7.4 Section - Integration tests.
 
   Description: The decisive acceptance test is a compile and runtime boot where no product path references Ash or Ecto.
 
-  - [ ] 7.4.1 Task - Add removal gate coverage.
+  - [x] 7.4.1 Task - Add removal gate coverage.
 
     Description: Static and compile gates should fail if Ash/Postgres dependencies reappear.
 
-    - [ ] 7.4.1.1 Subtask - Add a check that rejects `use Ash.Resource`, `use Ash.Domain`, `JidoCode.Repo`, and `Ecto.Adapters.SQL.Sandbox` in runtime paths.
-    - [ ] 7.4.1.2 Subtask - Add a dependency check that rejects Ash/Postgres packages after removal.
-    - [ ] 7.4.1.3 Subtask - Add a config check that rejects `ecto_repos` and repo config.
+    - [x] 7.4.1.1 Subtask - Add a check that rejects `use Ash.Resource`, `use Ash.Domain`, `JidoCode.Repo`, and `Ecto.Adapters.SQL.Sandbox` in runtime paths.
+    - [x] 7.4.1.2 Subtask - Add a dependency check that rejects Ash/Postgres packages after removal.
+    - [x] 7.4.1.3 Subtask - Add a config check that rejects `ecto_repos` and repo config.
 
-  - [ ] 7.4.2 Task - Add end-to-end smoke coverage.
+  - [x] 7.4.2 Task - Add end-to-end smoke coverage.
 
     Description: Smoke tests should prove the product can bootstrap, sign in, import a repo, open work, and run a conversation using only embedded storage.
 
-    - [ ] 7.4.2.1 Subtask - Run setup bootstrap and sign-in through the web surface.
-    - [ ] 7.4.2.2 Subtask - Import or create a managed repo, synthesize work, launch a governed run, and record evidence.
-    - [ ] 7.4.2.3 Subtask - Open a work-item conversation and verify event replay after application restart.
+    - [x] 7.4.2.1 Subtask - Run setup bootstrap and sign-in through the web surface.
+    - [x] 7.4.2.2 Subtask - Import or create a managed repo, synthesize work, launch a governed run, and record evidence.
+    - [x] 7.4.2.3 Subtask - Open a work-item conversation and verify event replay after application restart.

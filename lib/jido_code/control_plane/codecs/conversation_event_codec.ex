@@ -1,6 +1,6 @@
-defmodule JidoCode.ControlPlane.Codecs.ConversationCodec do
+defmodule JidoCode.ControlPlane.Codecs.ConversationEventCodec do
   @moduledoc """
-  RDF projection codec for conversation records.
+  RDF projection codec for append-only conversation event records.
   """
 
   @behaviour JidoCode.ControlPlane.Codecs.Codec
@@ -8,22 +8,23 @@ defmodule JidoCode.ControlPlane.Codecs.ConversationCodec do
   alias JidoCode.ControlPlane.Codecs.MapRecord
   alias JidoCode.ControlPlane.SemanticIdentity
 
-  @record_type :conversation
+  @record_type :conversation_event
   @field_mappings %{
     managed_repo_id: "managedRepoId",
+    conversation_event_id: "conversationEventId",
     conversation_id: "conversationId",
     work_item_id: "workItemId",
-    status: "recordStatus",
-    scope: "conversationScope",
-    attachment_mode: "attachmentMode",
-    source: "source",
-    title: "title",
-    objective: "objective",
-    initiating_actor: "initiatingActorJson",
-    source_metadata: "sourceMetadataJson",
-    conversation_metadata: "conversationMetadataJson",
-    started_at: "startedAt",
-    last_activity_at: "lastActivityAt",
+    source_key: "conversationEventSourceKey",
+    sequence: "sequence",
+    name: "eventName",
+    actor: "actorJson",
+    message_id: "messageId",
+    turn_id: "turnId",
+    child_work_id: "childWorkId",
+    tool_call_id: "toolCallId",
+    correlation: "correlationJson",
+    payload: "payloadJson",
+    occurred_at: "occurredAt",
     inserted_at: "insertedAt",
     updated_at: "updatedAt",
     metadata: "metadataJson"
@@ -39,7 +40,7 @@ defmodule JidoCode.ControlPlane.Codecs.ConversationCodec do
   def class_iri, do: SemanticIdentity.class_iri(@record_type)
   @impl true
   def subject_iri(record),
-    do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :conversation_id)
+    do: MapRecord.subject_iri(@record_type, normalized_record(record), id_field: :conversation_event_id)
 
   @impl true
   def identity_queries(record) do
@@ -47,9 +48,9 @@ defmodule JidoCode.ControlPlane.Codecs.ConversationCodec do
 
     [
       %{
-        identity: :unique_conversation_id,
-        predicate: "conversationId",
-        value: value_for(record, :conversation_id)
+        identity: :unique_conversation_sequence,
+        predicate: "conversationEventSourceKey",
+        value: value_for(record, :source_key)
       }
     ]
   end
@@ -67,7 +68,20 @@ defmodule JidoCode.ControlPlane.Codecs.ConversationCodec do
   def decode(projection), do: MapRecord.decode(@record_type, projection, @field_mappings)
 
   defp normalized_record(record) do
-    Map.put_new(record, :conversation_id, value_for(record, :conversation_id) || value_for(record, :id))
+    record
+    |> Map.put_new(:conversation_event_id, value_for(record, :conversation_event_id) || value_for(record, :id))
+    |> Map.put_new(:source_key, source_key(record))
+  end
+
+  defp source_key(record) do
+    value_for(record, :source_key) ||
+      [value_for(record, :conversation_id), value_for(record, :sequence)]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(":")
+      |> case do
+        "" -> nil
+        value -> value
+      end
   end
 
   defp value_for(record, key), do: Map.get(record, key) || Map.get(record, to_string(key))

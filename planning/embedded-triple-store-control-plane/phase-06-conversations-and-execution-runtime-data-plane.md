@@ -12,25 +12,27 @@ Back to plan: [README](./README.md)
 
 **Description:** This section replaces conversation record, event, and snapshot storage.
 
-- [ ] 6.1 Section - Conversation persistence.
+- [x] 6.1 Section - Conversation persistence.
 
   Description: Conversation runtime should continue to use a product-owned persistence boundary, now backed by named graph writes.
 
-  - [ ] 6.1.1 Task - Implement conversation codecs and services.
+  - [x] 6.1.1 Task - Implement conversation codecs and services.
 
     Description: Conversation identity, work-item attachment, event sequencing, and snapshot projection need semantic persistence.
 
-    - [ ] 6.1.1.1 Subtask - Implement codecs for conversation, conversation event, and conversation snapshot records.
-    - [ ] 6.1.1.2 Subtask - Rewire `JidoCode.Conversations.Persistence` to the product store.
-    - [ ] 6.1.1.3 Subtask - Preserve active conversation uniqueness per work item.
+    - [x] 6.1.1.1 Subtask - Implement codecs for conversation, conversation event, and conversation snapshot records.
+    - [x] 6.1.1.2 Subtask - Rewire `JidoCode.Conversations.Persistence` to the product store.
+    - [x] 6.1.1.3 Subtask - Preserve active conversation uniqueness per work item.
 
-  - [ ] 6.1.2 Task - Implement append-only event sequencing.
+  - [x] 6.1.2 Task - Implement append-only event sequencing.
 
     Description: Conversation event writes need deterministic sequence behavior without database locks.
 
-    - [ ] 6.1.2.1 Subtask - Add sequence allocation through a store command or per-conversation counter subject.
-    - [ ] 6.1.2.2 Subtask - Preserve reconnect, replay, and snapshot recovery semantics.
-    - [ ] 6.1.2.3 Subtask - Preserve context reset and compaction marker projection behavior.
+    - [x] 6.1.2.1 Subtask - Add sequence allocation through a store command or per-conversation counter subject.
+    - [x] 6.1.2.2 Subtask - Preserve reconnect, replay, and snapshot recovery semantics.
+    - [x] 6.1.2.3 Subtask - Preserve context reset and compaction marker projection behavior.
+
+    Section verification: `mix test test/jido_code/conversations_test.exs test/jido_code/conversations/embedded_store_persistence_test.exs test/jido_code/conversations_context_compaction_test.exs` proves conversation lifecycle, active work-item uniqueness, event sequencing, snapshot recovery, and compaction-marker replay through isolated embedded product stores.
 
 ## 6.2 Section - Execution Runtime Disposition And Persistence
 

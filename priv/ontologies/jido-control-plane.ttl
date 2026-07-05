@@ -577,6 +577,144 @@ jcp:conversationSnapshotId a owl:DatatypeProperty ;
     rdfs:domain jcp:ConversationSnapshot ;
     rdfs:range xsd:string .
 
+jcp:conversationEventSourceKey a owl:DatatypeProperty ;
+    rdfs:label "conversation event source key" ;
+    rdfs:comment "Stable conversation-local lookup key for append-only event records." ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:conversationSnapshotSourceKey a owl:DatatypeProperty ;
+    rdfs:label "conversation snapshot source key" ;
+    rdfs:comment "Stable conversation lookup key for the current materialized snapshot." ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:conversationScope a owl:DatatypeProperty ;
+    rdfs:label "conversation scope" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range xsd:string .
+
+jcp:attachmentMode a owl:DatatypeProperty ;
+    rdfs:label "attachment mode" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range xsd:string .
+
+jcp:objective a owl:DatatypeProperty ;
+    rdfs:label "objective" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range xsd:string .
+
+jcp:conversationMetadataJson a owl:DatatypeProperty ;
+    rdfs:label "conversation metadata JSON" ;
+    rdfs:comment "Bounded serialized conversation metadata, including work-resolution and steering summaries." ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range xsd:string .
+
+jcp:lastActivityAt a owl:DatatypeProperty ;
+    rdfs:label "last activity at" ;
+    rdfs:domain jcp:Conversation ;
+    rdfs:range xsd:dateTime .
+
+jcp:sequence a owl:DatatypeProperty ;
+    rdfs:label "sequence" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:integer .
+
+jcp:eventName a owl:DatatypeProperty ;
+    rdfs:label "event name" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:messageId a owl:DatatypeProperty ;
+    rdfs:label "message id" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:turnId a owl:DatatypeProperty ;
+    rdfs:label "turn id" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:childWorkId a owl:DatatypeProperty ;
+    rdfs:label "child work id" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:toolCallId a owl:DatatypeProperty ;
+    rdfs:label "tool call id" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:correlationJson a owl:DatatypeProperty ;
+    rdfs:label "correlation JSON" ;
+    rdfs:domain jcp:ConversationEvent ;
+    rdfs:range xsd:string .
+
+jcp:admissionPaused a owl:DatatypeProperty ;
+    rdfs:label "admission paused" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:boolean .
+
+jcp:childExecutionPaused a owl:DatatypeProperty ;
+    rdfs:label "child execution paused" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:boolean .
+
+jcp:activeTurnId a owl:DatatypeProperty ;
+    rdfs:label "active turn id" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:activeChildWorkId a owl:DatatypeProperty ;
+    rdfs:label "active child work id" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:queuedTurnIdsJson a owl:DatatypeProperty ;
+    rdfs:label "queued turn ids JSON" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:turnsJson a owl:DatatypeProperty ;
+    rdfs:label "turns JSON" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:childWorksJson a owl:DatatypeProperty ;
+    rdfs:label "child works JSON" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:controlHistoryJson a owl:DatatypeProperty ;
+    rdfs:label "control history JSON" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:lastEventSequence a owl:DatatypeProperty ;
+    rdfs:label "last event sequence" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:integer .
+
+jcp:eventCount a owl:DatatypeProperty ;
+    rdfs:label "event count" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:integer .
+
+jcp:eventsJson a owl:DatatypeProperty ;
+    rdfs:label "events JSON" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:sharedContextJson a owl:DatatypeProperty ;
+    rdfs:label "shared context JSON" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:string .
+
+jcp:capturedAt a owl:DatatypeProperty ;
+    rdfs:label "captured at" ;
+    rdfs:domain jcp:ConversationSnapshot ;
+    rdfs:range xsd:dateTime .
+
 jcp:executionWorkflowId a owl:DatatypeProperty ;
     rdfs:label "execution workflow id" ;
     rdfs:domain jcp:ExecutionWorkflow ;
@@ -1273,8 +1411,8 @@ jcp:decisionOutcome a owl:DatatypeProperty ;
 
 jcp:actorJson a owl:DatatypeProperty ;
     rdfs:label "actor JSON" ;
-    rdfs:comment "Bounded actor attribution for governed decisions." ;
-    rdfs:domain jcp:Decision ;
+    rdfs:comment "Bounded actor attribution for governed decisions and conversation events." ;
+    rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
 jcp:decisionMetadataJson a owl:DatatypeProperty ;

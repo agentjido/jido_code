@@ -2,10 +2,14 @@ defmodule JidoCode.Workbench.ProjectConversationTest do
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{Actor, RepoBridge}
+  alias JidoCode.ControlPlane.StoreServer
   alias JidoCode.Operations.Ingress
-  alias JidoCode.Projects.Project
   alias JidoCode.Workbench.ProjectConversation
+
+  setup do
+    setup_product_store()
+  end
 
   test "managed-repo projection keeps repo intake separate from productive work-item conversations" do
     managed_repo = managed_repo_fixture!("repo-intake-separation")
@@ -131,16 +135,13 @@ defmodule JidoCode.Workbench.ProjectConversationTest do
   end
 
   defp managed_repo_fixture!(suffix) do
-    {:ok, project} =
-      Project.create(%{
+    {:ok, %{managed_repo: managed_repo}} =
+      RepoBridge.upsert_managed_repo(%{
         name: "project-conversation-#{suffix}",
-        github_full_name: "owner/project-conversation-#{suffix}",
+        full_name: "owner/project-conversation-#{suffix}",
         default_branch: "main",
         settings: %{}
       })
-
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     managed_repo
   end
@@ -163,4 +164,24 @@ defmodule JidoCode.Workbench.ProjectConversationTest do
 
     work_item
   end
+
+  defp setup_product_store do
+    store_name = :"project_conversation_test_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_project_conversation_test_store/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

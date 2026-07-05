@@ -737,8 +737,8 @@ jcp:defaultBranch a owl:DatatypeProperty ;
 
 jcp:sourceMetadataJson a owl:DatatypeProperty ;
     rdfs:label "source metadata JSON" ;
-    rdfs:comment "Bounded provider metadata for a source repository; credentials and webhook secrets must not be projected here." ;
-    rdfs:domain jcp:SourceRepo ;
+    rdfs:comment "Bounded provider, ingestion, or source metadata for governed records; credentials and webhook secrets must not be projected here." ;
+    rdfs:domain jcp:GovernedRecord ;
     rdfs:range xsd:string .
 
 jcp:credentialSource a owl:DatatypeProperty ;
@@ -913,4 +913,124 @@ jcp:priority a owl:DatatypeProperty ;
 
 jcp:occurredAt a owl:DatatypeProperty ;
     rdfs:label "occurred at" ;
+    rdfs:range xsd:dateTime .
+
+jcp:channel a owl:DatatypeProperty ;
+    rdfs:label "channel" ;
+    rdfs:domain jcp:Intake ;
+    rdfs:range xsd:string .
+
+jcp:intent a owl:DatatypeProperty ;
+    rdfs:label "intent" ;
+    rdfs:domain jcp:Intake ;
+    rdfs:range xsd:string .
+
+jcp:requestedByJson a owl:DatatypeProperty ;
+    rdfs:label "requested by JSON" ;
+    rdfs:comment "Bounded actor attribution for trusted intake records." ;
+    rdfs:domain jcp:Intake ;
+    rdfs:range xsd:string .
+
+jcp:receivedAt a owl:DatatypeProperty ;
+    rdfs:label "received at" ;
+    rdfs:domain jcp:Intake ;
+    rdfs:range xsd:dateTime .
+
+jcp:objectType a owl:DatatypeProperty ;
+    rdfs:label "object type" ;
+    rdfs:domain jcp:ExternalObject ;
+    rdfs:range xsd:string .
+
+jcp:url a owl:DatatypeProperty ;
+    rdfs:label "URL" ;
+    rdfs:domain jcp:ExternalObject ;
+    rdfs:range xsd:string .
+
+jcp:source a owl:DatatypeProperty ;
+    rdfs:label "source" ;
+    rdfs:domain jcp:Observation ;
+    rdfs:range xsd:string .
+
+jcp:category a owl:DatatypeProperty ;
+    rdfs:label "category" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:capturedByJson a owl:DatatypeProperty ;
+    rdfs:label "captured by JSON" ;
+    rdfs:comment "Bounded actor attribution for observations." ;
+    rdfs:domain jcp:Observation ;
+    rdfs:range xsd:string .
+
+jcp:observedAt a owl:DatatypeProperty ;
+    rdfs:label "observed at" ;
+    rdfs:domain jcp:Observation ;
+    rdfs:range xsd:dateTime .
+
+jcp:correlationKey a owl:DatatypeProperty ;
+    rdfs:label "correlation key" ;
+    rdfs:domain jcp:Event ;
+    rdfs:range xsd:string .
+
+jcp:urgency a owl:DatatypeProperty ;
+    rdfs:label "urgency" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range xsd:string .
+
+jcp:recommendedAction a owl:DatatypeProperty ;
+    rdfs:label "recommended action" ;
+    rdfs:domain jcp:GovernedRecord ;
+    rdfs:range xsd:string .
+
+jcp:rationale a owl:DatatypeProperty ;
+    rdfs:label "rationale" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range xsd:string .
+
+jcp:inputsJson a owl:DatatypeProperty ;
+    rdfs:label "inputs JSON" ;
+    rdfs:comment "Bounded serialized assessment inputs." ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range xsd:string .
+
+jcp:assessmentMetadataJson a owl:DatatypeProperty ;
+    rdfs:label "assessment metadata JSON" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range xsd:string .
+
+jcp:assessedAt a owl:DatatypeProperty ;
+    rdfs:label "assessed at" ;
+    rdfs:domain jcp:Assessment ;
+    rdfs:range xsd:dateTime .
+
+jcp:dedupKey a owl:DatatypeProperty ;
+    rdfs:label "dedup key" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range xsd:string .
+
+jcp:initiatingActorJson a owl:DatatypeProperty ;
+    rdfs:label "initiating actor JSON" ;
+    rdfs:comment "Bounded actor attribution for synthesized work." ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range xsd:string .
+
+jcp:workMetadataJson a owl:DatatypeProperty ;
+    rdfs:label "work metadata JSON" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range xsd:string .
+
+jcp:auditLogJson a owl:DatatypeProperty ;
+    rdfs:label "audit log JSON" ;
+    rdfs:comment "Bounded serialized work item audit history." ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range xsd:string .
+
+jcp:openedAt a owl:DatatypeProperty ;
+    rdfs:label "opened at" ;
+    rdfs:domain jcp:WorkItem ;
+    rdfs:range xsd:dateTime .
+
+jcp:lastAssessedAt a owl:DatatypeProperty ;
+    rdfs:label "last assessed at" ;
+    rdfs:domain jcp:WorkItem ;
     rdfs:range xsd:dateTime .

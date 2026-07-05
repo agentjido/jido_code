@@ -16,7 +16,7 @@ defmodule JidoCode.Operations.Ingress do
 
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Governance.PostureBridge
-  alias JidoCode.Operations.{ExternalObject, Intake, Observation, Synthesis}
+  alias JidoCode.Operations.{ExternalObject, Intake, Observation, RecordStore, Synthesis}
 
   @github_provider :github
   @github_issue_type :github_issue
@@ -48,7 +48,8 @@ defmodule JidoCode.Operations.Ingress do
     with {:ok, external_object} <-
            maybe_record_external_object(repo_context, payload, delivery, actor),
          {:ok, observation} <-
-           Observation.create(
+           RecordStore.create(
+             :observation,
              %{
                managed_repo_id: repo_context.managed_repo_id,
                external_object_id: external_object_id(external_object),
@@ -101,7 +102,8 @@ defmodule JidoCode.Operations.Ingress do
            |> maybe_put("requested_by_actor_id", map_get(actor, :id, "id"))
            |> maybe_put("requested_by_actor_email", map_get(actor, :email, "email")),
          {:ok, intake} <-
-           Intake.create(
+           RecordStore.create(
+             :intake,
              %{
                managed_repo_id:
                  resolve_managed_repo_id(
@@ -138,7 +140,7 @@ defmodule JidoCode.Operations.Ingress do
         {:ok, nil}
 
       attrs ->
-        ExternalObject.upsert_observed(attrs, actor: actor)
+        RecordStore.upsert_external_object(attrs, actor: actor)
     end
   end
 

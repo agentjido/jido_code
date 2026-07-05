@@ -6,9 +6,14 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
   # covers: architecture.repo_posture.repo_native_observations_capture_current_truth_signals
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Operations.{Ingress, Observation, RepoNativeState}
+  alias JidoCode.Control.RepoBridge
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Operations.{Ingress, RecordStore, RepoNativeState}
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "repo-native .spec and optional beadwork state are observed and fed back into assessment inputs" do
     workspace_path = create_workspace_path!()
@@ -30,23 +35,20 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
         }
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
-    assert {:ok, snapshot} = RepoNativeState.latest_signal_snapshot(managed_repo.id)
+    assert {:ok, %{signals: snapshot}} = RepoNativeState.sync_managed_repo(managed_repo)
     assert snapshot["spec_led"]["present"] == true
     assert snapshot["spec_led"]["status"] == "verified"
     assert snapshot["spec_led"]["verification_confidence"] == "high"
     assert snapshot["beadwork"]["present"] == false
 
     assert {:ok, [spec_observation]} =
-             Observation.read(
-               query: [
-                 filter: [managed_repo_id: managed_repo.id, source: "repo_native", category: "spec_led_state"],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:observation, %{
+               managed_repo_id: managed_repo.id,
+               source: "repo_native",
+               category: "spec_led_state"
+             })
 
     assert spec_observation.payload["spec_count"] == 2
     assert spec_observation.payload["threshold_failures"] == 0
@@ -151,4 +153,37 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
       """
     )
   end
+
+  defp seed_managed_repo!(project) do
+    {:ok, %{managed_repo: managed_repo}} =
+      RepoBridge.upsert_managed_repo(%{
+        name: project.name,
+        full_name: project.github_full_name,
+        default_branch: project.default_branch,
+        legacy_project_id: project.id,
+        settings: project.settings || %{}
+      })
+
+    managed_repo
+  end
+
+  defp setup_product_store do
+    store_name = :"operations_repo_native_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_operations_repo_native/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

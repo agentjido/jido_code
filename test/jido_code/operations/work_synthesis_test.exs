@@ -6,9 +6,14 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
   # covers: architecture.work_synthesis.work_item_auditability_preserved
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Operations.{Assessment, Event, Ingress, Intake, WorkItem, WorkSynthesis}
+  alias JidoCode.Control.{Actor, RepoBridge}
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Operations.{Ingress, RecordStore, WorkSynthesis}
   alias JidoCode.Projects.Project
+
+  setup do
+    setup_product_store()
+  end
 
   test "verified issue demand creates an open work item linked to initiating records" do
     {:ok, project} =
@@ -19,8 +24,7 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     delivery = %{
       delivery_id: "work-delivery-1",
@@ -72,10 +76,47 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
     assert work_item.work_metadata["assessment_category"] == assessment.category
     assert work_item.audit_log |> List.first() |> Map.fetch!("action") == "created"
 
-    assert {:ok, [persisted_work_item]} =
-             WorkItem.read(query: [filter: [id: work_item.id]], actor: Actor.operator_actor())
+    assert {:ok, persisted_work_item} = RecordStore.get(:work_item, work_item.id)
 
     assert persisted_work_item.id == work_item.id
+
+    assert {:ok, [repo_work_item]} = RecordStore.list_work_by_managed_repo(managed_repo.id)
+    assert {:ok, [external_work_item]} = RecordStore.list_work_by_external_object(external_object.id)
+    assert {:ok, [open_work_item]} = RecordStore.list_work_by_status(:open)
+    assert {:ok, [high_work_item]} = RecordStore.list_work_by_priority("high")
+
+    assert repo_work_item.id == work_item.id
+    assert external_work_item.id == work_item.id
+    assert open_work_item.id == work_item.id
+    assert high_work_item.id == work_item.id
+
+    assert {:ok, summary} = RecordStore.repository_monitoring_summary(managed_repo.id)
+    assert summary.status == :ready
+    assert summary.degraded? == false
+    assert summary.empty? == false
+    assert summary.open_work_count == 1
+    assert summary.status_counts == %{open: 1}
+    assert summary.priority_counts == %{high: 1}
+  end
+
+  test "repository monitoring summary returns an empty product state before work exists" do
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-empty-summary",
+        github_full_name: "owner/repo-empty-summary",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    managed_repo = seed_managed_repo!(project)
+
+    assert {:ok, summary} = RecordStore.repository_monitoring_summary(managed_repo.id)
+    assert summary.status == :ready
+    assert summary.degraded? == false
+    assert summary.empty? == true
+    assert summary.work_item_count == 0
+    assert summary.status_counts == %{}
+    assert summary.priority_counts == %{}
   end
 
   test "operator intake can stop at durable work creation without immediate execution" do
@@ -87,8 +128,7 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     assert {:ok,
             %{
@@ -136,11 +176,11 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     {:ok, intake} =
-      Intake.create(
+      RecordStore.create(
+        :intake,
         %{
           managed_repo_id: managed_repo.id,
           channel: "workbench",
@@ -185,7 +225,8 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
   end
 
   defp create_fix_event(managed_repo_id, intake_id, correlation_key) do
-    Event.create(
+    RecordStore.create(
+      :event,
       %{
         managed_repo_id: managed_repo_id,
         intake_id: intake_id,
@@ -201,7 +242,8 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
   end
 
   defp create_fix_assessment(managed_repo_id, event_id, priority) do
-    Assessment.create(
+    RecordStore.create(
+      :assessment,
       %{
         managed_repo_id: managed_repo_id,
         event_id: event_id,
@@ -218,4 +260,37 @@ defmodule JidoCode.Operations.WorkSynthesisTest do
       actor: Actor.factory_system_actor()
     )
   end
+
+  defp seed_managed_repo!(project) do
+    {:ok, %{managed_repo: managed_repo}} =
+      RepoBridge.upsert_managed_repo(%{
+        name: project.name,
+        full_name: project.github_full_name,
+        default_branch: project.default_branch,
+        legacy_project_id: project.id,
+        settings: project.settings || %{}
+      })
+
+    managed_repo
+  end
+
+  defp setup_product_store do
+    store_name = :"operations_work_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_operations_work/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
+
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 end

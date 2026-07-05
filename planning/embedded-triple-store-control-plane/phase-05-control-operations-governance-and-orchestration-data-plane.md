@@ -38,25 +38,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section replaces demand ingress, observation, assessment, external object, and work item persistence.
 
-- [ ] 5.2 Section - Operations records.
+- [x] 5.2 Section - Operations records.
 
   Description: Work synthesis remains product-shaped while record storage moves to semantic triples.
 
-  - [ ] 5.2.1 Task - Implement operations codecs and services.
+  - [x] 5.2.1 Task - Implement operations codecs and services.
 
     Description: Operations records must retain canonical relationships from external demand through governed work.
 
-    - [ ] 5.2.1.1 Subtask - Implement codecs for intake, external object, event, observation, assessment, and work item.
-    - [ ] 5.2.1.2 Subtask - Rewire ingress and synthesis modules to product store services.
-    - [ ] 5.2.1.3 Subtask - Preserve deduplication semantics for external objects and work items.
+    - [x] 5.2.1.1 Subtask - Implement codecs for intake, external object, event, observation, assessment, and work item.
+    - [x] 5.2.1.2 Subtask - Rewire ingress and synthesis modules to product store services.
+    - [x] 5.2.1.3 Subtask - Preserve deduplication semantics for external objects and work items.
 
-  - [ ] 5.2.2 Task - Implement operations query projections.
+  - [x] 5.2.2 Task - Implement operations query projections.
 
     Description: Dashboard, workbench, and repo-detail surfaces need bounded projections without Ash relationship loading.
 
-    - [ ] 5.2.2.1 Subtask - Add list work by managed repo, external object, status, and priority queries.
-    - [ ] 5.2.2.2 Subtask - Add repository monitoring summary queries.
-    - [ ] 5.2.2.3 Subtask - Add product-shaped empty, degraded, and stale states.
+    - [x] 5.2.2.1 Subtask - Add list work by managed repo, external object, status, and priority queries.
+    - [x] 5.2.2.2 Subtask - Add repository monitoring summary queries.
+    - [x] 5.2.2.3 Subtask - Add product-shaped empty, degraded, and stale states.
 
 ## 5.3 Section - Governance And Orchestration Records
 

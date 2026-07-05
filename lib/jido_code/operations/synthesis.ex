@@ -13,7 +13,7 @@ defmodule JidoCode.Operations.Synthesis do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Operations.RepoNativeState
-  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, WorkSynthesis}
+  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, RecordStore, WorkSynthesis}
 
   @synthesis_actor Actor.factory_system_actor(%{
                      "id" => "system:ingress-synthesis",
@@ -33,9 +33,10 @@ defmodule JidoCode.Operations.Synthesis do
     external_object = Keyword.get(opts, :external_object)
     event_attrs = event_attrs_from_observation(observation, external_object)
 
-    with {:ok, event} <- Event.create(event_attrs, actor: @synthesis_actor),
+    with {:ok, event} <- RecordStore.create(:event, event_attrs, actor: @synthesis_actor),
          {:ok, assessment} <-
-           Assessment.create(
+           RecordStore.create(
+             :assessment,
              assessment_attrs_from_observation(observation, event, external_object),
              actor: @synthesis_actor
            ),
@@ -62,9 +63,9 @@ defmodule JidoCode.Operations.Synthesis do
   def from_intake(%Intake{} = intake) do
     event_attrs = event_attrs_from_intake(intake)
 
-    with {:ok, event} <- Event.create(event_attrs, actor: @synthesis_actor),
+    with {:ok, event} <- RecordStore.create(:event, event_attrs, actor: @synthesis_actor),
          {:ok, assessment} <-
-           Assessment.create(assessment_attrs_from_intake(intake, event), actor: @synthesis_actor),
+           RecordStore.create(:assessment, assessment_attrs_from_intake(intake, event), actor: @synthesis_actor),
          {:ok, %{work_item: work_item, action: work_action}} <-
            WorkSynthesis.from_assessment(assessment, event: event, intake: intake) do
       {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}}

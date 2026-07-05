@@ -1,6 +1,6 @@
-defmodule JidoCode.ControlPlane.Codecs.EventCodec do
+defmodule JidoCode.ControlPlane.Codecs.IntakeCodec do
   @moduledoc """
-  RDF projection codec for append-only control-plane event records.
+  RDF projection codec for operator intake records.
   """
 
   @behaviour JidoCode.ControlPlane.Codecs.Codec
@@ -8,48 +8,32 @@ defmodule JidoCode.ControlPlane.Codecs.EventCodec do
   alias JidoCode.ControlPlane.Codecs.MapRecord
   alias JidoCode.ControlPlane.SemanticIdentity
 
-  @record_type :event
+  @record_type :intake
   @field_mappings %{
     managed_repo_id: "managedRepoId",
-    event_id: "eventId",
-    external_object_id: "externalObjectId",
-    observation_id: "observationId",
     intake_id: "intakeId",
-    category: "category",
-    summary: "summary",
-    correlation_key: "correlationKey",
+    channel: "channel",
+    intent: "intent",
+    payload: "payloadJson",
     source_metadata: "sourceMetadataJson",
-    occurred_at: "occurredAt",
+    requested_by: "requestedByJson",
+    received_at: "receivedAt",
     inserted_at: "insertedAt",
-    updated_at: "updatedAt",
-    payload: "payloadJson"
+    updated_at: "updatedAt"
   }
 
   @impl true
   def record_type, do: @record_type
-
   @impl true
-  def graph_name, do: :control_plane_events
-
+  def graph_name, do: :control_plane
   @impl true
   def graph_iri, do: MapRecord.graph_iri(@record_type)
-
   @impl true
   def class_iri, do: SemanticIdentity.class_iri(@record_type)
-
   @impl true
-  def subject_iri(record), do: MapRecord.subject_iri(@record_type, record, id_field: :event_id)
-
+  def subject_iri(record), do: MapRecord.subject_iri(@record_type, record, id_field: :intake_id)
   @impl true
-  def identity_queries(record) do
-    [
-      %{
-        identity: :append_event_id,
-        predicates: ["managedRepoId", "eventId"],
-        values: [record[:managed_repo_id] || record["managed_repo_id"], record[:event_id] || record["event_id"]]
-      }
-    ]
-  end
+  def identity_queries(_record), do: []
 
   @impl true
   def encode(record) when is_map(record) do

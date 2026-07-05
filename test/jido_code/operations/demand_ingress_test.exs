@@ -5,14 +5,16 @@ defmodule JidoCode.Operations.DemandIngressTest do
   # covers: architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Operations.{ExternalObject, Ingress, Intake, Observation}
+  alias JidoCode.Control.{ManagedRepoStore, RepoBridge}
+  alias JidoCode.ControlPlane.StoreServer
+  alias JidoCode.Operations.{Ingress, RecordStore}
   alias JidoCode.Projects.Project
   alias JidoCode.Setup.ProjectImport
   alias JidoCode.Workbench.FixWorkflowKickoff
 
   @managed_env_keys [
     :setup_project_importer,
+    :setup_project_import_intake_recorder,
     :setup_project_clone_provisioner,
     :setup_project_baseline_syncer,
     :workbench_fix_workflow_launcher
@@ -33,12 +35,13 @@ defmodule JidoCode.Operations.DemandIngressTest do
     Application.delete_env(:jido_code, :setup_project_importer)
     Application.delete_env(:jido_code, :setup_project_clone_provisioner)
     Application.delete_env(:jido_code, :setup_project_baseline_syncer)
+    Application.put_env(:jido_code, :setup_project_import_intake_recorder, &Ingress.record_operator_intake/1)
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn _kickoff_request ->
       {:ok, %{run_id: "fix-workflow-run-#{System.unique_integer([:positive])}"}}
     end)
 
-    :ok
+    setup_product_store()
   end
 
   test "github webhook demand creates a tracked external object and observation linked to the managed repo" do
@@ -50,8 +53,7 @@ defmodule JidoCode.Operations.DemandIngressTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     delivery = %{
       delivery_id: "delivery-123",
@@ -104,18 +106,12 @@ defmodule JidoCode.Operations.DemandIngressTest do
     assert observation.captured_by["delivery_id"] == "delivery-123"
 
     assert {:ok, persisted_external_object} =
-             ExternalObject.get_by_canonical_key(
-               "github:github_issue:owner/repo-one:9001",
-               actor: Actor.operator_actor()
-             )
+             RecordStore.get_external_object_by_canonical_key("github:github_issue:owner/repo-one:9001")
 
     assert persisted_external_object.id == external_object.id
 
     assert {:ok, [persisted_observation]} =
-             Observation.read(
-               query: [filter: [external_object_id: external_object.id]],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:observation, %{external_object_id: external_object.id})
 
     assert persisted_observation.id == observation.id
   end
@@ -129,8 +125,7 @@ defmodule JidoCode.Operations.DemandIngressTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     assert {:ok, %{intake: intake, event: _event, assessment: _assessment}} =
              Ingress.record_operator_intake(%{
@@ -171,25 +166,14 @@ defmodule JidoCode.Operations.DemandIngressTest do
 
     refute ProjectImport.blocked?(report)
 
-    {:ok, [managed_repo]} =
-      ManagedRepo.read(
-        query: [filter: [id: report.project_record.id], limit: 1],
-        actor: Actor.operator_actor()
-      )
+    assert {:ok, managed_repo} = ManagedRepoStore.get_by_id(report.project_record.id)
 
     assert {:ok, [intake]} =
-             Intake.read(
-               query: [
-                 filter: [
-                   managed_repo_id: managed_repo.id,
-                   channel: "setup",
-                   intent: "project_import"
-                 ],
-                 sort: [inserted_at: :desc],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:intake, %{
+               managed_repo_id: managed_repo.id,
+               channel: "setup",
+               intent: "project_import"
+             })
 
     assert intake.payload["selected_repository"] == "owner/repo-import"
     assert intake.payload["project_name"] == "repo-import"
@@ -208,8 +192,7 @@ defmodule JidoCode.Operations.DemandIngressTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+    managed_repo = seed_managed_repo!(project)
 
     assert {:ok, kickoff_run} =
              FixWorkflowKickoff.kickoff(
@@ -222,18 +205,11 @@ defmodule JidoCode.Operations.DemandIngressTest do
     assert kickoff_run.context_item_type == :issue
 
     assert {:ok, [intake]} =
-             Intake.read(
-               query: [
-                 filter: [
-                   managed_repo_id: managed_repo.id,
-                   channel: "workbench",
-                   intent: "fix_workflow_kickoff"
-                 ],
-                 sort: [inserted_at: :desc],
-                 limit: 1
-               ],
-               actor: Actor.operator_actor()
-             )
+             RecordStore.list(:intake, %{
+               managed_repo_id: managed_repo.id,
+               channel: "workbench",
+               intent: "fix_workflow_kickoff"
+             })
 
     assert intake.payload["workflow_name"] == "fix_failing_tests"
     assert intake.payload["project_name"] == "owner/repo-fix"
@@ -247,4 +223,34 @@ defmodule JidoCode.Operations.DemandIngressTest do
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
   defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
+
+  defp seed_managed_repo!(project) do
+    {:ok, %{managed_repo: managed_repo}} =
+      RepoBridge.upsert_managed_repo(%{
+        name: project.name,
+        full_name: project.github_full_name,
+        default_branch: project.default_branch,
+        legacy_project_id: project.id,
+        settings: project.settings || %{}
+      })
+
+    managed_repo
+  end
+
+  defp setup_product_store do
+    store_name = :"operations_demand_store_#{System.unique_integer([:positive])}"
+    path = Path.join(System.tmp_dir!(), "jido_code_operations_demand/#{store_name}")
+
+    start_supervised!({StoreServer, name: store_name, id: store_name, path: path, reset_policy: :reset_on_start})
+
+    original = Application.get_env(:jido_code, :control_plane_product_store_server, :__missing__)
+    Application.put_env(:jido_code, :control_plane_product_store_server, store_name)
+
+    on_exit(fn ->
+      restore_env(:control_plane_product_store_server, original)
+      File.rm_rf!(path)
+    end)
+
+    :ok
+  end
 end

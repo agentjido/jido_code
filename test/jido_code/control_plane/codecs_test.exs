@@ -93,27 +93,111 @@ defmodule JidoCode.ControlPlane.CodecsTest do
              Registry.encode(:work_item, %{
                managed_repo_id: "repo-codec",
                work_item_id: "work-1",
-               title: "Replace persistence",
-               priority: :high
+               event_id: "event-1",
+               assessment_id: "assessment-1",
+               category: "operator_work_request",
+               status: :open,
+               priority: :high,
+               recommended_action: "launch_fix_workflow",
+               summary: "Replace persistence",
+               dedup_key: "repo-codec:launch_fix_workflow:issue",
+               work_metadata: %{source_record_type: "intake"}
              })
 
     assert work_item.graph_name == :control_plane
     assert work_item.subject_iri == "https://jido.run/control/managed-repos/repo-codec/work-items/work-1"
+    assert triple_value(work_item, "recordStatus") == "open"
     assert triple_value(work_item, "priority") == "high"
+    assert triple_value(work_item, "workMetadataJson") == ~s({"source_record_type":"intake"})
 
     assert {:ok, event} =
              Registry.encode(:event, %{
                managed_repo_id: "repo-codec",
                event_id: "event-1",
-               source_kind: :github,
+               category: "operator.workbench.fix_workflow_kickoff.requested",
+               summary: "Operator requested fix workflow kickoff via workbench.",
+               correlation_key: "repo-codec:operator.workbench.fix_workflow_kickoff.requested:operator-1",
                occurred_at: ~U[2026-01-01 00:00:00Z],
                payload: %{action: "opened", number: 1}
              })
 
     assert event.graph_name == :control_plane_events
     assert event.subject_iri == "https://jido.run/control/managed-repos/repo-codec/events/event-1"
-    assert triple_value(event, "sourceKind") == "github"
+    assert triple_value(event, "category") == "operator.workbench.fix_workflow_kickoff.requested"
+
+    assert triple_value(event, "correlationKey") ==
+             "repo-codec:operator.workbench.fix_workflow_kickoff.requested:operator-1"
+
     assert triple_value(event, "payloadJson") == ~s({"action":"opened","number":1})
+  end
+
+  test "operations ingress and assessment codecs project normalized record fields" do
+    assert {:ok, intake} =
+             Registry.encode(:intake, %{
+               managed_repo_id: "repo-codec",
+               intake_id: "intake-1",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
+               payload: %{workflow_name: "fix_failing_tests"},
+               requested_by: %{actor_class: "operator"}
+             })
+
+    assert intake.subject_iri == "https://jido.run/control/managed-repos/repo-codec/intakes/intake-1"
+    assert triple_value(intake, "channel") == "workbench"
+    assert triple_value(intake, "requestedByJson") == ~s({"actor_class":"operator"})
+
+    assert {:ok, external_object} =
+             Registry.encode(:external_object, %{
+               external_object_id: "external-1",
+               managed_repo_id: "repo-codec",
+               provider: :github,
+               provider_host: "github.com",
+               object_type: :github_issue,
+               external_id: "99",
+               canonical_key: "github:github_issue:owner/repo:99",
+               canonical_reference: "owner/repo#12",
+               title: "Issue title",
+               status: "open"
+             })
+
+    assert external_object.subject_iri ==
+             "https://jido.run/control/external/github/github.com/github_issue/99"
+
+    assert %{identity: :unique_canonical_key, predicate: "canonicalKey", value: "github:github_issue:owner/repo:99"} in external_object.identity_queries
+    assert triple_value(external_object, "externalObjectId") == "external-1"
+    assert triple_value(external_object, "objectType") == "github_issue"
+
+    assert {:ok, observation} =
+             Registry.encode(:observation, %{
+               managed_repo_id: "repo-codec",
+               observation_id: "observation-1",
+               external_object_id: "external-1",
+               source: "github_webhook",
+               category: "external_event",
+               summary: "Observed issue.",
+               captured_by: %{actor_class: "external_ingress"}
+             })
+
+    assert observation.subject_iri == "https://jido.run/control/managed-repos/repo-codec/observations/observation-1"
+    assert triple_value(observation, "source") == "github_webhook"
+    assert triple_value(observation, "capturedByJson") == ~s({"actor_class":"external_ingress"})
+
+    assert {:ok, assessment} =
+             Registry.encode(:assessment, %{
+               managed_repo_id: "repo-codec",
+               assessment_id: "assessment-1",
+               event_id: "event-1",
+               external_object_id: "external-1",
+               category: "github_issue_demand",
+               priority: :high,
+               urgency: :high,
+               recommended_action: "triage_issue",
+               inputs: %{event_category: "external.github.issue.opened"}
+             })
+
+    assert assessment.subject_iri == "https://jido.run/control/managed-repos/repo-codec/assessments/assessment-1"
+    assert triple_value(assessment, "recommendedAction") == "triage_issue"
+    assert triple_value(assessment, "inputsJson") == ~s({"event_category":"external.github.issue.opened"})
   end
 
   test "secret ref codec projects metadata and rejects secret material" do

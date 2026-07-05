@@ -11,7 +11,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, WorkItem}
+  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, RecordStore, WorkItem}
 
   @work_actor Actor.factory_system_actor(%{
                 "id" => "system:work-synthesis",
@@ -44,9 +44,9 @@ defmodule JidoCode.Operations.WorkSynthesis do
         {:ok, event}
 
       _other ->
-        case Event.read(query: [filter: [id: assessment.event_id], limit: 1], actor: @work_actor) do
-          {:ok, [%Event{} = event | _rest]} -> {:ok, event}
-          {:ok, []} -> {:error, :event_not_found}
+        case RecordStore.get(:event, assessment.event_id, actor: @work_actor) do
+          {:ok, %Event{} = event} -> {:ok, event}
+          {:ok, nil} -> {:error, :event_not_found}
           {:error, reason} -> {:error, reason}
         end
     end
@@ -121,7 +121,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
       last_assessed_at: context.assessment.assessed_at
     }
 
-    with {:ok, work_item} <- WorkItem.create(attrs, actor: @work_actor) do
+    with {:ok, work_item} <- RecordStore.create(:work_item, attrs, actor: @work_actor) do
       {:ok, %{work_item: work_item, action: :created}}
     end
   end
@@ -155,7 +155,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
       last_assessed_at: context.assessment.assessed_at
     }
 
-    with {:ok, updated_work_item} <- WorkItem.update(work_item, attrs, actor: @work_actor) do
+    with {:ok, updated_work_item} <- RecordStore.update_work_item(work_item, attrs, actor: @work_actor) do
       {:ok, %{work_item: updated_work_item, action: next_action}}
     end
   end
@@ -178,8 +178,9 @@ defmodule JidoCode.Operations.WorkSynthesis do
     do: "Suppressed equivalent duplicate work demand and refreshed existing work context."
 
   defp find_open_work_item(managed_repo_id, dedup_key) do
-    case WorkItem.read(
-           query: [filter: [managed_repo_id: managed_repo_id, dedup_key: dedup_key, status: :open], limit: 1],
+    case RecordStore.list(
+           :work_item,
+           %{managed_repo_id: managed_repo_id, dedup_key: dedup_key, status: :open},
            actor: @work_actor
          ) do
       {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
@@ -294,13 +295,9 @@ defmodule JidoCode.Operations.WorkSynthesis do
               intake.payload |> map_get(:workflow_name, "workflow_name")
           ),
         "scope" =>
-          normalize_optional_string(
-            source_metadata["conversation_scope"] || context_item["conversation_scope"]
-          ),
+          normalize_optional_string(source_metadata["conversation_scope"] || context_item["conversation_scope"]),
         "attachment_mode" =>
-          normalize_optional_string(
-            source_metadata["conversation_attachment_mode"] || context_item["attachment_mode"]
-          ),
+          normalize_optional_string(source_metadata["conversation_attachment_mode"] || context_item["attachment_mode"]),
         "resolution_reason" =>
           normalize_optional_string(
             source_metadata["conversation_resolution_reason"] ||
@@ -382,11 +379,15 @@ defmodule JidoCode.Operations.WorkSynthesis do
   defp read_optional_record(_module, nil), do: nil
 
   defp read_optional_record(module, id) do
-    case module.read(query: [filter: [id: id], limit: 1], actor: @work_actor) do
-      {:ok, [record | _rest]} -> record
+    case RecordStore.get(record_type_for(module), id, actor: @work_actor) do
+      {:ok, record} -> record
       _other -> nil
     end
   end
+
+  defp record_type_for(ExternalObject), do: :external_object
+  defp record_type_for(Observation), do: :observation
+  defp record_type_for(Intake), do: :intake
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
@@ -402,14 +403,8 @@ defmodule JidoCode.Operations.WorkSynthesis do
         nil
 
       normalized_work_item_id ->
-        case WorkItem.read(
-               query: [
-                 filter: [id: normalized_work_item_id, managed_repo_id: managed_repo_id, status: :open],
-                 limit: 1
-               ],
-               actor: @work_actor
-             ) do
-          {:ok, [%WorkItem{} = work_item | _rest]} -> work_item
+        case RecordStore.get(:work_item, normalized_work_item_id, actor: @work_actor) do
+          {:ok, %WorkItem{managed_repo_id: ^managed_repo_id, status: :open} = work_item} -> work_item
           _other -> nil
         end
     end

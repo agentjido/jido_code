@@ -172,7 +172,7 @@ defmodule JidoCode.MixProject do
       {:jido_signal, "~> 2.0", override: true},
       {:jido_ai, github: "agentjido/jido_ai", branch: "main", override: true},
       {:jido_memory, github: "agentjido/jido_memory", branch: "main"},
-      {:jido_agent_os, git: "https://github.com/pcharbon70/jido_agent_os.git", branch: "main"},
+      {:jido_agent_os, git: "https://github.com/agentjido/jido_agent_os.git", branch: "main"},
       {:jido_workflow, path: "compat/jido_workflow", override: true},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
 

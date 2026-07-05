@@ -1,7 +1,7 @@
 defmodule JidoCode.Mix.ControlPlane do
   @moduledoc false
 
-  alias JidoCode.ControlPlane.{Integrity, Recovery}
+  alias JidoCode.ControlPlane.{Diagnostics, Integrity, Recovery}
 
   @spec run!(atom(), [String.t()]) :: :ok
   def run!(command, args) when is_atom(command) and is_list(args) do
@@ -10,6 +10,7 @@ defmodule JidoCode.Mix.ControlPlane do
       :export -> run_export!(args)
       :restore -> run_restore!(args)
       :reset -> run_reset!(args)
+      :query -> run_query!(args)
     end
   end
 
@@ -95,6 +96,56 @@ defmodule JidoCode.Mix.ControlPlane do
     end
   end
 
+  defp run_query!(args) do
+    {opts, rest, invalid} =
+      OptionParser.parse(args,
+        strict: [
+          named: :string,
+          record_type: :string,
+          sparql: :string,
+          allow_raw: :boolean,
+          graph: :keep,
+          limit: :integer,
+          timeout: :integer,
+          json: :boolean
+        ]
+      )
+
+    reject_invalid!(invalid)
+    reject_rest!(rest)
+
+    query_opts = [
+      record_type: record_type_option(opts),
+      allowed_graphs: Keyword.get_values(opts, :graph) |> default_graphs(),
+      limit: Keyword.get(opts, :limit, 50),
+      timeout: Keyword.get(opts, :timeout, 5_000),
+      allow_raw?: Keyword.get(opts, :allow_raw, false)
+    ]
+
+    result =
+      cond do
+        named = Keyword.get(opts, :named) ->
+          named |> named_query!() |> Diagnostics.safe_query(query_opts)
+
+        sparql = Keyword.get(opts, :sparql) ->
+          Diagnostics.raw_sparql(sparql, query_opts)
+
+        true ->
+          Mix.raise("Use --named health|graph-counts|list-records or --sparql QUERY --allow-raw.")
+      end
+
+    case result do
+      {:ok, report} ->
+        emit(report, Keyword.get(opts, :json, false), &query_summary/1)
+
+      {:error, reason, diagnostics} ->
+        Mix.raise("Control-plane diagnostic query failed: #{inspect(reason)} #{inspect(diagnostics)}")
+
+      {:error, reason} ->
+        Mix.raise("Control-plane diagnostic query failed: #{inspect(reason)}")
+    end
+  end
+
   defp emit(report, true, _summary_fun), do: Mix.shell().info(Jason.encode!(json_safe(report), pretty: true))
   defp emit(report, false, summary_fun), do: Mix.shell().info(summary_fun.(report))
 
@@ -114,6 +165,24 @@ defmodule JidoCode.Mix.ControlPlane do
     "Reset control-plane store at #{health.path}; ontology bootstrap #{health.ontology_bootstrap.state}."
   end
 
+  defp query_summary(%{query: :graph_counts} = report) do
+    "Control-plane graph counts: #{report.graph_count} graph(s), #{report.total_quad_count} quad(s)."
+  end
+
+  defp query_summary(%{query: :list_by_class} = report) do
+    "Control-plane #{report.record_type} records: #{report.row_count} returned of #{report.total_count}."
+  end
+
+  defp query_summary(%{query: :diagnostics_query} = report) do
+    "Control-plane raw diagnostic query returned #{Map.get(report, :row_count, 0)} row(s)."
+  end
+
+  defp query_summary(%{state: state, total_quad_count: total_quad_count}) do
+    "Control-plane health #{state}: #{total_quad_count} quad(s)."
+  end
+
+  defp query_summary(_report), do: "Control-plane diagnostic query completed."
+
   defp format_option(opts) do
     case Keyword.get(opts, :format) do
       nil -> nil
@@ -123,6 +192,26 @@ defmodule JidoCode.Mix.ControlPlane do
       other -> Mix.raise("Unsupported format #{inspect(other)}. Use nquads or trig.")
     end
   end
+
+  defp named_query!("health"), do: :health
+  defp named_query!("graph-counts"), do: :graph_counts
+  defp named_query!("list-records"), do: :list_records
+
+  defp named_query!(other) do
+    Mix.raise("Unsupported named query #{inspect(other)}. Use health, graph-counts, or list-records.")
+  end
+
+  defp record_type_option(opts) do
+    case Keyword.get(opts, :record_type) do
+      nil -> nil
+      value -> value |> String.replace("-", "_") |> String.to_existing_atom()
+    end
+  rescue
+    ArgumentError -> Mix.raise("Unknown record type. Use a codec record type such as managed_repo.")
+  end
+
+  defp default_graphs([]), do: ["control_plane"]
+  defp default_graphs(graphs), do: graphs
 
   defp reject_invalid!([]), do: :ok
 

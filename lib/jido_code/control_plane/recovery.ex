@@ -3,7 +3,7 @@ defmodule JidoCode.ControlPlane.Recovery do
   Backup, restore, and reset helpers for the embedded control-plane store.
   """
 
-  alias JidoCode.ControlPlane.{GraphTopology, Integrity, StoreServer}
+  alias JidoCode.ControlPlane.{GraphTopology, Integrity, StoreServer, Telemetry}
 
   @type export_report :: %{
           path: String.t(),
@@ -52,54 +52,58 @@ defmodule JidoCode.ControlPlane.Recovery do
 
   @spec export_store(map(), Path.t(), keyword()) :: {:ok, export_report()} | {:error, term()}
   def export_store(store, path, opts \\ []) when is_binary(path) and is_list(opts) do
-    format = export_format(path, opts)
-    redacted_graphs = if Keyword.get(opts, :redact?, true), do: redacted_graphs(opts), else: []
+    Telemetry.span(:export, %{path: Path.expand(path)}, fn ->
+      format = export_format(path, opts)
+      redacted_graphs = if Keyword.get(opts, :redact?, true), do: redacted_graphs(opts), else: []
 
-    with {:ok, all_quads} <- Integrity.all_quads(store),
-         {exported_quads, omitted_quad_count} <- redact_quads(all_quads, redacted_graphs),
-         {:ok, content} <- serialize(exported_quads, format),
-         :ok <- ensure_parent(path),
-         :ok <- File.write(path, content) do
-      {:ok,
-       %{
-         path: Path.expand(path),
-         format: format,
-         exported_quad_count: length(exported_quads),
-         omitted_quad_count: omitted_quad_count,
-         redacted_graphs: redacted_graphs
-       }}
-    end
+      with {:ok, all_quads} <- Integrity.all_quads(store),
+           {exported_quads, omitted_quad_count} <- redact_quads(all_quads, redacted_graphs),
+           {:ok, content} <- serialize(exported_quads, format),
+           :ok <- ensure_parent(path),
+           :ok <- File.write(path, content) do
+        {:ok,
+         %{
+           path: Path.expand(path),
+           format: format,
+           exported_quad_count: length(exported_quads),
+           omitted_quad_count: omitted_quad_count,
+           redacted_graphs: redacted_graphs
+         }}
+      end
+    end)
   end
 
   @spec restore_store_path(Path.t(), Path.t(), keyword()) :: {:ok, restore_report()} | {:error, term()}
   def restore_store_path(input_path, target_path, opts \\ []) when is_binary(input_path) and is_binary(target_path) do
-    format = restore_format(input_path, opts)
-    target_path = Path.expand(target_path)
-    token = System.unique_integer([:positive]) |> Integer.to_string()
-    staging_path = target_path <> ".restore-" <> token
-    backup_path = target_path <> ".pre-restore-" <> token
+    Telemetry.span(:restore, %{path: Path.expand(input_path), target_path: Path.expand(target_path)}, fn ->
+      format = restore_format(input_path, opts)
+      target_path = Path.expand(target_path)
+      token = System.unique_integer([:positive]) |> Integer.to_string()
+      staging_path = target_path <> ".restore-" <> token
+      backup_path = target_path <> ".pre-restore-" <> token
 
-    with {:ok, dataset} <- read_dataset(input_path, format),
-         :ok <- validate_dataset(dataset),
-         :ok <- ensure_parent(staging_path),
-         {:ok, loaded_count, integrity} <- load_and_check_dataset(staging_path, dataset),
-         :ok <- swap_store_path(staging_path, target_path, backup_path) do
-      {:ok,
-       %{
-         path: Path.expand(input_path),
-         format: format,
-         restored_quad_count: loaded_count,
-         integrity: integrity
-       }}
-    else
-      {:error, _reason} = error ->
-        File.rm_rf(staging_path)
-        error
+      with {:ok, dataset} <- read_dataset(input_path, format),
+           :ok <- validate_dataset(dataset),
+           :ok <- ensure_parent(staging_path),
+           {:ok, loaded_count, integrity} <- load_and_check_dataset(staging_path, dataset),
+           :ok <- swap_store_path(staging_path, target_path, backup_path) do
+        {:ok,
+         %{
+           path: Path.expand(input_path),
+           format: format,
+           restored_quad_count: loaded_count,
+           integrity: integrity
+         }}
+      else
+        {:error, _reason} = error ->
+          File.rm_rf(staging_path)
+          error
 
-      reason ->
-        File.rm_rf(staging_path)
-        {:error, reason}
-    end
+        reason ->
+          File.rm_rf(staging_path)
+          {:error, reason}
+      end
+    end)
   end
 
   @spec validate_dataset(RDF.Dataset.t()) :: :ok | {:error, term()}

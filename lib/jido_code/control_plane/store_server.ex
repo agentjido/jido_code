@@ -1,7 +1,7 @@
 defmodule JidoCode.ControlPlane.StoreServer do
   use GenServer
 
-  alias JidoCode.ControlPlane.{GraphTopology, Recovery, StoreConfig}
+  alias JidoCode.ControlPlane.{GraphTopology, Recovery, StoreConfig, Telemetry}
   alias JidoCode.MemoryGraph
 
   @type health :: %{
@@ -179,6 +179,7 @@ defmodule JidoCode.ControlPlane.StoreServer do
   def handle_info({:EXIT, _pid, :normal}, state), do: {:noreply, state}
   def handle_info({:EXIT, _pid, :shutdown}, state), do: {:noreply, state}
   def handle_info({:EXIT, _pid, {:shutdown, _reason}}, state), do: {:noreply, state}
+  def handle_info({:EXIT, _pid, _reason}, state), do: {:noreply, state}
 
   @impl true
   def terminate(_reason, %{store: store}) do
@@ -186,17 +187,19 @@ defmodule JidoCode.ControlPlane.StoreServer do
   end
 
   defp open_bootstrapped_store(path, reset_policy, open_timeout_ms) do
-    with :ok <- prepare_path(path, reset_policy),
-         {:ok, store} <- open_store(path, open_timeout_ms) do
-      case bootstrap_ontologies(store) do
-        {:ok, bootstrap} ->
-          {:ok, store, bootstrap}
+    Telemetry.span(:open, %{path: path, reset_policy: reset_policy}, fn ->
+      with :ok <- prepare_path(path, reset_policy),
+           {:ok, store} <- open_store(path, open_timeout_ms) do
+        case bootstrap_ontologies(store) do
+          {:ok, bootstrap} ->
+            {:ok, store, bootstrap}
 
-        {:error, reason} ->
-          close_store(store)
-          {:error, reason}
+          {:error, reason} ->
+            close_store(store)
+            {:error, reason}
+        end
       end
-    end
+    end)
   end
 
   defp prepare_path(path, :reset_on_start) do

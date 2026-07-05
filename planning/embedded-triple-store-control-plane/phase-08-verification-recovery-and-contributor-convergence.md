@@ -36,25 +36,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section makes store health and query behavior visible.
 
-- [ ] 8.2 Section - Observability and diagnostics.
+- [x] 8.2 Section - Observability and diagnostics.
 
   Description: Product surfaces and logs should explain store health without exposing raw graph details by default.
 
-  - [ ] 8.2.1 Task - Add telemetry and health status.
+  - [x] 8.2.1 Task - Add telemetry and health status.
 
     Description: Store operations need duration, count, failure, timeout, and graph-size metrics.
 
-    - [ ] 8.2.1.1 Subtask - Emit telemetry for store open, query, update, export, restore, and integrity checks.
-    - [ ] 8.2.1.2 Subtask - Add health projections for ready, degraded, missing graph, stale ontology, and recovery required.
-    - [ ] 8.2.1.3 Subtask - Surface bounded diagnostics on setup, dashboard, and repo-detail runtime panels.
+    - [x] 8.2.1.1 Subtask - Emit telemetry for store open, query, update, export, restore, and integrity checks.
+    - [x] 8.2.1.2 Subtask - Add health projections for ready, degraded, missing graph, stale ontology, and recovery required.
+    - [x] 8.2.1.3 Subtask - Surface bounded diagnostics on setup, dashboard, and repo-detail runtime panels.
 
-  - [ ] 8.2.2 Task - Add diagnostic query tooling.
+  - [x] 8.2.2 Task - Add diagnostic query tooling.
 
     Description: Contributors need safe ways to inspect graph state during development and support.
 
-    - [ ] 8.2.2.1 Subtask - Add a Mix task for named safe queries over product records.
-    - [ ] 8.2.2.2 Subtask - Add a raw SPARQL diagnostic command gated by explicit flags and limits.
-    - [ ] 8.2.2.3 Subtask - Add docs showing how to inspect a record by subject IRI and graph name.
+    - [x] 8.2.2.1 Subtask - Add a Mix task for named safe queries over product records.
+    - [x] 8.2.2.2 Subtask - Add a raw SPARQL diagnostic command gated by explicit flags and limits.
+    - [x] 8.2.2.3 Subtask - Add docs showing how to inspect a record by subject IRI and graph name.
 
 ## 8.3 Section - Documentation And Guardrails
 

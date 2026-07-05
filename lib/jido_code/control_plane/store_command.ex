@@ -7,7 +7,7 @@ defmodule JidoCode.ControlPlane.StoreCommand do
   SPARQL update strings while later phases build richer codecs and validators.
   """
 
-  alias JidoCode.ControlPlane.{GraphTopology, StoreServer}
+  alias JidoCode.ControlPlane.{GraphTopology, StoreServer, Telemetry}
 
   defstruct [
     :type,
@@ -50,11 +50,13 @@ defmodule JidoCode.ControlPlane.StoreCommand do
 
   @spec execute(t(), GenServer.server()) :: {:ok, map()} | {:error, term()}
   def execute(%__MODULE__{} = command, server \\ StoreServer) do
-    case StoreServer.with_store(server, &do_execute(&1, command)) do
-      {:ok, {:ok, outcome}} -> {:ok, outcome}
-      {:ok, {:error, reason}} -> {:error, reason}
-      {:error, reason} -> {:error, reason}
-    end
+    Telemetry.span(:update, %{command: command.type, graph_name: command.graph_name}, fn ->
+      case StoreServer.with_store(server, &do_execute(&1, command)) do
+        {:ok, {:ok, outcome}} -> {:ok, outcome}
+        {:ok, {:error, reason}} -> {:error, reason}
+        {:error, reason} -> {:error, reason}
+      end
+    end)
   end
 
   defp command(type, attrs) do

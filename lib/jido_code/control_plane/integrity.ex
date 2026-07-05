@@ -7,7 +7,7 @@ defmodule JidoCode.ControlPlane.Integrity do
   control-plane object links.
   """
 
-  alias JidoCode.ControlPlane.{GraphTopology, SemanticIdentity, StoreServer}
+  alias JidoCode.ControlPlane.{GraphTopology, SemanticIdentity, StoreServer, Telemetry}
   alias JidoCode.ControlPlane.Codecs.Registry
   alias JidoCode.MemoryGraph
 
@@ -33,11 +33,13 @@ defmodule JidoCode.ControlPlane.Integrity do
 
   @spec check(GenServer.server(), keyword()) :: {:ok, report()} | {:error, term()}
   def check(server \\ StoreServer, opts \\ []) do
-    case StoreServer.with_store(server, &check_store(&1, opts)) do
-      {:ok, {:ok, report}} -> {:ok, report}
-      {:ok, {:error, reason}} -> {:error, reason}
-      {:error, reason} -> {:error, reason}
-    end
+    Telemetry.span(:integrity, %{server: inspect(server)}, fn ->
+      case StoreServer.with_store(server, &check_store(&1, opts)) do
+        {:ok, {:ok, report}} -> {:ok, report}
+        {:ok, {:error, reason}} -> {:error, reason}
+        {:error, reason} -> {:error, reason}
+      end
+    end)
   end
 
   @spec check_store(map(), keyword()) :: {:ok, report()} | {:error, term()}

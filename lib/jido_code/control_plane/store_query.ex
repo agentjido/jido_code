@@ -7,7 +7,7 @@ defmodule JidoCode.ControlPlane.StoreQuery do
   security redaction are explicit.
   """
 
-  alias JidoCode.ControlPlane.{GraphTopology, SemanticIdentity, StoreServer}
+  alias JidoCode.ControlPlane.{GraphTopology, SemanticIdentity, StoreServer, Telemetry}
   alias TripleStore.Dictionary.{Manager, ShardedManager}
 
   @control_plane_ns "https://jido.run/ontology/control-plane#"
@@ -167,6 +167,12 @@ defmodule JidoCode.ControlPlane.StoreQuery do
   end
 
   defp run_query(opts, stage, fun) when is_function(fun, 1) do
+    Telemetry.span(:query, %{stage: stage, limit: limit(opts), timeout_ms: timeout_ms(opts)}, fn ->
+      do_run_query(opts, stage, fun)
+    end)
+  end
+
+  defp do_run_query(opts, stage, fun) do
     server = Keyword.get(opts, :server, StoreServer)
     timeout = timeout_ms(opts)
 

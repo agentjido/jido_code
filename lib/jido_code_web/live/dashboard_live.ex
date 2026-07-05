@@ -11,6 +11,7 @@ defmodule JidoCodeWeb.DashboardLive do
 
   import JidoCodeWeb.ManagedRepoInventoryComponents
 
+  alias JidoCode.ControlPlane.Health, as: ControlPlaneHealth
   alias JidoCode.ManagedRepoRoutes
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
@@ -71,6 +72,7 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:repository_monitoring_rows, [])
       |> assign(:repository_monitoring_warning, nil)
       |> assign(:repository_monitoring_last_refreshed_at, nil)
+      |> assign_control_plane_health()
       |> assign(:recent_run_outcomes, %{})
       |> assign(:fix_workflow_kickoff_states, %{})
       |> assign(:issue_triage_workflow_kickoff_states, %{})
@@ -125,6 +127,7 @@ defmodule JidoCodeWeb.DashboardLive do
   def handle_event("refresh_dashboard_overview", _params, socket) do
     {:noreply,
      socket
+     |> assign_control_plane_health()
      |> load_run_summaries()
      |> load_conversation_summaries()
      |> load_memory_summaries()
@@ -251,6 +254,14 @@ defmodule JidoCodeWeb.DashboardLive do
             class="link link-primary"
           >Settings</.link>.
         </p>
+        <.operator_state_notice
+          id="dashboard-control-plane-health"
+          title="Control-plane store status"
+          state={@control_plane_health.notice}
+          kind={@control_plane_health.kind}
+          compact={true}
+          class="mt-4"
+        />
 
         <.subject_tree_shell
           id="dashboard-shell"
@@ -978,6 +989,10 @@ defmodule JidoCodeWeb.DashboardLive do
     else
       socket
     end
+  end
+
+  defp assign_control_plane_health(socket) do
+    assign(socket, :control_plane_health, ControlPlaneHealth.status())
   end
 
   defp dashboard_sections(onboarding_next_actions) when is_list(onboarding_next_actions) do

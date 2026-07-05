@@ -12,25 +12,25 @@ Back to plan: [README](./README.md)
 
 **Description:** This section starts and owns the embedded quad store in the application supervision tree.
 
-- [ ] 2.1 Section - Store supervision.
+- [x] 2.1 Section - Store supervision.
 
   Description: Replace repository supervision with a small, explicit TripleStore supervisor and registry.
 
-  - [ ] 2.1.1 Task - Add `JidoCode.ControlPlane.StoreServer`.
+  - [x] 2.1.1 Task - Add `JidoCode.ControlPlane.StoreServer`.
 
     Description: The server opens the embedded store, owns the handle, and centralizes close, health, and restart behavior.
 
-    - [ ] 2.1.1.1 Subtask - Open `TripleStore.open(path, schema: :quad)` from configured runtime path.
-    - [ ] 2.1.1.2 Subtask - Load required ontology graphs at boot or explicit reset.
-    - [ ] 2.1.1.3 Subtask - Close the store cleanly on termination.
+    - [x] 2.1.1.1 Subtask - Open `TripleStore.open(path, schema: :quad)` from configured runtime path.
+    - [x] 2.1.1.2 Subtask - Load required ontology graphs at boot or explicit reset.
+    - [x] 2.1.1.3 Subtask - Close the store cleanly on termination.
 
-  - [ ] 2.1.2 Task - Add configuration and path policy.
+  - [x] 2.1.2 Task - Add configuration and path policy.
 
     Description: Store location must be deterministic in dev, test, production, and desktop modes.
 
-    - [ ] 2.1.2.1 Subtask - Add config keys for control-plane store path, reset policy, and open timeout.
-    - [ ] 2.1.2.2 Subtask - Keep test stores isolated per test partition or test process.
-    - [ ] 2.1.2.3 Subtask - Keep repository-local semantic graph stores separate from the product control-plane store.
+    - [x] 2.1.2.1 Subtask - Add config keys for control-plane store path, reset policy, and open timeout.
+    - [x] 2.1.2.2 Subtask - Keep test stores isolated per test partition or test process.
+    - [x] 2.1.2.3 Subtask - Keep repository-local semantic graph stores separate from the product control-plane store.
 
 ## 2.2 Section - Transaction And Update Boundary
 

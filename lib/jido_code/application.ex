@@ -11,6 +11,7 @@ defmodule JidoCode.Application do
       [
         JidoCodeWeb.Telemetry,
         JidoCode.Repo,
+        JidoCode.ControlPlane.StoreServer,
         {DNSCluster, query: Application.get_env(:jido_code, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: JidoCode.PubSub},
         JidoCode.Jido,

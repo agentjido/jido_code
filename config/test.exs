@@ -48,7 +48,10 @@ config :phoenix,
 # Use in-memory SystemConfig for tests (no DB persistence)
 config :jido_code,
   system_config_loader: &JidoCode.Setup.SystemConfig.default_loader/0,
-  system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1
+  system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1,
+  control_plane_store_path: nil,
+  control_plane_store_reset_policy: :reset_on_start,
+  control_plane_store_open_timeout_ms: 5_000
 
 config :jido_code,
   source_code_graph_file_watcher_enabled: false,

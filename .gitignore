@@ -34,6 +34,7 @@ Thumbs.db
 # Temporary files, for example, from tests.
 /tmp/
 /nil/
+/.jido_code/
 
 # Ignore package tarball (built via "mix hex.build").
 jido_code-*.tar

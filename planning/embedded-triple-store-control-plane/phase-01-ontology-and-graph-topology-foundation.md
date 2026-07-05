@@ -4,7 +4,7 @@ Back to plan: [README](./README.md)
 
 **Description:** This phase makes the embedded semantic data plane explicit before any runtime code depends on it. It finishes the control-plane ontology shape, canonical IRI rules, named graph topology, and graph ownership decisions needed to replace Ash/Postgres without a migration bridge.
 
-- [ ] 1 Phase - Ontology and graph topology foundation.
+- [x] 1 Phase - Ontology and graph topology foundation.
 
   Description: Define the semantic schema and graph layout that all later store code uses as product truth.
 
@@ -84,22 +84,22 @@ Back to plan: [README](./README.md)
 
 **Description:** This final section proves the ontology and graph topology are parseable, loadable, and queryable before implementation starts.
 
-- [ ] 1.4 Section - Integration tests.
+- [x] 1.4 Section - Integration tests.
 
   Description: Validate the semantic schema as an executable artifact instead of treating it as documentation only.
 
-  - [ ] 1.4.1 Task - Add ontology parsing and load coverage.
+  - [x] 1.4.1 Task - Add ontology parsing and load coverage.
 
     Description: The ontology files must parse and load into the embedded quad store with the intended named graph identity.
 
-    - [ ] 1.4.1.1 Subtask - Parse `jido-control-plane.ttl` and `jido-memory.ttl` through `RDF.Turtle.read_file/1`.
-    - [ ] 1.4.1.2 Subtask - Load both ontologies into a temporary `triple_store` quad store.
-    - [ ] 1.4.1.3 Subtask - Query for representative classes and predicates from each product family.
+    - [x] 1.4.1.1 Subtask - Parse `jido-control-plane.ttl` and `jido-memory.ttl` through `RDF.Turtle.read_file/1`.
+    - [x] 1.4.1.2 Subtask - Load both ontologies into a temporary `triple_store` quad store.
+    - [x] 1.4.1.3 Subtask - Query for representative classes and predicates from each product family.
 
-  - [ ] 1.4.2 Task - Add topology contract coverage.
+  - [x] 1.4.2 Task - Add topology contract coverage.
 
     Description: Graph identity, IRI template, and ownership decisions should be testable before runtime writes exist.
 
-    - [ ] 1.4.2.1 Subtask - Assert all named graph IRIs are exposed through one product-owned registry.
-    - [ ] 1.4.2.2 Subtask - Assert every planned record class has a canonical IRI builder.
-    - [ ] 1.4.2.3 Subtask - Assert no security ontology projection includes secret material predicates.
+    - [x] 1.4.2.1 Subtask - Assert all named graph IRIs are exposed through one product-owned registry.
+    - [x] 1.4.2.2 Subtask - Assert every planned record class has a canonical IRI builder.
+    - [x] 1.4.2.3 Subtask - Assert no security ontology projection includes secret material predicates.

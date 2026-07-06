@@ -111,6 +111,65 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     assert :ok = Runtime.admit_work_item(managed_repo_id, "work-two", %{workspace_path: workspace_path})
   end
 
+  test "concurrent ensure_repository calls share one runtime", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    results =
+      1..8
+      |> Task.async_stream(fn _index -> Runtime.ensure_repository(managed_repo_id, workspace_path) end,
+        max_concurrency: 8,
+        ordered: false
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    assert Enum.all?(results, &match?({:ok, %{managed_repo_id: ^managed_repo_id}}, &1))
+
+    started_at_values =
+      results
+      |> Enum.map(fn {:ok, status} -> status.started_at end)
+      |> Enum.uniq()
+
+    assert length(started_at_values) == 1
+  end
+
+  test "concurrent work admission respects capacity without double counting", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    previous_limit = Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items)
+    Application.put_env(:jido_code, :agent_workspace_max_concurrent_work_items, 1)
+
+    on_exit(fn ->
+      case previous_limit do
+        nil -> Application.delete_env(:jido_code, :agent_workspace_max_concurrent_work_items)
+        limit -> Application.put_env(:jido_code, :agent_workspace_max_concurrent_work_items, limit)
+      end
+    end)
+
+    assert {:ok, _status} = Runtime.ensure_repository(managed_repo_id, workspace_path)
+
+    results =
+      ["work-race-one", "work-race-two"]
+      |> Task.async_stream(
+        fn work_item_id ->
+          Runtime.admit_work_item(managed_repo_id, work_item_id, %{workspace_path: workspace_path})
+        end,
+        max_concurrency: 2,
+        ordered: false
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    assert Enum.count(results, &(&1 == :ok)) == 1
+    assert Enum.count(results, &match?({:error, %{type: :capacity_exceeded}}, &1)) == 1
+    assert Runtime.active_work_items(managed_repo_id) |> length() == 1
+
+    [active_work_item_id] = Runtime.active_work_items(managed_repo_id)
+    assert :ok = Runtime.complete_work_item(managed_repo_id, active_work_item_id)
+    assert Runtime.active_work_items(managed_repo_id) == []
+    assert :ok = Runtime.admit_work_item(managed_repo_id, "replacement-work", %{workspace_path: workspace_path})
+  end
+
   test "ensure_work_item_node locates specialists through the runtime coding pod", %{
     managed_repo_id: managed_repo_id,
     workspace_path: workspace_path
@@ -123,6 +182,33 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     assert Process.alive?(planner_pid)
 
     assert {:ok, ^planner_pid} = Runtime.ensure_work_item_node(managed_repo_id, "work-one", :planner)
+  end
+
+  test "repeated specialist lookup while lazy nodes start returns one live node", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    work_item_id = "work-lazy-specialist"
+
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+    results =
+      1..6
+      |> Task.async_stream(fn _index -> Runtime.ensure_work_item_node(managed_repo_id, work_item_id, :reviewer) end,
+        max_concurrency: 6,
+        ordered: false
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    assert Enum.all?(results, &match?({:ok, pid} when is_pid(pid), &1))
+
+    reviewer_pids =
+      results
+      |> Enum.map(fn {:ok, pid} -> pid end)
+      |> Enum.uniq()
+
+    assert length(reviewer_pids) == 1
+    assert Process.alive?(hd(reviewer_pids))
   end
 
   test "shutdown_context_management_pod releases only the context pod", %{
@@ -145,6 +231,35 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     assert Runtime.coding_pod_status(managed_repo_id, work_item_id)
     refute Runtime.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id))
     assert Runtime.active_work_items(managed_repo_id) == [work_item_id]
+  end
+
+  test "down coding pods degrade the runtime and release work capacity", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    work_item_id = "work-down-coding"
+
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+    assert %{runtime_pid: coding_pid} = Runtime.coding_pod_status(managed_repo_id, work_item_id)
+
+    monitor_ref = Process.monitor(coding_pid)
+    Process.exit(coding_pid, :kill)
+    assert_receive {:DOWN, ^monitor_ref, :process, ^coding_pid, :killed}, 1_000
+
+    status = Runtime.repository_status(managed_repo_id)
+    assert status.lifecycle == :degraded
+    assert Runtime.active_work_items(managed_repo_id) == []
+    refute Runtime.coding_pod_status(managed_repo_id, work_item_id)
+
+    assert Enum.any?(status.diagnostics, fn diagnostic ->
+             diagnostic.type == :owned_process_down and
+               diagnostic.kind == :coding and
+               diagnostic.pod_id == "coding-pod-#{work_item_id}" and
+               not Map.has_key?(diagnostic, :pid)
+           end)
+
+    assert :ok = Runtime.admit_work_item(managed_repo_id, "replacement-after-down", %{workspace_path: workspace_path})
+    assert Runtime.active_work_items(managed_repo_id) == ["replacement-after-down"]
   end
 
   test "restore_repository restores repo pods and active work metadata from snapshots", %{

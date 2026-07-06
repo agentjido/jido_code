@@ -29,27 +29,27 @@ Back to index: [README](./README.md)
   conditions, contributor verification, and end-to-end acceptance after AgentOS
   removal.
 
-  [ ] 6.1 Section - Failure Handling and Capacity Hardening
+  [x] 6.1 Section - Failure Handling and Capacity Hardening
     Make runtime failure modes explicit so repository work fails closed and
     degraded state remains visible to product callers.
 
-    [ ] 6.1.1 Task - Harden pod failure handling
+    [x] 6.1.1 Task - Harden pod failure handling
       Ensure crashed, missing, or degraded pods produce actionable runtime
       diagnostics without corrupting repository state.
 
-      [ ] 6.1.1.1 Subtask - Monitor all repo-level and work-level pods owned by a repository runtime.
-      [ ] 6.1.1.2 Subtask - Mark runtime status degraded when an eager repo, graph, memory, or context pod exits unexpectedly.
-      [ ] 6.1.1.3 Subtask - Release or quarantine work-item capacity when coding pod startup fails.
-      [ ] 6.1.1.4 Subtask - Provide explicit retry or reconcile paths for recoverable pod failures.
+      [x] 6.1.1.1 Subtask - Monitor all repo-level and work-level pods owned by a repository runtime.
+      [x] 6.1.1.2 Subtask - Mark runtime status degraded when an eager repo, graph, memory, or context pod exits unexpectedly.
+      [x] 6.1.1.3 Subtask - Release or quarantine work-item capacity when coding pod startup fails.
+      [x] 6.1.1.4 Subtask - Provide explicit retry or reconcile paths for recoverable pod failures.
 
-    [ ] 6.1.2 Task - Harden concurrency and admission behavior
+    [x] 6.1.2 Task - Harden concurrency and admission behavior
       Prove repository runtimes behave predictably under concurrent work and
       repeated caller retries.
 
-      [ ] 6.1.2.1 Subtask - Add concurrency tests for simultaneous `ensure_repository/2` calls for the same ManagedRepo.
-      [ ] 6.1.2.2 Subtask - Add concurrency tests for simultaneous work-item admission under capacity limits.
-      [ ] 6.1.2.3 Subtask - Add tests for repeated specialist lookup while lazy nodes are starting.
-      [ ] 6.1.2.4 Subtask - Ensure capacity counters never go negative or double-count active work.
+      [x] 6.1.2.1 Subtask - Add concurrency tests for simultaneous `ensure_repository/2` calls for the same ManagedRepo.
+      [x] 6.1.2.2 Subtask - Add concurrency tests for simultaneous work-item admission under capacity limits.
+      [x] 6.1.2.3 Subtask - Add tests for repeated specialist lookup while lazy nodes are starting.
+      [x] 6.1.2.4 Subtask - Ensure capacity counters never go negative or double-count active work.
 
   [ ] 6.2 Section - Observability and Operator Surfaces
     Expose runtime health in product terms and keep low-level process details

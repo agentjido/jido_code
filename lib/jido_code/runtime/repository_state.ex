@@ -266,25 +266,31 @@ defmodule JidoCode.Runtime.RepositoryState do
   end
 
   @spec mark_process_down(t(), reference(), pid(), term()) :: t()
-  def mark_process_down(%__MODULE__{} = state, ref, pid, reason) do
+  def mark_process_down(%__MODULE__{} = state, ref, _pid, reason) do
     {monitor_key, monitors} = pop_monitor(state.monitors, ref)
+    {pod_status, active_pods} = Map.pop(state.active_pods, monitor_key)
     observed_at = DateTime.utc_now()
 
     diagnostic = %{
       type: :owned_process_down,
       monitor_key: monitor_key,
-      pid: pid,
+      kind: pod_status && Map.get(pod_status, :kind),
+      key: pod_status && Map.get(pod_status, :key),
+      pod_id: pod_status && Map.get(pod_status, :pod_id),
       reason: reason,
       observed_at: observed_at
     }
 
-    %{
+    next_state = %{
       state
       | monitors: monitors,
+        active_pods: active_pods,
         lifecycle: :degraded,
         last_failure_at: observed_at,
         diagnostics: [diagnostic | state.diagnostics]
     }
+
+    release_down_work_item(next_state, monitor_key)
   end
 
   defp put_work_item(state, work_item_id, attrs) do
@@ -401,6 +407,18 @@ defmodule JidoCode.Runtime.RepositoryState do
   end
 
   defp normalize_datetime(_datetime, default), do: default
+
+  defp release_down_work_item(state, {:pod, :coding, {_managed_repo_id, work_item_id, :coding}})
+       when is_binary(work_item_id) do
+    complete_work_item(state, work_item_id)
+  end
+
+  defp release_down_work_item(state, {:pod, :context_management, {_managed_repo_id, work_item_id, :context_management}})
+       when is_binary(work_item_id) do
+    clear_work_item_pod(state, work_item_id, :context_management_pod)
+  end
+
+  defp release_down_work_item(state, _monitor_key), do: state
 
   defp monitor_pod(%__MODULE__{} = state, monitor_key, pid) do
     existing_status = Map.get(state.active_pods, monitor_key)

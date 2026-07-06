@@ -342,9 +342,21 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
           observed_at: DateTime.utc_now()
         }
 
-        {:reply, {:error, diagnostic}, RepositoryState.record_diagnostic(state, diagnostic)}
+        next_state =
+          state
+          |> release_failed_pod_admission(kind, key)
+          |> RepositoryState.record_diagnostic(diagnostic)
+
+        {:reply, {:error, diagnostic}, next_state}
     end
   end
+
+  defp release_failed_pod_admission(state, :coding, {_managed_repo_id, work_item_id, :coding})
+       when is_binary(work_item_id) do
+    RepositoryState.complete_work_item(state, work_item_id)
+  end
+
+  defp release_failed_pod_admission(state, _kind, _key), do: state
 
   defp put_work_item_pod({:reply, {:ok, pod_status}, state}, field, work_item_id) do
     {:reply, {:ok, pod_status}, RepositoryState.put_work_item_pod(state, work_item_id, field, pod_status.key)}

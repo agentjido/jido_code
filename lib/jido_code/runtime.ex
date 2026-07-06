@@ -7,7 +7,8 @@ defmodule JidoCode.Runtime do
   later phases.
   """
 
-  alias JidoCode.Runtime.{RepositoryRuntime, RepositorySupervisor}
+  alias JidoCode.Operations.RecordStore, as: OperationsRecordStore
+  alias JidoCode.Runtime.{RepositoryRuntime, RepositorySupervisor, Snapshot, SnapshotStore}
   alias Jido.Pod
 
   @registry JidoCode.Runtime.Registry
@@ -276,6 +277,54 @@ defmodule JidoCode.Runtime do
 
   def shutdown_repository(_managed_repo_id), do: :ok
 
+  @spec snapshot_repository(managed_repo_id(), keyword()) :: {:ok, Snapshot.t()} | {:error, term()}
+  def snapshot_repository(managed_repo_id, opts \\ [])
+
+  def snapshot_repository(managed_repo_id, opts) when is_binary(managed_repo_id) and is_list(opts) do
+    with {:ok, status} <- fetch_repository(managed_repo_id),
+         {:ok, snapshot} <- Snapshot.from_status(status, opts) do
+      {:ok, snapshot}
+    else
+      :error -> {:error, %{type: :runtime_unavailable, managed_repo_id: managed_repo_id}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def snapshot_repository(_managed_repo_id, _opts), do: {:error, %{type: :invalid_managed_repo_id}}
+
+  @spec save_repository_snapshot(managed_repo_id(), keyword()) :: {:ok, Snapshot.t()} | {:error, term()}
+  def save_repository_snapshot(managed_repo_id, opts \\ [])
+
+  def save_repository_snapshot(managed_repo_id, opts) when is_binary(managed_repo_id) and is_list(opts) do
+    with {:ok, snapshot} <- snapshot_repository(managed_repo_id, opts),
+         :ok <- SnapshotStore.save(snapshot, snapshot_store_opts(opts)) do
+      {:ok, snapshot}
+    end
+  end
+
+  def save_repository_snapshot(_managed_repo_id, _opts), do: {:error, %{type: :invalid_managed_repo_id}}
+
+  @spec restore_repository(managed_repo_id(), keyword()) :: {:ok, runtime_status()} | {:error, term()}
+  def restore_repository(managed_repo_id, opts \\ [])
+
+  def restore_repository(managed_repo_id, opts) when is_binary(managed_repo_id) and is_list(opts) do
+    with {:ok, snapshot} <- load_repository_snapshot(managed_repo_id, opts),
+         :ok <- validate_snapshot_workspace(snapshot, opts),
+         {:ok, pid} <-
+           ensure_repository_process(
+             managed_repo_id,
+             snapshot.workspace_path,
+             Keyword.put_new(opts, :capacity, capacity_from_snapshot(snapshot))
+           ),
+         :ok <- maybe_ensure_workspace(pid, snapshot.workspace_path),
+         {:ok, restore_plan} <- restore_plan(snapshot, opts),
+         {:ok, status} <- RepositoryRuntime.restore_snapshot(pid, Snapshot.to_record(snapshot), restore_plan) do
+      {:ok, status}
+    end
+  end
+
+  def restore_repository(_managed_repo_id, _opts), do: {:error, %{type: :invalid_managed_repo_id}}
+
   @spec lookup_repository_pid(managed_repo_id()) :: {:ok, pid()} | :error
   def lookup_repository_pid(managed_repo_id) when is_binary(managed_repo_id) do
     case Registry.lookup(@registry, managed_repo_id) do
@@ -339,6 +388,134 @@ defmodule JidoCode.Runtime do
       {:error, %{type: :workspace_unavailable, workspace_path: path}}
     end
   end
+
+  defp load_repository_snapshot(managed_repo_id, opts) do
+    case SnapshotStore.load(managed_repo_id, snapshot_store_opts(opts)) do
+      {:ok, %Snapshot{} = snapshot} ->
+        {:ok, snapshot}
+
+      :error ->
+        {:error, %{type: :runtime_snapshot_not_found, managed_repo_id: managed_repo_id}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_snapshot_workspace(%Snapshot{workspace_path: nil}, _opts), do: :ok
+
+  defp validate_snapshot_workspace(%Snapshot{workspace_path: workspace_path}, opts) do
+    if Keyword.get(opts, :validate_workspace?, true) do
+      validate_workspace_path(workspace_path)
+      |> case do
+        {:ok, _workspace_path} -> :ok
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      :ok
+    end
+  end
+
+  defp restore_plan(%Snapshot{} = snapshot, opts) do
+    validate_work_items? = Keyword.get(opts, :validate_work_items?, true)
+
+    {work_items, diagnostics} =
+      snapshot.active_work_items
+      |> Enum.reduce({[], []}, fn work_item, {work_items, diagnostics} ->
+        case restorable_work_item(work_item, snapshot, opts, validate_work_items?) do
+          {:ok, restored_work_item} ->
+            {[restored_work_item | work_items], diagnostics}
+
+          {:stale, diagnostic} ->
+            {work_items, [diagnostic | diagnostics]}
+        end
+      end)
+
+    {:ok, %{work_items: Enum.reverse(work_items), diagnostics: Enum.reverse(diagnostics)}}
+  end
+
+  defp restorable_work_item(work_item, snapshot, opts, validate_work_items?) do
+    work_item_id = Map.get(work_item, "work_item_id") || Map.get(work_item, :work_item_id)
+
+    workspace_path =
+      Map.get(work_item, "workspace_path") || Map.get(work_item, :workspace_path) || snapshot.workspace_path
+
+    cond do
+      not is_binary(work_item_id) ->
+        {:stale, stale_work_diagnostic(nil, :invalid_work_item_id)}
+
+      snapshot.workspace_path && workspace_path && snapshot.workspace_path != workspace_path ->
+        {:stale, stale_work_diagnostic(work_item_id, :workspace_mismatch)}
+
+      Keyword.get(opts, :validate_workspace?, true) and is_binary(workspace_path) and not File.dir?(workspace_path) ->
+        {:stale, stale_work_diagnostic(work_item_id, :workspace_unavailable)}
+
+      validate_work_items? ->
+        validate_restorable_work_item(
+          Map.put(work_item, "workspace_path", workspace_path),
+          work_item_id,
+          snapshot.managed_repo_id,
+          opts
+        )
+
+      true ->
+        {:ok, Map.put(work_item, "workspace_path", workspace_path)}
+    end
+  end
+
+  defp validate_restorable_work_item(work_item, work_item_id, managed_repo_id, opts) do
+    case resolve_work_item(work_item_id, managed_repo_id, opts) do
+      {:ok, %{managed_repo_id: ^managed_repo_id}} ->
+        {:ok, work_item}
+
+      {:ok, %{managed_repo_id: other_repo_id}} ->
+        {:stale, stale_work_diagnostic(work_item_id, {:wrong_managed_repo, other_repo_id})}
+
+      {:ok, nil} ->
+        {:stale, stale_work_diagnostic(work_item_id, :work_item_not_found)}
+
+      {:error, reason} ->
+        {:stale, stale_work_diagnostic(work_item_id, {:work_item_lookup_failed, reason})}
+    end
+  end
+
+  defp resolve_work_item(work_item_id, managed_repo_id, opts) do
+    resolver = Keyword.get(opts, :work_item_resolver, &default_work_item_resolver/1)
+
+    cond do
+      is_function(resolver, 2) -> resolver.(managed_repo_id, work_item_id)
+      is_function(resolver, 1) -> resolver.(work_item_id)
+      true -> {:error, :invalid_work_item_resolver}
+    end
+  rescue
+    error -> {:error, Exception.message(error)}
+  end
+
+  defp default_work_item_resolver(work_item_id) do
+    OperationsRecordStore.get(:work_item, work_item_id)
+  end
+
+  defp stale_work_diagnostic(work_item_id, reason) do
+    %{
+      type: :runtime_snapshot_stale_work,
+      work_item_id: work_item_id,
+      reason: reason,
+      observed_at: DateTime.utc_now()
+    }
+  end
+
+  defp capacity_from_snapshot(%Snapshot{capacity: capacity}) when is_map(capacity) do
+    limit = Map.get(capacity, "max_active_work_items") || Map.get(capacity, :max_active_work_items)
+    %{max_active_work_items: restore_capacity_limit(limit)}
+  end
+
+  defp capacity_from_snapshot(_snapshot), do: default_capacity()
+
+  defp restore_capacity_limit("infinity"), do: :infinity
+  defp restore_capacity_limit(limit) when is_integer(limit) and limit > 0, do: limit
+  defp restore_capacity_limit(_limit), do: :infinity
+
+  defp snapshot_store_opts(opts), do: Keyword.take(opts, [:backend])
 
   defp default_capacity do
     %{max_active_work_items: work_queue_limit()}

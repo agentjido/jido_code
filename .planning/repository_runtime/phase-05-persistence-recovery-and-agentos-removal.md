@@ -54,28 +54,28 @@ Back to index: [README](./README.md)
       [x] 5.1.2.3 Subtask - Define clear behavior when snapshot storage is unavailable.
       [x] 5.1.2.4 Subtask - Keep storage writes bounded and avoid persisting large graph, conversation, or prompt payloads.
 
-  [ ] 5.2 Section - Startup Recovery and Orphan Handling
+  [x] 5.2 Section - Startup Recovery and Orphan Handling
     Restore repository runtime state after application restart and handle stale
     pod or work metadata deterministically.
 
-    [ ] 5.2.1 Task - Add runtime restoration flow
+    [x] 5.2.1 Task - Add runtime restoration flow
       Start repository runtimes from durable product metadata when a caller
       asks for an existing repository or when configured startup restoration is
       enabled.
 
-      [ ] 5.2.1.1 Subtask - Add a restore function that reconstructs repository runtime state from snapshots.
-      [ ] 5.2.1.2 Subtask - Reconcile repo, graph, memory, coding, and context pods with `Jido.Pod.get/3` as needed.
-      [ ] 5.2.1.3 Subtask - Mark missing, stale, or failed pods as degraded diagnostics rather than hiding failures.
-      [ ] 5.2.1.4 Subtask - Ensure restoration is idempotent when multiple callers request the same ManagedRepo concurrently.
+      [x] 5.2.1.1 Subtask - Add a restore function that reconstructs repository runtime state from snapshots.
+      [x] 5.2.1.2 Subtask - Reconcile repo, graph, memory, coding, and context pods with `Jido.Pod.get/3` as needed.
+      [x] 5.2.1.3 Subtask - Mark missing, stale, or failed pods as degraded diagnostics rather than hiding failures.
+      [x] 5.2.1.4 Subtask - Ensure restoration is idempotent when multiple callers request the same ManagedRepo concurrently.
 
-    [ ] 5.2.2 Task - Add stale work and orphan cleanup
+    [x] 5.2.2 Task - Add stale work and orphan cleanup
       Make restart behavior explicit when snapshots mention work that no
       longer has a valid product record or workspace.
 
-      [ ] 5.2.2.1 Subtask - Detect active work items that no longer exist or no longer belong to the ManagedRepo.
-      [ ] 5.2.2.2 Subtask - Detect work items whose workspace path is missing or no longer matches repository binding.
-      [ ] 5.2.2.3 Subtask - Mark unrecoverable runtime entries as stale and release capacity.
-      [ ] 5.2.2.4 Subtask - Emit bounded diagnostics for operator surfaces and tests.
+      [x] 5.2.2.1 Subtask - Detect active work items that no longer exist or no longer belong to the ManagedRepo.
+      [x] 5.2.2.2 Subtask - Detect work items whose workspace path is missing or no longer matches repository binding.
+      [x] 5.2.2.3 Subtask - Mark unrecoverable runtime entries as stale and release capacity.
+      [x] 5.2.2.4 Subtask - Emit bounded diagnostics for operator surfaces and tests.
 
   [ ] 5.3 Section - AgentOS Deletion
     Remove the dependency and obsolete local integration after product

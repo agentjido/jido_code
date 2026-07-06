@@ -101,6 +101,10 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   def shutdown_context_management_pod(server, work_item_id),
     do: GenServer.call(server, {:shutdown_context_management_pod, work_item_id})
 
+  @spec restore_snapshot(GenServer.server(), map(), map()) :: {:ok, map()} | {:error, term()}
+  def restore_snapshot(server, snapshot, restore_plan) when is_map(snapshot) and is_map(restore_plan),
+    do: GenServer.call(server, {:restore_snapshot, snapshot, restore_plan})
+
   @impl true
   def init(opts) do
     {:ok, RepositoryState.new(opts)}
@@ -301,6 +305,22 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
     {:reply, :ok, next_state}
   end
 
+  def handle_call({:restore_snapshot, snapshot, restore_plan}, _from, state) do
+    case RepositoryState.restore_snapshot(
+           state,
+           snapshot,
+           Map.get(restore_plan, :work_items, []),
+           Map.get(restore_plan, :diagnostics, [])
+         ) do
+      {:ok, restored_state} ->
+        next_state = reconcile_snapshot_pods(restored_state, snapshot, restore_plan)
+        {:reply, {:ok, RepositoryState.status(next_state)}, next_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
   @impl true
   def handle_info({:DOWN, ref, :process, pid, reason}, state) do
     {:noreply, RepositoryState.mark_process_down(state, ref, pid, reason)}
@@ -348,6 +368,233 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
         RepositoryState.record_diagnostic(state, cleanup_diagnostic(kind, key, manager, reason))
     end
   end
+
+  defp reconcile_snapshot_pods(state, snapshot, restore_plan) do
+    restored_work_items =
+      restore_plan
+      |> Map.get(:work_items, [])
+      |> MapSet.new(&(Map.get(&1, "work_item_id") || Map.get(&1, :work_item_id)))
+
+    snapshot
+    |> Map.get(:pods, Map.get(snapshot, "pods", []))
+    |> Enum.reduce(state, &restore_snapshot_pod(&2, &1, restored_work_items))
+  end
+
+  defp restore_snapshot_pod(state, %{"kind" => "repo"}, _restored_work_items) do
+    restore_runtime_pod(
+      state,
+      :repo,
+      {state.managed_repo_id, :repo},
+      :jido_code_repo_pods,
+      RepoPod,
+      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path},
+      %{
+        pod_id: @repo_pod_id,
+        scope: :repository,
+        metadata:
+          restore_metadata(%{"managed_repo_id" => state.managed_repo_id, "workspace_path" => state.workspace_path})
+      }
+    )
+  end
+
+  defp restore_snapshot_pod(state, %{"kind" => "source_code_graph"} = pod, _restored_work_items) do
+    restore_runtime_pod(
+      state,
+      :source_code_graph,
+      {state.managed_repo_id, :source_code_graph},
+      :jido_code_source_code_graph_pods,
+      SourceCodeGraphPod,
+      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path},
+      %{
+        pod_id: SourceCodeGraph.pod_id(),
+        scope: :repository,
+        metadata: restore_metadata(Map.get(pod, "metadata", %{}))
+      }
+    )
+  end
+
+  defp restore_snapshot_pod(state, %{"kind" => "memory_graph"} = pod, _restored_work_items) do
+    restore_runtime_pod(
+      state,
+      :memory_graph,
+      {state.managed_repo_id, :memory_graph},
+      :jido_code_memory_graph_pods,
+      MemoryGraphPod,
+      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path},
+      %{
+        pod_id: MemoryGraph.pod_id(),
+        scope: :repository,
+        metadata: restore_metadata(Map.get(pod, "metadata", %{}))
+      }
+    )
+  end
+
+  defp restore_snapshot_pod(state, %{"kind" => "coding"} = pod, restored_work_items) do
+    with work_item_id when is_binary(work_item_id) <- snapshot_work_item_id(pod),
+         true <- MapSet.member?(restored_work_items, work_item_id) do
+      workspace_path = snapshot_workspace_path(pod, state.workspace_path)
+
+      state
+      |> restore_runtime_pod(
+        :coding,
+        {state.managed_repo_id, work_item_id, :coding},
+        :jido_code_coding_pods,
+        CodingPod,
+        %{managed_repo_id: state.managed_repo_id, work_item_id: work_item_id, workspace_path: workspace_path},
+        %{
+          pod_id: coding_pod_id(work_item_id),
+          scope: :work_item,
+          metadata: restore_metadata(Map.get(pod, "metadata", %{}))
+        }
+      )
+      |> RepositoryState.put_work_item_pod(work_item_id, :coding_pod, {state.managed_repo_id, work_item_id, :coding})
+    else
+      _other -> state
+    end
+  end
+
+  defp restore_snapshot_pod(state, %{"kind" => "context_management"} = pod, restored_work_items) do
+    with work_item_id when is_binary(work_item_id) <- snapshot_work_item_id(pod),
+         true <- MapSet.member?(restored_work_items, work_item_id) do
+      workspace_path = snapshot_workspace_path(pod, state.workspace_path)
+      metadata = restore_metadata(Map.get(pod, "metadata", %{}))
+
+      state
+      |> restore_runtime_pod(
+        :context_management,
+        {state.managed_repo_id, work_item_id, :context_management},
+        :jido_code_context_management_pods,
+        ContextManagementPod,
+        Map.merge(metadata, %{
+          managed_repo_id: state.managed_repo_id,
+          work_item_id: work_item_id,
+          workspace_path: workspace_path
+        }),
+        %{
+          pod_id: ContextManagement.pod_id(work_item_id),
+          scope: :work_item,
+          metadata: Map.put_new(metadata, :coding_pod_id, coding_pod_id(work_item_id))
+        }
+      )
+      |> RepositoryState.put_work_item_pod(
+        work_item_id,
+        :context_management_pod,
+        {state.managed_repo_id, work_item_id, :context_management}
+      )
+    else
+      _other -> state
+    end
+  end
+
+  defp restore_snapshot_pod(state, _pod, _restored_work_items), do: state
+
+  defp restore_runtime_pod(state, kind, key, manager, module, initial_state, attrs) do
+    case Pod.get(manager, key, initial_state: initial_state) do
+      {:ok, pod_pid} ->
+        RepositoryState.put_pod(state, kind, key, module, pod_pid, attrs)
+
+      {:error, reason} ->
+        RepositoryState.record_diagnostic(state, %{
+          type: :pod_restore_failed,
+          kind: kind,
+          key: key,
+          module: module,
+          reason: reason,
+          observed_at: DateTime.utc_now()
+        })
+    end
+  end
+
+  defp snapshot_work_item_id(pod) do
+    metadata = Map.get(pod, "metadata", %{})
+
+    Map.get(metadata, "work_item_id") ||
+      pod
+      |> Map.get("key", [])
+      |> case do
+        [_managed_repo_id, work_item_id, _kind] -> work_item_id
+        _other -> nil
+      end
+  end
+
+  defp snapshot_workspace_path(pod, fallback) do
+    pod
+    |> Map.get("metadata", %{})
+    |> Map.get("workspace_path", fallback)
+  end
+
+  @restore_key_atoms %{
+    "managed_repo_id" => :managed_repo_id,
+    "workspace_path" => :workspace_path,
+    "work_item_id" => :work_item_id,
+    "runtime_status" => :runtime_status,
+    "coding_pod_id" => :coding_pod_id,
+    "latest_analysis_status" => :latest_analysis_status,
+    "latest_import_status" => :latest_import_status,
+    "source_graph_refresh" => :source_graph_refresh,
+    "latest_validation_status" => :latest_validation_status,
+    "latest_record_status" => :latest_record_status,
+    "latest_query_status" => :latest_query_status,
+    "context_management_status" => :context_management_status,
+    "latest_monitor_decision" => :latest_monitor_decision,
+    "latest_compaction" => :latest_compaction,
+    "last_observation" => :last_observation,
+    "graph_store_path" => :graph_store_path,
+    "store_path" => :store_path,
+    "ready?" => :ready?,
+    "state" => :state,
+    "imported_revision" => :imported_revision,
+    "analyzed_revision" => :analyzed_revision,
+    "validated_revision" => :validated_revision,
+    "recorded_revision" => :recorded_revision,
+    "queried_revision" => :queried_revision,
+    "refresh_mode" => :refresh_mode,
+    "stale?" => :stale?,
+    "stale_reason" => :stale_reason,
+    "failure" => :failure,
+    "reason" => :reason,
+    "kind" => :kind,
+    "type" => :type,
+    "observed_at" => :observed_at,
+    "updated_at" => :updated_at
+  }
+
+  @restore_atom_values %{
+    "running" => :running,
+    "restored" => :restored,
+    "ready" => :ready,
+    "healthy" => :healthy,
+    "degraded" => :degraded,
+    "disabled" => :disabled,
+    "blocked" => :blocked,
+    "recommend_compaction" => :recommend_compaction,
+    "skipped" => :skipped,
+    "analyzed" => :analyzed,
+    "loaded" => :loaded,
+    "validated" => :validated,
+    "recorded" => :recorded,
+    "queried" => :queried,
+    "replace_named_graph" => :replace_named_graph
+  }
+
+  defp restore_metadata(metadata) when is_map(metadata) do
+    metadata
+    |> Map.new(fn {key, value} -> {restore_key_atom(key), restore_metadata_value(value)} end)
+    |> Map.put_new(:runtime_status, :running)
+  end
+
+  defp restore_metadata(_metadata), do: %{runtime_status: :running}
+
+  defp restore_metadata_value(value) when is_map(value) do
+    Map.new(value, fn {key, nested_value} -> {restore_key_atom(key), restore_metadata_value(nested_value)} end)
+  end
+
+  defp restore_metadata_value(value) when is_list(value), do: Enum.map(value, &restore_metadata_value/1)
+  defp restore_metadata_value(value) when is_binary(value), do: Map.get(@restore_atom_values, value, value)
+  defp restore_metadata_value(value), do: value
+
+  defp restore_key_atom(key) when is_binary(key), do: Map.get(@restore_key_atoms, key, key)
+  defp restore_key_atom(key), do: key
 
   defp cleanup_diagnostic(kind, key, manager, reason) do
     %{

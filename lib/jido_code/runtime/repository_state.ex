@@ -229,6 +229,30 @@ defmodule JidoCode.Runtime.RepositoryState do
     }
   end
 
+  @spec record_diagnostics(t(), [map()]) :: t()
+  def record_diagnostics(%__MODULE__{} = state, diagnostics) when is_list(diagnostics) do
+    Enum.reduce(diagnostics, state, &record_diagnostic(&2, &1))
+  end
+
+  @spec restore_snapshot(t(), map(), [map()], [map()]) :: {:ok, t()} | {:error, term()}
+  def restore_snapshot(%__MODULE__{} = state, snapshot, restored_work_items, diagnostics)
+      when is_map(snapshot) and is_list(restored_work_items) and is_list(diagnostics) do
+    with :ok <- ensure_snapshot_repo(state, snapshot),
+         {:ok, workspace_path} <- restore_workspace_path(state, snapshot) do
+      now = DateTime.utc_now()
+
+      next_state = %{
+        state
+        | workspace_path: workspace_path,
+          capacity: normalize_capacity(Map.get(snapshot, :capacity, Map.get(snapshot, "capacity", state.capacity))),
+          active_work_items: restore_work_items(restored_work_items),
+          last_activity_at: now
+      }
+
+      {:ok, record_diagnostics(next_state, diagnostics)}
+    end
+  end
+
   @spec active_work_item_ids(t()) :: [work_item_id()]
   def active_work_item_ids(%__MODULE__{} = state) do
     state.active_work_items
@@ -282,6 +306,101 @@ defmodule JidoCode.Runtime.RepositoryState do
         last_activity_at: admitted_at
     }
   end
+
+  defp ensure_snapshot_repo(%__MODULE__{managed_repo_id: managed_repo_id}, snapshot) do
+    case Map.get(snapshot, :managed_repo_id, Map.get(snapshot, "managed_repo_id")) do
+      ^managed_repo_id ->
+        :ok
+
+      other ->
+        {:error, %{type: :runtime_snapshot_repo_mismatch, expected: managed_repo_id, actual: other}}
+    end
+  end
+
+  defp restore_workspace_path(%__MODULE__{workspace_path: nil}, snapshot) do
+    {:ok, Map.get(snapshot, :workspace_path, Map.get(snapshot, "workspace_path"))}
+  end
+
+  defp restore_workspace_path(%__MODULE__{workspace_path: workspace_path}, snapshot) do
+    snapshot_workspace_path = Map.get(snapshot, :workspace_path, Map.get(snapshot, "workspace_path"))
+
+    cond do
+      is_nil(snapshot_workspace_path) ->
+        {:ok, workspace_path}
+
+      workspace_path == snapshot_workspace_path ->
+        {:ok, workspace_path}
+
+      true ->
+        {:error,
+         %{
+           type: :workspace_mismatch,
+           existing_workspace_path: workspace_path,
+           requested_workspace_path: snapshot_workspace_path
+         }}
+    end
+  end
+
+  defp restore_work_items(work_items) do
+    work_items
+    |> Enum.map(&restore_work_item/1)
+    |> Enum.reject(&is_nil/1)
+    |> Map.new()
+  end
+
+  defp restore_work_item(work_item) when is_map(work_item) do
+    work_item_id = Map.get(work_item, :work_item_id, Map.get(work_item, "work_item_id"))
+
+    if is_binary(work_item_id) do
+      admitted_at =
+        work_item
+        |> Map.get(:admitted_at, Map.get(work_item, "admitted_at"))
+        |> normalize_datetime(DateTime.utc_now())
+
+      {work_item_id,
+       %{
+         work_item_id: work_item_id,
+         workspace_path: Map.get(work_item, :workspace_path, Map.get(work_item, "workspace_path")),
+         admitted_at: admitted_at,
+         coding_pod: restore_key(Map.get(work_item, :coding_pod, Map.get(work_item, "coding_pod"))),
+         context_management_pod:
+           restore_key(Map.get(work_item, :context_management_pod, Map.get(work_item, "context_management_pod"))),
+         lifecycle: :admitted,
+         diagnostics: Map.get(work_item, :diagnostics, Map.get(work_item, "diagnostics", []))
+       }}
+    end
+  end
+
+  defp restore_work_item(_work_item), do: nil
+
+  defp restore_key(nil), do: nil
+  defp restore_key(value) when is_tuple(value), do: value
+
+  defp restore_key(value) when is_list(value) do
+    value
+    |> Enum.map(&restore_key_part/1)
+    |> List.to_tuple()
+  end
+
+  defp restore_key(value), do: value
+
+  defp restore_key_part("repo"), do: :repo
+  defp restore_key_part("source_code_graph"), do: :source_code_graph
+  defp restore_key_part("memory_graph"), do: :memory_graph
+  defp restore_key_part("coding"), do: :coding
+  defp restore_key_part("context_management"), do: :context_management
+  defp restore_key_part(value), do: value
+
+  defp normalize_datetime(%DateTime{} = datetime, _default), do: datetime
+
+  defp normalize_datetime(datetime, default) when is_binary(datetime) do
+    case DateTime.from_iso8601(datetime) do
+      {:ok, parsed, _offset} -> parsed
+      {:error, _reason} -> default
+    end
+  end
+
+  defp normalize_datetime(_datetime, default), do: default
 
   defp monitor_pod(%__MODULE__{} = state, monitor_key, pid) do
     existing_status = Map.get(state.active_pods, monitor_key)

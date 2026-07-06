@@ -2,7 +2,10 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
   use ExUnit.Case, async: false
 
   alias JidoCode.ContextManagement
+  alias JidoCode.MemoryGraph
   alias JidoCode.Runtime
+  alias JidoCode.Runtime.Snapshot
+  alias JidoCode.SourceCodeGraph
 
   setup do
     managed_repo_id = "runtime-repo-#{System.unique_integer([:positive])}"
@@ -142,6 +145,167 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     assert Runtime.coding_pod_status(managed_repo_id, work_item_id)
     refute Runtime.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id))
     assert Runtime.active_work_items(managed_repo_id) == [work_item_id]
+  end
+
+  test "restore_repository restores repo pods and active work metadata from snapshots", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    work_item_id = "restored-work"
+
+    assert {:ok, _runtime_status} = Runtime.ensure_repository(managed_repo_id, workspace_path)
+    assert {:ok, _repo_pod} = Runtime.ensure_repo_pod(managed_repo_id)
+    assert {:ok, _source_pod} = Runtime.ensure_source_code_graph_pod(managed_repo_id)
+    assert {:ok, _memory_pod} = Runtime.ensure_memory_graph_pod(managed_repo_id)
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+    assert {:ok, _context_pod} =
+             Runtime.ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, %{
+               context_management_status: :healthy
+             })
+
+    assert {:ok, _source_pod} =
+             Runtime.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), %{
+               latest_import_status: %{ready?: true, imported_revision: "rev-restore"}
+             })
+
+    assert {:ok, _snapshot} = Runtime.save_repository_snapshot(managed_repo_id, backend: :ets)
+    assert :ok = Runtime.shutdown_repository(managed_repo_id)
+    assert Runtime.fetch_repository(managed_repo_id) == :error
+
+    resolver = fn ^managed_repo_id, ^work_item_id -> {:ok, %{managed_repo_id: managed_repo_id}} end
+
+    assert {:ok, restored_status} =
+             Runtime.restore_repository(managed_repo_id,
+               backend: :ets,
+               work_item_resolver: resolver
+             )
+
+    assert restored_status.workspace_path == workspace_path
+    assert Runtime.active_work_items(managed_repo_id) == [work_item_id]
+    assert Runtime.pod_status(managed_repo_id, "repo-pod")
+    assert Runtime.pod_status(managed_repo_id, SourceCodeGraph.pod_id())
+    assert Runtime.pod_status(managed_repo_id, MemoryGraph.pod_id())
+    assert Runtime.coding_pod_status(managed_repo_id, work_item_id)
+    assert Runtime.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id))
+
+    assert get_in(Runtime.pod_status(managed_repo_id, SourceCodeGraph.pod_id()), [
+             :metadata,
+             :latest_import_status,
+             :ready?
+           ])
+  end
+
+  test "restore_repository drops stale work metadata and releases capacity", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    stale_work_item_id = "stale-work"
+
+    snapshot = %Snapshot{
+      managed_repo_id: managed_repo_id,
+      workspace_path: workspace_path,
+      lifecycle: "ready",
+      capacity: %{"max_active_work_items" => 1},
+      active_work_items: [
+        %{
+          "work_item_id" => stale_work_item_id,
+          "workspace_path" => workspace_path,
+          "coding_pod" => [managed_repo_id, stale_work_item_id, "coding"],
+          "lifecycle" => "admitted"
+        }
+      ],
+      pods: [
+        %{
+          "pod_id" => "coding-pod-#{stale_work_item_id}",
+          "kind" => "coding",
+          "key" => [managed_repo_id, stale_work_item_id, "coding"],
+          "scope" => "work_item",
+          "module" => "Elixir.JidoCode.Pods.CodingPod",
+          "metadata" => %{
+            "managed_repo_id" => managed_repo_id,
+            "work_item_id" => stale_work_item_id,
+            "workspace_path" => workspace_path,
+            "runtime_status" => "running"
+          },
+          "lifecycle" => "running"
+        }
+      ],
+      captured_at: "2026-07-06T10:00:00Z"
+    }
+
+    assert :ok = JidoCode.Runtime.SnapshotStore.save(snapshot, backend: :ets)
+
+    resolver = fn ^managed_repo_id, ^stale_work_item_id -> {:ok, nil} end
+
+    assert {:ok, restored_status} =
+             Runtime.restore_repository(managed_repo_id,
+               backend: :ets,
+               work_item_resolver: resolver
+             )
+
+    assert restored_status.active_work_items == %{}
+    assert Runtime.active_work_items(managed_repo_id) == []
+    refute Runtime.coding_pod_status(managed_repo_id, stale_work_item_id)
+
+    assert Enum.any?(restored_status.diagnostics, fn diagnostic ->
+             diagnostic.type == :runtime_snapshot_stale_work and
+               diagnostic.work_item_id == stale_work_item_id and
+               diagnostic.reason == :work_item_not_found
+           end)
+
+    assert :ok = Runtime.admit_work_item(managed_repo_id, "replacement-work", %{workspace_path: workspace_path})
+    assert Runtime.active_work_items(managed_repo_id) == ["replacement-work"]
+  end
+
+  test "restore_repository is idempotent when callers race", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    snapshot = %Snapshot{
+      managed_repo_id: managed_repo_id,
+      workspace_path: workspace_path,
+      lifecycle: "ready",
+      pods: [
+        %{
+          "pod_id" => "repo-pod",
+          "kind" => "repo",
+          "key" => [managed_repo_id, "repo"],
+          "scope" => "repository",
+          "module" => "Elixir.JidoCode.Pods.RepoPod",
+          "metadata" => %{"managed_repo_id" => managed_repo_id, "workspace_path" => workspace_path},
+          "lifecycle" => "running"
+        }
+      ],
+      captured_at: "2026-07-06T10:00:00Z"
+    }
+
+    assert :ok = JidoCode.Runtime.SnapshotStore.save(snapshot, backend: :ets)
+
+    results =
+      1..5
+      |> Task.async_stream(
+        fn _index ->
+          Runtime.restore_repository(managed_repo_id,
+            backend: :ets,
+            validate_work_items?: false
+          )
+        end,
+        ordered: false,
+        max_concurrency: 5
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    assert Enum.all?(results, &match?({:ok, %{managed_repo_id: ^managed_repo_id}}, &1))
+
+    started_at_values =
+      results
+      |> Enum.map(fn {:ok, status} -> status.started_at end)
+      |> Enum.uniq()
+
+    assert length(started_at_values) == 1
+    assert Runtime.repository_status(managed_repo_id).managed_repo_id == managed_repo_id
+    assert Runtime.pod_status(managed_repo_id, "repo-pod")
   end
 
   defp workspace_path!(name) do

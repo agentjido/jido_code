@@ -51,27 +51,27 @@ Back to index: [README](./README.md)
       [x] 2.1.2.3 Subtask - Store runtime state for repository ID, workspace path, lifecycle status, active pods, active work items, capacity policy, and diagnostics.
       [x] 2.1.2.4 Subtask - Monitor owned pod pids once Phase 3 starts creating pods.
 
-  [ ] 2.2 Section - Runtime Lifecycle API
+  [x] 2.2 Section - Runtime Lifecycle API
     Define the public runtime functions that product callers use instead of
     kernel lifecycle functions.
 
-    [ ] 2.2.1 Task - Add ensure and lookup APIs
+    [x] 2.2.1 Task - Add ensure and lookup APIs
       Provide idempotent runtime creation and lookup without exposing OTP
       registry details to product callers.
 
-      [ ] 2.2.1.1 Subtask - Add `JidoCode.Runtime.ensure_repository/2` or equivalent with `managed_repo_id` and workspace path inputs.
-      [ ] 2.2.1.2 Subtask - Add `JidoCode.Runtime.fetch_repository/1` for structured lookup.
-      [ ] 2.2.1.3 Subtask - Add `JidoCode.Runtime.repository_status/1` for product-facing status.
-      [ ] 2.2.1.4 Subtask - Add `JidoCode.Runtime.list_repositories/0` and `repository_count/0`.
+      [x] 2.2.1.1 Subtask - Add `JidoCode.Runtime.ensure_repository/2` or equivalent with `managed_repo_id` and workspace path inputs.
+      [x] 2.2.1.2 Subtask - Add `JidoCode.Runtime.fetch_repository/1` for structured lookup.
+      [x] 2.2.1.3 Subtask - Add `JidoCode.Runtime.repository_status/1` for product-facing status.
+      [x] 2.2.1.4 Subtask - Add `JidoCode.Runtime.list_repositories/0` and `repository_count/0`.
 
-    [ ] 2.2.2 Task - Add shutdown and lifecycle transitions
+    [x] 2.2.2 Task - Add shutdown and lifecycle transitions
       Make runtime shutdown deterministic for tests, operator actions, and
       repository removal flows.
 
-      [ ] 2.2.2.1 Subtask - Add `JidoCode.Runtime.shutdown_repository/1` as an idempotent API.
-      [ ] 2.2.2.2 Subtask - Define lifecycle states such as `:starting`, `:ready`, `:degraded`, `:stopping`, and `:stopped`.
-      [ ] 2.2.2.3 Subtask - Ensure failed startup unregisters the runtime and returns a structured error.
-      [ ] 2.2.2.4 Subtask - Ensure repeated ensure and shutdown calls are race-safe.
+      [x] 2.2.2.1 Subtask - Add `JidoCode.Runtime.shutdown_repository/1` as an idempotent API.
+      [x] 2.2.2.2 Subtask - Define lifecycle states such as `:starting`, `:ready`, `:degraded`, `:stopping`, and `:stopped`.
+      [x] 2.2.2.3 Subtask - Ensure failed startup unregisters the runtime and returns a structured error.
+      [x] 2.2.2.4 Subtask - Ensure repeated ensure and shutdown calls are race-safe.
 
   [ ] 2.3 Section - Runtime State and Admission Policy
     Move repository-scoped product policy out of AgentOS manager state and into

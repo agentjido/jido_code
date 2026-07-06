@@ -55,6 +55,12 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   @spec status(GenServer.server()) :: {:ok, state()}
   def status(server), do: GenServer.call(server, :status)
 
+  @spec ensure_workspace(GenServer.server(), String.t() | nil) :: :ok | {:error, term()}
+  def ensure_workspace(server, workspace_path), do: GenServer.call(server, {:ensure_workspace, workspace_path})
+
+  @spec mark_stopping(GenServer.server()) :: :ok
+  def mark_stopping(server), do: GenServer.call(server, :mark_stopping)
+
   @impl true
   def init(opts) do
     now = DateTime.utc_now()
@@ -78,6 +84,29 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   @impl true
   def handle_call(:status, _from, state) do
     {:reply, {:ok, Map.delete(state, :monitors)}, state}
+  end
+
+  def handle_call({:ensure_workspace, workspace_path}, _from, state) do
+    cond do
+      is_nil(state.workspace_path) ->
+        {:reply, :ok, %{state | workspace_path: workspace_path, last_activity_at: DateTime.utc_now()}}
+
+      state.workspace_path == workspace_path ->
+        {:reply, :ok, %{state | last_activity_at: DateTime.utc_now()}}
+
+      true ->
+        {:reply,
+         {:error,
+          %{
+            type: :workspace_mismatch,
+            existing_workspace_path: state.workspace_path,
+            requested_workspace_path: workspace_path
+          }}, state}
+    end
+  end
+
+  def handle_call(:mark_stopping, _from, state) do
+    {:reply, :ok, %{state | lifecycle: :stopping, last_activity_at: DateTime.utc_now()}}
   end
 
   @impl true

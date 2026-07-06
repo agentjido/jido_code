@@ -26,7 +26,7 @@ Back to index: [README](./README.md)
   `Jido.Agent.InstanceManager`.
 - Dynamic pod identity comes from tuple keys passed to pod managers.
 
-[ ] 3 Phase 3 - Jido.Pod Manager Topology and Pod Conversion
+[x] 3 Phase 3 - Jido.Pod Manager Topology and Pod Conversion
   Convert the local pod topology to native `Jido.Pod` and static
   `Jido.Agent.InstanceManager` ownership so repository runtimes can start pods
   directly without AgentOS manager, naming, or persistence helpers.
@@ -99,16 +99,16 @@ Back to index: [README](./README.md)
       [x] 3.3.2.3 Subtask - Monitor work-level pod pids and mark runtime status degraded when unexpected exits occur.
       [x] 3.3.2.4 Subtask - Ensure `complete_work/2` tears down or releases work-level pods and admission state deterministically.
 
-  [ ] 3.4 Section - Phase 3 Integration Tests
+  [x] 3.4 Section - Phase 3 Integration Tests
     Prove native Jido pods start, reconcile eager nodes, lazy-start specialists,
     and stay isolated by repository and work-item keys.
 
-    [ ] 3.4.1 Task - Pod lifecycle and isolation scenarios
+    [x] 3.4.1 Task - Pod lifecycle and isolation scenarios
       Exercise each converted pod through `Jido.Pod` APIs rather than AgentOS
       wrappers.
 
-      [ ] 3.4.1.1 Subtask - Add tests that `RepoPod` starts eager `RepoMonitor` and `WorkRegistry` nodes through `Jido.Pod.get/3`.
-      [ ] 3.4.1.2 Subtask - Add tests that `CodingPod` starts eager nodes and lazy-starts specialist nodes with `Jido.Pod.ensure_node/3`.
-      [ ] 3.4.1.3 Subtask - Add tests that identical work-item IDs in different ManagedRepos resolve to different pod and node pids.
-      [ ] 3.4.1.4 Subtask - Add tests that graph and context pods reconcile without AgentOS signal routes.
-      [ ] 3.4.1.5 Subtask - Run focused pod tests replacing `test/jido_code/agent_os/pods_test.exs` with runtime/pod test paths.
+      [x] 3.4.1.1 Subtask - Add tests that `RepoPod` starts eager `RepoMonitor` and `WorkRegistry` nodes through `Jido.Pod.get/3`.
+      [x] 3.4.1.2 Subtask - Add tests that `CodingPod` starts eager nodes and lazy-starts specialist nodes with `Jido.Pod.ensure_node/3`.
+      [x] 3.4.1.3 Subtask - Add tests that identical work-item IDs in different ManagedRepos resolve to different pod and node pids.
+      [x] 3.4.1.4 Subtask - Add tests that graph and context pods reconcile without AgentOS signal routes.
+      [x] 3.4.1.5 Subtask - Run focused pod tests replacing `test/jido_code/agent_os/pods_test.exs` with runtime/pod test paths.

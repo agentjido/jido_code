@@ -51,27 +51,27 @@ Back to index: [README](./README.md)
       [x] 6.1.2.3 Subtask - Add tests for repeated specialist lookup while lazy nodes are starting.
       [x] 6.1.2.4 Subtask - Ensure capacity counters never go negative or double-count active work.
 
-  [ ] 6.2 Section - Observability and Operator Surfaces
+  [x] 6.2 Section - Observability and Operator Surfaces
     Expose runtime health in product terms and keep low-level process details
     out of user-facing surfaces.
 
-    [ ] 6.2.1 Task - Add runtime telemetry and logs
+    [x] 6.2.1 Task - Add runtime telemetry and logs
       Emit coarse events for runtime lifecycle and pod health that can support
       troubleshooting without becoming a hidden dependency.
 
-      [ ] 6.2.1.1 Subtask - Add telemetry events for repository runtime start, ready, degraded, restored, and stopped states.
-      [ ] 6.2.1.2 Subtask - Add telemetry events for pod ensure, reconcile, failure, and cleanup outcomes.
-      [ ] 6.2.1.3 Subtask - Include ManagedRepo ID and work-item ID where appropriate without logging prompt bodies or large graph payloads.
-      [ ] 6.2.1.4 Subtask - Keep logs structured and bounded for repeated runtime failures.
+      [x] 6.2.1.1 Subtask - Add telemetry events for repository runtime start, ready, degraded, restored, and stopped states.
+      [x] 6.2.1.2 Subtask - Add telemetry events for pod ensure, reconcile, failure, and cleanup outcomes.
+      [x] 6.2.1.3 Subtask - Include ManagedRepo ID and work-item ID where appropriate without logging prompt bodies or large graph payloads.
+      [x] 6.2.1.4 Subtask - Keep logs structured and bounded for repeated runtime failures.
 
-    [ ] 6.2.2 Task - Update product-visible status surfaces
+    [x] 6.2.2 Task - Update product-visible status surfaces
       Update any status views, dashboards, or conversation snapshots that
       mention runtime health.
 
-      [ ] 6.2.2.1 Subtask - Replace kernel terminology with repository runtime terminology in product-visible text.
-      [ ] 6.2.2.2 Subtask - Show active work counts, graph readiness, memory readiness, context-management status, and degraded diagnostics.
-      [ ] 6.2.2.3 Subtask - Avoid showing pids, registry names, or node ids unless behind explicit developer diagnostics.
-      [ ] 6.2.2.4 Subtask - Preserve source graph and memory graph degraded fallback behavior when runtime pods are unavailable.
+      [x] 6.2.2.1 Subtask - Replace kernel terminology with repository runtime terminology in product-visible text.
+      [x] 6.2.2.2 Subtask - Show active work counts, graph readiness, memory readiness, context-management status, and degraded diagnostics.
+      [x] 6.2.2.3 Subtask - Avoid showing pids, registry names, or node ids unless behind explicit developer diagnostics.
+      [x] 6.2.2.4 Subtask - Preserve source graph and memory graph degraded fallback behavior when runtime pods are unavailable.
 
   [ ] 6.3 Section - Documentation and Contributor Verification
     Update planning, docs, and verification aliases so contributors understand

@@ -9,6 +9,7 @@ defmodule JidoCode.Runtime do
 
   alias JidoCode.Operations.RecordStore, as: OperationsRecordStore
   alias JidoCode.Runtime.{RepositoryRuntime, RepositorySupervisor, Snapshot, SnapshotStore}
+  alias JidoCode.{ContextManagement, MemoryGraph, SourceCodeGraph}
   alias Jido.Pod
 
   @registry JidoCode.Runtime.Registry
@@ -31,6 +32,7 @@ defmodule JidoCode.Runtime do
            ),
          :ok <- maybe_ensure_workspace(pid, normalized_workspace_path),
          {:ok, status} <- RepositoryRuntime.status(pid) do
+      emit_repository_event(:ready, status)
       {:ok, status}
     end
   end
@@ -61,6 +63,16 @@ defmodule JidoCode.Runtime do
   end
 
   def repository_status(_managed_repo_id), do: nil
+
+  @spec repository_health(managed_repo_id()) :: map() | nil
+  def repository_health(managed_repo_id) when is_binary(managed_repo_id) do
+    case repository_status(managed_repo_id) do
+      nil -> nil
+      status -> repository_health_from_status(status)
+    end
+  end
+
+  def repository_health(_managed_repo_id), do: nil
 
   @spec list_repositories() :: [runtime_status()]
   def list_repositories do
@@ -267,6 +279,7 @@ defmodule JidoCode.Runtime do
     case lookup_repository_pid(managed_repo_id) do
       {:ok, pid} ->
         _ = RepositoryRuntime.mark_stopping(pid)
+        emit_repository_event(:stopped, %{managed_repo_id: managed_repo_id})
         _ = RepositorySupervisor.stop_repository(pid)
         :ok
 
@@ -319,6 +332,7 @@ defmodule JidoCode.Runtime do
          :ok <- maybe_ensure_workspace(pid, snapshot.workspace_path),
          {:ok, restore_plan} <- restore_plan(snapshot, opts),
          {:ok, status} <- RepositoryRuntime.restore_snapshot(pid, Snapshot.to_record(snapshot), restore_plan) do
+      emit_repository_event(:restored, status)
       {:ok, status}
     end
   end
@@ -516,6 +530,92 @@ defmodule JidoCode.Runtime do
   defp restore_capacity_limit(_limit), do: :infinity
 
   defp snapshot_store_opts(opts), do: Keyword.take(opts, [:backend])
+
+  defp repository_health_from_status(status) when is_map(status) do
+    pods = status |> Map.get(:active_pods, %{}) |> Map.values()
+    active_work_items = status |> Map.get(:active_work_items, %{}) |> Map.keys() |> Enum.sort()
+    source_graph_pod = Enum.find(pods, &(Map.get(&1, :pod_id) == SourceCodeGraph.pod_id()))
+    memory_graph_pod = Enum.find(pods, &(Map.get(&1, :pod_id) == MemoryGraph.pod_id()))
+
+    %{
+      kind: :repository_runtime_health,
+      managed_repo_id: Map.get(status, :managed_repo_id),
+      workspace_path: Map.get(status, :workspace_path),
+      lifecycle: Map.get(status, :lifecycle),
+      active_work_count: length(active_work_items),
+      active_work_items: active_work_items,
+      source_code_graph: graph_health(source_graph_pod, :latest_import_status),
+      memory_graph: graph_health(memory_graph_pod, :latest_validation_status),
+      context_management: context_management_health(pods),
+      diagnostics: sanitize_runtime_diagnostics(Map.get(status, :diagnostics, []))
+    }
+  end
+
+  defp graph_health(nil, _status_key), do: %{present?: false, ready?: false, state: :unavailable}
+
+  defp graph_health(%{metadata: metadata} = pod, status_key) when is_map(metadata) do
+    latest_status = Map.get(metadata, status_key, %{})
+
+    %{
+      present?: true,
+      ready?: Map.get(latest_status, :ready?, false),
+      state: Map.get(latest_status, :state, :unknown),
+      pod_id: Map.get(pod, :pod_id),
+      runtime_status: Map.get(metadata, :runtime_status),
+      latest_status: sanitize_runtime_diagnostic(latest_status)
+    }
+  end
+
+  defp context_management_health(pods) do
+    pods
+    |> Enum.filter(&(Map.get(&1, :kind) == :context_management))
+    |> Enum.map(fn %{metadata: metadata, pod_id: pod_id} ->
+      status = ContextManagement.status_summary(metadata)
+
+      %{
+        pod_id: pod_id,
+        work_item_id: Map.get(metadata, :work_item_id),
+        state: Map.get(status, "state"),
+        summary: sanitize_runtime_diagnostic(status)
+      }
+    end)
+    |> Enum.sort_by(&(&1.work_item_id || ""))
+  end
+
+  defp sanitize_runtime_diagnostics(diagnostics) when is_list(diagnostics),
+    do: Enum.map(diagnostics, &sanitize_runtime_diagnostic/1)
+
+  defp sanitize_runtime_diagnostics(_diagnostics), do: []
+
+  defp sanitize_runtime_diagnostic(value) when is_map(value) do
+    value
+    |> Map.drop([:pid, "pid", :runtime_pid, "runtime_pid", :nodes, "nodes"])
+    |> Map.new(fn {key, nested_value} -> {key, sanitize_runtime_diagnostic(nested_value)} end)
+  end
+
+  defp sanitize_runtime_diagnostic(value) when is_list(value), do: Enum.map(value, &sanitize_runtime_diagnostic/1)
+  defp sanitize_runtime_diagnostic(value) when is_pid(value) or is_reference(value) or is_port(value), do: nil
+  defp sanitize_runtime_diagnostic(value), do: value
+
+  defp emit_repository_event(event, status_or_metadata) do
+    metadata =
+      %{
+        managed_repo_id:
+          Map.get(status_or_metadata, :managed_repo_id) || Map.get(status_or_metadata, "managed_repo_id"),
+        workspace_path: Map.get(status_or_metadata, :workspace_path) || Map.get(status_or_metadata, "workspace_path"),
+        lifecycle: Map.get(status_or_metadata, :lifecycle) || Map.get(status_or_metadata, "lifecycle"),
+        event: event
+      }
+      |> drop_nil_values()
+
+    :telemetry.execute([:jido_code, :runtime, :repository, event], %{count: 1}, metadata)
+  end
+
+  defp drop_nil_values(map) when is_map(map) do
+    map
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
 
   defp default_capacity do
     %{max_active_work_items: work_queue_limit()}

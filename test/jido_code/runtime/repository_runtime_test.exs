@@ -262,6 +262,147 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     assert Runtime.active_work_items(managed_repo_id) == ["replacement-after-down"]
   end
 
+  test "repository_health exposes product terms without process internals", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    work_item_id = "work-health"
+
+    assert {:ok, _status} = Runtime.ensure_repository(managed_repo_id, workspace_path)
+    assert {:ok, _source_pod} = Runtime.ensure_source_code_graph_pod(managed_repo_id)
+    assert {:ok, _memory_pod} = Runtime.ensure_memory_graph_pod(managed_repo_id)
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+    assert {:ok, _context_pod} =
+             Runtime.ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, %{
+               context_management_status: :healthy,
+               latest_compaction: %{state: :skipped, runtime_pid: self(), nodes: [self()]}
+             })
+
+    assert {:ok, _source_pod} =
+             Runtime.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), %{
+               latest_import_status: %{
+                 ready?: true,
+                 state: :loaded,
+                 imported_revision: "rev-health",
+                 runtime_pid: self(),
+                 nodes: [self()]
+               },
+               runtime_pid: self(),
+               nodes: %{hidden: self()}
+             })
+
+    assert {:ok, _memory_pod} =
+             Runtime.update_pod_metadata(managed_repo_id, MemoryGraph.pod_id(), %{
+               latest_validation_status: %{
+                 ready?: true,
+                 state: :validated,
+                 validated_revision: "rev-health",
+                 runtime_pid: self(),
+                 nodes: [self()]
+               },
+               runtime_pid: self(),
+               nodes: %{hidden: self()}
+             })
+
+    assert %{
+             kind: :repository_runtime_health,
+             managed_repo_id: ^managed_repo_id,
+             workspace_path: ^workspace_path,
+             lifecycle: :ready,
+             active_work_count: 1,
+             active_work_items: [^work_item_id],
+             source_code_graph: %{present?: true, ready?: true, state: :loaded},
+             memory_graph: %{present?: true, ready?: true, state: :validated},
+             context_management: [%{work_item_id: ^work_item_id, state: "healthy"}]
+           } = health = Runtime.repository_health(managed_repo_id)
+
+    rendered_health = inspect(health)
+    refute rendered_health =~ "#PID"
+    refute rendered_health =~ "runtime_pid"
+    refute rendered_health =~ "nodes"
+  end
+
+  test "runtime telemetry reports bounded repository and pod lifecycle events", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    handler_id = "repository-runtime-telemetry-#{System.unique_integer([:positive])}"
+    test_pid = self()
+
+    events = [
+      [:jido_code, :runtime, :repository, :start],
+      [:jido_code, :runtime, :repository, :ready],
+      [:jido_code, :runtime, :repository, :restored],
+      [:jido_code, :runtime, :repository, :degraded],
+      [:jido_code, :runtime, :repository, :stopped],
+      [:jido_code, :runtime, :pod, :ensure],
+      [:jido_code, :runtime, :pod, :reconcile],
+      [:jido_code, :runtime, :pod, :cleanup]
+    ]
+
+    assert :ok =
+             :telemetry.attach_many(
+               handler_id,
+               events,
+               fn event, measurements, metadata, pid ->
+                 send(pid, {:runtime_telemetry, event, measurements, metadata})
+               end,
+               test_pid
+             )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    work_item_id = "work-telemetry"
+
+    assert {:ok, _status} = Runtime.ensure_repository(managed_repo_id, workspace_path)
+    assert_runtime_telemetry_event([:jido_code, :runtime, :repository, :start], managed_repo_id)
+    assert_runtime_telemetry_event([:jido_code, :runtime, :repository, :ready], managed_repo_id)
+
+    assert {:ok, _repo_pod} = Runtime.ensure_repo_pod(managed_repo_id)
+
+    {_measurements, repo_pod_metadata} =
+      assert_runtime_telemetry_event([:jido_code, :runtime, :pod, :ensure], managed_repo_id)
+
+    assert repo_pod_metadata.kind == :repo
+    assert repo_pod_metadata.outcome == :ok
+    refute Map.has_key?(repo_pod_metadata, :runtime_pid)
+
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+    assert :ok = Runtime.complete_work(managed_repo_id, work_item_id)
+
+    {_measurements, cleanup_metadata} =
+      assert_runtime_telemetry_event([:jido_code, :runtime, :pod, :cleanup], managed_repo_id)
+
+    assert cleanup_metadata.kind in [:coding, :context_management]
+    assert cleanup_metadata.work_item_id == work_item_id
+    refute Map.has_key?(cleanup_metadata, :runtime_pid)
+
+    assert {:ok, _snapshot} = Runtime.save_repository_snapshot(managed_repo_id, backend: :ets)
+    assert :ok = Runtime.shutdown_repository(managed_repo_id)
+    assert_runtime_telemetry_event([:jido_code, :runtime, :repository, :stopped], managed_repo_id)
+
+    assert {:ok, _restored_status} =
+             Runtime.restore_repository(managed_repo_id,
+               backend: :ets,
+               validate_work_items?: false
+             )
+
+    {_measurements, reconcile_metadata} =
+      assert_runtime_telemetry_event([:jido_code, :runtime, :pod, :reconcile], managed_repo_id)
+
+    assert reconcile_metadata.kind == :repo
+    assert reconcile_metadata.outcome == :ok
+
+    assert_runtime_telemetry_event([:jido_code, :runtime, :repository, :restored], managed_repo_id)
+
+    %{runtime_pid: repo_pod_pid} = Runtime.pod_status(managed_repo_id, "repo-pod")
+    monitor_ref = Process.monitor(repo_pod_pid)
+    Process.exit(repo_pod_pid, :kill)
+    assert_receive {:DOWN, ^monitor_ref, :process, ^repo_pod_pid, :killed}, 1_000
+    assert_runtime_telemetry_event([:jido_code, :runtime, :repository, :degraded], managed_repo_id)
+  end
+
   test "restore_repository restores repo pods and active work metadata from snapshots", %{
     managed_repo_id: managed_repo_id,
     workspace_path: workspace_path
@@ -427,5 +568,19 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     path = Path.join(System.tmp_dir!(), "#{name}-#{System.unique_integer([:positive])}")
     File.mkdir_p!(path)
     Path.expand(path)
+  end
+
+  defp assert_runtime_telemetry_event(event, managed_repo_id) do
+    receive do
+      {:runtime_telemetry, ^event, measurements, %{managed_repo_id: ^managed_repo_id} = metadata} ->
+        assert measurements.count == 1
+        refute inspect(metadata) =~ "#PID"
+        {measurements, metadata}
+
+      {:runtime_telemetry, _other_event, _measurements, _metadata} ->
+        assert_runtime_telemetry_event(event, managed_repo_id)
+    after
+      1_000 -> flunk("expected telemetry event #{inspect(event)} for #{managed_repo_id}")
+    end
   end
 end

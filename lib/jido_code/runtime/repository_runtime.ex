@@ -107,7 +107,9 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
 
   @impl true
   def init(opts) do
-    {:ok, RepositoryState.new(opts)}
+    state = RepositoryState.new(opts)
+    emit_repository_event(:start, state)
+    {:ok, state}
   end
 
   @impl true
@@ -323,16 +325,30 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
 
   @impl true
   def handle_info({:DOWN, ref, :process, pid, reason}, state) do
-    {:noreply, RepositoryState.mark_process_down(state, ref, pid, reason)}
+    next_state = RepositoryState.mark_process_down(state, ref, pid, reason)
+    emit_repository_event(:degraded, next_state)
+    {:noreply, next_state}
   end
 
   defp ensure_runtime_pod(state, kind, key, manager, module, initial_state, attrs) do
     case Pod.get(manager, key, initial_state: initial_state) do
       {:ok, pod_pid} ->
+        emit_pod_event(state, :ensure, kind, key, %{
+          pod_id: Map.get(attrs, :pod_id),
+          module: module,
+          outcome: :ok
+        })
+
         next_state = RepositoryState.put_pod(state, kind, key, module, pod_pid, attrs)
         {:reply, {:ok, RepositoryState.pod_status(next_state, kind, key)}, next_state}
 
       {:error, reason} ->
+        emit_pod_event(state, :failure, kind, key, %{
+          module: module,
+          outcome: :error,
+          reason: inspect(reason)
+        })
+
         diagnostic = %{
           type: :pod_start_failed,
           kind: kind,
@@ -367,9 +383,12 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   defp stop_owned_pod(state, kind, key, manager) do
     case InstanceManager.stop(manager, key) do
       :ok ->
+        emit_pod_event(state, :cleanup, kind, key, %{manager: manager, outcome: :ok})
         state
 
       {:error, :not_found} ->
+        emit_pod_event(state, :cleanup, kind, key, %{manager: manager, outcome: :not_found})
+
         if RepositoryState.pod_status(state, kind, key) do
           RepositoryState.record_diagnostic(state, cleanup_diagnostic(kind, key, manager, :not_found))
         else
@@ -377,6 +396,7 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
         end
 
       {:error, reason} ->
+        emit_pod_event(state, :cleanup, kind, key, %{manager: manager, outcome: :error, reason: inspect(reason)})
         RepositoryState.record_diagnostic(state, cleanup_diagnostic(kind, key, manager, reason))
     end
   end
@@ -503,9 +523,21 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   defp restore_runtime_pod(state, kind, key, manager, module, initial_state, attrs) do
     case Pod.get(manager, key, initial_state: initial_state) do
       {:ok, pod_pid} ->
+        emit_pod_event(state, :reconcile, kind, key, %{
+          pod_id: Map.get(attrs, :pod_id),
+          module: module,
+          outcome: :ok
+        })
+
         RepositoryState.put_pod(state, kind, key, module, pod_pid, attrs)
 
       {:error, reason} ->
+        emit_pod_event(state, :reconcile, kind, key, %{
+          module: module,
+          outcome: :error,
+          reason: inspect(reason)
+        })
+
         RepositoryState.record_diagnostic(state, %{
           type: :pod_restore_failed,
           kind: kind,
@@ -618,6 +650,41 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
       observed_at: DateTime.utc_now()
     }
   end
+
+  defp emit_pod_event(state, event, kind, key, metadata) do
+    event_metadata =
+      %{
+        managed_repo_id: state.managed_repo_id,
+        kind: kind,
+        key: key,
+        work_item_id: work_item_id_from_key(key),
+        event: event
+      }
+      |> Map.merge(metadata)
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+
+    :telemetry.execute([:jido_code, :runtime, :pod, event], %{count: 1}, event_metadata)
+  end
+
+  defp emit_repository_event(event, %RepositoryState{} = state) do
+    status = RepositoryState.status(state)
+
+    event_metadata =
+      %{
+        managed_repo_id: Map.get(status, :managed_repo_id),
+        workspace_path: Map.get(status, :workspace_path),
+        lifecycle: Map.get(status, :lifecycle),
+        event: event
+      }
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+
+    :telemetry.execute([:jido_code, :runtime, :repository, event], %{count: 1}, event_metadata)
+  end
+
+  defp work_item_id_from_key({_managed_repo_id, work_item_id, _kind}) when is_binary(work_item_id), do: work_item_id
+  defp work_item_id_from_key(_key), do: nil
 
   defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
 end

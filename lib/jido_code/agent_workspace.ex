@@ -84,7 +84,6 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.{ContextBudget, ContextManagement, MemoryGraph, Runtime, SourceCodeGraph}
   alias Jido.AgentServer
   alias Jido.Pod
-  alias Jido.Pod.Runtime, as: PodRuntime
   alias Jido.Signal
 
   @type managed_repo_id :: String.t()
@@ -297,7 +296,7 @@ defmodule JidoCode.AgentWorkspace do
   @spec shutdown_context_management_pod(managed_repo_id(), work_item_id()) :: :ok
   def shutdown_context_management_pod(managed_repo_id, work_item_id)
       when is_binary(managed_repo_id) and is_binary(work_item_id) do
-    complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
+    Runtime.shutdown_context_management_pod(managed_repo_id, work_item_id)
   end
 
   @doc """
@@ -497,26 +496,6 @@ defmodule JidoCode.AgentWorkspace do
 
       _other ->
         {:ok, ContextManagement.status_summary(nil)}
-    end
-  end
-
-  defp complete_runtime_pod(managed_repo_id, pod_id) do
-    case pod_status(managed_repo_id, pod_id) do
-      nil ->
-        :ok
-
-      pod_entry ->
-        maybe_stop_runtime_pod(pod_entry)
-
-        _ =
-          update_pod_metadata(managed_repo_id, pod_id, %{
-            runtime_pid: nil,
-            runtime_status: :completed,
-            completed_at: DateTime.utc_now(),
-            latest_failure: nil
-          })
-
-        :ok
     end
   end
 
@@ -1737,40 +1716,8 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp ensure_coding_specialist(managed_repo_id, work_item_id, node_name) do
-    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
-      Pod.ensure_node(pod_pid, node_name)
-    end
+    Runtime.ensure_work_item_node(managed_repo_id, work_item_id, node_name)
   end
-
-  defp coding_pod_pid(managed_repo_id, work_item_id) do
-    case pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
-      %{runtime_pid: pid} when is_pid(pid) ->
-        if Process.alive?(pid) do
-          {:ok, pid}
-        else
-          {:error, :coding_pod_not_started}
-        end
-
-      _other ->
-        {:error, :coding_pod_not_started}
-    end
-  end
-
-  defp maybe_stop_runtime_pod(%{metadata: %{runtime_pid: pid}}) when is_pid(pid) do
-    if Process.alive?(pid) do
-      _ = PodRuntime.teardown_runtime(pid)
-
-      try do
-        GenServer.stop(pid, :shutdown, 5_000)
-      catch
-        :exit, _reason -> :ok
-      end
-    else
-      :ok
-    end
-  end
-
-  defp maybe_stop_runtime_pod(_pod_entry), do: :ok
 
   defp resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) when is_binary(workspace_path) do
     case String.trim(workspace_path) do
@@ -2007,9 +1954,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp task_board_pid(managed_repo_id, work_item_id) do
-    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
-      Pod.ensure_node(pod_pid, :task_board)
-    end
+    Runtime.ensure_work_item_node(managed_repo_id, work_item_id, :task_board)
   end
 
   defp ensure_task_board_task(task_board_pid, work_item_id, instruction) when is_pid(task_board_pid) do

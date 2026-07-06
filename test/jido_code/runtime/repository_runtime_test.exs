@@ -1,6 +1,7 @@
 defmodule JidoCode.Runtime.RepositoryRuntimeTest do
   use ExUnit.Case, async: false
 
+  alias JidoCode.ContextManagement
   alias JidoCode.Runtime
 
   setup do
@@ -105,6 +106,42 @@ defmodule JidoCode.Runtime.RepositoryRuntimeTest do
     assert :ok = Runtime.complete_work_item(managed_repo_id, "work-one")
     assert Runtime.active_work_items(managed_repo_id) == []
     assert :ok = Runtime.admit_work_item(managed_repo_id, "work-two", %{workspace_path: workspace_path})
+  end
+
+  test "ensure_work_item_node locates specialists through the runtime coding pod", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    assert {:error, %{type: :coding_pod_unavailable, managed_repo_id: ^managed_repo_id}} =
+             Runtime.ensure_work_item_node(managed_repo_id, "work-one", :planner)
+
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, "work-one", workspace_path)
+    assert {:ok, planner_pid} = Runtime.ensure_work_item_node(managed_repo_id, "work-one", :planner)
+    assert Process.alive?(planner_pid)
+
+    assert {:ok, ^planner_pid} = Runtime.ensure_work_item_node(managed_repo_id, "work-one", :planner)
+  end
+
+  test "shutdown_context_management_pod releases only the context pod", %{
+    managed_repo_id: managed_repo_id,
+    workspace_path: workspace_path
+  } do
+    work_item_id = "work-with-context"
+
+    assert {:ok, _coding_pod} = Runtime.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+    assert {:ok, _context_pod} =
+             Runtime.ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, %{})
+
+    assert Runtime.coding_pod_status(managed_repo_id, work_item_id)
+    assert Runtime.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id))
+    assert Runtime.active_work_items(managed_repo_id) == [work_item_id]
+
+    assert :ok = Runtime.shutdown_context_management_pod(managed_repo_id, work_item_id)
+
+    assert Runtime.coding_pod_status(managed_repo_id, work_item_id)
+    refute Runtime.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id))
+    assert Runtime.active_work_items(managed_repo_id) == [work_item_id]
   end
 
   defp workspace_path!(name) do

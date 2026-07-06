@@ -206,6 +206,19 @@ defmodule JidoCode.Runtime.RepositoryState do
     end
   end
 
+  @spec clear_work_item_pod(t(), work_item_id(), :coding_pod | :context_management_pod) :: t()
+  def clear_work_item_pod(%__MODULE__{} = state, work_item_id, field)
+      when is_binary(work_item_id) and field in [:coding_pod, :context_management_pod] do
+    case Map.fetch(state.active_work_items, work_item_id) do
+      {:ok, work_item} ->
+        work_item = Map.put(work_item, field, nil)
+        %{state | active_work_items: Map.put(state.active_work_items, work_item_id, work_item)}
+
+      :error ->
+        state
+    end
+  end
+
   @spec record_diagnostic(t(), map()) :: t()
   def record_diagnostic(%__MODULE__{} = state, diagnostic) when is_map(diagnostic) do
     %{

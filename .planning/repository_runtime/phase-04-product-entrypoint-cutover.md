@@ -56,27 +56,27 @@ Back to index: [README](./README.md)
       [x] 4.1.2.3 Subtask - Replace source-code graph pod ensure calls with runtime-owned source graph pod ensure calls.
       [x] 4.1.2.4 Subtask - Replace memory graph and context-management pod ensure calls with runtime-owned ensure calls.
 
-  [ ] 4.2 Section - Specialist and Agent Routing
+  [x] 4.2 Section - Specialist and Agent Routing
     Ensure planning, coding, review, refactoring, explanation, and context
     management find pod nodes through native Jido pod lookup.
 
-    [ ] 4.2.1 Task - Update specialist runner lookup
+    [x] 4.2.1 Task - Update specialist runner lookup
       Remove AgentOS naming and pod id assumptions from runtime specialist
       dispatch.
 
-      [ ] 4.2.1.1 Subtask - Locate the active coding pod through `JidoCode.Runtime` using ManagedRepo ID and WorkItem ID.
-      [ ] 4.2.1.2 Subtask - Locate specialists with `Jido.Pod.lookup_node/2` or `Jido.Pod.ensure_node/3`.
-      [ ] 4.2.1.3 Subtask - Keep deterministic specialist runner tests independent of runtime process identity.
-      [ ] 4.2.1.4 Subtask - Return structured errors when a runtime, pod, or specialist node is unavailable.
+      [x] 4.2.1.1 Subtask - Locate the active coding pod through `JidoCode.Runtime` using ManagedRepo ID and WorkItem ID.
+      [x] 4.2.1.2 Subtask - Locate specialists with `Jido.Pod.lookup_node/2` or `Jido.Pod.ensure_node/3`.
+      [x] 4.2.1.3 Subtask - Keep deterministic specialist runner tests independent of runtime process identity.
+      [x] 4.2.1.4 Subtask - Return structured errors when a runtime, pod, or specialist node is unavailable.
 
-    [ ] 4.2.2 Task - Update work completion and cleanup
+    [x] 4.2.2 Task - Update work completion and cleanup
       Make work-item completion release runtime state and pod ownership without
       AgentOS pod tracking.
 
-      [ ] 4.2.2.1 Subtask - Route `complete_work/2` through repository runtime admission and work pod cleanup.
-      [ ] 4.2.2.2 Subtask - Ensure completed work disappears from active work-item status.
-      [ ] 4.2.2.3 Subtask - Ensure failed cleanup leaves a degraded runtime diagnostic instead of crashing product callers.
-      [ ] 4.2.2.4 Subtask - Update conversation and context-management completion paths to use the same cleanup behavior.
+      [x] 4.2.2.1 Subtask - Route `complete_work/2` through repository runtime admission and work pod cleanup.
+      [x] 4.2.2.2 Subtask - Ensure completed work disappears from active work-item status.
+      [x] 4.2.2.3 Subtask - Ensure failed cleanup leaves a degraded runtime diagnostic instead of crashing product callers.
+      [x] 4.2.2.4 Subtask - Update conversation and context-management completion paths to use the same cleanup behavior.
 
   [ ] 4.3 Section - Cross-Workflow Runtime Adoption
     Update background services and graph workflows that currently use AgentOS

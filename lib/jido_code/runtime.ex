@@ -8,6 +8,7 @@ defmodule JidoCode.Runtime do
   """
 
   alias JidoCode.Runtime.{RepositoryRuntime, RepositorySupervisor}
+  alias Jido.Pod
 
   @registry JidoCode.Runtime.Registry
 
@@ -144,6 +145,60 @@ defmodule JidoCode.Runtime do
 
   def update_pod_metadata(_managed_repo_id, _pod_id, _updates), do: {:error, %{type: :invalid_pod_metadata}}
 
+  @spec coding_pod_status(managed_repo_id(), String.t()) :: map() | nil
+  def coding_pod_status(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    pod_status(managed_repo_id, coding_pod_id(work_item_id))
+  end
+
+  def coding_pod_status(_managed_repo_id, _work_item_id), do: nil
+
+  @spec coding_pod_pid(managed_repo_id(), String.t()) :: {:ok, pid()} | {:error, term()}
+  def coding_pod_pid(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    pod_id = coding_pod_id(work_item_id)
+
+    case pod_status(managed_repo_id, pod_id) do
+      %{runtime_pid: pid} when is_pid(pid) ->
+        if Process.alive?(pid) do
+          {:ok, pid}
+        else
+          {:error,
+           %{type: :coding_pod_stopped, managed_repo_id: managed_repo_id, work_item_id: work_item_id, pod_id: pod_id}}
+        end
+
+      _other ->
+        {:error,
+         %{type: :coding_pod_unavailable, managed_repo_id: managed_repo_id, work_item_id: work_item_id, pod_id: pod_id}}
+    end
+  end
+
+  def coding_pod_pid(_managed_repo_id, _work_item_id), do: {:error, %{type: :invalid_work_item_id}}
+
+  @spec ensure_work_item_node(managed_repo_id(), String.t(), atom() | String.t()) ::
+          {:ok, pid()} | {:error, term()}
+  def ensure_work_item_node(managed_repo_id, work_item_id, node_name)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and (is_atom(node_name) or is_binary(node_name)) do
+    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
+      case Pod.ensure_node(pod_pid, node_name) do
+        {:ok, node_pid} ->
+          {:ok, node_pid}
+
+        {:error, reason} ->
+          {:error,
+           %{
+             type: :work_item_node_unavailable,
+             managed_repo_id: managed_repo_id,
+             work_item_id: work_item_id,
+             node_name: node_name,
+             reason: reason
+           }}
+      end
+    end
+  end
+
+  def ensure_work_item_node(_managed_repo_id, _work_item_id, _node_name), do: {:error, %{type: :invalid_node_name}}
+
   @spec ensure_repo_pod(managed_repo_id()) :: {:ok, map()} | {:error, term()}
   def ensure_repo_pod(managed_repo_id), do: ensure_repository_pod(managed_repo_id, :ensure_repo_pod)
 
@@ -194,6 +249,17 @@ defmodule JidoCode.Runtime do
   end
 
   def complete_work(_managed_repo_id, _work_item_id), do: :ok
+
+  @spec shutdown_context_management_pod(managed_repo_id(), String.t()) :: :ok
+  def shutdown_context_management_pod(managed_repo_id, work_item_id)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.shutdown_context_management_pod(pid, work_item_id)
+      :error -> :ok
+    end
+  end
+
+  def shutdown_context_management_pod(_managed_repo_id, _work_item_id), do: :ok
 
   @spec shutdown_repository(managed_repo_id()) :: :ok
   def shutdown_repository(managed_repo_id) when is_binary(managed_repo_id) do
@@ -277,6 +343,8 @@ defmodule JidoCode.Runtime do
   defp default_capacity do
     %{max_active_work_items: work_queue_limit()}
   end
+
+  defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
 
   defp work_queue_limit do
     case Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items, :infinity) do

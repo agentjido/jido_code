@@ -97,6 +97,10 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   @spec complete_work(GenServer.server(), String.t()) :: :ok
   def complete_work(server, work_item_id), do: GenServer.call(server, {:complete_work, work_item_id})
 
+  @spec shutdown_context_management_pod(GenServer.server(), String.t()) :: :ok
+  def shutdown_context_management_pod(server, work_item_id),
+    do: GenServer.call(server, {:shutdown_context_management_pod, work_item_id})
+
   @impl true
   def init(opts) do
     {:ok, RepositoryState.new(opts)}
@@ -274,14 +278,25 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
     coding_key = {state.managed_repo_id, work_item_id, :coding}
     context_key = {state.managed_repo_id, work_item_id, :context_management}
 
-    _ = InstanceManager.stop(:jido_code_coding_pods, coding_key)
-    _ = InstanceManager.stop(:jido_code_context_management_pods, context_key)
-
     next_state =
       state
+      |> stop_owned_pod(:coding, coding_key, :jido_code_coding_pods)
+      |> stop_owned_pod(:context_management, context_key, :jido_code_context_management_pods)
       |> RepositoryState.delete_pod(:coding, coding_key)
       |> RepositoryState.delete_pod(:context_management, context_key)
       |> RepositoryState.complete_work_item(work_item_id)
+
+    {:reply, :ok, next_state}
+  end
+
+  def handle_call({:shutdown_context_management_pod, work_item_id}, _from, state) do
+    context_key = {state.managed_repo_id, work_item_id, :context_management}
+
+    next_state =
+      state
+      |> stop_owned_pod(:context_management, context_key, :jido_code_context_management_pods)
+      |> RepositoryState.delete_pod(:context_management, context_key)
+      |> RepositoryState.clear_work_item_pod(work_item_id, :context_management_pod)
 
     {:reply, :ok, next_state}
   end
@@ -316,6 +331,34 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   end
 
   defp put_work_item_pod(other, _field, _work_item_id), do: other
+
+  defp stop_owned_pod(state, kind, key, manager) do
+    case InstanceManager.stop(manager, key) do
+      :ok ->
+        state
+
+      {:error, :not_found} ->
+        if RepositoryState.pod_status(state, kind, key) do
+          RepositoryState.record_diagnostic(state, cleanup_diagnostic(kind, key, manager, :not_found))
+        else
+          state
+        end
+
+      {:error, reason} ->
+        RepositoryState.record_diagnostic(state, cleanup_diagnostic(kind, key, manager, reason))
+    end
+  end
+
+  defp cleanup_diagnostic(kind, key, manager, reason) do
+    %{
+      type: :pod_cleanup_failed,
+      kind: kind,
+      key: key,
+      manager: manager,
+      reason: reason,
+      observed_at: DateTime.utc_now()
+    }
+  end
 
   defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
 end

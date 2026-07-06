@@ -14,6 +14,7 @@ defmodule JidoCode.Application do
         {DNSCluster, query: Application.get_env(:jido_code, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: JidoCode.PubSub},
         JidoCode.Jido,
+        JidoCode.Runtime.Supervisor,
         JidoCodeWeb.Endpoint,
         # Conversation coordination
         {Registry, keys: :unique, name: JidoCode.Conversations.Registry},

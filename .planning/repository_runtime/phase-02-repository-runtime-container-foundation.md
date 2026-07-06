@@ -29,27 +29,27 @@ Back to index: [README](./README.md)
   replace AgentOS kernel management while preserving one active runtime
   boundary per ManagedRepo.
 
-  [ ] 2.1 Section - Supervision and Registry Foundation
+  [x] 2.1 Section - Supervision and Registry Foundation
     Introduce the OTP structure that owns repository runtime processes and
     makes lookup explicit by ManagedRepo ID.
 
-    [ ] 2.1.1 Task - Add repository runtime supervision modules
+    [x] 2.1.1 Task - Add repository runtime supervision modules
       Create the minimal supervision tree required to start, find, and stop one
       runtime process per repository.
 
-      [ ] 2.1.1.1 Subtask - Add `JidoCode.Runtime.Supervisor` as the public child in `JidoCode.Application`.
-      [ ] 2.1.1.2 Subtask - Add `JidoCode.Runtime.Registry` with unique keys for ManagedRepo IDs.
-      [ ] 2.1.1.3 Subtask - Add `JidoCode.Runtime.RepositorySupervisor` or equivalent dynamic supervisor for repository runtime children.
-      [ ] 2.1.1.4 Subtask - Ensure supervision child specs use stable module IDs and do not depend on repository-derived atoms.
+      [x] 2.1.1.1 Subtask - Add `JidoCode.Runtime.Supervisor` as the public child in `JidoCode.Application`.
+      [x] 2.1.1.2 Subtask - Add `JidoCode.Runtime.Registry` with unique keys for ManagedRepo IDs.
+      [x] 2.1.1.3 Subtask - Add `JidoCode.Runtime.RepositorySupervisor` or equivalent dynamic supervisor for repository runtime children.
+      [x] 2.1.1.4 Subtask - Ensure supervision child specs use stable module IDs and do not depend on repository-derived atoms.
 
-    [ ] 2.1.2 Task - Add repository runtime process
+    [x] 2.1.2 Task - Add repository runtime process
       Implement the product-owned process that holds repository-scoped runtime
       state and owns the dynamic work-item pod map.
 
-      [ ] 2.1.2.1 Subtask - Add `JidoCode.Runtime.RepositoryRuntime` as a GenServer or equivalent OTP process.
-      [ ] 2.1.2.2 Subtask - Register each process by `managed_repo_id`.
-      [ ] 2.1.2.3 Subtask - Store runtime state for repository ID, workspace path, lifecycle status, active pods, active work items, capacity policy, and diagnostics.
-      [ ] 2.1.2.4 Subtask - Monitor owned pod pids once Phase 3 starts creating pods.
+      [x] 2.1.2.1 Subtask - Add `JidoCode.Runtime.RepositoryRuntime` as a GenServer or equivalent OTP process.
+      [x] 2.1.2.2 Subtask - Register each process by `managed_repo_id`.
+      [x] 2.1.2.3 Subtask - Store runtime state for repository ID, workspace path, lifecycle status, active pods, active work items, capacity policy, and diagnostics.
+      [x] 2.1.2.4 Subtask - Monitor owned pod pids once Phase 3 starts creating pods.
 
   [ ] 2.2 Section - Runtime Lifecycle API
     Define the public runtime functions that product callers use instead of

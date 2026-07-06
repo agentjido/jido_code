@@ -12,21 +12,14 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
 
 ## First Read
 
-1. Run `bw prime`.
-2. Run `bw ready`.
-3. Read the relevant code, routes, and tests before changing behavior.
-4. For non-trivial work, prefer a branch and pull request instead of changes that would land directly on `main`.
+1. Read the relevant code, routes, and tests before changing behavior.
+2. For non-trivial work, prefer a branch and pull request instead of changes that would land directly on `main`.
 
 ## Work Management
 
-<!-- covers: collaboration.workflow.beadwork_enabled collaboration.workflow.github_prs -->
+<!-- covers: collaboration.workflow.github_prs -->
 
-This repo uses `bw` (beadwork) for durable local agent work state.
-
-- ALWAYS run `bw prime` before starting work.
-- Run `bw ready` after priming so work starts from the current local queue instead of ad hoc task selection.
-- Use `bw create`, `bw ready`, `bw start`, `bw comment`, `bw close`, and `bw sync` to keep local work state durable.
-- Beadwork is local execution state, not the only collaboration record. For shared work, discovered bugs, and meaningful feature changes, prefer GitHub issues and pull requests.
+- For shared work, discovered bugs, and meaningful feature changes, prefer GitHub issues and pull requests.
 - Do not land work directly on `main`. Use a branch + PR flow for collaboration.
 
 ## Engineering Guardrails

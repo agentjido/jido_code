@@ -131,8 +131,11 @@ defmodule JidoCode.Runtime do
   @spec lookup_repository_pid(managed_repo_id()) :: {:ok, pid()} | :error
   def lookup_repository_pid(managed_repo_id) when is_binary(managed_repo_id) do
     case Registry.lookup(@registry, managed_repo_id) do
-      [{pid, _value}] when is_pid(pid) -> {:ok, pid}
-      [] -> :error
+      [{pid, _value}] when is_pid(pid) ->
+        if Process.alive?(pid), do: {:ok, pid}, else: :error
+
+      [] ->
+        :error
     end
   end
 

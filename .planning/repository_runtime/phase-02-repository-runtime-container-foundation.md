@@ -24,7 +24,7 @@ Back to index: [README](./README.md)
 - Runtime APIs should return structured reports rather than atomized kernel
   names.
 
-[ ] 2 Phase 2 - Repository Runtime Container Foundation
+[x] 2 Phase 2 - Repository Runtime Container Foundation
   Add the supervised repository runtime container and lifecycle API that will
   replace AgentOS kernel management while preserving one active runtime
   boundary per ManagedRepo.
@@ -95,16 +95,16 @@ Back to index: [README](./README.md)
       [x] 2.3.2.3 Subtask - Track admitted work items separately from successfully started coding pods.
       [x] 2.3.2.4 Subtask - Release admission state when work completes or startup fails.
 
-  [ ] 2.4 Section - Phase 2 Integration Tests
+  [x] 2.4 Section - Phase 2 Integration Tests
     Prove the repository runtime container can be created, found, reported, and
     shut down independently of AgentOS and before pod conversion begins.
 
-    [ ] 2.4.1 Task - Repository lifecycle scenarios
+    [x] 2.4.1 Task - Repository lifecycle scenarios
       Exercise the new runtime lifecycle under normal, repeated, and failing
       conditions.
 
-      [ ] 2.4.1.1 Subtask - Add tests that `ensure_repository/2` starts one runtime per ManagedRepo and returns the same runtime on repeated calls.
-      [ ] 2.4.1.2 Subtask - Add tests that two ManagedRepos get isolated runtime state and do not share active work items.
-      [ ] 2.4.1.3 Subtask - Add tests that `shutdown_repository/1` is idempotent and removes registry entries.
-      [ ] 2.4.1.4 Subtask - Add tests that invalid workspace input fails closed without leaking runtime processes.
-      [ ] 2.4.1.5 Subtask - Run `mix test test/jido_code/agent_workspace_test.exs` after adapting lifecycle expectations.
+      [x] 2.4.1.1 Subtask - Add tests that `ensure_repository/2` starts one runtime per ManagedRepo and returns the same runtime on repeated calls.
+      [x] 2.4.1.2 Subtask - Add tests that two ManagedRepos get isolated runtime state and do not share active work items.
+      [x] 2.4.1.3 Subtask - Add tests that `shutdown_repository/1` is idempotent and removes registry entries.
+      [x] 2.4.1.4 Subtask - Add tests that invalid workspace input fails closed without leaking runtime processes.
+      [x] 2.4.1.5 Subtask - Run `mix test test/jido_code/agent_workspace_test.exs` after adapting lifecycle expectations.

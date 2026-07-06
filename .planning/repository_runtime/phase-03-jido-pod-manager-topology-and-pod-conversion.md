@@ -55,27 +55,27 @@ Back to index: [README](./README.md)
       [x] 3.1.2.4 Subtask - Add managers for memory graph agents used by `MemoryGraphPod`.
       [x] 3.1.2.5 Subtask - Add managers for context-management agents used by `ContextManagementPod`.
 
-  [ ] 3.2 Section - Pod Module Conversion
+  [x] 3.2 Section - Pod Module Conversion
     Replace AgentOS macros and topology metadata with native `Jido.Pod`
     definitions that keep the same product-owned agents and actions.
 
-    [ ] 3.2.1 Task - Convert repository and work pods
+    [x] 3.2.1 Task - Convert repository and work pods
       Move the core repo and coding pods onto `Jido.Pod` while preserving eager
       and lazy activation behavior.
 
-      [ ] 3.2.1.1 Subtask - Change `RepoPod` to `use Jido.Pod` with static manager atoms in topology.
-      [ ] 3.2.1.2 Subtask - Change `CodingPod` to `use Jido.Pod` with eager `TaskBoard` and `ProjectContext` nodes.
-      [ ] 3.2.1.3 Subtask - Preserve lazy specialist activation for planner, coder, reviewer, refactorer, and explainer nodes.
-      [ ] 3.2.1.4 Subtask - Remove AgentOS signal route compatibility entries that are no longer needed by product behavior.
+      [x] 3.2.1.1 Subtask - Change `RepoPod` to `use Jido.Pod` with static manager atoms in topology.
+      [x] 3.2.1.2 Subtask - Change `CodingPod` to `use Jido.Pod` with eager `TaskBoard` and `ProjectContext` nodes.
+      [x] 3.2.1.3 Subtask - Preserve lazy specialist activation for planner, coder, reviewer, refactorer, and explainer nodes.
+      [x] 3.2.1.4 Subtask - Remove AgentOS signal route compatibility entries that are no longer needed by product behavior.
 
-    [ ] 3.2.2 Task - Convert graph and context pods
+    [x] 3.2.2 Task - Convert graph and context pods
       Move source graph, memory graph, and context-management pods onto the
       same native Jido pod model.
 
-      [ ] 3.2.2.1 Subtask - Change `SourceCodeGraphPod` to `use Jido.Pod` with repository-scoped pod keys.
-      [ ] 3.2.2.2 Subtask - Change `MemoryGraphPod` to `use Jido.Pod` with repository-scoped pod keys.
-      [ ] 3.2.2.3 Subtask - Change `ContextManagementPod` to `use Jido.Pod` with `{managed_repo_id, work_item_id}` keys.
-      [ ] 3.2.2.4 Subtask - Delete `Empty` pod if it only exists to satisfy AgentOS kernel startup behavior.
+      [x] 3.2.2.1 Subtask - Change `SourceCodeGraphPod` to `use Jido.Pod` with repository-scoped pod keys.
+      [x] 3.2.2.2 Subtask - Change `MemoryGraphPod` to `use Jido.Pod` with repository-scoped pod keys.
+      [x] 3.2.2.3 Subtask - Change `ContextManagementPod` to `use Jido.Pod` with `{managed_repo_id, work_item_id}` keys.
+      [x] 3.2.2.4 Subtask - Delete `Empty` pod if it only exists to satisfy AgentOS kernel startup behavior.
 
   [ ] 3.3 Section - Repository Runtime Pod Ownership
     Wire the new repository runtime process to pod managers and make pod state

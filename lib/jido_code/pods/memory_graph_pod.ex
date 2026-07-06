@@ -9,32 +9,27 @@ defmodule JidoCode.Pods.MemoryGraphPod do
   and validating repository memory state.
   """
 
-  use Jido.AgentOS.Pod,
+  use Jido.Pod,
     name: "memory_graph_pod",
-    signal_routes: [
-      {"jido.agent.child.started", Jido.Actions.Control.Noop},
-      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
-      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
-    ],
     topology: %{
       memory_graph_context: %{
         agent: JidoCode.Agents.MemoryGraphContext,
-        manager: :memory_graph_context,
+        manager: :jido_code_memory_graph_contexts,
         activation: :eager
       },
       memory_graph_recorder: %{
         agent: JidoCode.Agents.MemoryGraphRecorder,
-        manager: :memory_graph_record,
+        manager: :jido_code_memory_graph_recorders,
         activation: :lazy
       },
       memory_graph_querier: %{
         agent: JidoCode.Agents.MemoryGraphQuerier,
-        manager: :memory_graph_query,
+        manager: :jido_code_memory_graph_queriers,
         activation: :lazy
       },
       memory_graph_validator: %{
         agent: JidoCode.Agents.MemoryGraphValidator,
-        manager: :memory_graph_validate,
+        manager: :jido_code_memory_graph_validators,
         activation: :lazy
       }
     }

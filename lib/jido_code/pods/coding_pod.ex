@@ -30,48 +30,43 @@ defmodule JidoCode.Pods.CodingPod do
   work is complete, providing isolated execution contexts for concurrent work.
   """
 
-  use Jido.AgentOS.Pod,
+  use Jido.Pod,
     name: "coding_pod",
-    signal_routes: [
-      {"jido.agent.child.started", Jido.Actions.Control.Noop},
-      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
-      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
-    ],
     topology: %{
       task_board: %{
         agent: JidoCode.Agents.TaskBoard,
-        manager: :task_board,
+        manager: :jido_code_task_boards,
         activation: :eager
       },
       project_context: %{
         agent: JidoCode.Agents.ProjectContext,
-        manager: :project_context,
+        manager: :jido_code_project_contexts,
         activation: :eager
       },
       # Lazy AI specialists - started on demand
       planner: %{
         agent: JidoCode.Agents.Planner,
-        manager: :planning,
+        manager: :jido_code_planners,
         activation: :lazy
       },
       coder: %{
         agent: JidoCode.Agents.Coder,
-        manager: :coding,
+        manager: :jido_code_coders,
         activation: :lazy
       },
       reviewer: %{
         agent: JidoCode.Agents.Reviewer,
-        manager: :review,
+        manager: :jido_code_reviewers,
         activation: :lazy
       },
       refactorer: %{
         agent: JidoCode.Agents.Refactorer,
-        manager: :refactoring,
+        manager: :jido_code_refactorers,
         activation: :lazy
       },
       explainer: %{
         agent: JidoCode.Agents.Explainer,
-        manager: :explanation,
+        manager: :jido_code_explainers,
         activation: :lazy
       }
     }

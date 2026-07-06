@@ -5,7 +5,7 @@ defmodule JidoCode.Pods.RepoPod do
   @moduledoc """
   Repository-level pod for monitoring repository state and tracking work.
 
-  This pod is instantiated once per kernel (one per ManagedRepo) and contains
+  This pod is instantiated once per repository runtime and contains
   eager agents that continuously monitor the repository and track active work.
 
   ## Agents
@@ -19,22 +19,17 @@ defmodule JidoCode.Pods.RepoPod do
   lifetime of the kernel, providing persistent monitoring and registry capabilities.
   """
 
-  use Jido.AgentOS.Pod,
+  use Jido.Pod,
     name: "repo_pod",
-    signal_routes: [
-      {"jido.agent.child.started", Jido.Actions.Control.Noop},
-      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
-      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
-    ],
     topology: %{
       repo_monitor: %{
         agent: JidoCode.Agents.RepoMonitor,
-        manager: :repo_monitor,
+        manager: :jido_code_repo_monitors,
         activation: :eager
       },
       work_registry: %{
         agent: JidoCode.Agents.WorkRegistry,
-        manager: :work_registry,
+        manager: :jido_code_work_registries,
         activation: :eager
       }
     }

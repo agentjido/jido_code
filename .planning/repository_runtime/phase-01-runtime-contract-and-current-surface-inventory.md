@@ -69,27 +69,27 @@ Back to index: [README](./README.md)
       [x] 1.1.3.3 Subtask - Define static manager names as application-owned atoms only.
       [x] 1.1.3.4 Subtask - Add a search target for any use of `String.to_atom/1`, `String.to_existing_atom/1`, dynamic `:"..."`, or kernel-name conversion around runtime identity.
 
-  [ ] 1.2 Section - Current AgentOS Surface Inventory
+  [x] 1.2 Section - Current AgentOS Surface Inventory
     Inventory every module, configuration value, test, and product workflow
     that currently depends on AgentOS terms or runtime behavior.
 
-    [ ] 1.2.1 Task - Inventory production code references
+    [x] 1.2.1 Task - Inventory production code references
       Find each production dependency on `JidoCode.AgentOS`, `Jido.AgentOS`,
       AgentOS pod macros, kernel status, persistence, and manager supervision.
 
-      [ ] 1.2.1.1 Subtask - Search `lib`, `config`, and `mix.exs` for `AgentOS`, `kernel`, `kernel_name`, `ManagerSupervisor`, `Naming`, and `Persistence`.
-      [ ] 1.2.1.2 Subtask - Classify each reference as lifecycle, status, persistence, pod topology, specialist routing, graph runtime, memory runtime, context runtime, or docs-only.
-      [ ] 1.2.1.3 Subtask - Record which references will be deleted, renamed, or routed through `JidoCode.Runtime`.
-      [ ] 1.2.1.4 Subtask - Identify any public UI, LiveView, LiveVue, API, or conversation payload that exposes AgentOS vocabulary.
+      [x] 1.2.1.1 Subtask - Search `lib`, `config`, and `mix.exs` for `AgentOS`, `kernel`, `kernel_name`, `ManagerSupervisor`, `Naming`, and `Persistence`.
+      [x] 1.2.1.2 Subtask - Classify each reference as lifecycle, status, persistence, pod topology, specialist routing, graph runtime, memory runtime, context runtime, or docs-only.
+      [x] 1.2.1.3 Subtask - Record which references will be deleted, renamed, or routed through `JidoCode.Runtime`.
+      [x] 1.2.1.4 Subtask - Identify any public UI, LiveView, LiveVue, API, or conversation payload that exposes AgentOS vocabulary.
 
-    [ ] 1.2.2 Task - Inventory test and fixture assumptions
+    [x] 1.2.2 Task - Inventory test and fixture assumptions
       Identify the tests that prove current behavior so the new runtime can
       preserve product semantics while deleting kernel-shaped details.
 
-      [ ] 1.2.2.1 Subtask - List focused tests under `test/jido_code/agent_os/` and decide which become runtime tests, pod tests, or deletion candidates.
-      [ ] 1.2.2.2 Subtask - List `AgentWorkspace` tests that should keep product behavior but update expected runtime status shapes.
-      [ ] 1.2.2.3 Subtask - List source-code graph, memory graph, context-management, and conversation tests that cross the runtime boundary.
-      [ ] 1.2.2.4 Subtask - Identify brittle assertions that inspect AgentOS internals instead of product-visible behavior.
+      [x] 1.2.2.1 Subtask - List focused tests under `test/jido_code/agent_os/` and decide which become runtime tests, pod tests, or deletion candidates.
+      [x] 1.2.2.2 Subtask - List `AgentWorkspace` tests that should keep product behavior but update expected runtime status shapes.
+      [x] 1.2.2.3 Subtask - List source-code graph, memory graph, context-management, and conversation tests that cross the runtime boundary.
+      [x] 1.2.2.4 Subtask - Identify brittle assertions that inspect AgentOS internals instead of product-visible behavior.
 
   [ ] 1.3 Section - Migration Boundary Map
     Translate the inventory into an implementation sequence that can land in

@@ -64,6 +64,49 @@ defmodule JidoCode.Runtime.RepositoryState do
     |> Map.delete(:monitors)
   end
 
+  @spec put_pod(t(), atom(), term(), module(), pid()) :: t()
+  def put_pod(%__MODULE__{} = state, kind, key, module, pid) when is_atom(kind) and is_atom(module) and is_pid(pid) do
+    monitor_key = {:pod, kind, key}
+    ref = Process.monitor(pid)
+
+    pod_status = %{
+      kind: kind,
+      key: key,
+      module: module,
+      runtime_pid: pid,
+      lifecycle: :running,
+      nodes: %{},
+      diagnostics: [],
+      started_at: DateTime.utc_now()
+    }
+
+    %{
+      state
+      | active_pods: Map.put(state.active_pods, monitor_key, pod_status),
+        monitors: Map.put(state.monitors, monitor_key, ref),
+        last_activity_at: pod_status.started_at
+    }
+  end
+
+  @spec delete_pod(t(), atom(), term()) :: t()
+  def delete_pod(%__MODULE__{} = state, kind, key) when is_atom(kind) do
+    monitor_key = {:pod, kind, key}
+
+    case Map.pop(state.monitors, monitor_key) do
+      {nil, monitors} ->
+        %{state | active_pods: Map.delete(state.active_pods, monitor_key), monitors: monitors}
+
+      {ref, monitors} ->
+        Process.demonitor(ref, [:flush])
+        %{state | active_pods: Map.delete(state.active_pods, monitor_key), monitors: monitors}
+    end
+  end
+
+  @spec pod_status(t(), atom(), term()) :: map() | nil
+  def pod_status(%__MODULE__{} = state, kind, key) do
+    Map.get(state.active_pods, {:pod, kind, key})
+  end
+
   @spec ensure_workspace(t(), String.t() | nil) :: {:ok, t()} | {:error, term()}
   def ensure_workspace(%__MODULE__{workspace_path: nil} = state, workspace_path) do
     {:ok, %{state | workspace_path: workspace_path, last_activity_at: DateTime.utc_now()}}
@@ -108,6 +151,29 @@ defmodule JidoCode.Runtime.RepositoryState do
       state
       | active_work_items: Map.delete(state.active_work_items, work_item_id),
         last_activity_at: DateTime.utc_now()
+    }
+  end
+
+  @spec put_work_item_pod(t(), work_item_id(), :coding_pod | :context_management_pod, term()) :: t()
+  def put_work_item_pod(%__MODULE__{} = state, work_item_id, field, pod_key)
+      when is_binary(work_item_id) and field in [:coding_pod, :context_management_pod] do
+    case Map.fetch(state.active_work_items, work_item_id) do
+      {:ok, work_item} ->
+        work_item = Map.put(work_item, field, pod_key)
+        %{state | active_work_items: Map.put(state.active_work_items, work_item_id, work_item)}
+
+      :error ->
+        state
+    end
+  end
+
+  @spec record_diagnostic(t(), map()) :: t()
+  def record_diagnostic(%__MODULE__{} = state, diagnostic) when is_map(diagnostic) do
+    %{
+      state
+      | lifecycle: :degraded,
+        diagnostics: [diagnostic | state.diagnostics],
+        last_failure_at: Map.get(diagnostic, :observed_at) || DateTime.utc_now()
     }
   end
 

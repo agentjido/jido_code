@@ -77,27 +77,27 @@ Back to index: [README](./README.md)
       [x] 3.2.2.3 Subtask - Change `ContextManagementPod` to `use Jido.Pod` with `{managed_repo_id, work_item_id}` keys.
       [x] 3.2.2.4 Subtask - Delete `Empty` pod if it only exists to satisfy AgentOS kernel startup behavior.
 
-  [ ] 3.3 Section - Repository Runtime Pod Ownership
+  [x] 3.3 Section - Repository Runtime Pod Ownership
     Wire the new repository runtime process to pod managers and make pod state
     explicit in runtime status.
 
-    [ ] 3.3.1 Task - Add repo-level pod ensure functions
+    [x] 3.3.1 Task - Add repo-level pod ensure functions
       Start repository singleton pods from the repository runtime container
       instead of through AgentOS kernel setup.
 
-      [ ] 3.3.1.1 Subtask - Add `ensure_repo_pod/1` using a key such as `{managed_repo_id, :repo}`.
-      [ ] 3.3.1.2 Subtask - Add `ensure_source_code_graph_pod/1` using a repository-scoped key.
-      [ ] 3.3.1.3 Subtask - Add `ensure_memory_graph_pod/1` using a repository-scoped key.
-      [ ] 3.3.1.4 Subtask - Store pod pids, keys, status, and diagnostics in runtime state.
+      [x] 3.3.1.1 Subtask - Add `ensure_repo_pod/1` using a key such as `{managed_repo_id, :repo}`.
+      [x] 3.3.1.2 Subtask - Add `ensure_source_code_graph_pod/1` using a repository-scoped key.
+      [x] 3.3.1.3 Subtask - Add `ensure_memory_graph_pod/1` using a repository-scoped key.
+      [x] 3.3.1.4 Subtask - Store pod pids, keys, status, and diagnostics in runtime state.
 
-    [ ] 3.3.2 Task - Add work-level pod ensure functions
+    [x] 3.3.2 Task - Add work-level pod ensure functions
       Start work-item pods from runtime admission state and keep their lifecycle
       isolated by work item.
 
-      [ ] 3.3.2.1 Subtask - Add `ensure_coding_pod/3` using a key such as `{managed_repo_id, work_item_id, :coding}` or `{managed_repo_id, work_item_id}`.
-      [ ] 3.3.2.2 Subtask - Add `ensure_context_management_pod/3` using a key that cannot collide with coding pod keys.
-      [ ] 3.3.2.3 Subtask - Monitor work-level pod pids and mark runtime status degraded when unexpected exits occur.
-      [ ] 3.3.2.4 Subtask - Ensure `complete_work/2` tears down or releases work-level pods and admission state deterministically.
+      [x] 3.3.2.1 Subtask - Add `ensure_coding_pod/3` using a key such as `{managed_repo_id, work_item_id, :coding}` or `{managed_repo_id, work_item_id}`.
+      [x] 3.3.2.2 Subtask - Add `ensure_context_management_pod/3` using a key that cannot collide with coding pod keys.
+      [x] 3.3.2.3 Subtask - Monitor work-level pod pids and mark runtime status degraded when unexpected exits occur.
+      [x] 3.3.2.4 Subtask - Ensure `complete_work/2` tears down or releases work-level pods and admission state deterministically.
 
   [ ] 3.4 Section - Phase 3 Integration Tests
     Prove native Jido pods start, reconcile eager nodes, lazy-start specialists,

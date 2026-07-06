@@ -113,6 +113,57 @@ defmodule JidoCode.Runtime do
 
   def active_work_items(_managed_repo_id), do: []
 
+  @spec ensure_repo_pod(managed_repo_id()) :: {:ok, map()} | {:error, term()}
+  def ensure_repo_pod(managed_repo_id), do: ensure_repository_pod(managed_repo_id, :ensure_repo_pod)
+
+  @spec ensure_source_code_graph_pod(managed_repo_id()) :: {:ok, map()} | {:error, term()}
+  def ensure_source_code_graph_pod(managed_repo_id),
+    do: ensure_repository_pod(managed_repo_id, :ensure_source_code_graph_pod)
+
+  @spec ensure_memory_graph_pod(managed_repo_id()) :: {:ok, map()} | {:error, term()}
+  def ensure_memory_graph_pod(managed_repo_id), do: ensure_repository_pod(managed_repo_id, :ensure_memory_graph_pod)
+
+  @spec ensure_coding_pod(managed_repo_id(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    with {:ok, normalized_workspace_path} <- normalize_workspace_path(workspace_path),
+         {:ok, _status} <- ensure_repository(managed_repo_id, normalized_workspace_path),
+         :ok <- admit_work_item(managed_repo_id, work_item_id, %{workspace_path: normalized_workspace_path}),
+         {:ok, pid} <- lookup_repository_pid(managed_repo_id) do
+      RepositoryRuntime.ensure_coding_pod(pid, work_item_id, normalized_workspace_path)
+    end
+  end
+
+  def ensure_coding_pod(_managed_repo_id, _work_item_id, _workspace_path),
+    do: {:error, %{type: :invalid_work_item_id}}
+
+  @spec ensure_context_management_pod(managed_repo_id(), String.t(), String.t(), map()) ::
+          {:ok, map()} | {:error, term()}
+  def ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, attrs \\ %{})
+
+  def ensure_context_management_pod(managed_repo_id, work_item_id, workspace_path, attrs)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(attrs) do
+    with {:ok, normalized_workspace_path} <- normalize_workspace_path(workspace_path),
+         {:ok, _status} <- ensure_repository(managed_repo_id, normalized_workspace_path),
+         :ok <- admit_work_item(managed_repo_id, work_item_id, %{workspace_path: normalized_workspace_path}),
+         {:ok, pid} <- lookup_repository_pid(managed_repo_id) do
+      RepositoryRuntime.ensure_context_management_pod(pid, work_item_id, normalized_workspace_path, attrs)
+    end
+  end
+
+  def ensure_context_management_pod(_managed_repo_id, _work_item_id, _workspace_path, _attrs),
+    do: {:error, %{type: :invalid_work_item_id}}
+
+  @spec complete_work(managed_repo_id(), String.t()) :: :ok
+  def complete_work(managed_repo_id, work_item_id) when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.complete_work(pid, work_item_id)
+      :error -> :ok
+    end
+  end
+
+  def complete_work(_managed_repo_id, _work_item_id), do: :ok
+
   @spec shutdown_repository(managed_repo_id()) :: :ok
   def shutdown_repository(managed_repo_id) when is_binary(managed_repo_id) do
     case lookup_repository_pid(managed_repo_id) do
@@ -158,6 +209,15 @@ defmodule JidoCode.Runtime do
   defp normalize_start_result({:ok, pid}), do: {:ok, pid}
   defp normalize_start_result({:error, {:already_started, pid}}), do: {:ok, pid}
   defp normalize_start_result({:error, reason}), do: {:error, %{type: :runtime_start_failed, reason: reason}}
+
+  defp ensure_repository_pod(managed_repo_id, operation) when is_binary(managed_repo_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> apply(RepositoryRuntime, operation, [pid])
+      :error -> {:error, %{type: :runtime_unavailable, managed_repo_id: managed_repo_id}}
+    end
+  end
+
+  defp ensure_repository_pod(_managed_repo_id, _operation), do: {:error, %{type: :invalid_managed_repo_id}}
 
   defp normalize_workspace_path(nil), do: {:ok, nil}
 

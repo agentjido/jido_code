@@ -27,7 +27,7 @@ Back to index: [README](./README.md)
   runtime topology.
 - Removing `jido_agent_os` is part of the phase, not a later cleanup.
 
-[ ] 5 Phase 5 - Persistence, Recovery, and AgentOS Removal
+[x] 5 Phase 5 - Persistence, Recovery, and AgentOS Removal
   Replace AgentOS snapshot and recovery behavior with a product-owned runtime
   restoration path, then delete obsolete AgentOS modules, configuration, tests,
   and dependency entries.
@@ -99,16 +99,16 @@ Back to index: [README](./README.md)
       [x] 5.3.2.3 Subtask - Run `rg -n "jido_agent_os|Jido.AgentOS|JidoCode.AgentOS|AgentOS" lib config test mix.exs mix.lock`.
       [x] 5.3.2.4 Subtask - Delete or rewrite AgentOS-specific tests under `test/jido_code/agent_os/`.
 
-  [ ] 5.4 Section - Phase 5 Integration Tests
+  [x] 5.4 Section - Phase 5 Integration Tests
     Prove runtime restoration works from product-owned metadata and the codebase
     no longer depends on AgentOS.
 
-    [ ] 5.4.1 Task - Recovery and dependency-removal scenarios
+    [x] 5.4.1 Task - Recovery and dependency-removal scenarios
       Exercise restart, stale metadata, and dependency deletion cases in the
       focused runtime suite.
 
-      [ ] 5.4.1.1 Subtask - Add tests that runtime snapshots restore repo-level pods and active work metadata after runtime shutdown.
-      [ ] 5.4.1.2 Subtask - Add tests that stale work metadata fails closed and releases capacity.
-      [ ] 5.4.1.3 Subtask - Add tests that restoration does not expose pids or runtime-private node ids as product truth.
-      [ ] 5.4.1.4 Subtask - Run `mix deps.get --check-locked` after dependency removal.
-      [ ] 5.4.1.5 Subtask - Run `mix test` for runtime, workspace, graph, memory, context, and conversation suites affected by the deletion.
+      [x] 5.4.1.1 Subtask - Add tests that runtime snapshots restore repo-level pods and active work metadata after runtime shutdown.
+      [x] 5.4.1.2 Subtask - Add tests that stale work metadata fails closed and releases capacity.
+      [x] 5.4.1.3 Subtask - Add tests that restoration does not expose pids or runtime-private node ids as product truth.
+      [x] 5.4.1.4 Subtask - Run `mix deps.get --check-locked` after dependency removal.
+      [x] 5.4.1.5 Subtask - Run `mix test` for runtime, workspace, graph, memory, context, and conversation suites affected by the deletion.

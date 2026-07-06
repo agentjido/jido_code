@@ -37,37 +37,37 @@ Back to index: [README](./README.md)
   new runtime modules, so implementation work removes AgentOS complexity
   intentionally instead of recreating it locally.
 
-  [ ] 1.1 Section - Target Runtime Contract
+  [x] 1.1 Section - Target Runtime Contract
     Define the product-owned boundary and vocabulary that will replace kernels,
     kernel managers, AgentOS naming, and AgentOS persistence.
 
-    [ ] 1.1.1 Task - Define repository runtime vocabulary
+    [x] 1.1.1 Task - Define repository runtime vocabulary
       Freeze the terms used in code, tests, status output, and documentation so
       later phases do not mix AgentOS kernel terms with the new runtime model.
 
-      [ ] 1.1.1.1 Subtask - Define repository runtime as one supervised product-owned runtime container per ManagedRepo.
-      [ ] 1.1.1.2 Subtask - Define runtime container identity as the ManagedRepo ID plus explicit product metadata, not a generated atom.
-      [ ] 1.1.1.3 Subtask - Define runtime status fields for repository ID, workspace path, lifecycle state, active pods, active work items, capacity, and diagnostics.
-      [ ] 1.1.1.4 Subtask - Mark kernel, kernel_name, and AgentOS naming as deprecated implementation vocabulary to remove during the migration.
+      [x] 1.1.1.1 Subtask - Define repository runtime as one supervised product-owned runtime container per ManagedRepo.
+      [x] 1.1.1.2 Subtask - Define runtime container identity as the ManagedRepo ID plus explicit product metadata, not a generated atom.
+      [x] 1.1.1.3 Subtask - Define runtime status fields for repository ID, workspace path, lifecycle state, active pods, active work items, capacity, and diagnostics.
+      [x] 1.1.1.4 Subtask - Mark kernel, kernel_name, and AgentOS naming as deprecated implementation vocabulary to remove during the migration.
 
-    [ ] 1.1.2 Task - Confirm the Jido.Pod boundary
+    [x] 1.1.2 Task - Confirm the Jido.Pod boundary
       Decide exactly where `Jido.Pod` fits so the implementation uses the
       upstream Jido primitive without forcing repository policy into pod
       topology.
 
-      [ ] 1.1.2.1 Subtask - Confirm `Jido.Pod.get/3` is the lifecycle entrypoint for bounded pod instances.
-      [ ] 1.1.2.2 Subtask - Confirm `Jido.Pod.ensure_node/3`, `lookup_node/2`, `nodes/1`, and `reconcile/2` cover eager and lazy node management needs.
-      [ ] 1.1.2.3 Subtask - Confirm pod node keys derive from pod module, pod key, and node name, allowing tuple pod keys such as `{managed_repo_id, work_item_id}`.
-      [ ] 1.1.2.4 Subtask - Decide that dynamic work-item pod ownership stays in the repository runtime process rather than being encoded as mutable nested pod topology.
+      [x] 1.1.2.1 Subtask - Confirm `Jido.Pod.get/3` is the lifecycle entrypoint for bounded pod instances.
+      [x] 1.1.2.2 Subtask - Confirm `Jido.Pod.ensure_node/3`, `lookup_node/2`, `nodes/1`, and `reconcile/2` cover eager and lazy node management needs.
+      [x] 1.1.2.3 Subtask - Confirm pod node keys derive from pod module, pod key, and node name, allowing tuple pod keys such as `{managed_repo_id, work_item_id}`.
+      [x] 1.1.2.4 Subtask - Decide that dynamic work-item pod ownership stays in the repository runtime process rather than being encoded as mutable nested pod topology.
 
-    [ ] 1.1.3 Task - Define runtime identity and key rules
+    [x] 1.1.3 Task - Define runtime identity and key rules
       Prevent the new runtime from inheriting AgentOS atom-naming complexity or
       creating new atom exhaustion risks.
 
-      [ ] 1.1.3.1 Subtask - Define repository runtime registry keys as ManagedRepo IDs or validated tuple keys.
-      [ ] 1.1.3.2 Subtask - Define pod keys for repo, source graph, memory graph, coding, and context-management pods.
-      [ ] 1.1.3.3 Subtask - Define static manager names as application-owned atoms only.
-      [ ] 1.1.3.4 Subtask - Add a search target for any use of `String.to_atom/1`, `String.to_existing_atom/1`, dynamic `:"..."`, or kernel-name conversion around runtime identity.
+      [x] 1.1.3.1 Subtask - Define repository runtime registry keys as ManagedRepo IDs or validated tuple keys.
+      [x] 1.1.3.2 Subtask - Define pod keys for repo, source graph, memory graph, coding, and context-management pods.
+      [x] 1.1.3.3 Subtask - Define static manager names as application-owned atoms only.
+      [x] 1.1.3.4 Subtask - Add a search target for any use of `String.to_atom/1`, `String.to_existing_atom/1`, dynamic `:"..."`, or kernel-name conversion around runtime identity.
 
   [ ] 1.2 Section - Current AgentOS Surface Inventory
     Inventory every module, configuration value, test, and product workflow

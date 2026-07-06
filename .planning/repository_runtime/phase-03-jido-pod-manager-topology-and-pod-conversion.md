@@ -31,29 +31,29 @@ Back to index: [README](./README.md)
   `Jido.Agent.InstanceManager` ownership so repository runtimes can start pods
   directly without AgentOS manager, naming, or persistence helpers.
 
-  [ ] 3.1 Section - Static Instance Manager Inventory
+  [x] 3.1 Section - Static Instance Manager Inventory
     Define every pod manager and node manager needed by the local runtime
     before changing pod modules.
 
-    [ ] 3.1.1 Task - Define pod instance managers
+    [x] 3.1.1 Task - Define pod instance managers
       Add a stable manager for each pod type so `Jido.Pod.get/3` can start
       repository-scoped and work-item-scoped pods.
 
-      [ ] 3.1.1.1 Subtask - Add manager child spec for `JidoCode.Pods.RepoPod`.
-      [ ] 3.1.1.2 Subtask - Add manager child spec for `JidoCode.Pods.CodingPod`.
-      [ ] 3.1.1.3 Subtask - Add manager child spec for `JidoCode.Pods.SourceCodeGraphPod`.
-      [ ] 3.1.1.4 Subtask - Add manager child spec for `JidoCode.Pods.MemoryGraphPod`.
-      [ ] 3.1.1.5 Subtask - Add manager child spec for `JidoCode.Pods.ContextManagementPod`.
+      [x] 3.1.1.1 Subtask - Add manager child spec for `JidoCode.Pods.RepoPod`.
+      [x] 3.1.1.2 Subtask - Add manager child spec for `JidoCode.Pods.CodingPod`.
+      [x] 3.1.1.3 Subtask - Add manager child spec for `JidoCode.Pods.SourceCodeGraphPod`.
+      [x] 3.1.1.4 Subtask - Add manager child spec for `JidoCode.Pods.MemoryGraphPod`.
+      [x] 3.1.1.5 Subtask - Add manager child spec for `JidoCode.Pods.ContextManagementPod`.
 
-    [ ] 3.1.2 Task - Define node instance managers
+    [x] 3.1.2 Task - Define node instance managers
       Add stable managers for eager and lazy topology agents so pod
       reconciliation can start and adopt child nodes consistently.
 
-      [ ] 3.1.2.1 Subtask - Add managers for `RepoMonitor` and `WorkRegistry`.
-      [ ] 3.1.2.2 Subtask - Add managers for `TaskBoard`, `ProjectContext`, `Planner`, `Coder`, `Reviewer`, `Refactorer`, and `Explainer`.
-      [ ] 3.1.2.3 Subtask - Add managers for source-code graph agents used by `SourceCodeGraphPod`.
-      [ ] 3.1.2.4 Subtask - Add managers for memory graph agents used by `MemoryGraphPod`.
-      [ ] 3.1.2.5 Subtask - Add managers for context-management agents used by `ContextManagementPod`.
+      [x] 3.1.2.1 Subtask - Add managers for `RepoMonitor` and `WorkRegistry`.
+      [x] 3.1.2.2 Subtask - Add managers for `TaskBoard`, `ProjectContext`, `Planner`, `Coder`, `Reviewer`, `Refactorer`, and `Explainer`.
+      [x] 3.1.2.3 Subtask - Add managers for source-code graph agents used by `SourceCodeGraphPod`.
+      [x] 3.1.2.4 Subtask - Add managers for memory graph agents used by `MemoryGraphPod`.
+      [x] 3.1.2.5 Subtask - Add managers for context-management agents used by `ContextManagementPod`.
 
   [ ] 3.2 Section - Pod Module Conversion
     Replace AgentOS macros and topology metadata with native `Jido.Pod`

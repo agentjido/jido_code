@@ -8,8 +8,9 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Runtime
+  alias JidoCode.SourceCodeGraph
 
   alias JidoCode.Actions.{
     AnalyzeSourceCodeGraph,
@@ -48,8 +49,8 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
       assert repo_two_summary.pod_id == "source_code_graph"
       assert repo_one_summary.graph_store_path != repo_two_summary.graph_store_path
 
-      assert Manager.pod_status(repo_one, "source_code_graph").metadata.workspace_path == workspace_one
-      assert Manager.pod_status(repo_two, "source_code_graph").metadata.workspace_path == workspace_two
+      assert Runtime.pod_status(repo_one, SourceCodeGraph.pod_id()).metadata.workspace_path == workspace_one
+      assert Runtime.pod_status(repo_two, SourceCodeGraph.pod_id()).metadata.workspace_path == workspace_two
     end
 
     test "20.4.1.2 the source code graph pod remains singleton per repository even when work items multiply" do
@@ -63,15 +64,15 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
                AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, workspace_path)
 
       assert {:ok, _pod_name_one} =
-               AgentWorkspace.ensure_coding_pod(managed_repo_id, "work-#{System.unique_integer()}", "/tmp")
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, "work-#{System.unique_integer()}", workspace_path)
 
       assert {:ok, _pod_name_two} =
-               AgentWorkspace.ensure_coding_pod(managed_repo_id, "work-#{System.unique_integer()}", "/tmp")
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, "work-#{System.unique_integer()}", workspace_path)
 
       source_graph_pods =
         managed_repo_id
-        |> Manager.list_pods()
-        |> Enum.filter(&(&1.pod_id == "source_code_graph"))
+        |> Runtime.list_pods()
+        |> Enum.filter(&(&1.pod_id == SourceCodeGraph.pod_id()))
 
       assert length(source_graph_pods) == 1
     end
@@ -102,6 +103,7 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
       ]
 
       Enum.each(expected_actions, fn {action, expected_field} ->
+        assert {:module, ^action} = Code.ensure_loaded(action)
         assert function_exported?(action, :run, 2)
         assert function_exported?(action, :schema, 0)
         assert Keyword.keyword?(action.schema())

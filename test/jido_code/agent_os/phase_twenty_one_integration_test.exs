@@ -54,17 +54,12 @@ defmodule JidoCode.AgentOSPhaseTwentyOneIntegrationTest do
       managed_repo_id = "repo-#{System.unique_integer()}"
       missing_workspace = Path.join(System.tmp_dir!(), "missing-phase-twenty-one-#{System.unique_integer()}")
 
-      assert {:error, :source_code_graph_analysis_failed, diagnostics} =
+      assert {:error, %{type: :workspace_unavailable, workspace_path: ^missing_workspace}} =
                AgentWorkspace.analyze_source_code_graph(
                  managed_repo_id,
                  missing_workspace,
                  revision: "rev-fail"
                )
-
-      assert diagnostics.state == :analysis_failed
-      assert diagnostics.analyzed_revision == "rev-fail"
-      assert diagnostics.graph_name == "source_code"
-      assert is_binary(diagnostics.failure)
     end
   end
 

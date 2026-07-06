@@ -78,27 +78,27 @@ Back to index: [README](./README.md)
       [x] 4.2.2.3 Subtask - Ensure failed cleanup leaves a degraded runtime diagnostic instead of crashing product callers.
       [x] 4.2.2.4 Subtask - Update conversation and context-management completion paths to use the same cleanup behavior.
 
-  [ ] 4.3 Section - Cross-Workflow Runtime Adoption
+  [x] 4.3 Section - Cross-Workflow Runtime Adoption
     Update background services and graph workflows that currently use AgentOS
     manager state as a repository-scoped runtime lookup.
 
-    [ ] 4.3.1 Task - Cut over source monitoring and graph refresh callers
+    [x] 4.3.1 Task - Cut over source monitoring and graph refresh callers
       Route source watcher and refresh scheduler dependencies through runtime
       status and repository-scoped pod APIs.
 
-      [ ] 4.3.1.1 Subtask - Update `RepoMonitor.SourceWatcher` AgentOS manager calls to runtime APIs.
-      [ ] 4.3.1.2 Subtask - Update source-code graph refresh scheduler AgentOS manager calls to runtime APIs.
-      [ ] 4.3.1.3 Subtask - Preserve explicit analyze, load, refresh, and query behavior for source-code graph actions.
-      [ ] 4.3.1.4 Subtask - Keep stale graph and unavailable graph diagnostics bounded and product-readable.
+      [x] 4.3.1.1 Subtask - Update `RepoMonitor.SourceWatcher` AgentOS manager calls to runtime APIs.
+      [x] 4.3.1.2 Subtask - Update source-code graph refresh scheduler AgentOS manager calls to runtime APIs.
+      [x] 4.3.1.3 Subtask - Preserve explicit analyze, load, refresh, and query behavior for source-code graph actions.
+      [x] 4.3.1.4 Subtask - Keep stale graph and unavailable graph diagnostics bounded and product-readable.
 
-    [ ] 4.3.2 Task - Cut over memory and context workflows
+    [x] 4.3.2 Task - Cut over memory and context workflows
       Route memory graph and context-management product workflows through the
       new runtime without changing governed memory semantics.
 
-      [ ] 4.3.2.1 Subtask - Update memory graph status, refresh, record, query, validate, invalidate, and recover flows to use runtime-owned pods.
-      [ ] 4.3.2.2 Subtask - Update context observation, compaction, reset, and prompt-packing flows to use runtime-owned context pods.
-      [ ] 4.3.2.3 Subtask - Preserve capture-envelope and governed-reference boundaries.
-      [ ] 4.3.2.4 Subtask - Preserve conversation-derived recall and workflow provenance behavior across runtime cutover.
+      [x] 4.3.2.1 Subtask - Update memory graph status, refresh, record, query, validate, invalidate, and recover flows to use runtime-owned pods.
+      [x] 4.3.2.2 Subtask - Update context observation, compaction, reset, and prompt-packing flows to use runtime-owned context pods.
+      [x] 4.3.2.3 Subtask - Preserve capture-envelope and governed-reference boundaries.
+      [x] 4.3.2.4 Subtask - Preserve conversation-derived recall and workflow provenance behavior across runtime cutover.
 
   [ ] 4.4 Section - Phase 4 Integration Tests
     Prove product workflows use the repository runtime container and no longer

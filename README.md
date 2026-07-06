@@ -150,6 +150,7 @@ mix setup               # deps and asset build
 mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
+mix runtime.verify      # verify repository runtime, pod lifecycle, snapshots, and AgentWorkspace routing
 mix source_graph.verify # run the repo-owned semantic graph verification suite
 mix memory.verify       # verify the ontology pair, typed governed links, and repo-owned memory recovery path
 mix semantic.verify     # run the full product-facing semantic graph verification suite

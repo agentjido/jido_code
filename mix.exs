@@ -66,6 +66,7 @@ defmodule JidoCode.MixProject do
         "control_plane.verify": :test,
         precommit: :test,
         "memory.verify": :test,
+        "runtime.verify": :test,
         "semantic.verify": :test,
         "source_graph.verify": :test
       ]
@@ -240,6 +241,9 @@ defmodule JidoCode.MixProject do
       ],
       "frontend.verify": ["assets.setup", "assets.build"],
       "browser.verify": ["frontend.verify", "cmd npm run e2e:test"],
+      "runtime.verify": [
+        "test test/jido_code/runtime/pods_test.exs test/jido_code/runtime/repository_runtime_test.exs test/jido_code/runtime/snapshot_test.exs test/jido_code/runtime/snapshot_store_test.exs test/jido_code/agent_workspace_test.exs"
+      ],
       "source_graph.verify": [
         "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/source_code_graph_product_service_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_refresh_scheduler_test.exs test/jido_code/runtime/repository_runtime_test.exs test/jido_code/runtime/snapshot_test.exs"
       ],

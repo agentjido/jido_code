@@ -73,27 +73,27 @@ Back to index: [README](./README.md)
       [x] 6.2.2.3 Subtask - Avoid showing pids, registry names, or node ids unless behind explicit developer diagnostics.
       [x] 6.2.2.4 Subtask - Preserve source graph and memory graph degraded fallback behavior when runtime pods are unavailable.
 
-  [ ] 6.3 Section - Documentation and Contributor Verification
+  [x] 6.3 Section - Documentation and Contributor Verification
     Update planning, docs, and verification aliases so contributors understand
     the runtime model and know which suites to run.
 
-    [ ] 6.3.1 Task - Update architecture and planning references
+    [x] 6.3.1 Task - Update architecture and planning references
       Replace AgentOS-specific implementation guidance with repository runtime
       guidance in the places contributors read first.
 
-      [ ] 6.3.1.1 Subtask - Update `.planning/README.md` or related phase notes to mark AgentOS integration superseded by repository runtime.
-      [ ] 6.3.1.2 Subtask - Update module docs for `AgentWorkspace` and new runtime modules.
-      [ ] 6.3.1.3 Subtask - Update any specs or decisions that still require AgentOS kernel vocabulary.
-      [ ] 6.3.1.4 Subtask - Record migration notes explaining why `Jido.Pod` is used for pods while repository runtime owns product policy.
+      [x] 6.3.1.1 Subtask - Update `.planning/README.md` or related phase notes to mark AgentOS integration superseded by repository runtime.
+      [x] 6.3.1.2 Subtask - Update module docs for `AgentWorkspace` and new runtime modules.
+      [x] 6.3.1.3 Subtask - Update any specs or decisions that still require AgentOS kernel vocabulary.
+      [x] 6.3.1.4 Subtask - Record migration notes explaining why `Jido.Pod` is used for pods while repository runtime owns product policy.
 
-    [ ] 6.3.2 Task - Update verification aliases
+    [x] 6.3.2 Task - Update verification aliases
       Make the expected test commands clear for future changes touching the
       runtime boundary.
 
-      [ ] 6.3.2.1 Subtask - Add or update a focused runtime verification alias if the existing aliases are too broad.
-      [ ] 6.3.2.2 Subtask - Ensure source graph runtime changes still run `mix source_graph.verify`.
-      [ ] 6.3.2.3 Subtask - Ensure memory runtime changes still run `mix memory.verify`.
-      [ ] 6.3.2.4 Subtask - Ensure semantic and frontend aliases are documented for changes that cross those boundaries.
+      [x] 6.3.2.1 Subtask - Add or update a focused runtime verification alias if the existing aliases are too broad.
+      [x] 6.3.2.2 Subtask - Ensure source graph runtime changes still run `mix source_graph.verify`.
+      [x] 6.3.2.3 Subtask - Ensure memory runtime changes still run `mix memory.verify`.
+      [x] 6.3.2.4 Subtask - Ensure semantic and frontend aliases are documented for changes that cross those boundaries.
 
   [ ] 6.4 Section - Phase 6 Integration Tests
     Prove the final runtime design works end to end after AgentOS removal and

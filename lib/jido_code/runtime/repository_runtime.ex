@@ -2,9 +2,11 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   @moduledoc """
   Product-owned runtime container for one managed repository.
 
-  This process is intentionally small at creation time: it owns repository
-  runtime identity and state, while later phases attach pod managers and
-  product workflow routing.
+  This process is the supervised boundary for repository-scoped runtime state.
+  It tracks active work, starts repo and work-item pods through static
+  `Jido.Agent.InstanceManager` children, monitors owned pod processes, records
+  bounded diagnostics, emits runtime telemetry, and restores product-owned
+  runtime snapshots.
   """
 
   use GenServer

@@ -2,9 +2,11 @@ defmodule JidoCode.Runtime do
   @moduledoc """
   Product-owned repository runtime boundary.
 
-  The runtime owns one supervised container per ManagedRepo. It is intentionally
-  separate from pod topology: pods are started inside repository runtimes by
-  later phases.
+  The runtime owns one supervised container per ManagedRepo. Each container
+  owns repository admission, workspace binding, pod lifecycle, health
+  projection, telemetry, and bounded snapshot restoration. `Jido.Pod` is used
+  inside the container for repo, graph, memory, context-management, and
+  work-item agent groups; it is not the product policy boundary.
   """
 
   alias JidoCode.Operations.RecordStore, as: OperationsRecordStore

@@ -35,11 +35,16 @@ defmodule JidoCode.AgentWorkspace do
   Context module for repository workspace operations.
 
   Provides a clean API for Phoenix controllers and LiveViews to interact
-  with repository runtimes and pods without exposing the internal topology.
+  with repository runtimes and pods without exposing registry, process, or
+  pod-manager topology.
 
   ## Repository Runtime Lifecycle
 
-  Repository runtimes are created per ManagedRepo and managed through this context.
+  Repository runtimes are created per ManagedRepo and managed through this
+  context. Prefer the repository-runtime lifecycle functions for new code.
+  Kernel-named functions are aliases retained only for older internal call
+  sites that have not been renamed yet; they return runtime status maps, not
+  kernel names or process identifiers.
 
   ## Pod Operations
 
@@ -89,7 +94,6 @@ defmodule JidoCode.AgentWorkspace do
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()
   @type runtime_status :: map()
-  @type kernel_name :: runtime_status()
   @type pod_name :: String.t()
   @type source_code_graph_summary :: map()
   @type memory_graph_summary :: map()
@@ -116,7 +120,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
-  Backward-compatible wrapper for older call sites.
+  Alias for `ensure_repository_runtime/2` used by older internal call sites.
   """
   @spec ensure_kernel(managed_repo_id()) :: {:ok, runtime_status()} | {:error, term()}
   def ensure_kernel(managed_repo_id) when is_binary(managed_repo_id) do
@@ -132,7 +136,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
-  Backward-compatible wrapper for older call sites.
+  Alias for `repository_status/1` used by older internal call sites.
   """
   @spec kernel_status(managed_repo_id()) :: runtime_status() | nil
   def kernel_status(managed_repo_id) when is_binary(managed_repo_id) do
@@ -148,7 +152,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
-  Backward-compatible wrapper for older call sites.
+  Alias for `shutdown_repository_runtime/1` used by older internal call sites.
   """
   @spec shutdown_kernel(managed_repo_id()) :: :ok
   def shutdown_kernel(managed_repo_id) when is_binary(managed_repo_id) do
@@ -164,7 +168,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
-  Backward-compatible wrapper for older call sites.
+  Alias for `list_repository_runtimes/0` used by older internal call sites.
   """
   @spec list_kernels() :: [runtime_status()]
   def list_kernels do
@@ -180,7 +184,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   @doc """
-  Backward-compatible wrapper for older call sites.
+  Alias for `repository_runtime_count/0` used by older internal call sites.
   """
   @spec kernel_count() :: non_neg_integer()
   def kernel_count do
@@ -729,7 +733,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -799,7 +803,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -869,7 +873,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -939,7 +943,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -1000,7 +1004,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(

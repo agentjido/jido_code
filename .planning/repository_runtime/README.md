@@ -1,16 +1,17 @@
 # Repository Runtime Plan Index
 
-This directory contains the phased implementation plan for replacing the
-current `jido_agent_os` integration with a product-owned `JidoCode.Runtime`
-container. The target design keeps one runtime container per ManagedRepo, uses
+This directory contains the phased implementation plan that replaced the
+`jido_agent_os` integration with a product-owned `JidoCode.Runtime`
+container. The design keeps one runtime container per ManagedRepo, uses
 `Jido.Pod` for bounded agent-group topology, and keeps repository policy inside
 `jido_code` instead of copying AgentOS.
 
-Current status: planned.
+Current status: Phase 5 removed `jido_agent_os`; Phase 6 is hardening the
+repository runtime as the canonical boundary.
 
 The plan aligns to:
 - `lib/jido_code/agent_workspace.ex`
-- `lib/jido_code/agent_os/`
+- `lib/jido_code/runtime/`
 - `lib/jido_code/pods/`
 - `lib/jido_code/application.ex`
 - `deps/jido/lib/jido/pod.ex`
@@ -29,6 +30,20 @@ The plan aligns to:
 4. [Phase 4 - Product Entrypoint Cutover](./phase-04-product-entrypoint-cutover.md): route `AgentWorkspace`, source monitor, refresh scheduler, graph workflows, memory workflows, and context management through the new runtime.
 5. [Phase 5 - Persistence, Recovery, and AgentOS Removal](./phase-05-persistence-recovery-and-agentos-removal.md): replace AgentOS snapshot behavior with product-owned runtime state, recover active repository runtimes, and remove the dependency and obsolete modules.
 6. [Phase 6 - Operational Hardening and Acceptance](./phase-06-operational-hardening-and-acceptance.md): finalize capacity limits, observability, failure handling, documentation, and end-to-end acceptance for the new runtime model.
+
+## Current Notes
+
+- [Migration Notes](./migration-notes.md): current contributor guidance for why `Jido.Pod` remains the pod boundary while `JidoCode.Runtime` owns repository policy, admission, health, telemetry, and restoration.
+- [Runtime Contract](./runtime-contract.md): product-owned runtime contract and forbidden AgentOS/kernel behaviors.
+- [Migration Boundary Map](./migration-boundary-map.md): historical mapping from AgentOS APIs to repository runtime APIs.
+
+## Verification
+
+- Use `mix runtime.verify` for changes to repository runtime lifecycle, pod ownership, snapshots, and `AgentWorkspace` runtime routing.
+- Use `mix source_graph.verify` when source-code graph runtime behavior, actions, pod agents, helper queries, or workspace entrypoints change.
+- Use `mix memory.verify` when memory graph boundaries, capture envelopes, memory writers, provenance capture, or durable-memory adoption change.
+- Use `mix semantic.verify` when product-facing semantic services, semantic surfaces, or governed semantic workflows change.
+- Use `mix frontend.verify` when LiveView, LiveVue, Vite, SSR entrypoints, or shared browser helpers change.
 
 ## Shared Conventions
 
@@ -61,5 +76,4 @@ The plan aligns to:
 - Source-code graph, memory graph, conversation, and context-management
   behavior should remain product-owned and should degrade legibly when runtime
   pods are missing, stale, or failed.
-- The final implementation removes `jido_agent_os` from `mix.exs` and
-  `mix.lock`.
+- The implementation removes `jido_agent_os` from `mix.exs` and `mix.lock`.

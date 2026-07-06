@@ -18,7 +18,7 @@ defmodule JidoCode.Runtime.SnapshotTest do
     {:ok, managed_repo_id: managed_repo_id, workspace_path: workspace_path}
   end
 
-  test "captures bounded runtime topology without pids or AgentOS identity", %{
+  test "captures bounded runtime topology without pids or legacy runtime identity", %{
     managed_repo_id: managed_repo_id,
     workspace_path: workspace_path
   } do

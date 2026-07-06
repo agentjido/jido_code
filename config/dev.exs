@@ -89,11 +89,8 @@ config :swoosh, :api_client, false
 # When elixir_ontologies is available, uncomment to enable:
 # config :jido_code, :ontology_enabled, true
 
-# AgentOS configuration
+# Repository runtime and graph configuration
 config :jido_code,
-  # AgentOS kernel manager configuration
-  agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
-  agent_os_registry: JidoCode.AgentOS.Manager.Registry,
   # Source code graph configuration (enabled in dev with conservative defaults)
   source_code_graph_enabled: true,
   # 5 minutes

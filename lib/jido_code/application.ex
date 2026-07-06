@@ -30,10 +30,7 @@ defmodule JidoCode.Application do
         {DynamicSupervisor, name: JidoCode.SourceMonitor.SourceWatcherSupervisor, strategy: :one_for_one},
         {Registry, keys: :unique, name: JidoCode.SourceCodeGraph.RefreshSchedulerRegistry},
         {DynamicSupervisor, name: JidoCode.SourceCodeGraph.RefreshSchedulerSupervisor, strategy: :one_for_one},
-        {Task.Supervisor, name: JidoCode.SourceCodeGraph.RefreshTaskSupervisor},
-        # AgentOS supervision tree
-        {JidoCode.AgentOS.Manager.Server, []},
-        {JidoCode.AgentOS.Manager.Supervisor, []}
+        {Task.Supervisor, name: JidoCode.SourceCodeGraph.RefreshTaskSupervisor}
       ] ++ live_vue_children() ++ forge_dev_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

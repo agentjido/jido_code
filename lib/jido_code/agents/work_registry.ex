@@ -1,6 +1,6 @@
 defmodule JidoCode.Agents.WorkRegistry do
-  # covers: architecture.agent_os_integration.kernel_per_managed_repo
-  # covers: architecture.agent_os_integration.pod_hierarchy
+  # covers: architecture.repository_runtime_integration.kernel_per_managed_repo
+  # covers: architecture.repository_runtime_integration.pod_hierarchy
   @moduledoc """
   Eager agent that tracks all active WorkItems in the repository.
 

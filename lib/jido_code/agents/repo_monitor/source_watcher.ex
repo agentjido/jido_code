@@ -1,5 +1,5 @@
 defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
-  # covers: architecture.agent_os_integration.repo_pod_singleton_per_kernel
+  # covers: architecture.repository_runtime_integration.repo_pod_singleton_per_kernel
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   @moduledoc false
 

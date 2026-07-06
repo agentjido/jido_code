@@ -1,13 +1,13 @@
 defmodule JidoCode.AgentWorkspaceTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
-  # covers: architecture.agent_os_integration.workspace_context
-  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
-  # covers: architecture.agent_os_integration.pod_cleanup_on_completion
-  # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
-  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
-  # covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
-  # covers: architecture.agent_os_integration.repository_work_queue_is_bounded
-  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  # covers: architecture.repository_runtime_integration.workspace_context
+  # covers: architecture.repository_runtime_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.repository_runtime_integration.pod_cleanup_on_completion
+  # covers: architecture.repository_runtime_integration.multiple_pods_parallel_execution
+  # covers: architecture.repository_runtime_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.repository_runtime_integration.missing_kernel_runtime_recovers_from_snapshot
+  # covers: architecture.repository_runtime_integration.repository_work_queue_is_bounded
+  # covers: architecture.repository_runtime_integration.eager_collaboration_state_is_seeded_before_specialist_work
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
@@ -17,7 +17,7 @@ defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
   # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
   # covers: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
-  # covers: architecture.agent_os_integration.memory_graph_product_actions_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_product_actions_stay_workspace_bound
   # covers: architecture.conversation_orchestration.conversation_is_repo_and_work_scoped
   # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
   use JidoCode.DataCase, async: false

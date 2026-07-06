@@ -1,7 +1,7 @@
 defmodule JidoCode.Actions.RecordMemoryGraph do
   # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
-  # covers: architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_read_write_and_query_stay_workspace_bound
   # covers: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
   # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
   # covers: architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption

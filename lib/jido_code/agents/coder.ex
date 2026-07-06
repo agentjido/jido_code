@@ -1,5 +1,5 @@
 defmodule JidoCode.Agents.Coder do
-  # covers: architecture.agent_os_integration.coding_agents
+  # covers: architecture.repository_runtime_integration.coding_agents
   @moduledoc """
   Coding specialist for the CodingPod.
 

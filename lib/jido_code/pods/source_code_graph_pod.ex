@@ -1,5 +1,5 @@
 defmodule JidoCode.Pods.SourceCodeGraphPod do
-  # covers: architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+  # covers: architecture.repository_runtime_integration.source_code_graph_pod_singleton_when_enabled
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   @moduledoc """
   Repository-scoped pod for semantic source-code graph work.

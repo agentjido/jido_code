@@ -1,7 +1,7 @@
 defmodule JidoCode.Actions.AddTask do
-  # covers: architecture.agent_os_integration.actions
-  # covers: architecture.agent_os_integration.state_operations_modify_agent_state
-  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  # covers: architecture.repository_runtime_integration.actions
+  # covers: architecture.repository_runtime_integration.state_operations_modify_agent_state
+  # covers: architecture.repository_runtime_integration.eager_collaboration_state_is_seeded_before_specialist_work
   @moduledoc """
   Action to add a task to the task board.
 

@@ -81,7 +81,7 @@ defmodule JidoCodeWeb.PhaseFiftyFourIntegrationTest do
     assert contributing =~ "create_governed_run!/2"
     assert contributing =~ "compatibility, migration, or audit coverage"
 
-    assert repo_file!(".spec/specs/agent_os_integration.spec.md") =~ "status: active"
+    assert repo_file!(".spec/specs/repository_runtime_integration.spec.md") =~ "status: active"
     assert repo_file!(".spec/specs/source_code_graph_pod.spec.md") =~ "status: active"
     assert repo_file!(".spec/specs/source_code_graph_product_adoption.spec.md") =~ "status: active"
     assert repo_file!(".spec/specs/memory_capture_plane.spec.md") =~ "status: active"

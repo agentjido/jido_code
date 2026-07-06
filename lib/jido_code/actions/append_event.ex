@@ -1,5 +1,5 @@
 defmodule JidoCode.Actions.AppendEvent do
-  # covers: architecture.agent_os_integration.actions
+  # covers: architecture.repository_runtime_integration.actions
   @moduledoc """
   Action to append an event to the activity log.
 

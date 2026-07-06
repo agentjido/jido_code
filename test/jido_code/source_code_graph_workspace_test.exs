@@ -1,11 +1,11 @@
 defmodule JidoCode.SourceCodeGraphWorkspaceTest do
-  # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
+  # covers: architecture.repository_runtime_integration.workspace_context_hides_kernel_topology
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
-  # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+  # covers: architecture.repository_runtime_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
   # covers: package.jido_code.version_controlled_quality_surfaces

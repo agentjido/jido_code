@@ -1,13 +1,13 @@
 defmodule JidoCode.AgentWorkspace do
-  # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
-  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
-  # covers: architecture.agent_os_integration.pod_cleanup_on_completion
-  # covers: architecture.agent_os_integration.pod_naming_convention
-  # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
-  # covers: architecture.agent_os_integration.signal_routing_within_pod
-  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
-  # covers: architecture.agent_os_integration.repository_work_queue_is_bounded
-  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  # covers: architecture.repository_runtime_integration.workspace_context_hides_kernel_topology
+  # covers: architecture.repository_runtime_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.repository_runtime_integration.pod_cleanup_on_completion
+  # covers: architecture.repository_runtime_integration.pod_naming_convention
+  # covers: architecture.repository_runtime_integration.multiple_pods_parallel_execution
+  # covers: architecture.repository_runtime_integration.signal_routing_within_pod
+  # covers: architecture.repository_runtime_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.repository_runtime_integration.repository_work_queue_is_bounded
+  # covers: architecture.repository_runtime_integration.eager_collaboration_state_is_seeded_before_specialist_work
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
@@ -17,8 +17,8 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
-  # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
-  # covers: architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_read_write_and_query_stay_workspace_bound
   # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
@@ -30,7 +30,7 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
   # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
-  # covers: architecture.agent_os_integration.memory_graph_product_actions_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_product_actions_stay_workspace_bound
   @moduledoc """
   Context module for repository workspace operations.
 

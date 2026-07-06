@@ -1,5 +1,5 @@
 defmodule JidoCode.Pods.MemoryGraphPod do
-  # covers: architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled
+  # covers: architecture.repository_runtime_integration.memory_graph_pod_singleton_when_enabled
   # covers: architecture.memory_graph.repo_scoped_memory_graph_pod
   @moduledoc """
   Repository-scoped pod for durable coding memory and workflow provenance work.

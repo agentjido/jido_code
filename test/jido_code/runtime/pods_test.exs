@@ -102,7 +102,7 @@ defmodule JidoCode.Runtime.PodsTest do
     assert first_task_board != second_task_board
   end
 
-  test "graph and context pods reconcile without AgentOS signal routes", %{
+  test "graph and context pods reconcile without legacy signal routes", %{
     managed_repo_id: managed_repo_id,
     workspace_path: workspace_path
   } do

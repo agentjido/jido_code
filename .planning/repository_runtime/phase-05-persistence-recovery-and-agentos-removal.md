@@ -77,27 +77,27 @@ Back to index: [README](./README.md)
       [x] 5.2.2.3 Subtask - Mark unrecoverable runtime entries as stale and release capacity.
       [x] 5.2.2.4 Subtask - Emit bounded diagnostics for operator surfaces and tests.
 
-  [ ] 5.3 Section - AgentOS Deletion
+  [x] 5.3 Section - AgentOS Deletion
     Remove the dependency and obsolete local integration after product
     workflows have been routed through `JidoCode.Runtime`.
 
-    [ ] 5.3.1 Task - Delete local AgentOS modules and config
+    [x] 5.3.1 Task - Delete local AgentOS modules and config
       Remove modules that only existed to adapt AgentOS kernels to the product
       runtime model.
 
-      [ ] 5.3.1.1 Subtask - Delete `lib/jido_code/agent_os.ex` after callers move to runtime APIs.
-      [ ] 5.3.1.2 Subtask - Delete `lib/jido_code/agent_os/` manager, server, supervisor, kernel state, and persistence modules.
-      [ ] 5.3.1.3 Subtask - Remove AgentOS supervisor and registry config from `config/dev.exs` and `config/test.exs`.
-      [ ] 5.3.1.4 Subtask - Remove AgentOS supervision children from `JidoCode.Application`.
+      [x] 5.3.1.1 Subtask - Delete `lib/jido_code/agent_os.ex` after callers move to runtime APIs.
+      [x] 5.3.1.2 Subtask - Delete `lib/jido_code/agent_os/` manager, server, supervisor, kernel state, and persistence modules.
+      [x] 5.3.1.3 Subtask - Remove AgentOS supervisor and registry config from `config/dev.exs` and `config/test.exs`.
+      [x] 5.3.1.4 Subtask - Remove AgentOS supervision children from `JidoCode.Application`.
 
-    [ ] 5.3.2 Task - Remove external AgentOS dependency
+    [x] 5.3.2 Task - Remove external AgentOS dependency
       Delete the upstream dependency once no production or test code references
       it.
 
-      [ ] 5.3.2.1 Subtask - Remove `{:jido_agent_os, ...}` from `mix.exs`.
-      [ ] 5.3.2.2 Subtask - Run `mix deps.get` to update `mix.lock`.
-      [ ] 5.3.2.3 Subtask - Run `rg -n "jido_agent_os|Jido.AgentOS|JidoCode.AgentOS|AgentOS" lib config test mix.exs mix.lock`.
-      [ ] 5.3.2.4 Subtask - Delete or rewrite AgentOS-specific tests under `test/jido_code/agent_os/`.
+      [x] 5.3.2.1 Subtask - Remove `{:jido_agent_os, ...}` from `mix.exs`.
+      [x] 5.3.2.2 Subtask - Run `mix deps.get` to update `mix.lock`.
+      [x] 5.3.2.3 Subtask - Run `rg -n "jido_agent_os|Jido.AgentOS|JidoCode.AgentOS|AgentOS" lib config test mix.exs mix.lock`.
+      [x] 5.3.2.4 Subtask - Delete or rewrite AgentOS-specific tests under `test/jido_code/agent_os/`.
 
   [ ] 5.4 Section - Phase 5 Integration Tests
     Prove runtime restoration works from product-owned metadata and the codebase

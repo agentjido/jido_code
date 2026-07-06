@@ -73,27 +73,27 @@ Back to index: [README](./README.md)
       [x] 2.2.2.3 Subtask - Ensure failed startup unregisters the runtime and returns a structured error.
       [x] 2.2.2.4 Subtask - Ensure repeated ensure and shutdown calls are race-safe.
 
-  [ ] 2.3 Section - Runtime State and Admission Policy
+  [x] 2.3 Section - Runtime State and Admission Policy
     Move repository-scoped product policy out of AgentOS manager state and into
     the new runtime boundary.
 
-    [ ] 2.3.1 Task - Model runtime state explicitly
+    [x] 2.3.1 Task - Model runtime state explicitly
       Define a small state structure that can be inspected, tested, persisted,
       and evolved without exposing process internals.
 
-      [ ] 2.3.1.1 Subtask - Add a runtime state struct or typed map owned by `JidoCode.Runtime`.
-      [ ] 2.3.1.2 Subtask - Include workspace binding and workspace validation diagnostics.
-      [ ] 2.3.1.3 Subtask - Include active work-item IDs and pod keys, not AgentOS pod IDs.
-      [ ] 2.3.1.4 Subtask - Include status timestamps for startup, last activity, last failure, and shutdown.
+      [x] 2.3.1.1 Subtask - Add a runtime state struct or typed map owned by `JidoCode.Runtime`.
+      [x] 2.3.1.2 Subtask - Include workspace binding and workspace validation diagnostics.
+      [x] 2.3.1.3 Subtask - Include active work-item IDs and pod keys, not AgentOS pod IDs.
+      [x] 2.3.1.4 Subtask - Include status timestamps for startup, last activity, last failure, and shutdown.
 
-    [ ] 2.3.2 Task - Add admission and capacity checks
+    [x] 2.3.2 Task - Add admission and capacity checks
       Keep work-item admission product-owned so runtime capacity can fail
       closed before pod creation.
 
-      [ ] 2.3.2.1 Subtask - Move current work queue capacity rules behind the repository runtime API.
-      [ ] 2.3.2.2 Subtask - Return structured `:capacity_exceeded`, `:workspace_unavailable`, and `:runtime_unavailable` errors.
-      [ ] 2.3.2.3 Subtask - Track admitted work items separately from successfully started coding pods.
-      [ ] 2.3.2.4 Subtask - Release admission state when work completes or startup fails.
+      [x] 2.3.2.1 Subtask - Move current work queue capacity rules behind the repository runtime API.
+      [x] 2.3.2.2 Subtask - Return structured `:capacity_exceeded`, `:workspace_unavailable`, and `:runtime_unavailable` errors.
+      [x] 2.3.2.3 Subtask - Track admitted work items separately from successfully started coding pods.
+      [x] 2.3.2.4 Subtask - Release admission state when work completes or startup fails.
 
   [ ] 2.4 Section - Phase 2 Integration Tests
     Prove the repository runtime container can be created, found, reported, and

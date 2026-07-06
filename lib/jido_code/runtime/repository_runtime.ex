@@ -9,24 +9,14 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
 
   use GenServer
 
+  alias JidoCode.Runtime.RepositoryState
+
   @registry JidoCode.Runtime.Registry
 
   @type managed_repo_id :: String.t()
   @type lifecycle :: :starting | :ready | :degraded | :stopping | :stopped
 
-  @type state :: %{
-          managed_repo_id: managed_repo_id(),
-          workspace_path: String.t() | nil,
-          lifecycle: lifecycle(),
-          active_pods: map(),
-          active_work_items: map(),
-          capacity: map(),
-          diagnostics: [map()],
-          monitors: map(),
-          started_at: DateTime.t(),
-          last_activity_at: DateTime.t(),
-          last_failure_at: DateTime.t() | nil
-        }
+  @type state :: RepositoryState.t()
 
   @spec child_spec(keyword()) :: Supervisor.child_spec()
   def child_spec(opts) when is_list(opts) do
@@ -61,80 +51,53 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   @spec mark_stopping(GenServer.server()) :: :ok
   def mark_stopping(server), do: GenServer.call(server, :mark_stopping)
 
+  @spec admit_work_item(GenServer.server(), String.t(), map()) :: :ok | {:error, term()}
+  def admit_work_item(server, work_item_id, attrs), do: GenServer.call(server, {:admit_work_item, work_item_id, attrs})
+
+  @spec complete_work_item(GenServer.server(), String.t()) :: :ok
+  def complete_work_item(server, work_item_id), do: GenServer.call(server, {:complete_work_item, work_item_id})
+
+  @spec active_work_items(GenServer.server()) :: [String.t()]
+  def active_work_items(server), do: GenServer.call(server, :active_work_items)
+
   @impl true
   def init(opts) do
-    now = DateTime.utc_now()
-
-    {:ok,
-     %{
-       managed_repo_id: Keyword.fetch!(opts, :managed_repo_id),
-       workspace_path: Keyword.get(opts, :workspace_path),
-       lifecycle: :ready,
-       active_pods: %{},
-       active_work_items: %{},
-       capacity: Keyword.get(opts, :capacity, %{}),
-       diagnostics: [],
-       monitors: %{},
-       started_at: now,
-       last_activity_at: now,
-       last_failure_at: nil
-     }}
+    {:ok, RepositoryState.new(opts)}
   end
 
   @impl true
   def handle_call(:status, _from, state) do
-    {:reply, {:ok, Map.delete(state, :monitors)}, state}
+    {:reply, {:ok, RepositoryState.status(state)}, state}
   end
 
   def handle_call({:ensure_workspace, workspace_path}, _from, state) do
-    cond do
-      is_nil(state.workspace_path) ->
-        {:reply, :ok, %{state | workspace_path: workspace_path, last_activity_at: DateTime.utc_now()}}
-
-      state.workspace_path == workspace_path ->
-        {:reply, :ok, %{state | last_activity_at: DateTime.utc_now()}}
-
-      true ->
-        {:reply,
-         {:error,
-          %{
-            type: :workspace_mismatch,
-            existing_workspace_path: state.workspace_path,
-            requested_workspace_path: workspace_path
-          }}, state}
+    case RepositoryState.ensure_workspace(state, workspace_path) do
+      {:ok, next_state} -> {:reply, :ok, next_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
 
   def handle_call(:mark_stopping, _from, state) do
-    {:reply, :ok, %{state | lifecycle: :stopping, last_activity_at: DateTime.utc_now()}}
+    {:reply, :ok, RepositoryState.mark_stopping(state)}
+  end
+
+  def handle_call({:admit_work_item, work_item_id, attrs}, _from, state) do
+    case RepositoryState.admit_work_item(state, work_item_id, attrs) do
+      {:ok, next_state} -> {:reply, :ok, next_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:complete_work_item, work_item_id}, _from, state) do
+    {:reply, :ok, RepositoryState.complete_work_item(state, work_item_id)}
+  end
+
+  def handle_call(:active_work_items, _from, state) do
+    {:reply, RepositoryState.active_work_item_ids(state), state}
   end
 
   @impl true
   def handle_info({:DOWN, ref, :process, pid, reason}, state) do
-    {monitor_key, monitors} = pop_monitor(state.monitors, ref)
-
-    diagnostic = %{
-      type: :owned_process_down,
-      monitor_key: monitor_key,
-      pid: pid,
-      reason: reason,
-      observed_at: DateTime.utc_now()
-    }
-
-    next_state =
-      state
-      |> Map.put(:monitors, monitors)
-      |> Map.put(:lifecycle, :degraded)
-      |> Map.put(:last_failure_at, diagnostic.observed_at)
-      |> update_in([:diagnostics], &[diagnostic | &1])
-
-    {:noreply, next_state}
-  end
-
-  defp pop_monitor(monitors, ref) do
-    case Enum.find(monitors, fn {_key, monitor_ref} -> monitor_ref == ref end) do
-      {key, _ref} -> {key, Map.delete(monitors, key)}
-      nil -> {nil, monitors}
-    end
+    {:noreply, RepositoryState.mark_process_down(state, ref, pid, reason)}
   end
 end

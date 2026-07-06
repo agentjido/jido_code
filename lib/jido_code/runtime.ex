@@ -21,7 +21,12 @@ defmodule JidoCode.Runtime do
   def ensure_repository(managed_repo_id, workspace_path, opts)
       when is_binary(managed_repo_id) and is_list(opts) do
     with {:ok, normalized_workspace_path} <- normalize_workspace_path(workspace_path),
-         {:ok, pid} <- ensure_repository_process(managed_repo_id, normalized_workspace_path, opts),
+         {:ok, pid} <-
+           ensure_repository_process(
+             managed_repo_id,
+             normalized_workspace_path,
+             Keyword.put_new(opts, :capacity, default_capacity())
+           ),
          :ok <- RepositoryRuntime.ensure_workspace(pid, normalized_workspace_path),
          {:ok, status} <- RepositoryRuntime.status(pid) do
       {:ok, status}
@@ -71,6 +76,42 @@ defmodule JidoCode.Runtime do
   def repository_count do
     list_repositories() |> length()
   end
+
+  @spec admit_work_item(managed_repo_id(), String.t(), map()) :: :ok | {:error, term()}
+  def admit_work_item(managed_repo_id, work_item_id, attrs \\ %{})
+
+  def admit_work_item(managed_repo_id, work_item_id, attrs)
+      when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(attrs) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} ->
+        RepositoryRuntime.admit_work_item(pid, work_item_id, attrs)
+
+      :error ->
+        {:error, %{type: :runtime_unavailable, managed_repo_id: managed_repo_id}}
+    end
+  end
+
+  def admit_work_item(_managed_repo_id, _work_item_id, _attrs), do: {:error, %{type: :invalid_work_item_id}}
+
+  @spec complete_work_item(managed_repo_id(), String.t()) :: :ok
+  def complete_work_item(managed_repo_id, work_item_id) when is_binary(managed_repo_id) and is_binary(work_item_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.complete_work_item(pid, work_item_id)
+      :error -> :ok
+    end
+  end
+
+  def complete_work_item(_managed_repo_id, _work_item_id), do: :ok
+
+  @spec active_work_items(managed_repo_id()) :: [String.t()]
+  def active_work_items(managed_repo_id) when is_binary(managed_repo_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.active_work_items(pid)
+      :error -> []
+    end
+  end
+
+  def active_work_items(_managed_repo_id), do: []
 
   @spec shutdown_repository(managed_repo_id()) :: :ok
   def shutdown_repository(managed_repo_id) when is_binary(managed_repo_id) do
@@ -122,9 +163,28 @@ defmodule JidoCode.Runtime do
     |> String.trim()
     |> case do
       "" -> {:error, %{type: :invalid_workspace_path}}
-      path -> {:ok, Path.expand(path)}
+      path -> validate_workspace_path(Path.expand(path))
     end
   end
 
   defp normalize_workspace_path(_workspace_path), do: {:error, %{type: :invalid_workspace_path}}
+
+  defp validate_workspace_path(path) do
+    if File.dir?(path) do
+      {:ok, path}
+    else
+      {:error, %{type: :workspace_unavailable, workspace_path: path}}
+    end
+  end
+
+  defp default_capacity do
+    %{max_active_work_items: work_queue_limit()}
+  end
+
+  defp work_queue_limit do
+    case Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items, :infinity) do
+      limit when is_integer(limit) and limit > 0 -> limit
+      _other -> :infinity
+    end
+  end
 end

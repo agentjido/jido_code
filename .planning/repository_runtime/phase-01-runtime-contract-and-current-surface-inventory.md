@@ -91,27 +91,27 @@ Back to index: [README](./README.md)
       [x] 1.2.2.3 Subtask - List source-code graph, memory graph, context-management, and conversation tests that cross the runtime boundary.
       [x] 1.2.2.4 Subtask - Identify brittle assertions that inspect AgentOS internals instead of product-visible behavior.
 
-  [ ] 1.3 Section - Migration Boundary Map
+  [x] 1.3 Section - Migration Boundary Map
     Translate the inventory into an implementation sequence that can land in
     coherent phases with explicit deletion points.
 
-    [ ] 1.3.1 Task - Map old modules to new modules
+    [x] 1.3.1 Task - Map old modules to new modules
       Decide the new namespace and ownership for each AgentOS-related
       responsibility before writing code.
 
-      [ ] 1.3.1.1 Subtask - Map `JidoCode.AgentOS.Manager` lifecycle functions to `JidoCode.Runtime`.
-      [ ] 1.3.1.2 Subtask - Map `JidoCode.AgentOS.Manager.Server` tracked state to repository runtime process state.
-      [ ] 1.3.1.3 Subtask - Map `JidoCode.AgentOS.Manager.Supervisor` to repository runtime supervision and static instance managers.
-      [ ] 1.3.1.4 Subtask - Map AgentOS persistence snapshots to product-owned runtime restoration data.
+      [x] 1.3.1.1 Subtask - Map `JidoCode.AgentOS.Manager` lifecycle functions to `JidoCode.Runtime`.
+      [x] 1.3.1.2 Subtask - Map `JidoCode.AgentOS.Manager.Server` tracked state to repository runtime process state.
+      [x] 1.3.1.3 Subtask - Map `JidoCode.AgentOS.Manager.Supervisor` to repository runtime supervision and static instance managers.
+      [x] 1.3.1.4 Subtask - Map AgentOS persistence snapshots to product-owned runtime restoration data.
 
-    [ ] 1.3.2 Task - Define compatibility removal policy
+    [x] 1.3.2 Task - Define compatibility removal policy
       Make the greenfield deletion rule explicit so implementation does not
       keep both AgentOS and runtime APIs alive unnecessarily.
 
-      [ ] 1.3.2.1 Subtask - Decide whether `AgentWorkspace.ensure_kernel/1` is renamed, deleted, or kept temporarily only as an internal migration point.
-      [ ] 1.3.2.2 Subtask - Decide whether tests should use repository runtime vocabulary immediately after cutover.
-      [ ] 1.3.2.3 Subtask - Decide which documentation and planning references should be updated or superseded.
-      [ ] 1.3.2.4 Subtask - Record the exact phase where `jido_agent_os` leaves `mix.exs`.
+      [x] 1.3.2.1 Subtask - Decide whether `AgentWorkspace.ensure_kernel/1` is renamed, deleted, or kept temporarily only as an internal migration point.
+      [x] 1.3.2.2 Subtask - Decide whether tests should use repository runtime vocabulary immediately after cutover.
+      [x] 1.3.2.3 Subtask - Decide which documentation and planning references should be updated or superseded.
+      [x] 1.3.2.4 Subtask - Record the exact phase where `jido_agent_os` leaves `mix.exs`.
 
   [ ] 1.4 Section - Phase 1 Integration Tests
     Prove the migration target is understood and every current AgentOS runtime

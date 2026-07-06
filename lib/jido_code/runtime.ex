@@ -27,7 +27,7 @@ defmodule JidoCode.Runtime do
              normalized_workspace_path,
              Keyword.put_new(opts, :capacity, default_capacity())
            ),
-         :ok <- RepositoryRuntime.ensure_workspace(pid, normalized_workspace_path),
+         :ok <- maybe_ensure_workspace(pid, normalized_workspace_path),
          {:ok, status} <- RepositoryRuntime.status(pid) do
       {:ok, status}
     end
@@ -112,6 +112,37 @@ defmodule JidoCode.Runtime do
   end
 
   def active_work_items(_managed_repo_id), do: []
+
+  @spec pod_status(managed_repo_id(), String.t()) :: map() | nil
+  def pod_status(managed_repo_id, pod_id) when is_binary(managed_repo_id) and is_binary(pod_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.pod_status(pid, pod_id)
+      :error -> nil
+    end
+  end
+
+  def pod_status(_managed_repo_id, _pod_id), do: nil
+
+  @spec list_pods(managed_repo_id()) :: [map()]
+  def list_pods(managed_repo_id) when is_binary(managed_repo_id) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.list_pods(pid)
+      :error -> []
+    end
+  end
+
+  def list_pods(_managed_repo_id), do: []
+
+  @spec update_pod_metadata(managed_repo_id(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  def update_pod_metadata(managed_repo_id, pod_id, updates)
+      when is_binary(managed_repo_id) and is_binary(pod_id) and is_map(updates) do
+    case lookup_repository_pid(managed_repo_id) do
+      {:ok, pid} -> RepositoryRuntime.update_pod_metadata(pid, pod_id, updates)
+      :error -> {:error, %{type: :runtime_unavailable, managed_repo_id: managed_repo_id}}
+    end
+  end
+
+  def update_pod_metadata(_managed_repo_id, _pod_id, _updates), do: {:error, %{type: :invalid_pod_metadata}}
 
   @spec ensure_repo_pod(managed_repo_id()) :: {:ok, map()} | {:error, term()}
   def ensure_repo_pod(managed_repo_id), do: ensure_repository_pod(managed_repo_id, :ensure_repo_pod)
@@ -209,6 +240,9 @@ defmodule JidoCode.Runtime do
   defp normalize_start_result({:ok, pid}), do: {:ok, pid}
   defp normalize_start_result({:error, {:already_started, pid}}), do: {:ok, pid}
   defp normalize_start_result({:error, reason}), do: {:error, %{type: :runtime_start_failed, reason: reason}}
+
+  defp maybe_ensure_workspace(_pid, nil), do: :ok
+  defp maybe_ensure_workspace(pid, workspace_path), do: RepositoryRuntime.ensure_workspace(pid, workspace_path)
 
   defp ensure_repository_pod(managed_repo_id, operation) when is_binary(managed_repo_id) do
     case lookup_repository_pid(managed_repo_id) do

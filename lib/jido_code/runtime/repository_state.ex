@@ -64,27 +64,36 @@ defmodule JidoCode.Runtime.RepositoryState do
     |> Map.delete(:monitors)
   end
 
-  @spec put_pod(t(), atom(), term(), module(), pid()) :: t()
-  def put_pod(%__MODULE__{} = state, kind, key, module, pid) when is_atom(kind) and is_atom(module) and is_pid(pid) do
+  @spec put_pod(t(), atom(), term(), module(), pid(), map()) :: t()
+  def put_pod(%__MODULE__{} = state, kind, key, module, pid, attrs \\ %{})
+      when is_atom(kind) and is_atom(module) and is_pid(pid) and is_map(attrs) do
     monitor_key = {:pod, kind, key}
-    ref = Process.monitor(pid)
+    {monitors, registered_at} = monitor_pod(state, monitor_key, pid)
+    existing_status = Map.get(state.active_pods, monitor_key)
+    metadata = merged_metadata(existing_status, Map.get(attrs, :metadata, %{}))
+    now = DateTime.utc_now()
 
     pod_status = %{
+      pod_id: Map.fetch!(attrs, :pod_id),
       kind: kind,
       key: key,
       module: module,
+      scope: Map.get(attrs, :scope, :repository),
+      metadata: metadata,
       runtime_pid: pid,
       lifecycle: :running,
       nodes: %{},
       diagnostics: [],
-      started_at: DateTime.utc_now()
+      registered_at: registered_at,
+      started_at: Map.get(existing_status || %{}, :started_at, now),
+      last_activity_at: now
     }
 
     %{
       state
       | active_pods: Map.put(state.active_pods, monitor_key, pod_status),
-        monitors: Map.put(state.monitors, monitor_key, ref),
-        last_activity_at: pod_status.started_at
+        monitors: monitors,
+        last_activity_at: now
     }
   end
 
@@ -105,6 +114,36 @@ defmodule JidoCode.Runtime.RepositoryState do
   @spec pod_status(t(), atom(), term()) :: map() | nil
   def pod_status(%__MODULE__{} = state, kind, key) do
     Map.get(state.active_pods, {:pod, kind, key})
+  end
+
+  @spec pod_status_by_id(t(), String.t()) :: map() | nil
+  def pod_status_by_id(%__MODULE__{} = state, pod_id) when is_binary(pod_id) do
+    state.active_pods
+    |> Map.values()
+    |> Enum.find(&(Map.get(&1, :pod_id) == pod_id))
+  end
+
+  @spec list_pods(t()) :: [map()]
+  def list_pods(%__MODULE__{} = state) do
+    state.active_pods
+    |> Map.values()
+    |> Enum.sort_by(& &1.pod_id)
+  end
+
+  @spec update_pod_metadata(t(), String.t(), map()) :: {:ok, map(), t()} | {:error, term()}
+  def update_pod_metadata(%__MODULE__{} = state, pod_id, updates)
+      when is_binary(pod_id) and is_map(updates) do
+    case find_pod_key(state, pod_id) do
+      nil ->
+        {:error, :pod_not_found}
+
+      monitor_key ->
+        pod_status = Map.fetch!(state.active_pods, monitor_key)
+        metadata = merged_metadata(pod_status, updates)
+        next_pod_status = %{pod_status | metadata: metadata, last_activity_at: DateTime.utc_now()}
+        next_state = %{state | active_pods: Map.put(state.active_pods, monitor_key, next_pod_status)}
+        {:ok, next_pod_status, touch(next_state)}
+    end
   end
 
   @spec ensure_workspace(t(), String.t() | nil) :: {:ok, t()} | {:error, term()}
@@ -229,6 +268,43 @@ defmodule JidoCode.Runtime.RepositoryState do
       | active_work_items: Map.put(state.active_work_items, work_item_id, work_item),
         last_activity_at: admitted_at
     }
+  end
+
+  defp monitor_pod(%__MODULE__{} = state, monitor_key, pid) do
+    existing_status = Map.get(state.active_pods, monitor_key)
+    existing_ref = Map.get(state.monitors, monitor_key)
+
+    if match?(%{runtime_pid: ^pid}, existing_status) and is_reference(existing_ref) do
+      {state.monitors, Map.get(existing_status, :registered_at) || DateTime.utc_now()}
+    else
+      if is_reference(existing_ref), do: Process.demonitor(existing_ref, [:flush])
+      {Map.put(state.monitors, monitor_key, Process.monitor(pid)), DateTime.utc_now()}
+    end
+  end
+
+  defp find_pod_key(%__MODULE__{} = state, pod_id) do
+    state.active_pods
+    |> Enum.find_value(fn {monitor_key, pod_status} ->
+      if Map.get(pod_status, :pod_id) == pod_id, do: monitor_key
+    end)
+  end
+
+  defp merged_metadata(nil, incoming_metadata) when is_map(incoming_metadata), do: incoming_metadata
+
+  defp merged_metadata(%{metadata: existing_metadata}, incoming_metadata)
+       when is_map(existing_metadata) and is_map(incoming_metadata) do
+    merged_metadata = Map.merge(existing_metadata, incoming_metadata)
+
+    case {Map.get(existing_metadata, :latest_import_status), Map.get(incoming_metadata, :latest_import_status)} do
+      {%{ready?: true} = existing_status, %{ready?: false}} ->
+        Map.put(merged_metadata, :latest_import_status, existing_status)
+
+      {%{ready?: true} = existing_status, nil} ->
+        Map.put(merged_metadata, :latest_import_status, existing_status)
+
+      _other ->
+        merged_metadata
+    end
   end
 
   defp capacity_available?(state) do

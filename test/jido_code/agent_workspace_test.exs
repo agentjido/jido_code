@@ -22,31 +22,36 @@ defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.conversation_orchestration.coordinator_owns_turn_admission_and_state
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Operations.Ingress
   alias JidoCode.Projects.Project
+  alias JidoCode.Runtime
   alias Jido.Pod
 
-  describe "kernel lifecycle" do
-    test "ensure_kernel creates or returns existing kernel" do
+  describe "repository runtime lifecycle" do
+    test "ensure_kernel creates or returns existing repository runtime" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
 
-      assert {:ok, kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
-      assert is_atom(kernel_name)
+      assert {:ok, runtime_status} = AgentWorkspace.ensure_kernel(managed_repo_id)
+      assert runtime_status.managed_repo_id == managed_repo_id
+      assert runtime_status.lifecycle == :ready
+      refute Map.has_key?(runtime_status, :kernel_name)
+      refute Map.has_key?(runtime_status, :supervisor_pid)
 
-      # Calling again should return the same kernel
-      assert {:ok, ^kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
+      assert {:ok, second_status} = AgentWorkspace.ensure_kernel(managed_repo_id)
+      assert second_status.managed_repo_id == managed_repo_id
+      assert Map.keys(second_status.active_pods) == Map.keys(runtime_status.active_pods)
     end
 
-    test "kernel_status returns nil for non-existent kernel" do
+    test "kernel_status returns nil for non-existent repository runtime" do
       refute AgentWorkspace.kernel_status("nonexistent-repo-#{System.unique_integer()}")
     end
 
-    test "list_kernels returns list of kernel names" do
-      kernels = AgentWorkspace.list_kernels()
-      assert is_list(kernels)
+    test "list_kernels returns repository runtime statuses" do
+      runtimes = AgentWorkspace.list_kernels()
+      assert is_list(runtimes)
+      assert Enum.all?(runtimes, &is_map/1)
     end
 
     test "shutdown_kernel is idempotent" do
@@ -56,7 +61,7 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert :ok = AgentWorkspace.shutdown_kernel(managed_repo_id)
     end
 
-    test "ensure_kernel restores persisted work pods after a restart" do
+    test "shutdown_kernel clears runtime work state until persistence is introduced" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
       workspace_path = create_workspace_path!()
@@ -75,16 +80,15 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
 
       assert :ok = AgentWorkspace.shutdown_kernel(managed_repo_id)
-      refute Manager.kernel_exists?(managed_repo_id)
+      refute AgentWorkspace.repository_status(managed_repo_id)
+      assert AgentWorkspace.active_work_items(managed_repo_id) == []
 
-      assert {:ok, _kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
-      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
-
-      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
-      assert get_in(pod_status, [:metadata, :last_plan, :plan]) =~ "deterministic planner response"
+      assert {:ok, runtime_status} = AgentWorkspace.ensure_repository_runtime(managed_repo_id, workspace_path)
+      assert runtime_status.managed_repo_id == managed_repo_id
+      assert AgentWorkspace.active_work_items(managed_repo_id) == []
     end
 
-    test "ensure_kernel recovers after an unexpected kernel crash" do
+    test "ensure_kernel recovers after an unexpected repository runtime crash" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
       workspace_path = create_workspace_path!()
@@ -94,24 +98,19 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert {:ok, _pod_name} =
                AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
 
-      old_pid =
-        managed_repo_id
-        |> Manager.kernel_status()
-        |> Map.fetch!(:supervisor_pid)
+      assert {:ok, old_pid} = Runtime.lookup_repository_pid(managed_repo_id)
+      ref = Process.monitor(old_pid)
 
       Process.exit(old_pid, :kill)
-      Process.sleep(200)
+      assert_receive {:DOWN, ^ref, :process, ^old_pid, :killed}
 
-      assert {:ok, _kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
+      assert {:ok, runtime_status} = AgentWorkspace.ensure_repository_runtime(managed_repo_id, workspace_path)
+      assert runtime_status.managed_repo_id == managed_repo_id
 
-      new_pid =
-        managed_repo_id
-        |> Manager.kernel_status()
-        |> Map.fetch!(:supervisor_pid)
+      assert {:ok, new_pid} = Runtime.lookup_repository_pid(managed_repo_id)
 
       assert is_pid(new_pid)
       refute new_pid == old_pid
-      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
     end
   end
 
@@ -126,7 +125,7 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert {:ok, pod_name} =
                AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
 
-      assert is_atom(pod_name)
+      assert pod_name == "coding-pod-#{work_item_id}"
     end
 
     test "complete_work stops the work item and removes it from active work" do
@@ -181,7 +180,13 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert {:ok, _pod_name} =
                AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_1, workspace_path)
 
-      assert {:error, {:work_queue_full, %{limit: 1, active_work_items: [^work_item_1]}}} =
+      assert {:error,
+              %{
+                type: :capacity_exceeded,
+                limit: 1,
+                active_work_items: [^work_item_1],
+                managed_repo_id: ^managed_repo_id
+              }} =
                AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_2, workspace_path)
     end
   end
@@ -230,7 +235,7 @@ defmodule JidoCode.AgentWorkspaceTest do
                source: :explicit
              }
 
-      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      pod_status = Runtime.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
 
       assert get_in(pod_status, [:metadata, :last_plan, :llm_selection, :provider]) == "openai"
       assert get_in(pod_status, [:metadata, :last_plan, :llm_selection, :model_spec]) == "openai:gpt-5"
@@ -446,15 +451,15 @@ defmodule JidoCode.AgentWorkspaceTest do
                source: :explicit
              }
 
-      assert Manager.kernel_exists?(managed_repo_id)
+      assert AgentWorkspace.repository_status(managed_repo_id)
       assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
 
-      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      pod_status = Runtime.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
       assert get_in(pod_status, [:metadata, :runtime_status]) == :refactoring
       assert get_in(pod_status, [:metadata, :last_refactor, :refactoring]) =~ "deterministic refactorer response"
       assert get_in(pod_status, [:metadata, :last_refactor, :llm_selection, :model_spec]) == "openai:gpt-5"
 
-      assert {:ok, _refactorer_pid} = Pod.lookup_node(get_in(pod_status, [:metadata, :runtime_pid]), :refactorer)
+      assert {:ok, _refactorer_pid} = Pod.lookup_node(pod_status.runtime_pid, :refactorer)
     end
 
     test "refactor_work records last_refactor without disturbing other specialist metadata" do
@@ -504,7 +509,7 @@ defmodule JidoCode.AgentWorkspaceTest do
                  workspace_path: workspace_path
                )
 
-      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      pod_status = Runtime.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
 
       assert get_in(pod_status, [:metadata, :last_plan, :plan]) == plan_result.plan
       assert get_in(pod_status, [:metadata, :last_changes, :changes]) == changes_result.changes

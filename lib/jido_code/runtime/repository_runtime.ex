@@ -13,6 +13,7 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   alias Jido.Pod
   alias JidoCode.Runtime.RepositoryState
   alias JidoCode.Pods.{CodingPod, ContextManagementPod, MemoryGraphPod, RepoPod, SourceCodeGraphPod}
+  alias JidoCode.{ContextManagement, MemoryGraph, SourceCodeGraph}
 
   @registry JidoCode.Runtime.Registry
 
@@ -20,6 +21,8 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   @type lifecycle :: :starting | :ready | :degraded | :stopping | :stopped
 
   @type state :: RepositoryState.t()
+
+  @repo_pod_id "repo-pod"
 
   @spec child_spec(keyword()) :: Supervisor.child_spec()
   def child_spec(opts) when is_list(opts) do
@@ -62,6 +65,16 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
 
   @spec active_work_items(GenServer.server()) :: [String.t()]
   def active_work_items(server), do: GenServer.call(server, :active_work_items)
+
+  @spec pod_status(GenServer.server(), String.t()) :: map() | nil
+  def pod_status(server, pod_id), do: GenServer.call(server, {:pod_status, pod_id})
+
+  @spec list_pods(GenServer.server()) :: [map()]
+  def list_pods(server), do: GenServer.call(server, :list_pods)
+
+  @spec update_pod_metadata(GenServer.server(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  def update_pod_metadata(server, pod_id, updates),
+    do: GenServer.call(server, {:update_pod_metadata, pod_id, updates})
 
   @spec ensure_repo_pod(GenServer.server()) :: {:ok, map()} | {:error, term()}
   def ensure_repo_pod(server), do: GenServer.call(server, :ensure_repo_pod)
@@ -120,6 +133,21 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
     {:reply, RepositoryState.active_work_item_ids(state), state}
   end
 
+  def handle_call({:pod_status, pod_id}, _from, state) do
+    {:reply, RepositoryState.pod_status_by_id(state, pod_id), state}
+  end
+
+  def handle_call(:list_pods, _from, state) do
+    {:reply, RepositoryState.list_pods(state), state}
+  end
+
+  def handle_call({:update_pod_metadata, pod_id, updates}, _from, state) do
+    case RepositoryState.update_pod_metadata(state, pod_id, updates) do
+      {:ok, pod_status, next_state} -> {:reply, {:ok, pod_status}, next_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
   def handle_call(:ensure_repo_pod, _from, state) do
     ensure_runtime_pod(
       state,
@@ -127,7 +155,16 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
       {state.managed_repo_id, :repo},
       :jido_code_repo_pods,
       RepoPod,
-      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path}
+      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path},
+      %{
+        pod_id: @repo_pod_id,
+        scope: :repository,
+        metadata: %{
+          managed_repo_id: state.managed_repo_id,
+          workspace_path: state.workspace_path,
+          runtime_status: :running
+        }
+      }
     )
   end
 
@@ -138,7 +175,16 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
       {state.managed_repo_id, :source_code_graph},
       :jido_code_source_code_graph_pods,
       SourceCodeGraphPod,
-      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path}
+      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path},
+      %{
+        pod_id: SourceCodeGraph.pod_id(),
+        scope: :repository,
+        metadata: %{
+          managed_repo_id: state.managed_repo_id,
+          workspace_path: state.workspace_path,
+          runtime_status: :running
+        }
+      }
     )
   end
 
@@ -149,7 +195,16 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
       {state.managed_repo_id, :memory_graph},
       :jido_code_memory_graph_pods,
       MemoryGraphPod,
-      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path}
+      %{managed_repo_id: state.managed_repo_id, workspace_path: state.workspace_path},
+      %{
+        pod_id: MemoryGraph.pod_id(),
+        scope: :repository,
+        metadata: %{
+          managed_repo_id: state.managed_repo_id,
+          workspace_path: state.workspace_path,
+          runtime_status: :running
+        }
+      }
     )
   end
 
@@ -162,7 +217,17 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
           {state.managed_repo_id, work_item_id, :coding},
           :jido_code_coding_pods,
           CodingPod,
-          %{managed_repo_id: state.managed_repo_id, work_item_id: work_item_id, workspace_path: workspace_path}
+          %{managed_repo_id: state.managed_repo_id, work_item_id: work_item_id, workspace_path: workspace_path},
+          %{
+            pod_id: coding_pod_id(work_item_id),
+            scope: :work_item,
+            metadata: %{
+              managed_repo_id: state.managed_repo_id,
+              work_item_id: work_item_id,
+              workspace_path: workspace_path,
+              runtime_status: :running
+            }
+          }
         )
         |> put_work_item_pod(:coding_pod, work_item_id)
 
@@ -187,7 +252,16 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
           {state.managed_repo_id, work_item_id, :context_management},
           :jido_code_context_management_pods,
           ContextManagementPod,
-          initial_state
+          initial_state,
+          %{
+            pod_id: ContextManagement.pod_id(work_item_id),
+            scope: :work_item,
+            metadata:
+              Map.merge(initial_state, %{
+                runtime_status: :running,
+                coding_pod_id: coding_pod_id(work_item_id)
+              })
+          }
         )
         |> put_work_item_pod(:context_management_pod, work_item_id)
 
@@ -217,10 +291,10 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
     {:noreply, RepositoryState.mark_process_down(state, ref, pid, reason)}
   end
 
-  defp ensure_runtime_pod(state, kind, key, manager, module, initial_state) do
+  defp ensure_runtime_pod(state, kind, key, manager, module, initial_state, attrs) do
     case Pod.get(manager, key, initial_state: initial_state) do
       {:ok, pod_pid} ->
-        next_state = RepositoryState.put_pod(state, kind, key, module, pod_pid)
+        next_state = RepositoryState.put_pod(state, kind, key, module, pod_pid, attrs)
         {:reply, {:ok, RepositoryState.pod_status(next_state, kind, key)}, next_state}
 
       {:error, reason} ->
@@ -242,4 +316,6 @@ defmodule JidoCode.Runtime.RepositoryRuntime do
   end
 
   defp put_work_item_pod(other, _field, _work_item_id), do: other
+
+  defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
 end

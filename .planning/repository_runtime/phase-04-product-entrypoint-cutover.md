@@ -28,33 +28,33 @@ Back to index: [README](./README.md)
 - Greenfield cutover means tests and callers can be updated directly instead of
   preserving old kernel-shaped return values.
 
-[ ] 4 Phase 4 - Product Entrypoint Cutover
+[-] 4 Phase 4 - Product Entrypoint Cutover
   Route product entrypoints through the repository runtime container so user
   workflows no longer depend on AgentOS manager, kernel status, naming, or
   persistence modules.
 
-  [ ] 4.1 Section - AgentWorkspace Runtime Routing
+  [x] 4.1 Section - AgentWorkspace Runtime Routing
     Convert the main product context to use `JidoCode.Runtime` while keeping
     its role as the boundary for controllers, LiveViews, conversations, and
     workflow services.
 
-    [ ] 4.1.1 Task - Replace kernel lifecycle functions
+    [x] 4.1.1 Task - Replace kernel lifecycle functions
       Update lifecycle APIs and call sites to return repository runtime
       reports instead of AgentOS kernel names.
 
-      [ ] 4.1.1.1 Subtask - Replace `ensure_kernel/1` internals with `JidoCode.Runtime.ensure_repository/2` or a new product-owned equivalent.
-      [ ] 4.1.1.2 Subtask - Replace `kernel_status/1`, `list_kernels/0`, `kernel_count/0`, and `shutdown_kernel/1` with runtime status APIs.
-      [ ] 4.1.1.3 Subtask - Rename public functions where greenfield cleanup is clearer than keeping kernel vocabulary.
-      [ ] 4.1.1.4 Subtask - Update status snapshots to remove `kernel_name` and AgentOS supervisor pid fields.
+      [x] 4.1.1.1 Subtask - Replace `ensure_kernel/1` internals with `JidoCode.Runtime.ensure_repository/2` or a new product-owned equivalent.
+      [x] 4.1.1.2 Subtask - Replace `kernel_status/1`, `list_kernels/0`, `kernel_count/0`, and `shutdown_kernel/1` with runtime status APIs.
+      [x] 4.1.1.3 Subtask - Rename public functions where greenfield cleanup is clearer than keeping kernel vocabulary.
+      [x] 4.1.1.4 Subtask - Update status snapshots to remove `kernel_name` and AgentOS supervisor pid fields.
 
-    [ ] 4.1.2 Task - Replace pod lifecycle functions
+    [x] 4.1.2 Task - Replace pod lifecycle functions
       Route work-item, graph, memory, and context pod creation through the
       repository runtime process.
 
-      [ ] 4.1.2.1 Subtask - Replace `ensure_runtime_coding_pod/3` with runtime-owned coding pod ensure calls.
-      [ ] 4.1.2.2 Subtask - Replace repo pod restoration with runtime-owned repo pod ensure calls.
-      [ ] 4.1.2.3 Subtask - Replace source-code graph pod ensure calls with runtime-owned source graph pod ensure calls.
-      [ ] 4.1.2.4 Subtask - Replace memory graph and context-management pod ensure calls with runtime-owned ensure calls.
+      [x] 4.1.2.1 Subtask - Replace `ensure_runtime_coding_pod/3` with runtime-owned coding pod ensure calls.
+      [x] 4.1.2.2 Subtask - Replace repo pod restoration with runtime-owned repo pod ensure calls.
+      [x] 4.1.2.3 Subtask - Replace source-code graph pod ensure calls with runtime-owned source graph pod ensure calls.
+      [x] 4.1.2.4 Subtask - Replace memory graph and context-management pod ensure calls with runtime-owned ensure calls.
 
   [ ] 4.2 Section - Specialist and Agent Routing
     Ensure planning, coding, review, refactoring, explanation, and context

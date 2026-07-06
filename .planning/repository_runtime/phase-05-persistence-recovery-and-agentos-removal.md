@@ -32,27 +32,27 @@ Back to index: [README](./README.md)
   restoration path, then delete obsolete AgentOS modules, configuration, tests,
   and dependency entries.
 
-  [ ] 5.1 Section - Runtime Snapshot Contract
+  [x] 5.1 Section - Runtime Snapshot Contract
     Define the small durable record that lets repository runtimes restore
     explainable state without treating process identity as product truth.
 
-    [ ] 5.1.1 Task - Define snapshot contents
+    [x] 5.1.1 Task - Define snapshot contents
       Capture only the runtime metadata needed to restart pods, explain active
       work, and reconnect product workflows.
 
-      [ ] 5.1.1.1 Subtask - Include ManagedRepo ID, workspace path, lifecycle state, active work-item IDs, pod keys, and last diagnostics.
-      [ ] 5.1.1.2 Subtask - Exclude pids, AgentOS kernel names, registry process names, and runtime-private node ids.
-      [ ] 5.1.1.3 Subtask - Include graph freshness summaries by reference to product graph state rather than duplicating graph data.
-      [ ] 5.1.1.4 Subtask - Include memory and context-management summaries only when they are needed for runtime restoration.
+      [x] 5.1.1.1 Subtask - Include ManagedRepo ID, workspace path, lifecycle state, active work-item IDs, pod keys, and last diagnostics.
+      [x] 5.1.1.2 Subtask - Exclude pids, AgentOS kernel names, registry process names, and runtime-private node ids.
+      [x] 5.1.1.3 Subtask - Include graph freshness summaries by reference to product graph state rather than duplicating graph data.
+      [x] 5.1.1.4 Subtask - Include memory and context-management summaries only when they are needed for runtime restoration.
 
-    [ ] 5.1.2 Task - Choose snapshot storage owner
+    [x] 5.1.2 Task - Choose snapshot storage owner
       Decide where runtime metadata lives so restart behavior is durable but
       does not become a second product database.
 
-      [ ] 5.1.2.1 Subtask - Evaluate using existing control-plane storage for repository runtime metadata.
-      [ ] 5.1.2.2 Subtask - Evaluate an ETS-only path for test runtime state and failure injection.
-      [ ] 5.1.2.3 Subtask - Define clear behavior when snapshot storage is unavailable.
-      [ ] 5.1.2.4 Subtask - Keep storage writes bounded and avoid persisting large graph, conversation, or prompt payloads.
+      [x] 5.1.2.1 Subtask - Evaluate using existing control-plane storage for repository runtime metadata.
+      [x] 5.1.2.2 Subtask - Evaluate an ETS-only path for test runtime state and failure injection.
+      [x] 5.1.2.3 Subtask - Define clear behavior when snapshot storage is unavailable.
+      [x] 5.1.2.4 Subtask - Keep storage writes bounded and avoid persisting large graph, conversation, or prompt payloads.
 
   [ ] 5.2 Section - Startup Recovery and Orphan Handling
     Restore repository runtime state after application restart and handle stale

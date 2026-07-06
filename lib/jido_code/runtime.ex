@@ -589,6 +589,15 @@ defmodule JidoCode.Runtime do
 
   defp sanitize_runtime_diagnostics(_diagnostics), do: []
 
+  defp sanitize_runtime_diagnostic(%struct{} = value) when struct in [DateTime, NaiveDateTime, Date, Time],
+    do: value
+
+  defp sanitize_runtime_diagnostic(%{__struct__: _struct} = value) do
+    value
+    |> Map.from_struct()
+    |> sanitize_runtime_diagnostic()
+  end
+
   defp sanitize_runtime_diagnostic(value) when is_map(value) do
     value
     |> Map.drop([:pid, "pid", :runtime_pid, "runtime_pid", :nodes, "nodes"])

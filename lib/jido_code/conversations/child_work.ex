@@ -258,6 +258,15 @@ defmodule JidoCode.Conversations.ChildWork do
 
   defp normalize_map(_value), do: %{}
 
+  defp normalize_nested_value(%struct{} = value) when struct in [DateTime, NaiveDateTime, Date, Time],
+    do: value
+
+  defp normalize_nested_value(%{__struct__: _struct} = value) do
+    value
+    |> Map.from_struct()
+    |> normalize_map()
+  end
+
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
 
   defp normalize_nested_value(value) when is_list(value),

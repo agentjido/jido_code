@@ -28,7 +28,7 @@ Back to index: [README](./README.md)
 - Greenfield cutover means tests and callers can be updated directly instead of
   preserving old kernel-shaped return values.
 
-[-] 4 Phase 4 - Product Entrypoint Cutover
+[x] 4 Phase 4 - Product Entrypoint Cutover
   Route product entrypoints through the repository runtime container so user
   workflows no longer depend on AgentOS manager, kernel status, naming, or
   persistence modules.
@@ -100,16 +100,16 @@ Back to index: [README](./README.md)
       [x] 4.3.2.3 Subtask - Preserve capture-envelope and governed-reference boundaries.
       [x] 4.3.2.4 Subtask - Preserve conversation-derived recall and workflow provenance behavior across runtime cutover.
 
-  [ ] 4.4 Section - Phase 4 Integration Tests
+  [x] 4.4 Section - Phase 4 Integration Tests
     Prove product workflows use the repository runtime container and no longer
     need AgentOS modules for normal operation.
 
-    [ ] 4.4.1 Task - Product workflow scenarios
+    [x] 4.4.1 Task - Product workflow scenarios
       Exercise the high-level product APIs that operators and workflows already
       depend on.
 
-      [ ] 4.4.1.1 Subtask - Run `mix test test/jido_code/agent_workspace_test.exs`.
-      [ ] 4.4.1.2 Subtask - Run focused source-code graph workflow tests that call `AgentWorkspace`.
-      [ ] 4.4.1.3 Subtask - Run focused memory graph workflow tests that call `AgentWorkspace`.
-      [ ] 4.4.1.4 Subtask - Run focused context-management and conversation runtime tests that ensure coding pods.
-      [ ] 4.4.1.5 Subtask - Add a regression test that product snapshots no longer expose `kernel_name`.
+      [x] 4.4.1.1 Subtask - Run `mix test test/jido_code/agent_workspace_test.exs`.
+      [x] 4.4.1.2 Subtask - Run focused source-code graph workflow tests that call `AgentWorkspace`.
+      [x] 4.4.1.3 Subtask - Run focused memory graph workflow tests that call `AgentWorkspace`.
+      [x] 4.4.1.4 Subtask - Run focused context-management and conversation runtime tests that ensure coding pods.
+      [x] 4.4.1.5 Subtask - Add a regression test that product snapshots no longer expose `kernel_name`.

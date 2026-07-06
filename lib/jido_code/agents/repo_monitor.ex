@@ -1,6 +1,6 @@
 defmodule JidoCode.Agents.RepoMonitor do
-  # covers: architecture.agent_os_integration.kernel_per_managed_repo
-  # covers: architecture.agent_os_integration.pod_hierarchy
+  # covers: architecture.repository_runtime_integration.kernel_per_managed_repo
+  # covers: architecture.repository_runtime_integration.pod_hierarchy
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   @moduledoc """
   Eager agent that monitors repository state.

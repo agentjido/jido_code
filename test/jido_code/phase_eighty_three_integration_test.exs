@@ -1,7 +1,7 @@
 defmodule JidoCode.PhaseEightyThreeIntegrationTest do
   # covers: architecture.conversation_orchestration.workflow_routing_is_deterministic_and_product_owned
   # covers: architecture.conversation_orchestration.explicit_workflow_intent_and_continuity_take_precedence
-  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.repository_runtime_integration.product_work_entrypoints_route_to_workspace
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace

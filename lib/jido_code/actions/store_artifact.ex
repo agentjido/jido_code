@@ -1,5 +1,5 @@
 defmodule JidoCode.Actions.StoreArtifact do
-  # covers: architecture.agent_os_integration.actions
+  # covers: architecture.repository_runtime_integration.actions
   @moduledoc """
   Action to store an artifact from a coding operation.
 

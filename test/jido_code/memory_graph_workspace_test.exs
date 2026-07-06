@@ -1,5 +1,5 @@
 defmodule JidoCode.MemoryGraphWorkspaceTest do
-  # covers: architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_read_write_and_query_stay_workspace_bound
   # covers: architecture.memory_graph.repo_scoped_memory_graph_pod
   # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit

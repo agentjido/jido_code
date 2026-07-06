@@ -1,5 +1,5 @@
 defmodule JidoCode.ContextBudget.ReActRequestTransformer do
-  # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.repository_runtime_integration.signal_routing_within_pod
   # covers: architecture.conversation_orchestration.conversation_runtime_uses_bounded_llm_boundary
   @moduledoc """
   ReAct request transformer that applies product context-budget history limits.

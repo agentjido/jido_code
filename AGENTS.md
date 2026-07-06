@@ -57,6 +57,7 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
 - Use the semantic graph for repository-wide structural questions like module discovery, function discovery, runtime-pattern lookup, bounded impact tracing, or repeated SPARQL-backed semantic questions.
 - Prefer ordinary file/code tools when you need exact latest source text, line-level context, or one-off single-file inspection.
 - Keep the lifecycle explicit: analyze, load or refresh, then query. Do not assume the `source_code` graph is ambiently fresh.
+- When touching repository runtime lifecycle, pod ownership, runtime snapshots, or `AgentWorkspace` runtime routing, run `mix runtime.verify`.
 - When touching the semantic graph boundary, actions, pod agents, helper queries, or workspace entrypoints, run `mix source_graph.verify`.
 - When touching memory graph boundaries, capture envelopes, memory writers, memory actions, memory workspace entrypoints, workflow provenance capture, or durable-memory adoption, run `mix memory.verify`.
 - When touching conversation-derived recall, keep transcript browsing on repo-detail conversation surfaces, use bounded workflow-provenance projections for origin recall, and only classify durable memory through the explicit adoption boundary.

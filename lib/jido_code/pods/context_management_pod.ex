@@ -12,27 +12,22 @@ defmodule JidoCode.Pods.ContextManagementPod do
   work items.
   """
 
-  use Jido.AgentOS.Pod,
+  use Jido.Pod,
     name: "context_management_pod",
-    signal_routes: [
-      {"jido.agent.child.started", Jido.Actions.Control.Noop},
-      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
-      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
-    ],
     topology: %{
       budget_monitor: %{
         agent: JidoCode.Agents.BudgetMonitor,
-        manager: :budget_monitor,
+        manager: :jido_code_budget_monitors,
         activation: :eager
       },
       compaction_store: %{
         agent: JidoCode.Agents.CompactionStore,
-        manager: :compaction_store,
+        manager: :jido_code_compaction_stores,
         activation: :eager
       },
       context_compactor: %{
         agent: JidoCode.Agents.ContextCompactor,
-        manager: :context_compactor,
+        manager: :jido_code_context_compactors,
         activation: :lazy
       }
     }

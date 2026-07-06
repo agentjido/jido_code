@@ -5,8 +5,8 @@ defmodule JidoCode.SourceCodeGraph.RefreshScheduler do
 
   use GenServer
 
-  alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Runtime
   alias JidoCode.SourceCodeGraph
 
   @registry JidoCode.SourceCodeGraph.RefreshSchedulerRegistry
@@ -369,7 +369,7 @@ defmodule JidoCode.SourceCodeGraph.RefreshScheduler do
   defp persist_scheduler_state(state) do
     updates = %{source_graph_refresh: status_projection(state)}
 
-    case Manager.update_pod_metadata(state.managed_repo_id, SourceCodeGraph.pod_id(), updates) do
+    case Runtime.update_pod_metadata(state.managed_repo_id, SourceCodeGraph.pod_id(), updates) do
       {:ok, _pod_entry} -> :ok
       {:error, _reason} -> :ok
     end

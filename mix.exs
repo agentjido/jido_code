@@ -66,6 +66,7 @@ defmodule JidoCode.MixProject do
         "control_plane.verify": :test,
         precommit: :test,
         "memory.verify": :test,
+        "runtime.verify": :test,
         "semantic.verify": :test,
         "source_graph.verify": :test
       ]
@@ -172,7 +173,6 @@ defmodule JidoCode.MixProject do
       {:jido_signal, "~> 2.0", override: true},
       {:jido_ai, github: "agentjido/jido_ai", branch: "main", override: true},
       {:jido_memory, github: "agentjido/jido_memory", branch: "main"},
-      {:jido_agent_os, git: "https://github.com/agentjido/jido_agent_os.git", branch: "main"},
       {:jido_workflow, path: "compat/jido_workflow", override: true},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
 
@@ -241,12 +241,15 @@ defmodule JidoCode.MixProject do
       ],
       "frontend.verify": ["assets.setup", "assets.build"],
       "browser.verify": ["frontend.verify", "cmd npm run e2e:test"],
+      "runtime.verify": [
+        "test test/jido_code/runtime/pods_test.exs test/jido_code/runtime/repository_runtime_acceptance_test.exs test/jido_code/runtime/repository_runtime_test.exs test/jido_code/runtime/snapshot_test.exs test/jido_code/runtime/snapshot_store_test.exs test/jido_code/agent_workspace_test.exs"
+      ],
       "source_graph.verify": [
-        "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/agent_os/phase_twenty_integration_test.exs test/jido_code/agent_os/phase_twenty_one_integration_test.exs test/jido_code/agent_os/phase_twenty_two_integration_test.exs test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
+        "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/source_code_graph_product_service_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_refresh_scheduler_test.exs test/jido_code/runtime/repository_runtime_test.exs test/jido_code/runtime/snapshot_test.exs"
       ],
       "memory.verify": [
         "source_graph.verify",
-        "test test/jido_code/memory_graph*_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/agent_os/phase_twenty_eight_integration_test.exs test/jido_code/agent_os/phase_twenty_nine_integration_test.exs test/jido_code/phase_thirty_integration_test.exs test/jido_code/phase_thirty_one_integration_test.exs test/jido_code/phase_thirty_three_integration_test.exs test/jido_code/phase_thirty_five_integration_test.exs test/jido_code/phase_thirty_six_integration_test.exs test/jido_code/phase_thirty_seven_integration_test.exs test/jido_code/phase_thirty_eight_integration_test.exs"
+        "test test/jido_code/memory_graph*_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/runtime/snapshot_store_test.exs test/jido_code/phase_thirty_integration_test.exs test/jido_code/phase_thirty_one_integration_test.exs test/jido_code/phase_thirty_three_integration_test.exs test/jido_code/phase_thirty_five_integration_test.exs test/jido_code/phase_thirty_six_integration_test.exs test/jido_code/phase_thirty_seven_integration_test.exs test/jido_code/phase_thirty_eight_integration_test.exs"
       ],
       "semantic.verify": [
         "memory.verify",

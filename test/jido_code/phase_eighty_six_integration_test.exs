@@ -1,7 +1,7 @@
 defmodule JidoCode.PhaseEightySixIntegrationTest do
   # covers: architecture.memory_graph_product_adoption.memory_workflows_request_explicit_memory_context
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_context
-  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.repository_runtime_integration.product_work_entrypoints_route_to_workspace
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace

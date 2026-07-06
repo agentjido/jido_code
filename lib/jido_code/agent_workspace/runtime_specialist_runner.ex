@@ -1,5 +1,5 @@
 defmodule JidoCode.AgentWorkspace.RuntimeSpecialistRunner do
-  # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.repository_runtime_integration.signal_routing_within_pod
   @moduledoc false
 
   @behaviour JidoCode.AgentWorkspace.SpecialistRunner

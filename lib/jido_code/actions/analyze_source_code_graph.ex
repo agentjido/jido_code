@@ -1,7 +1,7 @@
 defmodule JidoCode.Actions.AnalyzeSourceCodeGraph do
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
-  # covers: architecture.agent_os_integration.actions_use_jido_action
+  # covers: architecture.repository_runtime_integration.actions_use_jido_action
   @moduledoc """
   Defines full-profile ontology analysis over a repository workspace.
 

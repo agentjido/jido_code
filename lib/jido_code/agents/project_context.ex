@@ -1,9 +1,9 @@
 defmodule JidoCode.Agents.ProjectContext do
-  # covers: architecture.agent_os_integration.pod_hierarchy
-  # covers: architecture.agent_os_integration.coding_agents
-  # covers: architecture.agent_os_integration.pod_contains_multiple_agents
-  # covers: architecture.agent_os_integration.signal_routing_within_pod
-  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  # covers: architecture.repository_runtime_integration.pod_hierarchy
+  # covers: architecture.repository_runtime_integration.coding_agents
+  # covers: architecture.repository_runtime_integration.pod_contains_multiple_agents
+  # covers: architecture.repository_runtime_integration.signal_routing_within_pod
+  # covers: architecture.repository_runtime_integration.eager_collaboration_state_is_seeded_before_specialist_work
   @moduledoc """
   Eager agent that maintains project context for the coding session.
 

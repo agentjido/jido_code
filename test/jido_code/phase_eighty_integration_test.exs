@@ -2,7 +2,7 @@ defmodule JidoCode.PhaseEightyIntegrationTest do
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
-  # covers: architecture.agent_os_integration.repo_pod_singleton_when_enabled
+  # covers: architecture.repository_runtime_integration.repo_pod_singleton_when_enabled
   # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 

@@ -1,7 +1,7 @@
 defmodule JidoCode.Actions.SetProjectContext do
-  # covers: architecture.agent_os_integration.actions
-  # covers: architecture.agent_os_integration.signal_routing_within_pod
-  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  # covers: architecture.repository_runtime_integration.actions
+  # covers: architecture.repository_runtime_integration.signal_routing_within_pod
+  # covers: architecture.repository_runtime_integration.eager_collaboration_state_is_seeded_before_specialist_work
   @moduledoc """
   Action to seed or refresh the eager project-context node for a CodingPod.
 

@@ -1,5 +1,5 @@
 defmodule JidoCode.Agents.Reviewer do
-  # covers: architecture.agent_os_integration.coding_agents
+  # covers: architecture.repository_runtime_integration.coding_agents
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   @moduledoc """
   Review specialist for the CodingPod.

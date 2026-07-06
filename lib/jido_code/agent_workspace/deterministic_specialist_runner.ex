@@ -1,5 +1,5 @@
 defmodule JidoCode.AgentWorkspace.DeterministicSpecialistRunner do
-  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.repository_runtime_integration.product_work_entrypoints_route_to_workspace
   @moduledoc false
 
   @behaviour JidoCode.AgentWorkspace.SpecialistRunner

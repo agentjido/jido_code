@@ -4,10 +4,10 @@ defmodule JidoCode.PhaseEightyNineIntegrationTest do
   # covers: architecture.context_management_pod.request_time_budgeting_remains_hard_guard
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
   alias JidoCode.AgentWorkspace.SpecialistRunner
   alias JidoCode.Pods.ContextManagementPod
+  alias JidoCode.Runtime
 
   defmodule CapturingRunner do
     @behaviour SpecialistRunner
@@ -58,7 +58,7 @@ defmodule JidoCode.PhaseEightyNineIntegrationTest do
              AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
 
     pod_id = AgentWorkspace.context_management_pod_id(work_item_id)
-    assert %{module: ContextManagementPod, metadata: metadata} = Manager.pod_status(managed_repo_id, pod_id)
+    assert %{module: ContextManagementPod, metadata: metadata} = Runtime.pod_status(managed_repo_id, pod_id)
     assert metadata.parent_pod_id == "coding-pod-#{work_item_id}"
     assert metadata.work_item_id == work_item_id
     assert metadata.context_management_status == :healthy
@@ -118,7 +118,7 @@ defmodule JidoCode.PhaseEightyNineIntegrationTest do
 
     tool_context = Keyword.fetch!(opts, :tool_context)
     assert tool_context.context_budget["policy_id"] == "context-budget:v1"
-    assert Manager.pod_status(managed_repo_id, AgentWorkspace.context_management_pod_id(work_item_id)) == nil
+    assert Runtime.pod_status(managed_repo_id, AgentWorkspace.context_management_pod_id(work_item_id)) == nil
   end
 
   defp create_workspace_path! do

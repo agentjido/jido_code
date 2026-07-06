@@ -1,5 +1,5 @@
 defmodule JidoCode.Actions.GetWorkItemTest do
-  # covers: architecture.agent_os_integration.actions
+  # covers: architecture.repository_runtime_integration.actions
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Actions.GetWorkItem
@@ -29,7 +29,7 @@ defmodule JidoCode.Actions.GetWorkItemTest do
     {:ok, work_item} =
       RecordStore.create(:work_item, %{
         managed_repo_id: managed_repo.id,
-        category: "agent_os",
+        category: "repository_runtime",
         status: :open,
         priority: :medium,
         recommended_action: "Implement product-store action lookup.",

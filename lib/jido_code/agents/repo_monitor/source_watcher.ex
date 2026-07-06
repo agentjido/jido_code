@@ -1,5 +1,5 @@
 defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
-  # covers: architecture.agent_os_integration.repo_pod_singleton_per_kernel
+  # covers: architecture.repository_runtime_integration.repo_pod_singleton_per_kernel
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   @moduledoc false
 
@@ -8,13 +8,12 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
   require Logger
 
   alias JidoCode.Agents.RepoMonitor
-  alias JidoCode.AgentOS.Manager
+  alias JidoCode.Runtime
   alias JidoCode.SourceCodeGraph
   alias JidoCode.SourceCodeGraph.RefreshScheduler
 
   @registry JidoCode.SourceMonitor.SourceWatcherRegistry
   @supervisor JidoCode.SourceMonitor.SourceWatcherSupervisor
-  @repo_pod_id "repo-pod"
 
   @type source_change_event :: %{
           kind: :workspace_source_changed,
@@ -401,15 +400,21 @@ defmodule JidoCode.Agents.RepoMonitor.SourceWatcher do
         extra_updates
       )
 
-    safe_update_pod_metadata(state.managed_repo_id, updates)
+    safe_update_pod_metadata(state.managed_repo_id, state.workspace_path, updates)
 
     state
   end
 
-  defp safe_update_pod_metadata(managed_repo_id, updates) do
-    case Manager.update_pod_metadata(managed_repo_id, @repo_pod_id, updates) do
-      {:ok, _pod_entry} -> :ok
+  defp safe_update_pod_metadata(managed_repo_id, workspace_path, updates) do
+    with {:ok, _runtime} <- Runtime.ensure_repository(managed_repo_id, workspace_path),
+         {:ok, _repo_pod} <- Runtime.ensure_repo_pod(managed_repo_id) do
+      case Runtime.update_pod_metadata(managed_repo_id, "repo-pod", updates) do
+        {:ok, _pod_entry} -> :ok
+        {:error, _reason} -> :ok
+      end
+    else
       {:error, _reason} -> :ok
+      :error -> :ok
     end
   rescue
     _error -> :ok

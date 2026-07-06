@@ -14,6 +14,7 @@ defmodule JidoCode.Application do
         {DNSCluster, query: Application.get_env(:jido_code, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: JidoCode.PubSub},
         JidoCode.Jido,
+        JidoCode.Runtime.Supervisor,
         JidoCodeWeb.Endpoint,
         # Conversation coordination
         {Registry, keys: :unique, name: JidoCode.Conversations.Registry},
@@ -29,10 +30,7 @@ defmodule JidoCode.Application do
         {DynamicSupervisor, name: JidoCode.SourceMonitor.SourceWatcherSupervisor, strategy: :one_for_one},
         {Registry, keys: :unique, name: JidoCode.SourceCodeGraph.RefreshSchedulerRegistry},
         {DynamicSupervisor, name: JidoCode.SourceCodeGraph.RefreshSchedulerSupervisor, strategy: :one_for_one},
-        {Task.Supervisor, name: JidoCode.SourceCodeGraph.RefreshTaskSupervisor},
-        # AgentOS supervision tree
-        {JidoCode.AgentOS.Manager.Server, []},
-        {JidoCode.AgentOS.Manager.Supervisor, []}
+        {Task.Supervisor, name: JidoCode.SourceCodeGraph.RefreshTaskSupervisor}
       ] ++ live_vue_children() ++ forge_dev_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

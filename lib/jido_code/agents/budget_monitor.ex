@@ -4,7 +4,7 @@ defmodule JidoCode.Agents.BudgetMonitor do
   Eager context-management agent that owns budget observation state.
 
   Product code updates persisted pod metadata through `AgentWorkspace`; this
-  runtime agent exists so the AgentOS topology has an addressable monitor node
+  runtime agent exists so the repository runtime topology has an addressable monitor node
   and can grow signal handling without changing product entrypoints.
   """
 

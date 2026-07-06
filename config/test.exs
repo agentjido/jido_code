@@ -55,8 +55,6 @@ config :jido_code, :llm_selection, %{default: %{provider: "deterministic", model
 # Ontology configuration (optional - requires elixir_ontologies package)
 config :jido_code, :ontology_enabled, false
 
-# AgentOS configuration for testing
+# Repository runtime configuration for testing
 config :jido_code,
-  agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
-  agent_os_registry: JidoCode.AgentOS.Manager.Registry,
   agent_workspace_specialist_runner: JidoCode.AgentWorkspace.DeterministicSpecialistRunner

@@ -1,5 +1,5 @@
 defmodule JidoCode.Actions.GetWorkItem do
-  # covers: architecture.agent_os_integration.actions
+  # covers: architecture.repository_runtime_integration.actions
   @moduledoc """
   Action to fetch WorkItem details from the JidoCode product API.
 

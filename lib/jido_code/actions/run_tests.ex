@@ -1,5 +1,5 @@
 defmodule JidoCode.Actions.RunTests do
-  # covers: architecture.agent_os_integration.actions
+  # covers: architecture.repository_runtime_integration.actions
   @moduledoc """
   Action to run tests in the workspace.
 

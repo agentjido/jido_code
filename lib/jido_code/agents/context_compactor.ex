@@ -4,7 +4,7 @@ defmodule JidoCode.Agents.ContextCompactor do
   Lazy context-management agent for bounded compaction work.
 
   The first runtime keeps compaction deterministic at the product boundary; the
-  lazy agent reserves the AgentOS topology slot for future AI-backed summarizing
+  lazy agent reserves the repository runtime topology slot for future AI-backed summarizing
   without making active specialist turns depend on it.
   """
 

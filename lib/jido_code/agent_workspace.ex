@@ -1,13 +1,13 @@
 defmodule JidoCode.AgentWorkspace do
-  # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
-  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
-  # covers: architecture.agent_os_integration.pod_cleanup_on_completion
-  # covers: architecture.agent_os_integration.pod_naming_convention
-  # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
-  # covers: architecture.agent_os_integration.signal_routing_within_pod
-  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
-  # covers: architecture.agent_os_integration.repository_work_queue_is_bounded
-  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  # covers: architecture.repository_runtime_integration.workspace_context_hides_kernel_topology
+  # covers: architecture.repository_runtime_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.repository_runtime_integration.pod_cleanup_on_completion
+  # covers: architecture.repository_runtime_integration.pod_naming_convention
+  # covers: architecture.repository_runtime_integration.multiple_pods_parallel_execution
+  # covers: architecture.repository_runtime_integration.signal_routing_within_pod
+  # covers: architecture.repository_runtime_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.repository_runtime_integration.repository_work_queue_is_bounded
+  # covers: architecture.repository_runtime_integration.eager_collaboration_state_is_seeded_before_specialist_work
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
@@ -17,8 +17,8 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
-  # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
-  # covers: architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_read_write_and_query_stay_workspace_bound
   # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
@@ -30,16 +30,21 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
   # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
-  # covers: architecture.agent_os_integration.memory_graph_product_actions_stay_workspace_bound
+  # covers: architecture.repository_runtime_integration.memory_graph_product_actions_stay_workspace_bound
   @moduledoc """
-  Context module for AgentOS workspace operations.
+  Context module for repository workspace operations.
 
   Provides a clean API for Phoenix controllers and LiveViews to interact
-  with AgentOS kernels and pods without exposing the internal topology.
+  with repository runtimes and pods without exposing registry, process, or
+  pod-manager topology.
 
-  ## Kernel Lifecycle
+  ## Repository Runtime Lifecycle
 
-  Kernels are created per ManagedRepo and managed through this context.
+  Repository runtimes are created per ManagedRepo and managed through this
+  context. Prefer the repository-runtime lifecycle functions for new code.
+  Kernel-named functions are aliases retained only for older internal call
+  sites that have not been renamed yet; they return runtime status maps, not
+  kernel names or process identifiers.
 
   ## Pod Operations
 
@@ -52,7 +57,6 @@ defmodule JidoCode.AgentWorkspace do
   work through agents.
   """
 
-  alias JidoCode.AgentOS.Manager
   alias JidoCode.Agents.{Coder, Explainer, Planner, Refactorer, RepoMonitor, Reviewer}
   alias JidoCode.Control.Actor
   alias JidoCode.Conversations
@@ -60,7 +64,6 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.LLMSelection
   alias JidoCode.MemoryGraph.{CaptureEnvelope, GovernedReference}
   alias JidoCode.MemoryGraph.ProductFeedback, as: MemoryGraphProductFeedback
-  alias JidoCode.Pods.{CodingPod, ContextManagementPod, RepoPod}
 
   alias JidoCode.Actions.{
     AnalyzeSourceCodeGraph,
@@ -83,95 +86,109 @@ defmodule JidoCode.AgentWorkspace do
   alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
   alias JidoCode.AgentWorkspace.PromptProjection
   alias JidoCode.Conversations.ContextCompaction, as: ConversationContextCompaction
-  alias JidoCode.Pods.{MemoryGraphPod, SourceCodeGraphPod}
-  alias JidoCode.{ContextBudget, ContextManagement, MemoryGraph, SourceCodeGraph}
-  alias Jido.AgentOS.ManagerSupervisor
-  alias Jido.AgentOS.Naming
-  alias Jido.AgentOS.Persistence
-  alias Jido.AgentOS.Pod, as: AgentOSPod
+  alias JidoCode.{ContextBudget, ContextManagement, MemoryGraph, Runtime, SourceCodeGraph}
   alias Jido.AgentServer
   alias Jido.Pod
-  alias Jido.Pod.Runtime, as: PodRuntime
   alias Jido.Signal
 
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()
-  @type kernel_name :: atom()
-  @type pod_name :: atom()
+  @type runtime_status :: map()
+  @type pod_name :: String.t()
   @type source_code_graph_summary :: map()
   @type memory_graph_summary :: map()
-  @repo_pod_id "repo-pod"
   @workflow_provenance_actor Actor.factory_system_actor(%{
                                "id" => "system:agent-workspace-provenance",
                                "email" => "agent-workspace-provenance@system.local"
                              })
 
-  ## Kernel Lifecycle
+  ## Repository Runtime Lifecycle
 
   @doc """
-  Ensures a kernel exists for the given ManagedRepo ID.
-
-  Creates a new kernel if one doesn't exist, otherwise returns the
-  existing kernel reference.
-
-  ## Examples
-
-      iex> AgentWorkspace.ensure_kernel("repo-123")
-      {:ok, :repo_123}
-
+  Ensures a repository runtime exists for the given ManagedRepo ID.
   """
-  @spec ensure_kernel(managed_repo_id()) :: {:ok, kernel_name()} | {:error, term()}
-  def ensure_kernel(managed_repo_id) when is_binary(managed_repo_id) do
-    with {:ok, kernel_name} <- Manager.ensure_kernel(managed_repo_id),
-         {:ok, _repo_pod_entry, _repo_pod_pid} <- ensure_repo_pod_runtime(managed_repo_id),
-         :ok <- restore_persisted_runtime_pods(managed_repo_id) do
-      {:ok, kernel_name}
+  @spec ensure_repository_runtime(managed_repo_id(), String.t() | nil) ::
+          {:ok, runtime_status()} | {:error, term()}
+  def ensure_repository_runtime(managed_repo_id, workspace_path \\ nil)
+
+  def ensure_repository_runtime(managed_repo_id, workspace_path) when is_binary(managed_repo_id) do
+    with {:ok, _status} <- Runtime.ensure_repository(managed_repo_id, workspace_path),
+         {:ok, _repo_pod} <- Runtime.ensure_repo_pod(managed_repo_id),
+         {:ok, status} <- Runtime.fetch_repository(managed_repo_id) do
+      {:ok, status}
     end
   end
 
   @doc """
-  Returns the status of a kernel for the given ManagedRepo ID.
-
-  ## Examples
-
-      iex> AgentWorkspace.kernel_status("repo-123")
-      %{kernel_name: :repo_123, supervisor_pid: #PID<...>, pods: [...]}
-
-      iex> AgentWorkspace.kernel_status("nonexistent")
-      nil
-
+  Alias for `ensure_repository_runtime/2` used by older internal call sites.
   """
-  @spec kernel_status(managed_repo_id()) :: map() | nil
-  def kernel_status(managed_repo_id) when is_binary(managed_repo_id) do
-    Manager.kernel_status(managed_repo_id)
+  @spec ensure_kernel(managed_repo_id()) :: {:ok, runtime_status()} | {:error, term()}
+  def ensure_kernel(managed_repo_id) when is_binary(managed_repo_id) do
+    ensure_repository_runtime(managed_repo_id)
   end
 
   @doc """
-  Shuts down a kernel for the given ManagedRepo ID.
+  Returns the status of a repository runtime for the given ManagedRepo ID.
+  """
+  @spec repository_status(managed_repo_id()) :: runtime_status() | nil
+  def repository_status(managed_repo_id) when is_binary(managed_repo_id) do
+    Runtime.repository_status(managed_repo_id)
+  end
 
-  ## Examples
+  @doc """
+  Alias for `repository_status/1` used by older internal call sites.
+  """
+  @spec kernel_status(managed_repo_id()) :: runtime_status() | nil
+  def kernel_status(managed_repo_id) when is_binary(managed_repo_id) do
+    repository_status(managed_repo_id)
+  end
 
-      iex> AgentWorkspace.shutdown_kernel("repo-123")
-      :ok
+  @doc """
+  Shuts down a repository runtime for the given ManagedRepo ID.
+  """
+  @spec shutdown_repository_runtime(managed_repo_id()) :: :ok
+  def shutdown_repository_runtime(managed_repo_id) when is_binary(managed_repo_id) do
+    Runtime.shutdown_repository(managed_repo_id)
+  end
 
+  @doc """
+  Alias for `shutdown_repository_runtime/1` used by older internal call sites.
   """
   @spec shutdown_kernel(managed_repo_id()) :: :ok
   def shutdown_kernel(managed_repo_id) when is_binary(managed_repo_id) do
-    Manager.shutdown_kernel(managed_repo_id)
+    shutdown_repository_runtime(managed_repo_id)
   end
 
   @doc """
-  Lists all active kernels.
-
-  ## Examples
-
-      iex> AgentWorkspace.list_kernels()
-      [:repo_123, :repo_456]
-
+  Lists all active repository runtimes.
   """
-  @spec list_kernels() :: [kernel_name()]
+  @spec list_repository_runtimes() :: [runtime_status()]
+  def list_repository_runtimes do
+    Runtime.list_repositories()
+  end
+
+  @doc """
+  Alias for `list_repository_runtimes/0` used by older internal call sites.
+  """
+  @spec list_kernels() :: [runtime_status()]
   def list_kernels do
-    Manager.list_kernels()
+    list_repository_runtimes()
+  end
+
+  @doc """
+  Returns the number of active repository runtimes.
+  """
+  @spec repository_runtime_count() :: non_neg_integer()
+  def repository_runtime_count do
+    Runtime.repository_count()
+  end
+
+  @doc """
+  Alias for `repository_runtime_count/0` used by older internal call sites.
+  """
+  @spec kernel_count() :: non_neg_integer()
+  def kernel_count do
+    repository_runtime_count()
   end
 
   ## Pod Lifecycle
@@ -185,7 +202,7 @@ defmodule JidoCode.AgentWorkspace do
   ## Examples
 
       iex> AgentWorkspace.ensure_coding_pod("repo-123", "work-item-1", "/path/to/workspace")
-      {:ok, :work_item_1}
+      {:ok, "coding-pod-work-item-1"}
 
   """
   @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t()) :: {:ok, pod_name()} | {:error, term()}
@@ -196,12 +213,11 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
           {:ok, pod_name()} | {:error, term()}
   def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts) when is_list(opts) do
-    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         :ok <- admit_work_item(managed_repo_id, work_item_id),
-         {:ok, resolved_workspace_path} <-
+    with {:ok, resolved_workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, workspace_path),
-         {:ok, _pod_entry, _pod_pid} <-
-           ensure_runtime_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path),
+         {:ok, _runtime} <- ensure_repository_runtime(managed_repo_id, resolved_workspace_path),
+         {:ok, coding_pod} <- Runtime.ensure_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path),
+         :ok <- sync_project_context(managed_repo_id, work_item_id, resolved_workspace_path, coding_pod.runtime_pid),
          {:ok, _context_management} <-
            ensure_context_management_pod(managed_repo_id, work_item_id, resolved_workspace_path, opts) do
       {:ok, pod_name(work_item_id)}
@@ -219,8 +235,7 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec complete_work(managed_repo_id(), work_item_id()) :: :ok
   def complete_work(managed_repo_id, work_item_id) do
-    :ok = complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
-    :ok = complete_runtime_pod(managed_repo_id, coding_pod_id(work_item_id))
+    Runtime.complete_work(managed_repo_id, work_item_id)
   end
 
   @doc """
@@ -242,17 +257,21 @@ defmodule JidoCode.AgentWorkspace do
       when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
     context_opts = context_management_opts(opts)
 
-    with :ok <- ensure_kernel_available(managed_repo_id),
-         {:ok, resolved_workspace_path} <-
+    with {:ok, resolved_workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) do
       if ContextManagement.enabled?(context_opts) do
-        with {:ok, pod_entry, _pod_pid} <-
-               ensure_runtime_context_management_pod(
-                 managed_repo_id,
-                 work_item_id,
-                 resolved_workspace_path,
-                 context_opts
-               ) do
+        metadata =
+          ContextManagement.initial_metadata(
+            managed_repo_id,
+            work_item_id,
+            resolved_workspace_path,
+            coding_pod_id(work_item_id),
+            context_opts
+          )
+
+        with {:ok, _runtime} <- ensure_repository_runtime(managed_repo_id, resolved_workspace_path),
+             {:ok, pod_entry} <-
+               Runtime.ensure_context_management_pod(managed_repo_id, work_item_id, resolved_workspace_path, metadata) do
           {:ok, ContextManagement.status_summary(pod_entry.metadata)}
         end
       else
@@ -268,7 +287,7 @@ defmodule JidoCode.AgentWorkspace do
   def context_management_status(managed_repo_id, work_item_id)
       when is_binary(managed_repo_id) and is_binary(work_item_id) do
     managed_repo_id
-    |> Manager.pod_status(ContextManagement.pod_id(work_item_id))
+    |> pod_status(ContextManagement.pod_id(work_item_id))
     |> case do
       %{metadata: metadata} -> ContextManagement.status_summary(metadata)
       _other -> ContextManagement.status_summary(nil)
@@ -281,7 +300,7 @@ defmodule JidoCode.AgentWorkspace do
   @spec shutdown_context_management_pod(managed_repo_id(), work_item_id()) :: :ok
   def shutdown_context_management_pod(managed_repo_id, work_item_id)
       when is_binary(managed_repo_id) and is_binary(work_item_id) do
-    complete_runtime_pod(managed_repo_id, ContextManagement.pod_id(work_item_id))
+    Runtime.shutdown_context_management_pod(managed_repo_id, work_item_id)
   end
 
   @doc """
@@ -293,7 +312,7 @@ defmodule JidoCode.AgentWorkspace do
       when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(summary_attrs) and is_list(opts) do
     pod_id = ContextManagement.pod_id(work_item_id)
 
-    with %{metadata: metadata} <- Manager.pod_status(managed_repo_id, pod_id),
+    with %{metadata: metadata} <- pod_status(managed_repo_id, pod_id),
          {:ok, updated_metadata} <-
            ContextManagement.add_summary(
              metadata,
@@ -303,7 +322,7 @@ defmodule JidoCode.AgentWorkspace do
              }),
              context_management_opts(opts)
            ),
-         {:ok, pod_entry} <- Manager.update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
+         {:ok, pod_entry} <- update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
       {:ok, ContextManagement.status_summary(pod_entry.metadata)}
     else
       nil -> {:error, :context_management_pod_not_started}
@@ -343,7 +362,7 @@ defmodule JidoCode.AgentWorkspace do
     pod_id = ContextManagement.pod_id(work_item_id)
     context_opts = context_management_opts(opts)
 
-    with %{metadata: metadata} <- Manager.pod_status(managed_repo_id, pod_id),
+    with %{metadata: metadata} <- pod_status(managed_repo_id, pod_id),
          action <- ContextManagement.automatic_compaction_action(metadata, context_opts),
          {:action, "compact"} <- {:action, Map.get(action, "state")},
          {:ok, candidate} <-
@@ -365,7 +384,7 @@ defmodule JidoCode.AgentWorkspace do
         {:ok, ContextManagement.automatic_compaction_action(nil, context_opts)}
 
       {:action, _state} ->
-        case Manager.pod_status(managed_repo_id, pod_id) do
+        case pod_status(managed_repo_id, pod_id) do
           %{metadata: metadata} -> {:ok, ContextManagement.automatic_compaction_action(metadata, context_opts)}
           _other -> {:ok, ContextManagement.automatic_compaction_action(nil, context_opts)}
         end
@@ -401,7 +420,7 @@ defmodule JidoCode.AgentWorkspace do
     pod_id = ContextManagement.pod_id(work_item_id)
 
     retry_opts =
-      case Manager.pod_status(managed_repo_id, pod_id) do
+      case pod_status(managed_repo_id, pod_id) do
         %{metadata: metadata} -> retry_context_management_opts(opts, latest_monitor_decision(metadata))
         _other -> retry_context_management_opts(opts, %{})
       end
@@ -419,10 +438,10 @@ defmodule JidoCode.AgentWorkspace do
     pod_id = ContextManagement.pod_id(work_item_id)
     reason = Keyword.get(opts, :reason)
 
-    case Manager.pod_status(managed_repo_id, pod_id) do
+    case pod_status(managed_repo_id, pod_id) do
       %{metadata: metadata} ->
         with {:ok, pod_entry} <-
-               Manager.update_pod_metadata(
+               update_pod_metadata(
                  managed_repo_id,
                  pod_id,
                  ContextManagement.disable_auto_compaction_metadata(metadata, reason)
@@ -441,7 +460,7 @@ defmodule JidoCode.AgentWorkspace do
   @spec context_compaction_summaries(managed_repo_id(), work_item_id(), keyword()) :: [map()]
   def context_compaction_summaries(managed_repo_id, work_item_id, opts \\ [])
       when is_binary(managed_repo_id) and is_binary(work_item_id) and is_list(opts) do
-    case Manager.pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id)) do
+    case pod_status(managed_repo_id, ContextManagement.pod_id(work_item_id)) do
       %{metadata: metadata} ->
         ContextManagement.active_summaries(metadata, context_management_summary_opts(opts))
 
@@ -462,7 +481,7 @@ defmodule JidoCode.AgentWorkspace do
       when is_binary(managed_repo_id) and is_binary(work_item_id) and is_map(observation_attrs) and is_list(opts) do
     pod_id = ContextManagement.pod_id(work_item_id)
 
-    case Manager.pod_status(managed_repo_id, pod_id) do
+    case pod_status(managed_repo_id, pod_id) do
       %{metadata: %{context_management_status: :disabled}} ->
         {:ok, ContextManagement.status_summary(ContextManagement.disabled_metadata())}
 
@@ -475,7 +494,7 @@ defmodule JidoCode.AgentWorkspace do
 
         with {:ok, updated_metadata} <-
                ContextManagement.add_observation(metadata, observation_attrs, context_management_opts(opts)),
-             {:ok, pod_entry} <- Manager.update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
+             {:ok, pod_entry} <- update_pod_metadata(managed_repo_id, pod_id, updated_metadata) do
           {:ok, ContextManagement.status_summary(pod_entry.metadata)}
         end
 
@@ -484,32 +503,12 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
-  defp complete_runtime_pod(managed_repo_id, pod_id) do
-    case Manager.pod_status(managed_repo_id, pod_id) do
-      nil ->
-        :ok
-
-      pod_entry ->
-        maybe_stop_runtime_pod(pod_entry)
-
-        _ =
-          Manager.update_pod_metadata(managed_repo_id, pod_id, %{
-            runtime_pid: nil,
-            runtime_status: :completed,
-            completed_at: DateTime.utc_now(),
-            latest_failure: nil
-          })
-
-        :ok
-    end
-  end
-
   defp persist_context_compaction_failure(managed_repo_id, work_item_id, reason, candidate, opts) do
     pod_id = ContextManagement.pod_id(work_item_id)
 
-    case Manager.pod_status(managed_repo_id, pod_id) do
+    case pod_status(managed_repo_id, pod_id) do
       %{metadata: metadata} ->
-        Manager.update_pod_metadata(
+        update_pod_metadata(
           managed_repo_id,
           pod_id,
           Map.merge(
@@ -583,12 +582,7 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec active_work_items(managed_repo_id()) :: [work_item_id()]
   def active_work_items(managed_repo_id) do
-    managed_repo_id
-    |> Manager.list_pods()
-    |> Enum.filter(&active_coding_pod?/1)
-    |> Enum.map(&get_in(&1, [:metadata, :work_item_id]))
-    |> Enum.reject(&is_nil/1)
-    |> Enum.sort()
+    Runtime.active_work_items(managed_repo_id)
   end
 
   ## Conversation Coordination
@@ -739,7 +733,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -809,7 +803,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -879,7 +873,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -949,7 +943,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -1010,7 +1004,7 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, opts} <- put_llm_selection(managed_repo_id, opts),
-         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _runtime_status} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path, opts),
          {:ok, provenance_context} <-
            workflow_provenance_context(
@@ -1144,27 +1138,15 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_source_code_graph_pod(managed_repo_id(), String.t(), keyword()) ::
           {:ok, source_code_graph_summary()} | {:error, term()}
   def ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
-    with :ok <- ensure_source_code_graph_enabled(opts),
-         {:ok, _repo_pod} <- ensure_repo_pod_entry(managed_repo_id) do
-      case Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id()) do
-        nil ->
-          with {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts),
-               {:ok, pod_entry} <-
-                 Manager.ensure_pod(
-                   managed_repo_id,
-                   SourceCodeGraph.pod_id(),
-                   SourceCodeGraphPod,
-                   pod_metadata
-                 ),
-               :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
-            {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
-          end
+    existing_pod = pod_status(managed_repo_id, SourceCodeGraph.pod_id())
 
-        pod_entry ->
-          with :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
-            {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
-          end
-      end
+    with :ok <- ensure_source_code_graph_enabled(opts),
+         {:ok, _runtime} <- ensure_repository_runtime(managed_repo_id, workspace_path),
+         {:ok, _pod_entry} <- Runtime.ensure_source_code_graph_pod(managed_repo_id),
+         {:ok, pod_entry} <-
+           initialize_source_code_graph_metadata(existing_pod, managed_repo_id, workspace_path, opts),
+         :ok <- maybe_ensure_source_watcher(managed_repo_id, workspace_path, opts) do
+      {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
     end
   end
 
@@ -1446,23 +1428,13 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_memory_graph_pod(managed_repo_id(), String.t(), keyword()) ::
           {:ok, memory_graph_summary()} | {:error, term()}
   def ensure_memory_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
-    with :ok <- ensure_memory_graph_enabled(opts) do
-      case Manager.pod_status(managed_repo_id, MemoryGraph.pod_id()) do
-        nil ->
-          with {:ok, pod_metadata} <- MemoryGraph.pod_metadata(managed_repo_id, workspace_path, opts),
-               {:ok, pod_entry} <-
-                 Manager.ensure_pod(
-                   managed_repo_id,
-                   MemoryGraph.pod_id(),
-                   MemoryGraphPod,
-                   pod_metadata
-                 ) do
-            {:ok, memory_graph_summary(managed_repo_id, pod_entry)}
-          end
+    existing_pod = pod_status(managed_repo_id, MemoryGraph.pod_id())
 
-        pod_entry ->
-          {:ok, memory_graph_summary(managed_repo_id, pod_entry)}
-      end
+    with :ok <- ensure_memory_graph_enabled(opts),
+         {:ok, _runtime} <- ensure_repository_runtime(managed_repo_id, workspace_path),
+         {:ok, _pod_entry} <- Runtime.ensure_memory_graph_pod(managed_repo_id),
+         {:ok, pod_entry} <- initialize_memory_graph_metadata(existing_pod, managed_repo_id, workspace_path, opts) do
+      {:ok, memory_graph_summary(managed_repo_id, pod_entry)}
     end
   end
 
@@ -1674,170 +1646,21 @@ defmodule JidoCode.AgentWorkspace do
 
   ## Private Functions
 
-  defp pod_name(work_item_id) do
-    # Convert work_item_id to a valid atom for pod name
-    "work_#{work_item_id}"
-    |> String.replace("-", "_")
-    |> String.to_atom()
-  end
+  defp pod_name(work_item_id), do: coding_pod_id(work_item_id)
 
   defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
 
   defp ensure_repo_pod_entry(managed_repo_id) do
-    Manager.ensure_pod(
-      managed_repo_id,
-      @repo_pod_id,
-      RepoPod,
-      %{
-        scope: :repository,
-        managed_repo_id: managed_repo_id,
-        runtime_status: :logical
-      }
-    )
-  end
-
-  defp ensure_kernel_available(managed_repo_id) do
-    case Manager.kernel_status(managed_repo_id) do
-      nil ->
-        case ensure_kernel(managed_repo_id) do
-          {:ok, _kernel_name} -> :ok
-          {:error, reason} -> {:error, reason}
-        end
-
-      _status ->
-        :ok
+    with {:ok, _runtime} <- ensure_repository_runtime(managed_repo_id),
+         {:ok, repo_pod} <- Runtime.ensure_repo_pod(managed_repo_id) do
+      {:ok, repo_pod}
     end
   end
 
-  defp ensure_repo_pod_runtime(managed_repo_id) do
-    ensure_runtime_pod(
-      managed_repo_id,
-      @repo_pod_id,
-      RepoPod,
-      %{
-        scope: :repository,
-        managed_repo_id: managed_repo_id,
-        runtime_status: :running
-      },
-      %{managed_repo_id: managed_repo_id}
-    )
-  end
+  defp pod_status(managed_repo_id, pod_id), do: Runtime.pod_status(managed_repo_id, pod_id)
 
-  defp ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path) do
-    with {:ok, pod_entry, pod_pid} <-
-           ensure_runtime_pod(
-             managed_repo_id,
-             coding_pod_id(work_item_id),
-             CodingPod,
-             %{
-               scope: :work_item,
-               managed_repo_id: managed_repo_id,
-               work_item_id: work_item_id,
-               workspace_path: workspace_path,
-               runtime_status: :running
-             },
-             %{
-               managed_repo_id: managed_repo_id,
-               work_item_id: work_item_id,
-               workspace_path: workspace_path
-             }
-           ),
-         :ok <- sync_project_context(managed_repo_id, work_item_id, workspace_path, pod_pid) do
-      {:ok, pod_entry, pod_pid}
-    end
-  end
-
-  defp ensure_runtime_context_management_pod(managed_repo_id, work_item_id, workspace_path, opts) do
-    policy = ContextManagement.policy(opts)
-
-    ensure_runtime_pod(
-      managed_repo_id,
-      ContextManagement.pod_id(work_item_id),
-      ContextManagementPod,
-      ContextManagement.initial_metadata(
-        managed_repo_id,
-        work_item_id,
-        workspace_path,
-        coding_pod_id(work_item_id),
-        opts
-      ),
-      %{
-        managed_repo_id: managed_repo_id,
-        work_item_id: work_item_id,
-        workspace_path: workspace_path,
-        policy: ContextManagement.public_policy(policy)
-      }
-    )
-  end
-
-  defp restore_persisted_runtime_pods(managed_repo_id) do
-    managed_repo_id
-    |> Manager.list_pods()
-    |> Enum.reject(&(&1.pod_id == @repo_pod_id))
-    |> Enum.reduce_while(:ok, fn pod_entry, :ok ->
-      case pod_entry do
-        %{module: CodingPod, metadata: %{work_item_id: work_item_id, workspace_path: workspace_path} = metadata}
-        when is_binary(work_item_id) and is_binary(workspace_path) ->
-          if restorable_coding_pod?(metadata) do
-            with {:ok, _pod_entry, _pod_pid} <-
-                   ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path),
-                 {:ok, _context_entry, _context_pid} <-
-                   ensure_runtime_context_management_pod(managed_repo_id, work_item_id, workspace_path, []) do
-              {:cont, :ok}
-            else
-              {:error, reason} -> {:halt, {:error, reason}}
-            end
-          else
-            {:cont, :ok}
-          end
-
-        _other ->
-          {:cont, :ok}
-      end
-    end)
-  end
-
-  defp restorable_coding_pod?(metadata) when is_map(metadata) do
-    case Map.get(metadata, :runtime_status) do
-      :completed -> false
-      nil -> true
-      _other -> true
-    end
-  end
-
-  defp admit_work_item(managed_repo_id, work_item_id) do
-    if resumable_work_item?(managed_repo_id, work_item_id) do
-      :ok
-    else
-      case work_queue_limit() do
-        :infinity ->
-          :ok
-
-        limit when is_integer(limit) and limit > 0 ->
-          active_items = active_work_items(managed_repo_id)
-
-          if length(active_items) < limit do
-            :ok
-          else
-            {:error,
-             {:work_queue_full, %{managed_repo_id: managed_repo_id, limit: limit, active_work_items: active_items}}}
-          end
-      end
-    end
-  end
-
-  defp resumable_work_item?(managed_repo_id, work_item_id) do
-    case Manager.pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
-      %{module: CodingPod, metadata: metadata} -> restorable_coding_pod?(metadata)
-      _other -> false
-    end
-  end
-
-  defp work_queue_limit do
-    case Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items, :infinity) do
-      limit when is_integer(limit) and limit > 0 -> limit
-      _other -> :infinity
-    end
+  defp update_pod_metadata(managed_repo_id, pod_id, updates) do
+    Runtime.update_pod_metadata(managed_repo_id, pod_id, updates)
   end
 
   defp retry_context_management_opts(opts, decision) do
@@ -1896,113 +1719,9 @@ defmodule JidoCode.AgentWorkspace do
     |> Keyword.merge(Keyword.take(opts, [:workflow, :specialist_role, :limit]))
   end
 
-  defp ensure_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do
-    case Manager.pod_status(managed_repo_id, pod_id) do
-      %{metadata: %{runtime_pid: pid}} = pod_entry when is_pid(pid) ->
-        if Process.alive?(pid) do
-          {:ok, pod_entry, pid}
-        else
-          start_and_track_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state)
-        end
-
-      _pod_entry ->
-        start_and_track_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state)
-    end
-  end
-
-  defp start_and_track_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do
-    with {:ok, pod_pid} <- start_runtime_pod(managed_repo_id, pod_id, pod_module, initial_state),
-         {:ok, pod_entry} <-
-           Manager.ensure_pod(
-             managed_repo_id,
-             pod_id,
-             pod_module,
-             Map.merge(metadata, %{
-               runtime_pid: pod_pid,
-               started_at: DateTime.utc_now()
-             })
-           ) do
-      {:ok, pod_entry, pod_pid}
-    end
-  end
-
-  defp start_runtime_pod(managed_repo_id, pod_id, pod_module, initial_state) do
-    naming = Naming.new(Manager.kernel_name(managed_repo_id))
-    jido_instance = Naming.kernel_jido_instance(naming)
-    pod_runtime_id = "#{managed_repo_id}:#{pod_id}"
-
-    with :ok <-
-           ManagerSupervisor.ensure_managers(
-             pod_module,
-             agent_os_persistence(),
-             jido_instance,
-             naming
-           ),
-         pod_agent <-
-           pod_module.new(
-             id: pod_runtime_id,
-             state: initial_state
-           ),
-         {:ok, scoped_pod_agent} <-
-           Pod.put_topology(pod_agent, AgentOSPod.scoped_topology(pod_module, naming)),
-         {:ok, pod_pid} <-
-           AgentServer.start(
-             agent: scoped_pod_agent,
-             agent_module: pod_module,
-             jido: jido_instance,
-             id: pod_runtime_id
-           ),
-         {:ok, _report} <- Pod.reconcile(pod_pid) do
-      {:ok, pod_pid}
-    else
-      {:error, %{stage: :reconcile} = reason} -> {:error, reason}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   defp ensure_coding_specialist(managed_repo_id, work_item_id, node_name) do
-    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
-      Pod.ensure_node(pod_pid, node_name)
-    end
+    Runtime.ensure_work_item_node(managed_repo_id, work_item_id, node_name)
   end
-
-  defp coding_pod_pid(managed_repo_id, work_item_id) do
-    case Manager.pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
-      %{metadata: %{runtime_pid: pid}} when is_pid(pid) ->
-        if Process.alive?(pid) do
-          {:ok, pid}
-        else
-          {:error, :coding_pod_not_started}
-        end
-
-      _other ->
-        {:error, :coding_pod_not_started}
-    end
-  end
-
-  defp maybe_stop_runtime_pod(%{metadata: %{runtime_pid: pid}}) when is_pid(pid) do
-    if Process.alive?(pid) do
-      _ = PodRuntime.teardown_runtime(pid)
-
-      try do
-        GenServer.stop(pid, :shutdown, 5_000)
-      catch
-        :exit, _reason -> :ok
-      end
-    else
-      :ok
-    end
-  end
-
-  defp maybe_stop_runtime_pod(_pod_entry), do: :ok
-
-  defp active_coding_pod?(%{module: CodingPod, metadata: metadata}) when is_map(metadata) do
-    Map.get(metadata, :runtime_status) != :completed and
-      match?(pid when is_pid(pid), Map.get(metadata, :runtime_pid)) and
-      Process.alive?(Map.get(metadata, :runtime_pid))
-  end
-
-  defp active_coding_pod?(_pod_entry), do: false
 
   defp resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) when is_binary(workspace_path) do
     case String.trim(workspace_path) do
@@ -2012,7 +1731,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp resolve_workspace_path(managed_repo_id, work_item_id, _workspace_path) do
-    case Manager.pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
+    case pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
       %{metadata: %{workspace_path: path}} when is_binary(path) and path != "" ->
         {:ok, path}
 
@@ -2239,9 +1958,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp task_board_pid(managed_repo_id, work_item_id) do
-    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
-      Pod.ensure_node(pod_pid, :task_board)
-    end
+    Runtime.ensure_work_item_node(managed_repo_id, work_item_id, :task_board)
   end
 
   defp ensure_task_board_task(task_board_pid, work_item_id, instruction) when is_pid(task_board_pid) do
@@ -3058,7 +2775,7 @@ defmodule JidoCode.AgentWorkspace do
 
   defp persist_coding_pod_result(managed_repo_id, work_item_id, runtime_status, updates) do
     _ =
-      Manager.update_pod_metadata(
+      update_pod_metadata(
         managed_repo_id,
         coding_pod_id(work_item_id),
         Map.merge(updates, %{
@@ -3076,26 +2793,6 @@ defmodule JidoCode.AgentWorkspace do
       :agent_workspace_specialist_runner,
       RuntimeSpecialistRunner
     )
-  end
-
-  defp agent_os_persistence do
-    :jido_code
-    |> Application.get_env(:agent_os_persistence)
-    |> Persistence.resolve()
-    |> case do
-      {:ok, %Persistence{adapter: adapter} = persistence} ->
-        if Code.ensure_loaded?(adapter) do
-          Persistence.storage(persistence)
-        else
-          nil
-        end
-
-      {:ok, nil} ->
-        nil
-
-      {:error, _reason} ->
-        nil
-    end
   end
 
   defp ensure_source_code_graph_enabled(opts) do
@@ -3130,8 +2827,28 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp initialize_source_code_graph_metadata(nil, managed_repo_id, workspace_path, opts) do
+    with {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts) do
+      update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), pod_metadata)
+    end
+  end
+
+  defp initialize_source_code_graph_metadata(pod_entry, managed_repo_id, _workspace_path, _opts) do
+    {:ok, pod_status(managed_repo_id, SourceCodeGraph.pod_id()) || pod_entry}
+  end
+
+  defp initialize_memory_graph_metadata(nil, managed_repo_id, workspace_path, opts) do
+    with {:ok, pod_metadata} <- MemoryGraph.pod_metadata(managed_repo_id, workspace_path, opts) do
+      update_pod_metadata(managed_repo_id, MemoryGraph.pod_id(), pod_metadata)
+    end
+  end
+
+  defp initialize_memory_graph_metadata(pod_entry, managed_repo_id, _workspace_path, _opts) do
+    {:ok, pod_status(managed_repo_id, MemoryGraph.pod_id()) || pod_entry}
+  end
+
   defp source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
-    pod_entry = Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id())
+    pod_entry = pod_status(managed_repo_id, SourceCodeGraph.pod_id())
 
     context = %{
       managed_repo_id: managed_repo_id,
@@ -3149,7 +2866,7 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp memory_graph_action_context(managed_repo_id, workspace_path, opts) do
-    pod_entry = Manager.pod_status(managed_repo_id, MemoryGraph.pod_id())
+    pod_entry = pod_status(managed_repo_id, MemoryGraph.pod_id())
 
     context = %{
       managed_repo_id: managed_repo_id,
@@ -3168,11 +2885,11 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp persist_source_code_graph_state(managed_repo_id, updates) when is_map(updates) do
-    Manager.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), updates)
+    update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), updates)
   end
 
   defp persist_memory_graph_state(managed_repo_id, updates) when is_map(updates) do
-    Manager.update_pod_metadata(managed_repo_id, MemoryGraph.pod_id(), updates)
+    update_pod_metadata(managed_repo_id, MemoryGraph.pod_id(), updates)
   end
 
   defp persist_source_code_graph_failure(managed_repo_id, operation, reason, diagnostics, updates \\ %{})

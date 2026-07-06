@@ -32,7 +32,7 @@ Back to index: [README](./README.md)
 - Existing AgentOS-shaped names such as kernel, kernel supervisor, and pod
   persistence are migration targets, not compatibility requirements.
 
-[ ] 1 Phase 1 - Runtime Contract and Current Surface Inventory
+[x] 1 Phase 1 - Runtime Contract and Current Surface Inventory
   Establish the target runtime contract and migration map before introducing
   new runtime modules, so implementation work removes AgentOS complexity
   intentionally instead of recreating it locally.
@@ -113,15 +113,15 @@ Back to index: [README](./README.md)
       [x] 1.3.2.3 Subtask - Decide which documentation and planning references should be updated or superseded.
       [x] 1.3.2.4 Subtask - Record the exact phase where `jido_agent_os` leaves `mix.exs`.
 
-  [ ] 1.4 Section - Phase 1 Integration Tests
+  [x] 1.4 Section - Phase 1 Integration Tests
     Prove the migration target is understood and every current AgentOS runtime
     surface has an owner in the new plan before code changes begin.
 
-    [ ] 1.4.1 Task - Inventory verification
+    [x] 1.4.1 Task - Inventory verification
       Validate the inventory and target contract against the current codebase
       and test suite boundaries.
 
-      [ ] 1.4.1.1 Subtask - Run `rg -n "AgentOS|Jido.AgentOS|JidoCode.AgentOS|kernel_name|ManagerSupervisor|Naming|Persistence" lib config test mix.exs`.
-      [ ] 1.4.1.2 Subtask - Run `rg --files test | rg "agent_workspace|agent_os|pod|source_code_graph|memory_graph|context_management"`.
-      [ ] 1.4.1.3 Subtask - Confirm every AgentOS reference is classified as delete, rename, route-through-runtime, or docs-only.
-      [ ] 1.4.1.4 Subtask - Confirm every later phase ends with an integration-test section.
+      [x] 1.4.1.1 Subtask - Run `rg -n "AgentOS|Jido.AgentOS|JidoCode.AgentOS|kernel_name|ManagerSupervisor|Naming|Persistence" lib config test mix.exs`.
+      [x] 1.4.1.2 Subtask - Run `rg --files test | rg "agent_workspace|agent_os|pod|source_code_graph|memory_graph|context_management"`.
+      [x] 1.4.1.3 Subtask - Confirm every AgentOS reference is classified as delete, rename, route-through-runtime, or docs-only.
+      [x] 1.4.1.4 Subtask - Confirm every later phase ends with an integration-test section.

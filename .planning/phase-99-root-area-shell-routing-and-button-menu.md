@@ -33,22 +33,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 99 Phase 99 - Root Area Shell Routing And Button Menu
   Replace the current authenticated navigation model with an ariston-style root area shell and button menu.
 
-  [ ] 99.1 Section - Area Model And Route Map
+  [x] 99.1 Section - Area Model And Route Map
     Define the new product-area taxonomy and connect it to Phoenix routes.
 
-    [ ] 99.1.1 Task - Build the `JidoCodeWeb.Areas` boundary.
+    [x] 99.1.1 Task - Build the `JidoCodeWeb.Areas` boundary.
       Give the new shell one source of truth for button menu entries, active area state, and handoff targets.
 
-      [ ] 99.1.1.1 Subtask - Add registered areas for the accepted root workspace concerns such as dashboard, repositories, workbench, conversations, workflows, agents, memory, semantic inspection, settings, and setup/admin if applicable.
-      [ ] 99.1.1.2 Subtask - Include `area`, `id`, `handoff_id`, `label`, `path`, `local_context_key`, and optional required-auth metadata.
-      [ ] 99.1.1.3 Subtask - Provide `shell_state/2`, `navigation_items/0`, `area_metadata!/1`, `area_label/1`, `area_path/1`, and `handoff_targets/1` helpers.
+      [x] 99.1.1.1 Subtask - Add registered areas for the accepted root workspace concerns such as dashboard, repositories, workbench, conversations, workflows, agents, memory, semantic inspection, settings, and setup/admin if applicable.
+      [x] 99.1.1.2 Subtask - Include `area`, `id`, `handoff_id`, `label`, `path`, `local_context_key`, and optional required-auth metadata.
+      [x] 99.1.1.3 Subtask - Provide `shell_state/2`, `navigation_items/0`, `area_metadata!/1`, `area_label/1`, `area_path/1`, and `handoff_targets/1` helpers.
 
-    [ ] 99.1.2 Task - Rework authenticated routes around the area shell.
+    [x] 99.1.2 Task - Rework authenticated routes around the area shell.
       Move from many bespoke top-level LiveViews to one coherent shell route map.
 
-      [ ] 99.1.2.1 Subtask - Decide whether one `OperatorRootLive` handles multiple area actions or whether existing LiveViews become thin area modules under the same shell.
-      [ ] 99.1.2.2 Subtask - Route `/`, `/dashboard`, `/repos`, `/workbench`, `/workflows`, `/agents`, `/settings`, and selected detail paths through the new shell contract.
-      [ ] 99.1.2.3 Subtask - Preserve authenticated and public route gates while removing old global navigation assumptions.
+      [x] 99.1.2.1 Subtask - Decide whether one `OperatorRootLive` handles multiple area actions or whether existing LiveViews become thin area modules under the same shell.
+      [x] 99.1.2.2 Subtask - Route `/`, `/dashboard`, `/repos`, `/workbench`, `/workflows`, `/agents`, `/settings`, and selected detail paths through the new shell contract.
+      [x] 99.1.2.3 Subtask - Preserve authenticated and public route gates while removing old global navigation assumptions.
 
   [ ] 99.2 Section - Layout And Button Menu Replacement
     Replace the current header, global nav, and subject-tree shell with the new external shell.

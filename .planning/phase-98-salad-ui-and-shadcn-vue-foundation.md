@@ -35,22 +35,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 98 Phase 98 - SaladUI And Shadcn-Vue Foundation
   Replace the current DaisyUI browser foundation with the ariston-style SaladUI plus generated shadcn-vue primitive stack.
 
-  [ ] 98.1 Section - Dependency And Asset Baseline
+  [x] 98.1 Section - Dependency And Asset Baseline
     Add the server and browser dependencies needed by the new UI foundation while keeping setup Mix-first.
 
-    [ ] 98.1.1 Task - Add SaladUI to the Elixir dependency surface.
+    [x] 98.1.1 Task - Add SaladUI to the Elixir dependency surface.
       Make SaladUI an explicit product dependency for LiveView-side UI primitives.
 
-      [ ] 98.1.1.1 Subtask - Add `{:salad_ui, "~> 1.0.0-beta.3"}` or the currently accepted compatible version to `mix.exs`.
-      [ ] 98.1.1.2 Subtask - Start `TwMerge.Cache` under application supervision if SaladUI requires it.
-      [ ] 98.1.1.3 Subtask - Add a `JidoCodeWeb.Components.UI` boundary that delegates only the selected SaladUI primitives.
+      [x] 98.1.1.1 Subtask - Add `{:salad_ui, "~> 1.0.0-beta.3"}` or the currently accepted compatible version to `mix.exs`.
+      [x] 98.1.1.2 Subtask - Start `TwMerge.Cache` under application supervision if SaladUI requires it.
+      [x] 98.1.1.3 Subtask - Add a `JidoCodeWeb.Components.UI` boundary that delegates only the selected SaladUI primitives.
 
-    [ ] 98.1.2 Task - Add shadcn-vue asset dependencies.
+    [x] 98.1.2 Task - Add shadcn-vue asset dependencies.
       Make generated Vue primitives available to LiveVue islands through local assets.
 
-      [ ] 98.1.2.1 Subtask - Add `components.json` configured for `assets/css/app.css`, `@/vue/components`, `@/vue/components/ui`, `@/vue/lib`, and `@/vue/composables`.
-      [ ] 98.1.2.2 Subtask - Add npm dependencies for the generated primitives, including `reka-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`, and icon packages as needed.
-      [ ] 98.1.2.3 Subtask - Generate or copy the initial shadcn-vue primitive set needed for buttons, badges, alerts, tabs, tables, dialogs, popovers, command menus, inputs, empty states, select controls, scroll areas, skeletons, and tooltips.
+      [x] 98.1.2.1 Subtask - Add `components.json` configured for `assets/css/app.css`, `@/vue/components`, `@/vue/components/ui`, `@/vue/lib`, and `@/vue/composables`.
+      [x] 98.1.2.2 Subtask - Add npm dependencies for the generated primitives, including `reka-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`, and icon packages as needed.
+      [x] 98.1.2.3 Subtask - Generate or copy the initial shadcn-vue primitive set needed for buttons, badges, alerts, tabs, tables, dialogs, popovers, command menus, inputs, empty states, select controls, scroll areas, skeletons, and tooltips.
 
   [ ] 98.2 Section - CSS Token And Theme Foundation
     Replace DaisyUI theme variables with shadcn-aligned tokens shared by HEEx and Vue.

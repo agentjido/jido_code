@@ -1,8 +1,10 @@
-import { defineConfig } from 'vite'
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import liveVuePlugin from "live_vue/vitePlugin";
 import tailwindcss from "@tailwindcss/vite";
 
+const assetsRoot = fileURLToPath(new URL(".", import.meta.url));
 const phoenixPort = process.env.PORT ?? "4100";
 const allowedOrigins = [
   `http://localhost:${phoenixPort}`,
@@ -21,7 +23,7 @@ export default defineConfig({
     include: ["live_vue", "phoenix", "phoenix_html", "phoenix_live_view"],
   },
   ssr: { noExternal: process.env.NODE_ENV === "production" ? true : undefined },
-    build: {
+  build: {
     manifest: false,
     ssrManifest: false,
     rollupOptions: {
@@ -34,13 +36,9 @@ export default defineConfig({
   // https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.ColocatedJS.html#module-internals
   resolve: {
     alias: {
-      "@": ".",
+      "@": assetsRoot,
       "phoenix-colocated": `${process.env.MIX_BUILD_PATH}/phoenix-colocated`,
     },
   },
-  plugins: [
-    tailwindcss(),
-    vue(),
-    liveVuePlugin()
-  ]
+  plugins: [tailwindcss(), vue(), liveVuePlugin()],
 });

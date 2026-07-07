@@ -101,6 +101,7 @@ defmodule JidoCodeWeb do
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
+      alias JidoCodeWeb.Components.UI
       alias JidoCodeWeb.Layouts
 
       # Routes generation with the ~p sigil

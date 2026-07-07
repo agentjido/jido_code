@@ -8,7 +8,8 @@
     "noEmit": true,
     "skipLibCheck": true,
     "paths": {
-      "*": [ "./deps/*", "node_modules/*" ]
+      "@/*": ["./assets/*"],
+      "*": ["./deps/*", "node_modules/*"]
     },
     "strict": true,
     "types": [ "vite/client" ]

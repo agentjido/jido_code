@@ -52,22 +52,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 98.1.2.2 Subtask - Add npm dependencies for the generated primitives, including `reka-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`, and icon packages as needed.
       [x] 98.1.2.3 Subtask - Generate or copy the initial shadcn-vue primitive set needed for buttons, badges, alerts, tabs, tables, dialogs, popovers, command menus, inputs, empty states, select controls, scroll areas, skeletons, and tooltips.
 
-  [ ] 98.2 Section - CSS Token And Theme Foundation
+  [x] 98.2 Section - CSS Token And Theme Foundation
     Replace DaisyUI theme variables with shadcn-aligned tokens shared by HEEx and Vue.
 
-    [ ] 98.2.1 Task - Rebuild `assets/css/app.css` around shared tokens.
+    [x] 98.2.1 Task - Rebuild `assets/css/app.css` around shared tokens.
       Make Tailwind v4, Phoenix sources, and shadcn-style variables the official styling foundation.
 
-      [ ] 98.2.1.1 Subtask - Preserve required Tailwind v4 import and `@source` directives for app CSS, JS, Vue, and `lib/jido_code_web`.
-      [ ] 98.2.1.2 Subtask - Add light, dark, and system-compatible CSS variables for background, foreground, card, popover, primary, secondary, muted, accent, destructive, border, input, ring, sidebar, and radius tokens.
-      [ ] 98.2.1.3 Subtask - Add small `.ui-*` utility component classes only where the HEEx side needs stable non-generated classes.
+      [x] 98.2.1.1 Subtask - Preserve required Tailwind v4 import and `@source` directives for app CSS, JS, Vue, and `lib/jido_code_web`.
+      [x] 98.2.1.2 Subtask - Add light, dark, and system-compatible CSS variables for background, foreground, card, popover, primary, secondary, muted, accent, destructive, border, input, ring, sidebar, and radius tokens.
+      [x] 98.2.1.3 Subtask - Add small `.ui-*` utility component classes only where the HEEx side needs stable non-generated classes.
 
-    [ ] 98.2.2 Task - Remove DaisyUI from the official path.
-      Stop relying on DaisyUI themes or component classes once replacement tokens exist.
+    [x] 98.2.2 Task - Remove DaisyUI from the official path.
+      Stop relying on DaisyUI CSS themes now, prevent new class references, and keep npm removal gated until existing runtime references are rewritten.
 
-      [ ] 98.2.2.1 Subtask - Remove DaisyUI plugin imports and theme blocks from `assets/css/app.css`.
-      [ ] 98.2.2.2 Subtask - Remove DaisyUI from `package.json` and `package-lock.json` after all runtime references are replaced.
-      [ ] 98.2.2.3 Subtask - Add guard coverage that fails on new DaisyUI classes in first-party HEEx, Vue, CSS, and tests.
+      [x] 98.2.2.1 Subtask - Remove DaisyUI plugin imports and theme blocks from `assets/css/app.css`.
+      [x] 98.2.2.2 Subtask - Keep DaisyUI npm removal gated by the Phase 97 policy until first-party runtime references are zero.
+      [x] 98.2.2.3 Subtask - Add guard coverage that fails on new DaisyUI classes in first-party HEEx, Vue, CSS, and tests.
 
   [ ] 98.3 Section - LiveView And LiveVue Boundary Cleanup
     Align shared component imports and Vue island registration with the new split.

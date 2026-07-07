@@ -148,6 +148,11 @@ The plan aligns to:
 88. [Phase 94 - Conversation Context Reset Projection](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-94-conversation-context-reset-projection.md): add append-only reset markers and reset-aware snapshot projection so future prompts use compaction summaries instead of reset-covered raw conversation context.
 89. [Phase 95 - Conversation Runtime Auto-Compaction Adoption](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-95-conversation-runtime-auto-compaction-adoption.md): wire automatic compaction into real conversation runtime scheduling so threshold-crossing turns compact at safe boundaries before queued work consumes oversized context.
 90. [Phase 96 - Auto-Compaction Observability And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-96-auto-compaction-observability-and-contributor-convergence.md): make automatic compaction lifecycle state, configuration, docs, and verification explicit while preserving request-time budget fallback and prompt-memory boundaries.
+91. [Phase 97 - UI Reset Contract And External Shell Inventory](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-97-ui-reset-contract-and-external-shell-inventory.md): define the greenfield UI replacement contract, ariston-style external shell target, and deletion inventory before replacing the current DaisyUI and subject-tree implementation.
+92. [Phase 98 - SaladUI And Shadcn-Vue Foundation](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-98-salad-ui-and-shadcn-vue-foundation.md): add SaladUI for LiveView HEEx primitives, generated shadcn-vue assets for LiveVue islands, shared shadcn-aligned CSS tokens, and guardrails that remove DaisyUI from the official path.
+93. [Phase 99 - Root Area Shell Routing And Button Menu](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-99-root-area-shell-routing-and-button-menu.md): replace current authenticated navigation with an ariston-style root area shell, top button menu, route-owned active state, and shared status strip.
+94. [Phase 100 - Product Surface Rebuild And Legacy UI Deletion](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-100-product-surface-rebuild-and-legacy-ui-deletion.md): rebuild the main product areas, detail routes, conversation surfaces, and retained Vue islands inside the new shell while deleting old UI modules, assets, and DaisyUI dependencies.
+95. [Phase 101 - UI Reset Hardening And Contributor Convergence](https://github.com/mikehostetler/jido_code/blob/main/.planning/phase-101-ui-reset-hardening-and-contributor-convergence.md): harden the replacement UI with browser, accessibility, degradation, docs, CI, and final no-DaisyUI/no-old-shell convergence checks.
 
 Chronology note: Phase 55 now owns the previously landed `55.6.*` memory
 ontology and governed-reference verification so the planning sequence once
@@ -162,6 +167,13 @@ the forward breadcrumb plus top-rail and child-sidebar rollout, Phases 70 and
 the shared shell is in place, Phase 72 lands the missing product-wide signed-in
 wayfinding layer across those routes, and Phase 73 owns the remaining adjacent
 signed-in route shell adoption work.
+
+UI reset chronology note: Phases 97 through 101 supersede the historical
+DaisyUI and subject-tree implementation with a greenfield ariston-style area
+shell. The new target keeps LiveView as the routed product host, uses SaladUI
+through app-owned HEEx wrappers, uses generated shadcn-vue primitives only
+inside bounded LiveVue islands, and deletes the old UI instead of preserving
+compatibility chrome.
 
 Conversation-memory chronology note: Phase 74 introduces provenance-first
 long-term conversation capture on top of the existing conversation and

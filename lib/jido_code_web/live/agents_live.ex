@@ -113,7 +113,7 @@ defmodule JidoCodeWeb.AgentsLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:agents}
     >
       <.single_pane_shell id="agents-shell" breadcrumbs={agents_breadcrumbs()} pane={agents_pane()}>
         <.operator_state_notice

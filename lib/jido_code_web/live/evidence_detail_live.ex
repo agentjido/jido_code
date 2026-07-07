@@ -220,7 +220,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:repositories}
     >
       <section class="mx-auto max-w-5xl space-y-6 py-8">
         <div class="flex flex-wrap items-center justify-between gap-3">

@@ -78,7 +78,7 @@ defmodule JidoCodeWeb.SettingsLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:settings}
     >
       <.subject_tree_shell
         id="settings-shell"

@@ -5,6 +5,8 @@ defmodule JidoCodeWeb.Layouts do
   """
   use JidoCodeWeb, :html
 
+  alias JidoCodeWeb.Areas
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -32,66 +34,75 @@ defmodule JidoCodeWeb.Layouts do
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
   )
 
-  attr(:operator_navigation, :map,
+  attr(:active_area, :atom,
     default: nil,
-    doc: "shared signed-in operator navigation metadata"
+    doc: "active product area for the authenticated shell"
   )
 
+  attr(:area_state, :map,
+    default: nil,
+    doc: "server-authored active area shell state"
+  )
+
+  attr(:title, :string,
+    default: nil,
+    doc: "optional shell title override"
+  )
+
+  attr(:subtitle, :string,
+    default: nil,
+    doc: "optional shell subtitle override"
+  )
+
+  slot(:actions)
   slot(:inner_block, required: true)
 
   def app(assigns) do
+    assigns = assign_area_shell(assigns)
+
     ~H"""
-    <header class="sticky top-0 z-40 border-b border-base-300/70 bg-base-100/90 backdrop-blur">
-      <div class="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="space-y-2">
-            <div class="flex flex-wrap items-center gap-3">
-              <.link
-                navigate={~p"/"}
-                class="text-sm font-bold tracking-[0.12em] uppercase hover:text-primary"
-              >
-                Jido Code
-              </.link>
-
-              <div
-                :if={@operator_navigation}
-                id="operator-route-identity"
-                class="flex flex-wrap items-center gap-2 text-xs"
-              >
-                <span
-                  id="operator-route-badge"
-                  class="rounded-full border border-base-300/80 bg-base-200/70 px-2.5 py-1 font-semibold uppercase tracking-[0.16em] text-base-content/70"
-                >
-                  {@operator_navigation.route_badge}
-                </span>
-                <span id="operator-route-label" class="font-medium text-base-content/70">
-                  {@operator_navigation.route_label}
-                </span>
-              </div>
-            </div>
-
-            <%!-- covers: baseline.surface.nav_trimmed --%>
-            <p
-              :if={!@operator_navigation}
-              class="text-xs font-medium uppercase tracking-[0.2em] text-base-content/45"
+    <header
+      id="operator-app-shell"
+      data-active-area={if @area_state, do: @area_state.id}
+      class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur"
+    >
+      <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0 space-y-1">
+            <.link
+              id="operator-shell-brand"
+              navigate={~p"/"}
+              class="inline-flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary"
             >
-              Landing + Auth Only
-            </p>
+              <span class="inline-flex size-2 rounded-sm bg-primary" />
+              <span>Jido Code</span>
+            </.link>
+
+            <div id="operator-shell-heading" class="min-w-0">
+              <p id="operator-shell-title" class="truncate text-lg font-semibold text-foreground">
+                {@shell_title}
+              </p>
+              <p id="operator-shell-subtitle" class="truncate text-sm text-muted-foreground">
+                {@shell_subtitle}
+              </p>
+            </div>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <div :if={@actions != []} id="operator-shell-actions" class="flex flex-wrap items-center gap-2">
+              {render_slot(@actions)}
+            </div>
             <.theme_toggle />
           </div>
         </div>
 
-        <div :if={@operator_navigation} class="mt-4 space-y-3">
-          <.operator_navigation navigation={@operator_navigation} />
-        </div>
+        <.area_button_menu :if={@area_state} items={@area_navigation_items} active_area={@active_area} />
+        <.area_status_strip :if={@area_state} area_state={@area_state} current_scope={@current_scope} />
       </div>
     </header>
 
-    <main class="px-4 py-8 sm:px-6 lg:px-8 bg-background">
-      <div class="mx-auto max-w-6xl space-y-4">
+    <main id="operator-shell-content" class="bg-background px-4 py-6 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-7xl space-y-4">
         {render_slot(@inner_block)}
       </div>
     </main>
@@ -105,76 +116,66 @@ defmodule JidoCodeWeb.Layouts do
     """
   end
 
-  attr(:navigation, :map, required: true)
+  attr(:items, :list, required: true)
+  attr(:active_area, :atom, required: true)
 
-  defp operator_navigation(assigns) do
+  defp area_button_menu(assigns) do
     ~H"""
     <nav
-      id={@navigation.id}
-      aria-label={@navigation.label}
-      class="rounded-2xl border border-base-300/80 bg-base-200/45 p-2"
+      id="operator-area-menu"
+      aria-label="Product areas"
+      class="overflow-x-auto rounded-lg border border-border bg-card p-1"
     >
-      <div class="flex flex-wrap gap-2">
+      <div class="flex min-w-max flex-nowrap gap-1 sm:min-w-0 sm:flex-wrap">
         <.link
-          :for={destination <- @navigation.major_destinations}
-          id={destination.dom_id}
-          navigate={destination.navigate}
-          aria-current={if destination.selected?, do: "page", else: nil}
+          :for={item <- @items}
+          id={"operator-area-menu-#{item.id}"}
+          navigate={item.path}
+          aria-current={if item.area == @active_area, do: "page", else: nil}
           class={[
-            "group min-w-[10rem] flex-1 rounded-xl border px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-            destination.selected? &&
-              "border-primary/60 bg-primary text-primary-content shadow-sm",
-            !destination.selected? &&
-              "border-base-300/70 bg-base-100/90 text-base-content hover:border-primary/40 hover:bg-base-100"
+            "inline-flex min-h-10 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            item.area == @active_area &&
+              "border-primary bg-primary text-primary-foreground shadow-sm",
+            item.area != @active_area &&
+              "border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
           ]}
         >
-          <span class="block text-sm font-semibold">{destination.label}</span>
-          <span class={[
-            "mt-1 block text-xs",
-            destination.selected? && "text-primary-content/80",
-            !destination.selected? && "text-base-content/65 group-hover:text-base-content/80"
-          ]}>
-            {destination.summary}
-          </span>
+          {item.label}
         </.link>
       </div>
-
-      <div
-        :if={@navigation.context_links != []}
-        id="operator-context-nav"
-        class="mt-3 flex flex-wrap items-center gap-2 border-t border-base-300/70 pt-3"
-      >
-        <span class="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-base-content/50">
-          Current Context
-        </span>
-
-        <%= for context_link <- @navigation.context_links do %>
-          <%= if context_link[:navigate] do %>
-            <.link
-              id={context_link.id}
-              navigate={context_link.navigate}
-              class="rounded-full border border-base-300 bg-base-100 px-3 py-1 text-xs font-medium text-base-content/75 transition-colors hover:border-primary/40 hover:text-base-content"
-            >
-              {context_link.label}
-            </.link>
-          <% else %>
-            <span
-              id={context_link.id}
-              aria-current={if context_link[:current?], do: "page", else: nil}
-              class={[
-                "rounded-full border px-3 py-1 text-xs font-medium",
-                context_link[:current?] &&
-                  "border-primary/50 bg-primary/10 text-base-content",
-                !context_link[:current?] &&
-                  "border-base-300 bg-base-100 text-base-content/75"
-              ]}
-            >
-              {context_link.label}
-            </span>
-          <% end %>
-        <% end %>
-      </div>
     </nav>
+    """
+  end
+
+  attr(:area_state, :map, required: true)
+  attr(:current_scope, :map, default: nil)
+
+  defp area_status_strip(assigns) do
+    ~H"""
+    <div
+      id="operator-status-strip"
+      class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+    >
+      <span id="operator-status-area" class="ui-badge ui-badge-outline">
+        Area: {@area_state.label}
+      </span>
+      <span id="operator-status-auth" class="ui-badge ui-badge-outline">
+        Operator: {scope_label(@current_scope)}
+      </span>
+      <span id="operator-status-connection" class="ui-badge ui-badge-outline">
+        Connection: {status_label(@area_state.connection_status)}
+      </span>
+      <span id="operator-status-runtime" class="ui-badge ui-badge-outline">
+        Runtime: {status_label(@area_state.runtime_status)}
+      </span>
+      <span
+        :for={{warning, index} <- Enum.with_index(@area_state.warnings)}
+        id={"operator-status-warning-#{index}"}
+        class="ui-badge ui-badge-warning"
+      >
+        {warning}
+      </span>
+    </div>
     """
   end
 
@@ -223,29 +224,35 @@ defmodule JidoCodeWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="relative flex items-center rounded-md border border-base-300 bg-base-200/70 p-1">
-      <div class="absolute left-1 top-1 h-[calc(100%-0.5rem)] w-1/3 rounded-sm border border-base-300 bg-base-100 transition-[left] duration-300 [[data-theme-mode=light]_&]:left-1/3 [[data-theme-mode=dark]_&]:left-2/3" />
+    <div class="relative flex items-center rounded-md border border-border bg-muted p-1">
+      <div class="absolute left-1 top-1 h-[calc(100%-0.5rem)] w-1/3 rounded-sm border border-border bg-background transition-[left] duration-300 [[data-theme-mode=light]_&]:left-1/3 [[data-theme-mode=dark]_&]:left-2/3" />
 
       <button
-        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-base-content/70 hover:text-base-content"
+        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
+        aria-label="Use system theme"
+        title="Use system theme"
       >
         <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
 
       <button
-        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-base-content/70 hover:text-base-content"
+        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
+        aria-label="Use light theme"
+        title="Use light theme"
       >
         <.icon name="hero-sun-micro" class="size-4" />
       </button>
 
       <button
-        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-base-content/70 hover:text-base-content"
+        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
+        aria-label="Use dark theme"
+        title="Use dark theme"
       >
         <.icon name="hero-moon-micro" class="size-4" />
       </button>
@@ -310,4 +317,42 @@ defmodule JidoCodeWeb.Layouts do
       assigns[:kind] == :error && "bg-error text-error-content border-error"
     ]
   end
+
+  defp assign_area_shell(assigns) do
+    active_area = Map.get(assigns, :active_area) || active_area_from_state(Map.get(assigns, :area_state))
+    area_state = area_state(Map.get(assigns, :area_state), active_area, Map.get(assigns, :current_scope))
+
+    assigns
+    |> assign(:active_area, active_area)
+    |> assign(:area_state, area_state)
+    |> assign(:area_navigation_items, Areas.navigation_items())
+    |> assign(:shell_title, Map.get(assigns, :title) || shell_title(area_state))
+    |> assign(:shell_subtitle, Map.get(assigns, :subtitle) || shell_subtitle(area_state))
+  end
+
+  defp active_area_from_state(%{active_area: active_area}) when is_atom(active_area), do: active_area
+  defp active_area_from_state(_state), do: nil
+
+  defp area_state(%{} = area_state, _active_area, _current_scope), do: area_state
+
+  defp area_state(_area_state, active_area, current_scope) when is_atom(active_area) do
+    Areas.shell_state(active_area, current_scope: current_scope, connection_status: :connected)
+  end
+
+  defp area_state(_area_state, _active_area, _current_scope), do: nil
+
+  defp shell_title(%{label: label}) when is_binary(label), do: label
+  defp shell_title(_area_state), do: "Jido Code"
+
+  defp shell_subtitle(%{summary: summary}) when is_binary(summary), do: summary
+  defp shell_subtitle(_area_state), do: "Public bootstrap and setup"
+
+  defp status_label(status) when is_atom(status), do: status |> Atom.to_string() |> String.replace("_", " ")
+  defp status_label(status) when is_binary(status), do: String.replace(status, "_", " ")
+  defp status_label(status), do: to_string(status)
+
+  defp scope_label(%{user_email: email}) when is_binary(email), do: email
+  defp scope_label(%{email: email}) when is_binary(email), do: email
+  defp scope_label(%{user_id: user_id}) when is_binary(user_id), do: user_id
+  defp scope_label(_current_scope), do: "Session"
 end

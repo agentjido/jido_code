@@ -50,22 +50,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 99.1.2.2 Subtask - Route `/`, `/dashboard`, `/repos`, `/workbench`, `/workflows`, `/agents`, `/settings`, and selected detail paths through the new shell contract.
       [x] 99.1.2.3 Subtask - Preserve authenticated and public route gates while removing old global navigation assumptions.
 
-  [ ] 99.2 Section - Layout And Button Menu Replacement
+  [x] 99.2 Section - Layout And Button Menu Replacement
     Replace the current header, global nav, and subject-tree shell with the new external shell.
 
-    [ ] 99.2.1 Task - Rewrite `Layouts.app` for the new shell.
+    [x] 99.2.1 Task - Rewrite `Layouts.app` for the new shell.
       Make the ariston-style app layout the only authenticated product layout.
 
-      [ ] 99.2.1.1 Subtask - Add title, subtitle, action slot, theme toggle, and area-state assigns.
-      [ ] 99.2.1.2 Subtask - Render a top button menu from `JidoCodeWeb.Areas.navigation_items/0` with active state and accessible `aria-current`.
-      [ ] 99.2.1.3 Subtask - Render an area status strip for runtime readiness, current repo/work context, warnings, degraded frontend delivery, and operator scope.
+      [x] 99.2.1.1 Subtask - Add title, subtitle, action slot, theme toggle, and area-state assigns.
+      [x] 99.2.1.2 Subtask - Render a top button menu from `JidoCodeWeb.Areas.navigation_items/0` with active state and accessible `aria-current`.
+      [x] 99.2.1.3 Subtask - Render an area status strip for runtime readiness, current repo/work context, warnings, degraded frontend delivery, and operator scope.
 
-    [ ] 99.2.2 Task - Remove old signed-in navigation helpers.
+    [x] 99.2.2 Task - Remove old signed-in navigation helpers.
       Delete the previous navigation system once the new shell owns the chrome.
 
-      [ ] 99.2.2.1 Subtask - Remove or rewrite `JidoCodeWeb.OperatorNavigation`.
-      [ ] 99.2.2.2 Subtask - Remove or rewrite `OperatorShellComponents` and any subject-tree-only helpers.
-      [ ] 99.2.2.3 Subtask - Update all LiveViews to pass `active_area` and `area_state` instead of `operator_navigation`.
+      [x] 99.2.2.1 Subtask - Remove or rewrite `JidoCodeWeb.OperatorNavigation`.
+      [x] 99.2.2.2 Subtask - Remove or rewrite `OperatorShellComponents` and any subject-tree-only helpers.
+      [x] 99.2.2.3 Subtask - Update all LiveViews to pass `active_area` and `area_state` instead of `operator_navigation`.
 
   [ ] 99.3 Section - Root Area Content Skeletons
     Introduce simple area panels before rebuilding full product workflows.

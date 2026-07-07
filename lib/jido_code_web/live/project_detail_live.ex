@@ -448,7 +448,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:repositories}
     >
       <section class="space-y-2">
         <h1 id="project-detail-title" class="text-2xl font-bold">Managed repo detail</h1>

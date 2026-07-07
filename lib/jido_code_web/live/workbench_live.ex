@@ -265,7 +265,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:workbench}
     >
       <.single_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
         <section class="space-y-4">

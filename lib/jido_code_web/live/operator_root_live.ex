@@ -36,7 +36,8 @@ defmodule JidoCodeWeb.OperatorRootLive do
     <Layouts.app
       flash={@flash}
       current_scope={@shell_state.current_scope}
-      operator_navigation={legacy_navigation(@active_area)}
+      active_area={@active_area}
+      area_state={@shell_state}
     >
       <section
         id="operator-root-shell"
@@ -94,28 +95,5 @@ defmodule JidoCodeWeb.OperatorRootLive do
       %{email: email} -> %{user_email: to_string(email)}
       _other -> %{}
     end
-  end
-
-  defp legacy_navigation(active_area) do
-    active_area_metadata = Areas.area_metadata!(active_area)
-
-    %{
-      id: "operator-global-nav",
-      label: "Signed-in product navigation",
-      route_badge: "Product area",
-      route_label: active_area_metadata.label,
-      major_destinations:
-        Enum.map(Areas.navigation_items(), fn item ->
-          %{
-            id: item.area,
-            dom_id: "operator-global-nav-#{item.id}",
-            label: item.label,
-            summary: item.summary,
-            navigate: item.path,
-            selected?: item.area == active_area
-          }
-        end),
-      context_links: []
-    }
   end
 end

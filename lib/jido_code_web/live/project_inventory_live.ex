@@ -59,7 +59,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:repositories}
     >
       <.single_pane_shell
         id="project-inventory-shell"

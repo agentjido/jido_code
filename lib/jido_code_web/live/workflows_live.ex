@@ -80,7 +80,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:workflows}
     >
       <.single_pane_shell id="workflows-shell" breadcrumbs={workflows_breadcrumbs()} pane={workflows_pane()}>
         <section

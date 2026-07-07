@@ -235,7 +235,7 @@ defmodule JidoCodeWeb.DashboardLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:dashboard}
     >
       <div
         id="dashboard-root"

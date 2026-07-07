@@ -107,7 +107,7 @@ defmodule JidoCodeWeb.AreasTest do
 
     replacements = Areas.legacy_replacement_targets()
 
-    assert %{id: :operator_navigation, module: JidoCodeWeb.OperatorNavigation, replacement: :area_menu} in replacements
+    assert %{id: :operator_navigation, module: nil, replacement: :area_menu} in replacements
 
     assert %{id: :daisyui_theme, module: nil, replacement: :shadcn_tokens} in replacements
   end

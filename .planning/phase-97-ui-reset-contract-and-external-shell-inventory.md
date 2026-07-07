@@ -51,22 +51,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 97.1.2.2 Subtask - Define how authenticated scope, runtime readiness, warnings, and repo context appear in the shell status strip.
       [x] 97.1.2.3 Subtask - Declare the previous subject-tree shell, dashboard concern tabs, and bespoke signed-in navigation helpers as replacement targets.
 
-  [ ] 97.2 Section - Current UI Deletion Inventory
+  [x] 97.2 Section - Current UI Deletion Inventory
     Inventory every current UI file and CSS dependency that must be replaced so DaisyUI and legacy shell assumptions do not survive by accident.
 
-    [ ] 97.2.1 Task - Inventory LiveView and HEEx UI surfaces.
+    [x] 97.2.1 Task - Inventory LiveView and HEEx UI surfaces.
       Identify the server-rendered surfaces that need either full deletion or rewrite under the new shell.
 
-      [ ] 97.2.1.1 Subtask - Classify each `lib/jido_code_web/live/*_live.ex` route as root area, detail route, setup/public route, or deletion target.
-      [ ] 97.2.1.2 Subtask - Classify `components/layouts.ex`, `operator_shell_components.ex`, `operator_state_components.ex`, `managed_repo_inventory_components.ex`, conversation components, memory components, and core components as keep, rewrite, or delete.
-      [ ] 97.2.1.3 Subtask - Record stable product behaviors that must survive even when their current UI markup is discarded.
+      [x] 97.2.1.1 Subtask - Classify each `lib/jido_code_web/live/*_live.ex` route as root area, detail route, setup/public route, or deletion target.
+      [x] 97.2.1.2 Subtask - Classify `components/layouts.ex`, `operator_shell_components.ex`, `operator_state_components.ex`, `managed_repo_inventory_components.ex`, conversation components, memory components, and core components as keep, rewrite, or delete.
+      [x] 97.2.1.3 Subtask - Record stable product behaviors that must survive even when their current UI markup is discarded.
 
-    [ ] 97.2.2 Task - Inventory Vue widgets and browser assets.
+    [x] 97.2.2 Task - Inventory Vue widgets and browser assets.
       Decide which current LiveVue components should be rewritten against shadcn-vue primitives and which should be removed.
 
-      [ ] 97.2.2.1 Subtask - Classify every `lib/jido_code_web/live/*.vue` component as retained island, rewritten island, or deletion target.
-      [ ] 97.2.2.2 Subtask - Identify all DaisyUI class usage in Vue, HEEx, CSS, tests, and helpers.
-      [ ] 97.2.2.3 Subtask - Identify asset entrypoints, Vite config, SSR entrypoints, and test helpers that need to adopt the explicit island registry pattern from ariston-webui.
+      [x] 97.2.2.1 Subtask - Classify every `lib/jido_code_web/live/*.vue` component as retained island, rewritten island, or deletion target.
+      [x] 97.2.2.2 Subtask - Identify all DaisyUI class usage in Vue, HEEx, CSS, tests, and helpers.
+      [x] 97.2.2.3 Subtask - Identify asset entrypoints, Vite config, SSR entrypoints, and test helpers that need to adopt the explicit island registry pattern from ariston-webui.
 
   [ ] 97.3 Section - Deletion Policy And Migration Order
     Set the greenfield rule that old UI is removed once the replacement path exists instead of retaining mixed shells.

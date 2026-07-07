@@ -273,8 +273,9 @@ defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
     assert has_element?(view, "#operator-app-shell[data-active-area='#{area_id}']")
     assert has_element?(view, "#operator-shell-title", label)
     assert has_element?(view, "#operator-shell-subtitle", subtitle)
+    assert has_element?(view, "#operator-area-menu[aria-label='Product areas']")
     assert has_element?(view, "#operator-area-menu-#{area_id}[aria-current='page']")
-    assert has_element?(view, "#operator-status-strip")
+    assert has_element?(view, "#operator-status-strip[role='status'][aria-live='polite']")
     assert has_element?(view, "#operator-status-area", "Area: #{label}")
     assert has_element?(view, "#operator-status-connection", "Connection: connected")
   end

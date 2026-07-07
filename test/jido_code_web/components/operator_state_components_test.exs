@@ -51,6 +51,9 @@ defmodule JidoCodeWeb.OperatorStateComponentsTest do
       })
 
     assert html =~ ~s(id="operator-state-label")
+    assert html =~ ~s(role="status")
+    assert html =~ ~s(aria-live="polite")
+    assert html =~ ~s(aria-label="Shared operator state")
     assert html =~ "Shared operator state"
     assert html =~ ~s(id="operator-state-type")
     assert html =~ "Typed warning: stale_feed"
@@ -72,6 +75,7 @@ defmodule JidoCodeWeb.OperatorStateComponentsTest do
       })
 
     assert html =~ ~s(id="operator-state")
+    assert html =~ ~s(role="status")
     assert html =~ ~s(id="custom-operator-state-label")
     assert html =~ ~s(id="custom-operator-state-type")
     assert html =~ ~s(id="custom-operator-state-detail")

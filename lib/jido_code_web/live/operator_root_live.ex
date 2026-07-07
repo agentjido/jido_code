@@ -49,18 +49,18 @@ defmodule JidoCodeWeb.OperatorRootLive do
       >
         <div
           id={"operator-root-#{@area.id}"}
-          class="rounded-lg border border-base-300 bg-base-100 p-5"
+          class="rounded-lg border border-border bg-card p-5"
         >
           <p
             id="operator-root-route-label"
-            class="text-xs font-semibold uppercase tracking-[0.18em] text-base-content/55"
+            class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
           >
             {@area.label}
           </p>
-          <h1 id="operator-root-title" class="mt-2 text-2xl font-semibold text-base-content">
+          <h1 id="operator-root-title" class="mt-2 text-2xl font-semibold text-foreground">
             {@area.label}
           </h1>
-          <p id="operator-root-summary" class="mt-2 max-w-3xl text-sm text-base-content/70">
+          <p id="operator-root-summary" class="mt-2 max-w-3xl text-sm text-muted-foreground">
             {@area.summary}
           </p>
         </div>
@@ -76,14 +76,14 @@ defmodule JidoCodeWeb.OperatorRootLive do
             navigate={item.path}
             aria-current={if item.area == @active_area, do: "page", else: nil}
             class={[
-              "rounded-lg border px-3 py-2 text-sm transition-colors",
-              item.area == @active_area && "border-primary/60 bg-primary text-primary-content",
+              "min-w-0 rounded-lg border px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              item.area == @active_area && "border-primary/60 bg-primary text-primary-foreground",
               item.area != @active_area &&
-                "border-base-300 bg-base-100 text-base-content hover:border-primary/40"
+                "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted"
             ]}
           >
-            <span class="block font-semibold">{item.label}</span>
-            <span class="mt-1 block text-xs opacity-80">{item.summary}</span>
+            <span class="block truncate font-semibold">{item.label}</span>
+            <span class="mt-1 block truncate text-xs opacity-80">{item.summary}</span>
           </.link>
         </nav>
       </section>

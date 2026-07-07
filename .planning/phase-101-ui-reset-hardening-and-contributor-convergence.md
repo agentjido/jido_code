@@ -33,22 +33,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 101 Phase 101 - UI Reset Hardening And Contributor Convergence
   Harden the replacement UI as the durable default and update docs, tests, and quality gates so contributors do not recreate the old stack.
 
-  [ ] 101.1 Section - Resilience, Accessibility, And Browser Hardening
+  [x] 101.1 Section - Resilience, Accessibility, And Browser Hardening
     Verify the new shell and islands behave across realistic browser states and degraded delivery.
 
-    [ ] 101.1.1 Task - Harden responsive and accessible shell behavior.
+    [x] 101.1.1 Task - Harden responsive and accessible shell behavior.
       Make the new button-menu shell work for keyboard, screen-reader, mobile, and desktop users.
 
-      [ ] 101.1.1.1 Subtask - Add accessibility labels, `aria-current`, focus states, landmarks, and status-strip live regions across the root shell.
-      [ ] 101.1.1.2 Subtask - Verify button-menu wrapping, area content stacking, and detail-route layout on mobile and desktop breakpoints.
-      [ ] 101.1.1.3 Subtask - Ensure text does not overflow buttons, status badges, tables, or shell panels under long repo, work item, and provider names.
+      [x] 101.1.1.1 Subtask - Add accessibility labels, `aria-current`, focus states, landmarks, and status-strip live regions across the root shell.
+      [x] 101.1.1.2 Subtask - Verify button-menu wrapping, area content stacking, and detail-route layout on mobile and desktop breakpoints.
+      [x] 101.1.1.3 Subtask - Ensure text does not overflow buttons, status badges, tables, or shell panels under long repo, work item, and provider names.
 
-    [ ] 101.1.2 Task - Harden LiveVue degradation paths.
+    [x] 101.1.2 Task - Harden LiveVue degradation paths.
       Keep operator workflows legible when richer browser regions fail.
 
-      [ ] 101.1.2.1 Subtask - Verify SSR-disabled, SSR-failed, manifest-missing, and client-asset-failed modes produce product-oriented fallback content.
-      [ ] 101.1.2.2 Subtask - Ensure server-owned core actions remain reachable when optional Vue islands degrade.
-      [ ] 101.1.2.3 Subtask - Surface frontend degradation evidence through shell status or bounded panel messaging instead of raw Vite or SSR errors.
+      [x] 101.1.2.1 Subtask - Verify SSR-disabled, SSR-failed, manifest-missing, and client-asset-failed modes produce product-oriented fallback content.
+      [x] 101.1.2.2 Subtask - Ensure server-owned core actions remain reachable when optional Vue islands degrade.
+      [x] 101.1.2.3 Subtask - Surface frontend degradation evidence through shell status or bounded panel messaging instead of raw Vite or SSR errors.
 
   [ ] 101.2 Section - Documentation And Contributor Guidance
     Replace old frontend guidance with the final UI reset architecture.

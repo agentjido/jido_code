@@ -130,23 +130,23 @@ defmodule JidoCodeWeb.Layouts do
     <nav
       id="operator-area-menu"
       aria-label="Product areas"
-      class="rounded-lg border border-border bg-card p-1"
+      class="max-w-full rounded-lg border border-border bg-card p-1"
     >
-      <div class="flex flex-wrap gap-1">
+      <div class="flex min-w-0 flex-wrap gap-1">
         <.link
           :for={item <- @items}
           id={"operator-area-menu-#{item.id}"}
           navigate={item.path}
           aria-current={if item.area == @active_area, do: "page", else: nil}
           class={[
-            "inline-flex min-h-10 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "inline-flex max-w-full min-h-10 min-w-0 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
             item.area == @active_area &&
               "border-primary bg-primary text-primary-foreground shadow-sm",
             item.area != @active_area &&
               "border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
           ]}
         >
-          {item.label}
+          <span class="truncate">{item.label}</span>
         </.link>
       </div>
     </nav>
@@ -160,26 +160,29 @@ defmodule JidoCodeWeb.Layouts do
     ~H"""
     <div
       id="operator-status-strip"
-      class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+      role="status"
+      aria-live="polite"
+      aria-label="Operator shell status"
+      class="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground"
     >
-      <span id="operator-status-area" class="ui-badge ui-badge-outline">
-        Area: {@area_state.label}
+      <span id="operator-status-area" class="ui-badge ui-badge-outline max-w-full min-w-0">
+        <span class="truncate">Area: {@area_state.label}</span>
       </span>
-      <span id="operator-status-auth" class="ui-badge ui-badge-outline">
-        Operator: {scope_label(@current_scope)}
+      <span id="operator-status-auth" class="ui-badge ui-badge-outline max-w-full min-w-0">
+        <span class="truncate">Operator: {scope_label(@current_scope)}</span>
       </span>
-      <span id="operator-status-connection" class="ui-badge ui-badge-outline">
-        Connection: {status_label(@area_state.connection_status)}
+      <span id="operator-status-connection" class="ui-badge ui-badge-outline max-w-full min-w-0">
+        <span class="truncate">Connection: {status_label(@area_state.connection_status)}</span>
       </span>
-      <span id="operator-status-runtime" class="ui-badge ui-badge-outline">
-        Runtime: {status_label(@area_state.runtime_status)}
+      <span id="operator-status-runtime" class="ui-badge ui-badge-outline max-w-full min-w-0">
+        <span class="truncate">Runtime: {status_label(@area_state.runtime_status)}</span>
       </span>
       <span
         :for={{warning, index} <- Enum.with_index(@area_state.warnings)}
         id={"operator-status-warning-#{index}"}
-        class="ui-badge ui-badge-warning"
+        class="ui-badge ui-badge-warning max-w-full min-w-0"
       >
-        {warning}
+        <span class="truncate">{warning}</span>
       </span>
     </div>
     """
@@ -201,9 +204,9 @@ defmodule JidoCodeWeb.Layouts do
             <.link
               id={@panel.primary_action.id}
               navigate={@panel.primary_action.path}
-              class="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              class="inline-flex max-w-full min-h-10 min-w-0 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              {@panel.primary_action.label}
+              <span class="truncate">{@panel.primary_action.label}</span>
             </.link>
           </div>
         </UI.card_header>
@@ -242,9 +245,9 @@ defmodule JidoCodeWeb.Layouts do
               :for={handoff <- @panel.handoffs}
               id={"area-overview-handoff-#{handoff.id}"}
               navigate={handoff.path}
-              class="inline-flex min-h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              class="inline-flex max-w-full min-h-8 min-w-0 items-center rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              {handoff.label}
+              <span class="truncate">{handoff.label}</span>
             </.link>
           </div>
         </UI.card_footer>
@@ -272,7 +275,7 @@ defmodule JidoCodeWeb.Layouts do
 
   def onboarding(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 flex flex-col items-center justify-center px-4">
+    <div class="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-foreground">
       <div class="mb-8 text-center">
         <h1 class="text-2xl font-bold tracking-[0.12em] uppercase opacity-80">Jido Code</h1>
       </div>
@@ -298,11 +301,15 @@ defmodule JidoCodeWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="relative flex items-center rounded-md border border-border bg-muted p-1">
+    <div
+      role="group"
+      aria-label="Theme preference"
+      class="relative flex items-center rounded-md border border-border bg-muted p-1"
+    >
       <div class="absolute left-1 top-1 h-[calc(100%-0.5rem)] w-1/3 rounded-sm border border-border bg-background transition-[left] duration-300 [[data-theme-mode=light]_&]:left-1/3 [[data-theme-mode=dark]_&]:left-2/3" />
 
       <button
-        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground"
+        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
         aria-label="Use system theme"
@@ -312,7 +319,7 @@ defmodule JidoCodeWeb.Layouts do
       </button>
 
       <button
-        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground"
+        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
         aria-label="Use light theme"
@@ -322,7 +329,7 @@ defmodule JidoCodeWeb.Layouts do
       </button>
 
       <button
-        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground"
+        class="relative z-10 flex w-9 items-center justify-center rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
         aria-label="Use dark theme"

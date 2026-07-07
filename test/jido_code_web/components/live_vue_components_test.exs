@@ -53,7 +53,15 @@ defmodule JidoCodeWeb.LiveVueComponentsTest do
     assert html =~ "Interactive summary temporarily unavailable"
     assert html =~ "server-rendered fallback mode"
     assert html =~ "Fallback mode reason: Asset manifest unavailable"
+    assert html =~ ~s(role="status")
+    assert html =~ ~s(aria-live="polite")
+    assert html =~ ~s(aria-label="BoundaryProbe compatibility notice")
+    assert html =~ ~s(data-vue-surface-component="BoundaryProbe")
+    assert html =~ ~s(data-vue-surface-delivery="fallback")
+    assert html =~ ~s(data-vue-surface-reason="asset_manifest_unavailable")
     refute html =~ ~s(phx-hook="VueHook")
+    refute html =~ "Vite"
+    refute html =~ "SSR"
   end
 
   test "vue_surface keeps rendering in client-only mode when SSR is degraded" do

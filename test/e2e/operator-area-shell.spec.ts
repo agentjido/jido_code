@@ -61,7 +61,10 @@ async function expectNoHorizontalOverflow(page: Page, selector: string) {
 
 async function expectAreaShell(page: Page, areaId: string, label: string) {
   await expect(page.locator("#operator-app-shell")).toHaveAttribute("data-active-area", areaId)
+  await expect(page.locator("#operator-area-menu")).toHaveAttribute("aria-label", "Product areas")
   await expect(page.locator(`#operator-area-menu-${areaId}`)).toHaveAttribute("aria-current", "page")
+  await expect(page.locator("#operator-status-strip")).toHaveAttribute("role", "status")
+  await expect(page.locator("#operator-status-strip")).toHaveAttribute("aria-live", "polite")
   await expect(page.locator("#operator-shell-title")).toContainText(label)
   await expect(page.locator("#operator-status-area")).toContainText(`Area: ${label}`)
 }

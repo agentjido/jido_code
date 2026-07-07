@@ -46,7 +46,7 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     refute has_element?(view, "#dashboard-run-summaries")
 
     view
-    |> element("#dashboard-shell-parent-subjects-knowledge")
+    |> element("#dashboard-shell-section-groups-knowledge")
     |> render_click()
 
     assert_patch(view, "/dashboard?onboarding=completed&section=memory&subject=knowledge")
@@ -55,7 +55,7 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     refute has_element?(view, "#dashboard-conversation-supervision")
 
     view
-    |> element("#dashboard-shell-parent-subjects-runtime")
+    |> element("#dashboard-shell-section-groups-runtime")
     |> render_click()
 
     assert_patch(view, "/dashboard?onboarding=completed&section=runtime&subject=runtime")
@@ -64,7 +64,7 @@ defmodule JidoCodeWeb.PhaseSixtyFiveIntegrationTest do
     refute has_element?(view, "#dashboard-memory-summaries")
 
     view
-    |> element("#dashboard-shell-parent-subjects-work")
+    |> element("#dashboard-shell-section-groups-work")
     |> render_click()
 
     assert_patch(view, "/dashboard?onboarding=completed&section=overview&subject=work")

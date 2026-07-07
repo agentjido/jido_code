@@ -65,6 +65,7 @@ defmodule JidoCodeWeb.LiveVueComponents do
       assigns =
         assigns
         |> assign(:delivery, delivery)
+        |> assign(:component, component)
         |> assign(:fallback_title, assigns.fallback_title || delivery.title)
         |> assign(:fallback_detail, assigns.fallback_detail || delivery.detail)
         |> assign(:fallback_id, fallback_id(assigns.id, component))
@@ -72,14 +73,20 @@ defmodule JidoCodeWeb.LiveVueComponents do
       ~H"""
       <section
         id={@fallback_id}
+        role="status"
+        aria-live="polite"
+        aria-label={"#{@component} compatibility notice"}
+        data-vue-surface-component={@component}
+        data-vue-surface-delivery={@delivery.mode}
+        data-vue-surface-reason={@delivery.reason}
         class={[
-          "rounded-lg border border-warning/50 bg-warning/10 p-4 space-y-2",
+          "rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4 space-y-2",
           @class
         ]}
       >
-        <p class="font-semibold">{@fallback_title}</p>
-        <p class="text-sm text-base-content/80">{@fallback_detail}</p>
-        <p :if={@delivery.reason} class="text-xs text-base-content/70">
+        <p class="font-semibold text-foreground">{@fallback_title}</p>
+        <p class="text-sm text-muted-foreground">{@fallback_detail}</p>
+        <p :if={@delivery.reason} class="text-xs text-muted-foreground">
           Fallback mode reason: {humanize_reason(@delivery.reason)}
         </p>
         {render_slot(@inner_block)}

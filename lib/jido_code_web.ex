@@ -97,10 +97,11 @@ defmodule JidoCodeWeb do
       import JidoCodeWeb.LiveVueComponents
       import JidoCodeWeb.MemorySurfaceComponents
       import JidoCodeWeb.OperatorStateComponents
-      import JidoCodeWeb.OperatorShellComponents
+      import JidoCodeWeb.RouteShellComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
+      alias JidoCodeWeb.Components.UI
       alias JidoCodeWeb.Layouts
 
       # Routes generation with the ~p sigil

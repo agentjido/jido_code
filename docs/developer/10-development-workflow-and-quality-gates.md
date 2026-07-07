@@ -40,8 +40,9 @@ before editing:
 | --- | --- |
 | `mix test` | run test suite and provision test DB |
 | `mix q` | fast quality gate |
-| `mix quality` | broader local verification including frontend and semantic checks |
-| `mix frontend.verify` | verify LiveVue and Vite browser pipeline |
+| `mix quality` | broader local verification including frontend checks, Doctor, and Dialyzer debt surfacing |
+| `mix frontend.verify` | verify LiveVue, Vite, SSR, generated Vue primitives, explicit island registry, and UI reset guardrails |
+| `mix ui_reset.verify` | run focused no-DaisyUI, area shell, explicit-registry, SaladUI/shadcn-vue boundary, and fallback checks |
 | `mix source_graph.verify` | verify semantic source-code graph stack |
 | `mix memory.verify` | verify memory graph and capture-plane behavior |
 | `mix control_plane.verify` | verify embedded control-plane ontology load, codecs, store contract, integrity, recovery, guardrails, and product smoke |
@@ -62,7 +63,8 @@ before editing:
 
 Run the narrower verification commands when you touch those boundaries:
 
-- browser stack or `live_vue` changes -> `mix frontend.verify`
+- browser stack, `live_vue`, generated Vue primitives, explicit island registry, Vite, or SSR changes -> `mix frontend.verify`
+- area shell, SaladUI wrapper, shadcn-vue island, no-DaisyUI, old-shell deletion, or UI reset documentation changes -> `mix ui_reset.verify`
 - embedded control-plane store, codecs, graph topology, product record stores,
   recovery tooling, or persistence guardrails -> `mix control_plane.verify`
 - source graph boundaries -> `mix source_graph.verify`
@@ -173,6 +175,12 @@ pretending the local state is durable.
 - prefer one module per file
 - use `Req` for HTTP work
 - do not add a parallel React frontend
+- do not reintroduce DaisyUI dependencies, DaisyUI component classes, broad Vue
+  auto-registration, or the old subject-tree shell
+- keep the area button menu shell in LiveView through `JidoCodeWeb.Areas`,
+  `JidoCodeWeb.Layouts`, and route-owned active area state
+- keep SaladUI behind `JidoCodeWeb.Components.UI` and shadcn-vue primitives
+  inside bounded LiveVue islands
 - keep semantic and memory behavior bounded and explicit
 - use `JidoCode.Conversations.ContextMemory` for short-term prompt help, not as
   transcript storage or durable repository memory

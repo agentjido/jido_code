@@ -23,6 +23,14 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import { getHooks } from "live_vue";
 import liveVueApp from "../vue";
+import SaladUI from "salad_ui";
+import "salad_ui/components/collapsible";
+import "salad_ui/components/command";
+import "salad_ui/components/dialog";
+import "salad_ui/components/popover";
+import "salad_ui/components/select";
+import "salad_ui/components/tabs";
+import "salad_ui/components/tooltip";
 import topbar from "topbar";
 import { createLiveToastHook } from "../../deps/live_toast/priv/static/live_toast.esm.js";
 
@@ -37,6 +45,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   },
   hooks: {
     LiveToast: createLiveToastHook(),
+    SaladUI: SaladUI.SaladUIHook,
     ...getHooks(liveVueApp),
   },
 });

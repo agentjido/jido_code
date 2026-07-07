@@ -33,14 +33,14 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
         </span>
         <p
           id={"#{@dom_prefix}-semantic-hint-detail-#{@row.id}"}
-          class="text-[11px] text-base-content/65"
+          class="text-[11px] text-muted-foreground"
         >
           {InventorySurface.semantic_graph_hint(@row).detail}
         </p>
         <.link
           :if={InventorySurface.semantic_graph_hint_recovery_path(@row, @detail_path)}
           id={"#{@dom_prefix}-semantic-hint-recovery-#{@row.id}"}
-          class="link link-primary text-[11px]"
+          class="text-primary underline-offset-4 hover:underline text-[11px]"
           href={InventorySurface.semantic_graph_hint_recovery_path(@row, @detail_path)}
         >
           {InventorySurface.semantic_graph_hint(@row).remediation}
@@ -60,14 +60,14 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
         </span>
         <p
           id={"#{@dom_prefix}-memory-hint-detail-#{@row.id}"}
-          class="text-[11px] text-base-content/65"
+          class="text-[11px] text-muted-foreground"
         >
           {InventorySurface.memory_graph_hint(@row).detail}
         </p>
         <.link
           :if={InventorySurface.memory_graph_hint_recovery_path(@row, @detail_path)}
           id={"#{@dom_prefix}-memory-hint-recovery-#{@row.id}"}
-          class="link link-primary text-[11px]"
+          class="text-primary underline-offset-4 hover:underline text-[11px]"
           href={InventorySurface.memory_graph_hint_recovery_path(@row, @detail_path)}
         >
           {InventorySurface.memory_graph_hint(@row).remediation}
@@ -94,28 +94,28 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
           <span
             :if={InventorySurface.conversation_supervision_active_count(@row) > 0}
             id={"#{@dom_prefix}-conversation-hint-badge-#{@row.id}"}
-            class="badge badge-sm badge-primary badge-outline font-medium"
+            class="ui-badge ui-badge-sm ui-badge-primary font-medium"
           >
             {InventorySurface.conversation_supervision_active_count_label(@row)}
           </span>
           <span
             :if={InventorySurface.conversation_supervision_clarification_count(@row) > 0}
             id={"#{@dom_prefix}-conversation-clarification-#{@row.id}"}
-            class="badge badge-sm badge-warning badge-outline font-medium"
+            class="ui-badge ui-badge-sm ui-badge-warning font-medium"
           >
             {InventorySurface.conversation_supervision_clarification_count_label(@row)}
           </span>
         </div>
         <p
           id={"#{@dom_prefix}-conversation-hint-detail-#{@row.id}"}
-          class="text-[11px] text-base-content/65"
+          class="text-[11px] text-muted-foreground"
         >
           {InventorySurface.conversation_supervision_detail(@row)}
         </p>
         <p
           :if={InventorySurface.conversation_supervision_work_item(@row)}
           id={"#{@dom_prefix}-conversation-work-item-#{@row.id}"}
-          class="text-[11px] text-base-content/70"
+          class="text-[11px] text-muted-foreground"
         >
           Latest governed work: {InventorySurface.conversation_supervision_work_item(@row).summary} ( {conversation_status_label(
             InventorySurface.conversation_supervision_work_item(@row).status
@@ -124,7 +124,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
         <.link
           :if={is_binary(@detail_path)}
           id={"#{@dom_prefix}-conversation-link-#{@row.id}"}
-          class="link link-primary text-[11px]"
+          class="text-primary underline-offset-4 hover:underline text-[11px]"
           href={@detail_path}
         >
           {InventorySurface.conversation_supervision_action_label(@row)}
@@ -138,20 +138,20 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
       >
         <span
           id={"#{@dom_prefix}-conversation-notice-label-#{@row.id}"}
-          class="badge badge-warning badge-outline"
+          class="ui-badge ui-badge-warning"
         >
           Conversation state unavailable
         </span>
         <p
           id={"#{@dom_prefix}-conversation-notice-detail-#{@row.id}"}
-          class="text-[11px] text-base-content/65"
+          class="text-[11px] text-muted-foreground"
         >
           {InventorySurface.conversation_supervision_notice(@row).detail}
         </p>
         <.link
           :if={is_binary(@detail_path)}
           id={"#{@dom_prefix}-conversation-notice-link-#{@row.id}"}
-          class="link link-primary text-[11px]"
+          class="text-primary underline-offset-4 hover:underline text-[11px]"
           href={@detail_path}
         >
           Open repo detail
@@ -180,7 +180,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
 
     ~H"""
     <div id={"#{@dom_prefix}-links-#{@row.id}"}>
-      <p class="font-medium text-base-content/80">{@heading}</p>
+      <p class="font-medium text-foreground">{@heading}</p>
       <div class="flex flex-col gap-0.5">
         <.inventory_row_link
           link_id={"#{@dom_prefix}-github-link-#{@row.id}"}
@@ -209,7 +209,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
             <button
               id={"#{@dom_prefix}-triage-action-#{@row.id}"}
               type="button"
-              class="btn btn-xs btn-outline btn-accent w-fit mt-1"
+              class="mt-1 w-fit ui-button ui-button-xs ui-button-outline"
               phx-click="kickoff_issue_triage_workflow"
               phx-value-project_id={@row.id}
               phx-value-context_item_type="issue"
@@ -232,7 +232,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
         <button
           id={"#{@dom_prefix}-fix-action-#{@row.id}"}
           type="button"
-          class="btn btn-xs btn-outline btn-primary w-fit mt-1"
+          class="mt-1 w-fit ui-button ui-button-xs ui-button-primary"
           phx-click="kickoff_fix_workflow"
           phx-value-project_id={@row.id}
           phx-value-context_item_type={@context_item_type}
@@ -257,30 +257,30 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
     <section :if={@feedback} id={"#{@dom_prefix}-feedback"} class="space-y-1 pt-1">
       <%= case @feedback.status do %>
         <% :ok -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-success">
+          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-accent-green">
             {kickoff_success_status(@feedback)}
           </p>
-          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-success">
+          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-accent-green">
             Run: <span class="font-mono">{@feedback.run.run_id}</span>
           </p>
           <.link
             id={"#{@dom_prefix}-run-link"}
-            class="link link-primary text-[11px]"
+            class="text-primary underline-offset-4 hover:underline text-[11px]"
             href={@feedback.run.detail_path}
           >
             Open run detail
           </.link>
         <% :error -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-error">
+          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-destructive">
             {kickoff_error_status(@feedback)}
           </p>
-          <p id={"#{@dom_prefix}-error-type"} class="text-[11px] text-error">
+          <p id={"#{@dom_prefix}-error-type"} class="text-[11px] text-destructive">
             Typed kickoff error: {@feedback.error.error_type}
           </p>
-          <p id={"#{@dom_prefix}-error-detail"} class="text-[11px] text-error">
+          <p id={"#{@dom_prefix}-error-detail"} class="text-[11px] text-destructive">
             {@feedback.error.detail}
           </p>
-          <p id={"#{@dom_prefix}-error-remediation"} class="text-[11px] text-base-content/60">
+          <p id={"#{@dom_prefix}-error-remediation"} class="text-[11px] text-muted-foreground">
             {@feedback.error.remediation}
           </p>
       <% end %>
@@ -294,31 +294,31 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
   def inventory_recent_run_outcome(assigns) do
     ~H"""
     <section id={"#{@dom_prefix}-container"} class="space-y-1 pt-1">
-      <p id={"#{@dom_prefix}-label"} class="text-[11px] text-base-content/70">
+      <p id={"#{@dom_prefix}-label"} class="text-[11px] text-muted-foreground">
         Recent run outcome
       </p>
       <%= case @outcome do %>
         <% nil -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-base-content/60">
+          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-muted-foreground">
             No recent run.
           </p>
         <% %{status: "unknown"} = outcome -> %>
-          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-warning">
+          <p id={"#{@dom_prefix}-status"} class="text-[11px] text-accent-yellow">
             Recent run status: unknown
           </p>
-          <p :if={is_binary(outcome.error_type)} id={"#{@dom_prefix}-error-type"} class="text-[11px] text-warning">
+          <p :if={is_binary(outcome.error_type)} id={"#{@dom_prefix}-error-type"} class="text-[11px] text-accent-yellow">
             Typed run outcome warning: {outcome.error_type}
           </p>
-          <p :if={is_binary(outcome.detail)} id={"#{@dom_prefix}-detail"} class="text-[11px] text-warning">
+          <p :if={is_binary(outcome.detail)} id={"#{@dom_prefix}-detail"} class="text-[11px] text-accent-yellow">
             {outcome.detail}
           </p>
-          <p id={"#{@dom_prefix}-guidance"} class="text-[11px] text-base-content/60">
+          <p id={"#{@dom_prefix}-guidance"} class="text-[11px] text-muted-foreground">
             {outcome.guidance || "Refresh managed-repository inventory to resolve recent run status."}
           </p>
           <.link
             :if={is_binary(outcome.detail_path)}
             id={"#{@dom_prefix}-link"}
-            class="link link-primary text-[11px]"
+            class="text-primary underline-offset-4 hover:underline text-[11px]"
             href={outcome.detail_path}
           >
             Open run detail
@@ -329,12 +329,12 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
               {InventorySurface.run_outcome_status_label(outcome.status)}
             </span>
           </p>
-          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-base-content/70">
+          <p id={"#{@dom_prefix}-run-id"} class="text-[11px] text-muted-foreground">
             Run: <span class="font-mono">{outcome.run_id}</span>
           </p>
           <.link
             id={"#{@dom_prefix}-link"}
-            class="link link-primary text-[11px]"
+            class="text-primary underline-offset-4 hover:underline text-[11px]"
             href={outcome.detail_path}
           >
             Open run detail
@@ -352,19 +352,19 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
     <section :if={!@policy_state.enabled} id={"#{@dom_prefix}-feedback"} class="space-y-1 pt-1">
       <span
         id={@dom_prefix}
-        class="btn btn-xs btn-outline w-fit mt-1 cursor-not-allowed border-base-300 text-base-content/60"
+        class="mt-1 w-fit cursor-not-allowed ui-button ui-button-xs ui-button-outline text-muted-foreground"
         aria-disabled="true"
         title={@policy_state.detail}
       >
         Kick off issue triage workflow
       </span>
-      <p id={"#{@dom_prefix}-type"} class="text-[11px] text-warning">
+      <p id={"#{@dom_prefix}-type"} class="text-[11px] text-accent-yellow">
         Policy state: {@policy_state.error_type}
       </p>
-      <p id={"#{@dom_prefix}-reason"} class="text-[11px] text-warning">
+      <p id={"#{@dom_prefix}-reason"} class="text-[11px] text-accent-yellow">
         {@policy_state.detail}
       </p>
-      <p id={"#{@dom_prefix}-remediation"} class="text-[11px] text-base-content/60">
+      <p id={"#{@dom_prefix}-remediation"} class="text-[11px] text-muted-foreground">
         {@policy_state.remediation}
       </p>
     </section>
@@ -384,7 +384,7 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
     <%= if is_binary(@target) do %>
       <.link
         id={@link_id}
-        class="link link-primary"
+        class="text-primary underline-offset-4 hover:underline"
         href={@target}
         target={if @external, do: "_blank"}
         rel={if @external, do: "noopener noreferrer"}
@@ -394,13 +394,13 @@ defmodule JidoCodeWeb.ManagedRepoInventoryComponents do
     <% else %>
       <span
         id={@disabled_id}
-        class="text-base-content/50 cursor-not-allowed"
+        class="text-muted-foreground cursor-not-allowed"
         aria-disabled="true"
         title={@disabled_reason}
       >
         {@label}
       </span>
-      <p id={@reason_id} class="text-[11px] text-base-content/60">
+      <p id={@reason_id} class="text-[11px] text-muted-foreground">
         Unavailable: {@disabled_reason}
       </p>
     <% end %>

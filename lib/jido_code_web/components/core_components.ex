@@ -4,16 +4,9 @@ defmodule JidoCodeWeb.CoreComponents do
 
   At first glance, this module may seem daunting, but its goal is to provide
   core building blocks for your application, such as tables, forms, and
-  inputs. The components consist mostly of markup and are well-documented
-  with doc strings and declarative assigns. You may customize and style
-  them in any way you want, based on your application growth and needs.
-
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
-
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
+  inputs. The reset styling foundation is the app-owned shadcn-aligned token
+  layer in `assets/css/app.css`, with heavier primitives exposed through
+  `JidoCodeWeb.Components.UI`.
 
     * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
       we build on. You will use it for layout, sizing, flexbox, grid, and
@@ -42,15 +35,22 @@ defmodule JidoCodeWeb.CoreComponents do
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
   attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :variant, :string, values: ~w(primary secondary outline ghost destructive)
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{
+      "primary" => "ui-button ui-button-primary",
+      "secondary" => "ui-button ui-button-secondary",
+      "outline" => "ui-button ui-button-outline",
+      "ghost" => "ui-button ui-button-ghost",
+      "destructive" => "ui-button ui-button-destructive",
+      nil => "ui-button ui-button-primary"
+    }
 
     assigns =
       assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
+        [Map.fetch!(variants, assigns[:variant])]
       end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
@@ -155,8 +155,8 @@ defmodule JidoCodeWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
+    <div class="mb-2">
+      <label class="grid gap-1.5 text-sm font-medium text-foreground">
         <input
           type="hidden"
           name={@name}
@@ -164,14 +164,14 @@ defmodule JidoCodeWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
+        <span class="inline-flex items-center gap-2">
           <input
             type="checkbox"
             id={@id}
             name={@name}
             value="true"
             checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
+            class={@class || "ui-checkbox ui-checkbox-sm"}
             {@rest}
           />{@label}
         </span>
@@ -183,13 +183,13 @@ defmodule JidoCodeWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-2">
+      <label class="grid gap-1.5 text-sm font-medium text-foreground">
+        <span :if={@label}>{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[@class || "w-full ui-select", @errors != [] && (@error_class || "ui-select-error")]}
           multiple={@multiple}
           {@rest}
         >
@@ -204,15 +204,15 @@ defmodule JidoCodeWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-2">
+      <label class="grid gap-1.5 text-sm font-medium text-foreground">
+        <span :if={@label}>{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            @class || "w-full ui-textarea",
+            @errors != [] && (@error_class || "ui-textarea-error")
           ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
@@ -225,17 +225,17 @@ defmodule JidoCodeWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-2">
+      <label class="grid gap-1.5 text-sm font-medium text-foreground">
+        <span :if={@label}>{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            @class || "w-full ui-input",
+            @errors != [] && (@error_class || "ui-input-error")
           ]}
           {@rest}
         />
@@ -248,7 +248,7 @@ defmodule JidoCodeWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="mt-1.5 flex items-center gap-2 text-sm text-destructive">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -269,7 +269,7 @@ defmodule JidoCodeWeb.CoreComponents do
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-muted-foreground">
           {render_slot(@subtitle)}
         </p>
       </div>
@@ -310,25 +310,31 @@ defmodule JidoCodeWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
+    <table class="w-full caption-bottom text-sm">
       <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
+        <tr class="border-b border-border">
+          <th :for={col <- @col} class="h-11 px-3 text-left align-middle font-medium text-muted-foreground">
+            {col[:label]}
+          </th>
+          <th :if={@action != []} class="h-11 px-3 text-left align-middle font-medium text-muted-foreground">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
       </thead>
       <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
+        <tr
+          :for={row <- @rows}
+          id={@row_id && @row_id.(row)}
+          class="border-b border-border transition-colors hover:bg-muted/40"
+        >
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
+            class={["px-3 py-3 align-middle", @row_click && "hover:cursor-pointer"]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 font-semibold">
+          <td :if={@action != []} class="w-0 px-3 py-3 align-middle font-semibold">
             <div class="flex gap-4">
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
@@ -357,9 +363,9 @@ defmodule JidoCodeWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
+    <ul class="divide-y divide-border rounded-lg border border-border">
+      <li :for={item <- @item} class="px-4 py-3">
+        <div class="grid gap-1">
           <div class="font-bold">{item.title}</div>
           <div>{render_slot(item)}</div>
         </div>

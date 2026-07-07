@@ -1,6 +1,6 @@
-defmodule JidoCodeWeb.OperatorNavigationLiveTest do
-  # covers: architecture.operator_surface_information_architecture.signed_in_routes_share_global_wayfinding
-  # covers: architecture.operator_surface_information_architecture.global_wayfinding_uses_shared_liveview_helpers
+defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
+  # covers: architecture.frontend_stack.root_area_shell_owns_navigation
+  # covers: architecture.frontend_stack.liveview_remains_product_host_shell
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -8,7 +8,7 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
 
-  test "shared operator navigation renders consistent selected states and context across major signed-in routes",
+  test "shared area shell renders consistent selected states across major signed-in routes",
        %{conn: _conn} do
     register_owner("operator-nav-owner@example.com", "owner-password-123")
 
@@ -42,50 +42,52 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
     {:ok, dashboard_view, _html} =
       live(recycle(authed_conn), ~p"/dashboard?subject=work&section=overview", on_error: :warn)
 
-    assert has_element?(dashboard_view, "#operator-global-nav-dashboard[aria-current='page']")
-    assert has_element?(dashboard_view, "#operator-global-nav-workbench")
-    assert has_element?(dashboard_view, "#operator-global-nav-repositories")
-    assert has_element?(dashboard_view, "#operator-route-badge", "Authenticated home")
-    assert has_element?(dashboard_view, "#operator-route-label", "Dashboard")
+    assert_area_shell(dashboard_view, "dashboard", "Dashboard", "Operational home and next actions")
+    assert has_element?(dashboard_view, "#area-overview-panel-dashboard")
+    assert has_element?(dashboard_view, "#operator-area-menu-workbench")
+    assert has_element?(dashboard_view, "#operator-area-menu-conversations")
+    refute has_element?(dashboard_view, "#operator-global-nav")
     refute has_element?(dashboard_view, "#operator-context-nav")
 
     {:ok, workbench_view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
-    assert has_element?(workbench_view, "#operator-global-nav-workbench[aria-current='page']")
-    assert has_element?(workbench_view, "#operator-route-badge", "Specialist inventory")
-    assert has_element?(workbench_view, "#operator-route-label", "Workbench")
+    assert_area_shell(workbench_view, "workbench", "Workbench", "Dense specialist workspace")
+    assert has_element?(workbench_view, "#area-overview-panel-workbench")
+    refute has_element?(workbench_view, "#operator-global-nav")
     refute has_element?(workbench_view, "#operator-context-nav")
 
-    {:ok, settings_view, _html} = live(recycle(authed_conn), ~p"/settings/auth", on_error: :warn)
+    {:ok, settings_view, _html} = live(recycle(authed_conn), ~p"/settings", on_error: :warn)
 
-    assert has_element?(settings_view, "#operator-global-nav-settings[aria-current='page']")
-    assert has_element?(settings_view, "#operator-route-badge", "Operator configuration")
-    assert has_element?(settings_view, "#operator-route-label", "Settings")
-    assert has_element?(settings_view, "#operator-context-settings-tab[aria-current='page']", "Auth & Integrations")
+    assert_area_shell(settings_view, "settings", "Settings", "Auth, integrations, and runtime defaults")
+    assert has_element?(settings_view, "#area-overview-panel-settings")
+    refute has_element?(settings_view, "#operator-context-settings-tab")
+
+    settings_view
+    |> element("#settings-github-open-add-modal")
+    |> render_click()
+
+    assert has_element?(
+             settings_view,
+             "#add-repo-modal[role='dialog'][aria-modal='true'][aria-labelledby='add-repo-modal-title']"
+           )
+
+    assert has_element?(settings_view, "#add-repo-modal-title", "Add GitHub Repository")
 
     {:ok, repo_view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
-    assert has_element?(repo_view, "#operator-global-nav-repositories[aria-current='page']")
-    assert has_element?(repo_view, "#operator-route-badge", "Managed repo")
-    assert has_element?(repo_view, "#operator-route-label", "owner/repo-operator-navigation")
-    assert has_element?(repo_view, "#operator-context-repo[aria-current='page']", "owner/repo-operator-navigation")
+    assert_area_shell(repo_view, "repositories", "Repositories", "Managed repositories and detail context")
+    refute has_element?(repo_view, "#area-overview-panel-repositories")
+    refute has_element?(repo_view, "#operator-context-repo")
 
     {:ok, run_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
-    assert has_element?(run_view, "#operator-global-nav-repositories[aria-current='page']")
-    assert has_element?(run_view, "#operator-route-badge", "Governed run")
-    assert has_element?(run_view, "#operator-route-label", "Run #{run_id}")
-
-    assert has_element?(
-             run_view,
-             "#operator-context-repo[href='/repos/#{project.id}?return_to=#{URI.encode_www_form("/repos")}']"
-           )
-
-    assert has_element?(run_view, "#operator-context-run[aria-current='page']", "Run #{run_id}")
+    assert_area_shell(run_view, "repositories", "Repositories", "Managed repositories and detail context")
+    refute has_element?(run_view, "#area-overview-panel-repositories")
+    refute has_element?(run_view, "#operator-context-run")
   end
 
-  test "repo and run detail preserve the broader selected major destination from explicit parent surfaces",
+  test "detail routes stay in repositories while preserving route-owned return links",
        %{conn: _conn} do
     register_owner("operator-nav-parent-owner@example.com", "owner-password-123")
 
@@ -126,7 +128,7 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
         on_error: :warn
       )
 
-    assert has_element?(dashboard_repo_view, "#operator-global-nav-dashboard[aria-current='page']")
+    assert_area_shell(dashboard_repo_view, "repositories", "Repositories", "Managed repositories and detail context")
 
     assert has_element?(
              dashboard_repo_view,
@@ -144,7 +146,7 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
         on_error: :warn
       )
 
-    assert has_element?(workbench_repo_view, "#operator-global-nav-workbench[aria-current='page']")
+    assert_area_shell(workbench_repo_view, "repositories", "Repositories", "Managed repositories and detail context")
     assert has_element?(workbench_repo_view, "#project-detail-breadcrumb-return[href='/workbench']", "Workbench")
 
     {:ok, workbench_run_view, _html} =
@@ -154,11 +156,11 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
         on_error: :warn
       )
 
-    assert has_element?(workbench_run_view, "#operator-global-nav-workbench[aria-current='page']")
+    assert_area_shell(workbench_run_view, "repositories", "Repositories", "Managed repositories and detail context")
 
     assert has_element?(
              workbench_run_view,
-             "#operator-context-repo[href='/repos/#{project.id}?return_to=#{encoded_workbench_return_to}']"
+             "#run-detail-breadcrumb-repo[href='/repos/#{project.id}?return_to=#{encoded_workbench_return_to}']"
            )
   end
 
@@ -195,14 +197,16 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
 
     {:ok, workbench_view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
-    assert_single_pane_shell(workbench_view, "workbench-shell", "workbench-pane")
+    assert_route_pane_shell(workbench_view, "workbench-shell", "workbench-pane")
     assert has_element?(workbench_view, "#workbench-return-dashboard")
     assert has_element?(workbench_view, "#workbench-apply-filters[form='workbench-filters-form']")
     refute has_element?(workbench_view, "#workbench-nav")
 
     {:ok, inventory_view, _html} = live(recycle(authed_conn), ~p"/repos", on_error: :warn)
 
-    assert_single_pane_shell(inventory_view, "project-inventory-shell", "project-inventory-pane")
+    assert_area_shell(inventory_view, "repositories", "Repositories", "Managed repositories and detail context")
+    assert has_element?(inventory_view, "#area-overview-panel-repositories")
+    assert_route_pane_shell(inventory_view, "project-inventory-shell", "project-inventory-pane")
     assert has_element?(inventory_view, "#project-inventory-reset-filters[href='/repos']")
 
     assert has_element?(
@@ -214,13 +218,17 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
 
     {:ok, workflows_view, _html} = live(recycle(authed_conn), ~p"/workflows", on_error: :warn)
 
-    assert_single_pane_shell(workflows_view, "workflows-shell", "workflows-pane")
+    assert_area_shell(workflows_view, "workflows", "Workflows", "Governed run launch and history")
+    assert has_element?(workflows_view, "#area-overview-panel-workflows")
+    assert_route_pane_shell(workflows_view, "workflows-shell", "workflows-pane")
     assert has_element?(workflows_view, "#workflows-start-run")
     refute has_element?(workflows_view, "#workflows-nav")
 
     {:ok, agents_view, _html} = live(recycle(authed_conn), ~p"/agents", on_error: :warn)
 
-    assert_single_pane_shell(agents_view, "agents-shell", "agents-pane")
+    assert_area_shell(agents_view, "agents", "Agents", "Repo-scoped support automation")
+    assert has_element?(agents_view, "#area-overview-panel-agents")
+    assert_route_pane_shell(agents_view, "agents-shell", "agents-pane")
     assert has_element?(agents_view, "#agents-project-table")
     refute has_element?(agents_view, "#agents-nav")
 
@@ -228,13 +236,13 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
 
     assert has_element?(settings_view, "#settings-shell")
     assert has_element?(settings_view, "#settings-shell-breadcrumbs")
-    refute has_element?(settings_view, "#settings-shell-parent-subjects")
+    refute has_element?(settings_view, "#settings-shell-section-groups")
     assert has_element?(settings_view, "#settings-nav-auth[aria-current='page']", "Auth & Integrations")
     assert has_element?(settings_view, "#settings-pane-auth")
     assert has_element?(settings_view, "#settings-pane-auth-middle")
     assert has_element?(settings_view, "#settings-pane-auth-footer")
     assert has_element?(settings_view, "#settings-auth-refresh-github-service-checks")
-    assert has_element?(settings_view, "#operator-context-settings-tab[aria-current='page']", "Auth & Integrations")
+    assert_area_shell(settings_view, "settings", "Settings", "Auth, integrations, and runtime defaults")
 
     settings_view
     |> element("#settings-nav-security")
@@ -246,12 +254,12 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
     assert has_element?(settings_view, "#settings-pane-security-middle")
     refute has_element?(settings_view, "#settings-pane-security-footer")
     refute has_element?(settings_view, "#settings-auth-refresh-github-service-checks")
-    assert has_element?(settings_view, "#operator-context-settings-tab[aria-current='page']", "Security settings")
+    assert_area_shell(settings_view, "settings", "Settings", "Auth, integrations, and runtime defaults")
 
     {:ok, run_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
-    assert_single_pane_shell(run_view, "run-detail-shell", "run-detail")
+    assert_route_pane_shell(run_view, "run-detail-shell", "run-detail")
     assert has_element?(run_view, "#run-detail-breadcrumb-parent[href='/repos']", "Repositories")
 
     assert has_element?(
@@ -263,12 +271,23 @@ defmodule JidoCodeWeb.OperatorNavigationLiveTest do
     assert has_element?(run_view, "#run-detail-return-link[href='/repos/#{project.id}']", "Back to Repo detail")
   end
 
-  defp assert_single_pane_shell(view, shell_id, pane_id) do
+  defp assert_route_pane_shell(view, shell_id, pane_id) do
     assert has_element?(view, "##{shell_id}")
     assert has_element?(view, "##{shell_id}-breadcrumbs")
-    refute has_element?(view, "##{shell_id}-parent-subjects")
+    refute has_element?(view, "##{shell_id}-section-groups")
     assert has_element?(view, "##{pane_id}")
     assert has_element?(view, "##{pane_id}-header")
     assert has_element?(view, "##{pane_id}-middle")
+  end
+
+  defp assert_area_shell(view, area_id, label, subtitle) do
+    assert has_element?(view, "#operator-app-shell[data-active-area='#{area_id}']")
+    assert has_element?(view, "#operator-shell-title", label)
+    assert has_element?(view, "#operator-shell-subtitle", subtitle)
+    assert has_element?(view, "#operator-area-menu[aria-label='Product areas']")
+    assert has_element?(view, "#operator-area-menu-#{area_id}[aria-current='page']")
+    assert has_element?(view, "#operator-status-strip[role='status'][aria-live='polite']")
+    assert has_element?(view, "#operator-status-area", "Area: #{label}")
+    assert has_element?(view, "#operator-status-connection", "Connection: connected")
   end
 end

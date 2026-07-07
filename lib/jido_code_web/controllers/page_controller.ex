@@ -12,7 +12,10 @@ defmodule JidoCodeWeb.PageController do
   end
 
   def home(conn, _params) do
-    redirect(conn, to: ~p"/welcome")
+    case signed_in_product_user?(conn) do
+      true -> redirect(conn, to: signed_in_destination())
+      false -> redirect(conn, to: ~p"/welcome")
+    end
   end
 
   def register_redirect(conn, _params) do

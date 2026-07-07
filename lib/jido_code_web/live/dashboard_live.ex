@@ -16,7 +16,7 @@ defmodule JidoCodeWeb.DashboardLive do
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   alias JidoCode.Workbench.{
     DashboardConversationFeed,
@@ -235,7 +235,8 @@ defmodule JidoCodeWeb.DashboardLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:dashboard}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:dashboard)}
     >
       <div
         id="dashboard-root"
@@ -244,14 +245,14 @@ defmodule JidoCodeWeb.DashboardLive do
         class="max-w-7xl mx-auto py-8"
       >
         <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
-        <p class="text-base-content/70">Welcome, {@current_user.email}</p>
-        <p id="dashboard-entry-summary" class="mt-1 text-sm text-base-content/75">
+        <p class="text-muted-foreground">Welcome, {@current_user.email}</p>
+        <p id="dashboard-entry-summary" class="mt-1 text-sm text-muted-foreground">
           Dashboard is the authenticated product home for managed-repository inventory, governed runs, conversations, memory, and runtime posture.
         </p>
-        <p id="dashboard-settings-handoff" class="mt-2 text-sm text-base-content/70">
+        <p id="dashboard-settings-handoff" class="mt-2 text-sm text-muted-foreground">
           Provider login and Git automation configuration live in <.link
             navigate={~p"/settings/auth"}
-            class="link link-primary"
+            class="text-primary underline-offset-4 hover:underline"
           >Settings</.link>.
         </p>
         <.operator_state_notice
@@ -263,20 +264,20 @@ defmodule JidoCodeWeb.DashboardLive do
           class="mt-4"
         />
 
-        <.subject_tree_shell
+        <.route_section_shell
           id="dashboard-shell"
           class="mt-6"
           breadcrumbs={dashboard_breadcrumbs(assigns)}
-          parent_subjects={dashboard_parent_subjects(assigns)}
-          child_subjects={dashboard_section_nav_items(assigns)}
-          child_nav_id="dashboard-section-nav"
-          child_nav_label={dashboard_child_nav_label(assigns.selected_dashboard_subject)}
-          child_nav_heading={dashboard_child_nav_heading(assigns.selected_dashboard_subject)}
-          child_nav_summary={dashboard_child_nav_summary(assigns.selected_dashboard_subject)}
+          section_groups={dashboard_section_groups(assigns)}
+          section_items={dashboard_section_nav_items(assigns)}
+          section_nav_id="dashboard-section-nav"
+          section_nav_label={dashboard_section_nav_label(assigns.selected_dashboard_subject)}
+          section_nav_heading={dashboard_section_nav_heading(assigns.selected_dashboard_subject)}
+          section_nav_summary={dashboard_section_nav_summary(assigns.selected_dashboard_subject)}
           sidebar_id="dashboard-sidebar-shell"
           content_id="dashboard-content-shell"
         >
-          <.subject_pane pane={dashboard_selected_pane(assigns)}>
+          <.route_pane pane={dashboard_selected_pane(assigns)}>
             <section
               :if={@selected_dashboard_section == :overview}
               id="dashboard-overview-panel"
@@ -285,19 +286,19 @@ defmodule JidoCodeWeb.DashboardLive do
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Managed repo inventory</h2>
-                  <p id="dashboard-overview-note" class="text-sm text-base-content/80">
+                  <p id="dashboard-overview-note" class="text-sm text-foreground">
                     Dashboard Work is the primary signed-in home for repository inventory, governed triage, and repo-detail follow-up.
                     <.link
                       id="dashboard-overview-workbench-link"
                       navigate={dashboard_workbench_path(assigns)}
-                      class="link link-primary"
+                      class="text-primary underline-offset-4 hover:underline"
                     >
                       Workbench
                     </.link>
                     stays available as the denser specialist mode.
                   </p>
                 </div>
-                <p id="dashboard-overview-last-refreshed" class="text-xs text-base-content/70">
+                <p id="dashboard-overview-last-refreshed" class="text-xs text-muted-foreground">
                   Last refreshed: {summary_refreshed_label(@repository_monitoring_last_refreshed_at)}
                 </p>
               </div>
@@ -311,7 +312,7 @@ defmodule JidoCodeWeb.DashboardLive do
               />
 
               <%= if @repository_monitoring_count == 0 do %>
-                <p id="dashboard-overview-empty-state" class="text-sm text-base-content/70">
+                <p id="dashboard-overview-empty-state" class="text-sm text-muted-foreground">
                   No managed-repository inventory is available yet.
                 </p>
               <% else %>
@@ -319,7 +320,7 @@ defmodule JidoCodeWeb.DashboardLive do
                   <li
                     :for={entry <- @repository_monitoring_rows}
                     id={"dashboard-overview-repository-card-#{repo_monitoring_dom_token(entry.id)}"}
-                    class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-4"
+                    class="rounded-xl border border-border/70 bg-muted/20 p-4 space-y-4"
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="space-y-1">
@@ -331,7 +332,7 @@ defmodule JidoCodeWeb.DashboardLive do
                         </p>
                         <p
                           id={"dashboard-overview-repository-detail-#{repo_monitoring_dom_token(entry.id)}"}
-                          class="text-xs text-base-content/65"
+                          class="text-xs text-muted-foreground"
                         >
                           {entry.name}
                         </p>
@@ -340,13 +341,13 @@ defmodule JidoCodeWeb.DashboardLive do
                       <div class="flex flex-wrap gap-2">
                         <span
                           id={"dashboard-overview-repository-badge-issues-#{repo_monitoring_dom_token(entry.id)}"}
-                          class="badge badge-outline badge-sm"
+                          class="ui-badge ui-badge-sm ui-badge-outline"
                         >
                           {entry.open_issue_count} open {pluralize(entry.open_issue_count, "issue", "issues")}
                         </span>
                         <span
                           id={"dashboard-overview-repository-badge-prs-#{repo_monitoring_dom_token(entry.id)}"}
-                          class="badge badge-outline badge-sm"
+                          class="ui-badge ui-badge-sm ui-badge-outline"
                         >
                           {entry.open_pr_count} open PR{if(entry.open_pr_count == 1, do: "", else: "s")}
                         </span>
@@ -362,12 +363,12 @@ defmodule JidoCodeWeb.DashboardLive do
 
                     <p
                       id={"dashboard-overview-repository-summary-#{repo_monitoring_dom_token(entry.id)}"}
-                      class="text-sm text-base-content/80"
+                      class="text-sm text-foreground"
                     >
                       {entry.recent_activity_summary}
                     </p>
 
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-base-content/70">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
                       <p id={"dashboard-overview-repository-branch-#{repo_monitoring_dom_token(entry.id)}"}>
                         Branch: {entry.default_branch}
                       </p>
@@ -429,11 +430,11 @@ defmodule JidoCodeWeb.DashboardLive do
             <section
               :if={@selected_dashboard_section == :runs}
               id="dashboard-run-summaries"
-              class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
+              class="rounded-lg border border-border bg-card p-4 space-y-3"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <h2 class="text-lg font-semibold">Recent governed runs</h2>
-                <p id="dashboard-run-summary-last-refreshed" class="text-xs text-base-content/70">
+                <p id="dashboard-run-summary-last-refreshed" class="text-xs text-muted-foreground">
                   Last refreshed: {summary_refreshed_label(@run_summary_last_refreshed_at)}
                 </p>
               </div>
@@ -461,13 +462,13 @@ defmodule JidoCodeWeb.DashboardLive do
 
               <details
                 id="dashboard-run-summary-fallback"
-                class="rounded-lg border border-base-300/70 bg-base-200/20"
+                class="rounded-lg border border-border/70 bg-muted/20"
               >
                 <summary class="cursor-pointer px-4 py-3 text-sm font-medium">
                   LiveView detail fallback
                 </summary>
-                <div class="overflow-x-auto border-t border-base-300/70">
-                  <table id="dashboard-run-summaries-table" class="table w-full">
+                <div class="overflow-x-auto border-t border-border/70">
+                  <table id="dashboard-run-summaries-table" class="w-full caption-bottom text-sm">
                     <thead>
                       <tr>
                         <th>Run</th>
@@ -477,7 +478,7 @@ defmodule JidoCodeWeb.DashboardLive do
                     </thead>
                     <tbody :if={@run_summary_count == 0} id="dashboard-run-summaries-empty">
                       <tr id="dashboard-run-summaries-empty-state">
-                        <td colspan="3" class="py-6 text-center text-sm text-base-content/70">
+                        <td colspan="3" class="py-6 text-center text-sm text-muted-foreground">
                           No recent runs available.
                         </td>
                       </tr>
@@ -487,12 +488,12 @@ defmodule JidoCodeWeb.DashboardLive do
                         <td id={"dashboard-run-id-#{run_summary_dom_token(run_summary.run_id)}"} class="font-mono text-xs">
                           <.link
                             id={"dashboard-run-link-#{run_summary_dom_token(run_summary.run_id)}"}
-                            class="link link-primary"
+                            class="text-primary underline-offset-4 hover:underline"
                             navigate={run_detail_path(assigns, run_summary)}
                           >
                             {run_summary.run_id}
                           </.link>
-                          <p class="text-xs text-base-content/70">{run_summary.workflow_name}</p>
+                          <p class="text-xs text-muted-foreground">{run_summary.workflow_name}</p>
                         </td>
                         <td id={"dashboard-run-status-#{run_summary_dom_token(run_summary.run_id)}"}>
                           <span class={run_status_badge_class(run_summary.status)}>
@@ -501,7 +502,7 @@ defmodule JidoCodeWeb.DashboardLive do
                           <p
                             :if={run_governance_summary(run_summary)}
                             id={"dashboard-run-governance-#{run_summary_dom_token(run_summary.run_id)}"}
-                            class="pt-1 text-xs text-base-content/70"
+                            class="pt-1 text-xs text-muted-foreground"
                           >
                             {run_governance_summary(run_summary)}
                           </p>
@@ -519,16 +520,16 @@ defmodule JidoCodeWeb.DashboardLive do
             <section
               :if={@selected_dashboard_section == :conversations}
               id="dashboard-conversation-supervision"
-              class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+              class="rounded-lg border border-border bg-card p-4 space-y-4"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Conversation supervision</h2>
-                  <p id="dashboard-conversation-summary-note" class="text-sm text-base-content/80">
+                  <p id="dashboard-conversation-summary-note" class="text-sm text-foreground">
                     Active governed conversations and clarification-needed repository work stay bounded here and route back to canonical repo detail.
                   </p>
                 </div>
-                <p id="dashboard-conversation-summary-last-refreshed" class="text-xs text-base-content/70">
+                <p id="dashboard-conversation-summary-last-refreshed" class="text-xs text-muted-foreground">
                   Last refreshed: {summary_refreshed_label(@conversation_summary_last_refreshed_at)}
                 </p>
               </div>
@@ -542,7 +543,7 @@ defmodule JidoCodeWeb.DashboardLive do
               />
 
               <%= if @conversation_summary_count == 0 do %>
-                <p id="dashboard-conversation-summary-empty" class="text-sm text-base-content/70">
+                <p id="dashboard-conversation-summary-empty" class="text-sm text-muted-foreground">
                   No active governed conversations or clarification-needed repository work are available yet.
                 </p>
               <% else %>
@@ -550,7 +551,7 @@ defmodule JidoCodeWeb.DashboardLive do
                   <li
                     :for={{dom_id, summary} <- @streams.conversation_summaries}
                     id={dom_id}
-                    class="rounded border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+                    class="rounded border border-border/70 bg-muted/20 p-3 space-y-2"
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="space-y-1">
@@ -562,7 +563,7 @@ defmodule JidoCodeWeb.DashboardLive do
                         </p>
                         <p
                           id={"dashboard-conversation-summary-detail-#{run_summary_dom_token(summary.id)}"}
-                          class="text-xs text-base-content/80"
+                          class="text-xs text-foreground"
                         >
                           {summary.detail}
                         </p>
@@ -582,7 +583,7 @@ defmodule JidoCodeWeb.DashboardLive do
                         <span
                           :if={summary.clarification_count > 0}
                           id={"dashboard-conversation-summary-clarification-#{run_summary_dom_token(summary.id)}"}
-                          class="badge badge-warning badge-outline badge-sm font-medium"
+                          class="ui-badge ui-badge-sm ui-badge-warning font-medium"
                         >
                           {conversation_clarification_badge(summary.clarification_count)}
                         </span>
@@ -591,7 +592,7 @@ defmodule JidoCodeWeb.DashboardLive do
 
                     <p
                       id={"dashboard-conversation-summary-counts-#{run_summary_dom_token(summary.id)}"}
-                      class="text-xs text-base-content/70"
+                      class="text-xs text-muted-foreground"
                     >
                       Active governed conversations: {summary.active_count} | Clarification needed: {summary.clarification_count}
                     </p>
@@ -599,7 +600,7 @@ defmodule JidoCodeWeb.DashboardLive do
                     <p
                       :if={summary.latest_work_item_summary}
                       id={"dashboard-conversation-summary-work-item-#{run_summary_dom_token(summary.id)}"}
-                      class="text-xs text-base-content/70"
+                      class="text-xs text-muted-foreground"
                     >
                       Latest governed work: {summary.latest_work_item_summary}
                     </p>
@@ -607,7 +608,7 @@ defmodule JidoCodeWeb.DashboardLive do
                     <p
                       :if={summary.latest_activity_at}
                       id={"dashboard-conversation-summary-activity-#{run_summary_dom_token(summary.id)}"}
-                      class="text-xs text-base-content/70"
+                      class="text-xs text-muted-foreground"
                     >
                       Latest activity: {summary_refreshed_label(summary.latest_activity_at)}
                     </p>
@@ -615,7 +616,7 @@ defmodule JidoCodeWeb.DashboardLive do
                     <.link
                       :if={summary.route && summary.action_label}
                       id={"dashboard-conversation-summary-link-#{run_summary_dom_token(summary.id)}"}
-                      class="link link-primary text-sm"
+                      class="text-primary underline-offset-4 hover:underline text-sm"
                       navigate={summary.route}
                     >
                       {summary.action_label}
@@ -628,16 +629,16 @@ defmodule JidoCodeWeb.DashboardLive do
             <section
               :if={@selected_dashboard_section == :memory}
               id="dashboard-memory-summaries"
-              class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+              class="rounded-lg border border-border bg-card p-4 space-y-4"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Repository memory</h2>
-                  <p id="dashboard-memory-summary-note" class="text-sm text-base-content/80">
+                  <p id="dashboard-memory-summary-note" class="text-sm text-foreground">
                     Memory summaries stay bounded and route back to canonical managed-repository surfaces for deeper review.
                   </p>
                 </div>
-                <p id="dashboard-memory-summary-last-refreshed" class="text-xs text-base-content/70">
+                <p id="dashboard-memory-summary-last-refreshed" class="text-xs text-muted-foreground">
                   Last refreshed: {summary_refreshed_label(@memory_summary_last_refreshed_at)}
                 </p>
               </div>
@@ -651,7 +652,7 @@ defmodule JidoCodeWeb.DashboardLive do
               />
 
               <%= if @memory_summary_count == 0 do %>
-                <p id="dashboard-memory-summary-empty" class="text-sm text-base-content/70">
+                <p id="dashboard-memory-summary-empty" class="text-sm text-muted-foreground">
                   No bounded repository memory summaries are available yet.
                 </p>
               <% else %>
@@ -659,7 +660,7 @@ defmodule JidoCodeWeb.DashboardLive do
                   <li
                     :for={{dom_id, summary} <- @streams.memory_summaries}
                     id={dom_id}
-                    class="rounded border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+                    class="rounded border border-border/70 bg-muted/20 p-3 space-y-2"
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="space-y-1">
@@ -671,7 +672,7 @@ defmodule JidoCodeWeb.DashboardLive do
                         </p>
                         <p
                           id={"dashboard-memory-summary-detail-#{run_summary_dom_token(summary.id)}"}
-                          class="text-xs text-base-content/80"
+                          class="text-xs text-foreground"
                         >
                           {summary.detail}
                         </p>
@@ -686,7 +687,7 @@ defmodule JidoCodeWeb.DashboardLive do
 
                     <p
                       id={"dashboard-memory-summary-counts-#{run_summary_dom_token(summary.id)}"}
-                      class="text-xs text-base-content/70"
+                      class="text-xs text-muted-foreground"
                     >
                       Durable memory: {summary.memory_count} | Workflow provenance: {summary.provenance_count}
                     </p>
@@ -694,7 +695,7 @@ defmodule JidoCodeWeb.DashboardLive do
                     <p
                       :if={summary.latest_revision}
                       id={"dashboard-memory-summary-revision-#{run_summary_dom_token(summary.id)}"}
-                      class="text-xs text-base-content/70"
+                      class="text-xs text-muted-foreground"
                     >
                       Latest revision: {summary.latest_revision}
                     </p>
@@ -702,7 +703,7 @@ defmodule JidoCodeWeb.DashboardLive do
                     <p
                       :if={summary.remediation}
                       id={"dashboard-memory-summary-remediation-#{run_summary_dom_token(summary.id)}"}
-                      class="text-xs text-base-content/70"
+                      class="text-xs text-muted-foreground"
                     >
                       {summary.remediation}
                     </p>
@@ -711,7 +712,7 @@ defmodule JidoCodeWeb.DashboardLive do
                       <span
                         :if={summary.action_needed?}
                         id={"dashboard-memory-summary-action-needed-#{run_summary_dom_token(summary.id)}"}
-                        class="badge badge-warning badge-outline"
+                        class="ui-badge ui-badge-warning"
                       >
                         action needed
                       </span>
@@ -719,7 +720,7 @@ defmodule JidoCodeWeb.DashboardLive do
                       <.link
                         :if={summary.route && summary.action_label}
                         id={"dashboard-memory-summary-link-#{run_summary_dom_token(summary.id)}"}
-                        class="link link-primary text-sm"
+                        class="text-primary underline-offset-4 hover:underline text-sm"
                         navigate={summary.route}
                       >
                         {summary.action_label}
@@ -733,19 +734,19 @@ defmodule JidoCodeWeb.DashboardLive do
             <section
               :if={@selected_dashboard_section == :runtime}
               id="dashboard-runtime-evidence"
-              class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+              class="rounded-lg border border-border bg-card p-4 space-y-4"
             >
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Runtime posture</h2>
-                  <p id="dashboard-runtime-evidence-summary" class="text-sm text-base-content/80">
+                  <p id="dashboard-runtime-evidence-summary" class="text-sm text-foreground">
                     {runtime_evidence_summary(@runtime_evidence_summary)}
                   </p>
-                  <p id="dashboard-runtime-evidence-note" class="text-xs text-base-content/70">
+                  <p id="dashboard-runtime-evidence-note" class="text-xs text-muted-foreground">
                     Product records remain the source of truth; runtime posture only contributes bounded readiness and degraded-path evidence.
                   </p>
                 </div>
-                <p id="dashboard-runtime-evidence-last-refreshed" class="text-xs text-base-content/70">
+                <p id="dashboard-runtime-evidence-last-refreshed" class="text-xs text-muted-foreground">
                   Last refreshed: {summary_refreshed_label(@runtime_evidence_last_refreshed_at)}
                 </p>
               </div>
@@ -772,32 +773,32 @@ defmodule JidoCodeWeb.DashboardLive do
 
               <details
                 id="dashboard-runtime-evidence-fallback"
-                class="rounded-lg border border-base-300/70 bg-base-200/20"
+                class="rounded-lg border border-border/70 bg-muted/20"
               >
                 <summary class="cursor-pointer px-4 py-3 text-sm font-medium">
                   LiveView posture details
                 </summary>
 
-                <div class="space-y-4 border-t border-base-300/70 p-4">
+                <div class="space-y-4 border-t border-border/70 p-4">
                   <div
                     :if={@runtime_evidence_summary}
                     id="dashboard-runtime-evidence-counts"
                     class="grid gap-3 md:grid-cols-3"
                   >
-                    <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-                      <p class="text-xs uppercase text-base-content/60">Blocked repos</p>
+                    <div class="rounded border border-border/70 bg-muted/20 p-3">
+                      <p class="text-xs uppercase text-muted-foreground">Blocked repos</p>
                       <p id="dashboard-runtime-evidence-count-blocked" class="mt-1 text-2xl font-semibold">
                         {Map.get(@runtime_evidence_summary, :blocked_count, 0)}
                       </p>
                     </div>
-                    <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-                      <p class="text-xs uppercase text-base-content/60">Review-required repos</p>
+                    <div class="rounded border border-border/70 bg-muted/20 p-3">
+                      <p class="text-xs uppercase text-muted-foreground">Review-required repos</p>
                       <p id="dashboard-runtime-evidence-count-degraded" class="mt-1 text-2xl font-semibold">
                         {Map.get(@runtime_evidence_summary, :degraded_count, 0)}
                       </p>
                     </div>
-                    <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-                      <p class="text-xs uppercase text-base-content/60">Stable repos</p>
+                    <div class="rounded border border-border/70 bg-muted/20 p-3">
+                      <p class="text-xs uppercase text-muted-foreground">Stable repos</p>
                       <p id="dashboard-runtime-evidence-count-available" class="mt-1 text-2xl font-semibold">
                         {Map.get(@runtime_evidence_summary, :available_count, 0)}
                       </p>
@@ -805,7 +806,7 @@ defmodule JidoCodeWeb.DashboardLive do
                   </div>
 
                   <%= if @runtime_evidence_count == 0 do %>
-                    <p id="dashboard-runtime-evidence-empty" class="text-sm text-base-content/70">
+                    <p id="dashboard-runtime-evidence-empty" class="text-sm text-muted-foreground">
                       No runtime-service posture has been materialized yet.
                     </p>
                   <% else %>
@@ -813,7 +814,7 @@ defmodule JidoCodeWeb.DashboardLive do
                       <li
                         :for={{dom_id, runtime_summary} <- @streams.runtime_evidence_summaries}
                         id={dom_id}
-                        class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                        class="rounded border border-border/60 bg-muted/20 p-3 space-y-1"
                       >
                         <div class="flex flex-wrap items-center gap-2">
                           <p class="text-sm font-medium">{runtime_summary.repo_label}</p>
@@ -822,20 +823,20 @@ defmodule JidoCodeWeb.DashboardLive do
                           </span>
                           <span
                             :if={runtime_summary.review_required}
-                            class="badge badge-warning badge-outline"
+                            class="ui-badge ui-badge-warning"
                           >
                             review required
                           </span>
                         </div>
                         <p
                           id={"dashboard-runtime-evidence-item-summary-#{run_summary_dom_token(runtime_summary.id)}"}
-                          class="text-xs text-base-content/80"
+                          class="text-xs text-foreground"
                         >
                           {runtime_summary.summary}
                         </p>
                         <p
                           id={"dashboard-runtime-evidence-item-details-#{run_summary_dom_token(runtime_summary.id)}"}
-                          class="text-xs text-base-content/70"
+                          class="text-xs text-muted-foreground"
                         >
                           {runtime_evidence_details(runtime_summary)}
                         </p>
@@ -849,15 +850,15 @@ defmodule JidoCodeWeb.DashboardLive do
             <section
               :if={!Enum.empty?(@onboarding_next_actions) and @selected_dashboard_section == :next_steps}
               id="dashboard-onboarding-next-actions"
-              class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
+              class="rounded-lg border border-border bg-card p-4 space-y-3"
             >
               <div class="space-y-1">
                 <h2 class="text-lg font-semibold">Suggested next actions</h2>
-                <p id="dashboard-next-steps-note" class="text-sm text-base-content/75">
+                <p id="dashboard-next-steps-note" class="text-sm text-muted-foreground">
                   These follow-up actions remain bounded onboarding completion cues, not a permanent dashboard concern when no setup follow-up exists.
                 </p>
               </div>
-              <ul class="mt-2 space-y-1 text-sm text-base-content/80">
+              <ul class="mt-2 space-y-1 text-sm text-foreground">
                 <li
                   :for={{next_action, index} <- Enum.with_index(@onboarding_next_actions, 1)}
                   id={"dashboard-next-action-#{index}"}
@@ -871,7 +872,7 @@ defmodule JidoCodeWeb.DashboardLive do
                 :if={@selected_dashboard_section == :overview}
                 id="dashboard-overview-open-workbench"
                 navigate={dashboard_workbench_path(assigns)}
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
               >
                 Open dense Workbench mode
               </.link>
@@ -880,7 +881,7 @@ defmodule JidoCodeWeb.DashboardLive do
                 :if={@selected_dashboard_section == :overview}
                 id="dashboard-overview-refresh"
                 type="button"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 phx-click="refresh_dashboard_overview"
               >
                 Refresh overview signals
@@ -890,7 +891,7 @@ defmodule JidoCodeWeb.DashboardLive do
                 :if={@selected_dashboard_section == :runs}
                 id="dashboard-run-summary-refresh"
                 type="button"
-                class="btn btn-sm btn-warning"
+                class="ui-button ui-button-sm ui-button-warning"
                 phx-click="refresh_run_summaries"
               >
                 Refresh run summaries
@@ -900,7 +901,7 @@ defmodule JidoCodeWeb.DashboardLive do
                 :if={@selected_dashboard_section == :conversations}
                 id="dashboard-conversation-summary-refresh"
                 type="button"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 phx-click="refresh_conversation_summaries"
               >
                 Refresh conversation supervision
@@ -910,7 +911,7 @@ defmodule JidoCodeWeb.DashboardLive do
                 :if={@selected_dashboard_section == :memory}
                 id="dashboard-memory-summary-refresh"
                 type="button"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 phx-click="refresh_memory_summaries"
               >
                 Refresh memory summaries
@@ -920,14 +921,14 @@ defmodule JidoCodeWeb.DashboardLive do
                 :if={@selected_dashboard_section == :runtime}
                 id="dashboard-runtime-evidence-refresh"
                 type="button"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 phx-click="refresh_runtime_evidence"
               >
                 Refresh runtime posture
               </button>
             </:footer_actions>
-          </.subject_pane>
-        </.subject_tree_shell>
+          </.route_pane>
+        </.route_section_shell>
       </div>
     </Layouts.app>
     """
@@ -1020,7 +1021,7 @@ defmodule JidoCodeWeb.DashboardLive do
     |> dashboard_subject_sections()
     |> Map.fetch!(assigns.selected_dashboard_subject)
     |> Enum.map(fn section ->
-      OperatorShell.child_subject(%{
+      RouteShell.section_item(%{
         id: section,
         label: dashboard_section_label(section),
         summary: dashboard_section_summary(section, assigns),
@@ -1040,12 +1041,12 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp dashboard_breadcrumbs(assigns) do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "dashboard-breadcrumb-dashboard",
         label: "Dashboard",
         patch: dashboard_selection_path(assigns.onboarding_next_actions, :work, :overview)
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "dashboard-breadcrumb-subject",
         label: dashboard_subject_label(assigns.selected_dashboard_subject),
         patch:
@@ -1054,7 +1055,7 @@ defmodule JidoCodeWeb.DashboardLive do
             assigns.selected_dashboard_subject
           )
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "dashboard-breadcrumb-current",
         label: dashboard_section_label(assigns.selected_dashboard_section),
         current?: true
@@ -1062,12 +1063,12 @@ defmodule JidoCodeWeb.DashboardLive do
     ]
   end
 
-  defp dashboard_parent_subjects(assigns) do
+  defp dashboard_section_groups(assigns) do
     assigns.onboarding_next_actions
     |> dashboard_subject_sections()
     |> then(fn subject_sections ->
       Enum.map(@dashboard_subject_order, fn subject ->
-        OperatorShell.parent_subject(%{
+        RouteShell.section_group(%{
           id: subject,
           label: dashboard_subject_label(subject),
           description: dashboard_subject_description(subject),
@@ -1082,30 +1083,30 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_selected_pane(assigns) do
     section = assigns.selected_dashboard_section
 
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "dashboard-pane-#{section}",
       title: dashboard_pane_title(section),
       summary: dashboard_pane_summary(section)
     })
   end
 
-  defp dashboard_child_nav_label(:work), do: "Dashboard work subjects"
-  defp dashboard_child_nav_label(:knowledge), do: "Dashboard knowledge subjects"
-  defp dashboard_child_nav_label(:runtime), do: "Dashboard runtime subjects"
+  defp dashboard_section_nav_label(:work), do: "Dashboard work sections"
+  defp dashboard_section_nav_label(:knowledge), do: "Dashboard knowledge sections"
+  defp dashboard_section_nav_label(:runtime), do: "Dashboard runtime sections"
 
-  defp dashboard_child_nav_heading(:work), do: "Work"
-  defp dashboard_child_nav_heading(:knowledge), do: "Knowledge"
-  defp dashboard_child_nav_heading(:runtime), do: "Runtime"
+  defp dashboard_section_nav_heading(:work), do: "Work"
+  defp dashboard_section_nav_heading(:knowledge), do: "Knowledge"
+  defp dashboard_section_nav_heading(:runtime), do: "Runtime"
 
-  defp dashboard_child_nav_summary(:work) do
+  defp dashboard_section_nav_summary(:work) do
     "Primary managed-repository inventory, governed runs, governed conversations, and ready follow-up stay grouped here without leaving the authenticated landing route."
   end
 
-  defp dashboard_child_nav_summary(:knowledge) do
+  defp dashboard_section_nav_summary(:knowledge) do
     "Bounded memory attention stays here and routes back to canonical managed-repository detail when a deeper review is needed."
   end
 
-  defp dashboard_child_nav_summary(:runtime) do
+  defp dashboard_section_nav_summary(:runtime) do
     "Delivery readiness and degraded-path runtime posture stay grouped here as bounded product signals."
   end
 
@@ -1422,27 +1423,27 @@ defmodule JidoCodeWeb.DashboardLive do
     |> String.replace(~r/[^a-zA-Z0-9_-]/, "-")
   end
 
-  defp run_status_badge_class("completed"), do: "badge badge-success"
-  defp run_status_badge_class("running"), do: "badge badge-info"
-  defp run_status_badge_class("failed"), do: "badge badge-error"
-  defp run_status_badge_class("cancelled"), do: "badge badge-warning"
-  defp run_status_badge_class("awaiting_approval"), do: "badge badge-warning"
-  defp run_status_badge_class("pending"), do: "badge badge-outline"
-  defp run_status_badge_class(_status), do: "badge badge-outline"
+  defp run_status_badge_class("completed"), do: "ui-badge ui-badge-success"
+  defp run_status_badge_class("running"), do: "ui-badge ui-badge-info"
+  defp run_status_badge_class("failed"), do: "ui-badge ui-badge-error"
+  defp run_status_badge_class("cancelled"), do: "ui-badge ui-badge-warning"
+  defp run_status_badge_class("awaiting_approval"), do: "ui-badge ui-badge-warning"
+  defp run_status_badge_class("pending"), do: "ui-badge ui-badge-outline"
+  defp run_status_badge_class(_status), do: "ui-badge ui-badge-outline"
 
-  defp runtime_evidence_badge_class("blocked"), do: "badge badge-error"
-  defp runtime_evidence_badge_class("degraded"), do: "badge badge-warning"
-  defp runtime_evidence_badge_class("available"), do: "badge badge-success"
-  defp runtime_evidence_badge_class(_status), do: "badge badge-outline"
+  defp runtime_evidence_badge_class("blocked"), do: "ui-badge ui-badge-error"
+  defp runtime_evidence_badge_class("degraded"), do: "ui-badge ui-badge-warning"
+  defp runtime_evidence_badge_class("available"), do: "ui-badge ui-badge-success"
+  defp runtime_evidence_badge_class(_status), do: "ui-badge ui-badge-outline"
 
-  defp memory_summary_badge_class(:ready), do: "badge badge-success"
-  defp memory_summary_badge_class(:degraded), do: "badge badge-warning"
-  defp memory_summary_badge_class(:stale), do: "badge badge-warning"
-  defp memory_summary_badge_class(:invalidated), do: "badge badge-warning"
-  defp memory_summary_badge_class(:failed), do: "badge badge-error"
-  defp memory_summary_badge_class(:not_ready), do: "badge badge-outline"
-  defp memory_summary_badge_class(:disabled), do: "badge badge-outline"
-  defp memory_summary_badge_class(_state), do: "badge badge-outline"
+  defp memory_summary_badge_class(:ready), do: "ui-badge ui-badge-success"
+  defp memory_summary_badge_class(:degraded), do: "ui-badge ui-badge-warning"
+  defp memory_summary_badge_class(:stale), do: "ui-badge ui-badge-warning"
+  defp memory_summary_badge_class(:invalidated), do: "ui-badge ui-badge-warning"
+  defp memory_summary_badge_class(:failed), do: "ui-badge ui-badge-error"
+  defp memory_summary_badge_class(:not_ready), do: "ui-badge ui-badge-outline"
+  defp memory_summary_badge_class(:disabled), do: "ui-badge ui-badge-outline"
+  defp memory_summary_badge_class(_state), do: "ui-badge ui-badge-outline"
 
   defp runtime_evidence_status_label(status) do
     case normalize_optional_string(status) do

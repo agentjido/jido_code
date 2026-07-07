@@ -10,6 +10,7 @@ defmodule JidoCode.Application do
     children =
       [
         JidoCodeWeb.Telemetry,
+        TwMerge.Cache,
         JidoCode.ControlPlane.StoreServer,
         {DNSCluster, query: Application.get_env(:jido_code, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: JidoCode.PubSub},

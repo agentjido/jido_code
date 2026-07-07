@@ -29,8 +29,11 @@ defmodule JidoCodeWeb.Router do
       on_mount: [{JidoCodeWeb.LiveUserAuth, :live_user_required}] do
       live("/dashboard", DashboardLive, :index)
       live("/workbench", WorkbenchLive, :index)
+      live("/conversations", OperatorRootLive, :conversations)
       live("/workflows", WorkflowsLive, :index)
       live("/agents", AgentsLive, :index)
+      live("/memory", OperatorRootLive, :memory)
+      live("/semantic", OperatorRootLive, :semantic)
       live("/repos", ProjectInventoryLive, :index)
       live("/repos/:id", ProjectDetailLive, :show)
       live("/repos/:id/runs/:run_id", RunDetailLive, :show)

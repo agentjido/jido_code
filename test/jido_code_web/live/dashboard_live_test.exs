@@ -85,7 +85,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-entry-summary", "authenticated product home")
     assert has_element?(view, ~s|a[href="/settings/auth"]|, "Settings")
     assert has_element?(view, "#dashboard-root[data-dashboard-subject='work'][data-dashboard-section='runs']")
-    assert has_element?(view, "#dashboard-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#dashboard-shell-section-groups-work[aria-current='page']")
     assert has_element?(view, "#dashboard-section-nav")
     assert has_element?(view, "#dashboard-section-nav-runs[aria-current='page']")
     assert has_element?(view, "#dashboard-run-summaries")
@@ -149,7 +149,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
 
     assert has_element?(view, "#dashboard-root[data-dashboard-subject='work'][data-dashboard-section='overview']")
-    assert has_element?(view, "#dashboard-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#dashboard-shell-section-groups-work[aria-current='page']")
     assert has_element?(view, "#dashboard-section-nav")
     assert has_element?(view, "#dashboard-sidebar-shell")
     assert has_element?(view, "#dashboard-overview-panel")
@@ -351,7 +351,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
       live(recycle(authed_conn), ~p"/dashboard?subject=work&section=conversations", on_error: :warn)
 
     assert has_element?(view, "#dashboard-root[data-dashboard-subject='work'][data-dashboard-section='conversations']")
-    assert has_element?(view, "#dashboard-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#dashboard-shell-section-groups-work[aria-current='page']")
     assert has_element?(view, "#dashboard-conversation-supervision")
     refute has_element?(view, "#dashboard-run-summaries")
     refute has_element?(view, "#dashboard-memory-summaries")
@@ -364,7 +364,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              "#dashboard-root[data-dashboard-subject='runtime'][data-dashboard-section='runtime']"
            )
 
-    assert has_element?(runtime_view, "#dashboard-shell-parent-subjects-runtime[aria-current='page']")
+    assert has_element?(runtime_view, "#dashboard-shell-section-groups-runtime[aria-current='page']")
     assert has_element?(runtime_view, "#dashboard-runtime-evidence")
     refute has_element?(runtime_view, "#dashboard-conversation-supervision")
     refute has_element?(runtime_view, "#dashboard-memory-summaries")
@@ -393,14 +393,14 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              rendered_fragment_index(html, ~s(id="dashboard-shell-breadcrumbs"))
 
     assert rendered_fragment_index(html, ~s(id="dashboard-shell-breadcrumbs")) <
-             rendered_fragment_index(html, ~s(id="dashboard-shell-parent-subjects"))
+             rendered_fragment_index(html, ~s(id="dashboard-shell-section-groups"))
 
-    assert rendered_fragment_index(html, ~s(id="dashboard-shell-parent-subjects")) <
+    assert rendered_fragment_index(html, ~s(id="dashboard-shell-section-groups")) <
              rendered_fragment_index(html, ~s(id="dashboard-section-nav"))
 
     assert has_element?(view, "#dashboard-breadcrumb-subject", "Work")
     assert has_element?(view, "#dashboard-breadcrumb-current[aria-current='page']", "Runs")
-    assert has_element?(view, "#dashboard-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#dashboard-shell-section-groups-work[aria-current='page']")
 
     assert has_element?(
              view,
@@ -443,7 +443,7 @@ defmodule JidoCodeWeb.DashboardLiveTest do
              "#dashboard-root[data-dashboard-subject='work'][data-dashboard-section='next_steps']"
            )
 
-    assert has_element?(next_steps_view, "#dashboard-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(next_steps_view, "#dashboard-shell-section-groups-work[aria-current='page']")
     assert has_element?(next_steps_view, "#dashboard-onboarding-next-actions")
     assert has_element?(next_steps_view, "#dashboard-next-steps-note", "bounded onboarding completion cues")
     refute has_element?(next_steps_view, "#dashboard-run-summaries")

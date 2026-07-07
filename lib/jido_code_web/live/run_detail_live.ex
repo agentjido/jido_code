@@ -25,7 +25,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   alias JidoCode.Orchestration.{Run, RunActions, RunPubSub}
   alias JidoCode.Orchestration.RecordStore, as: OrchestrationRecordStore
   alias JidoCode.Workbench.ProjectConversation
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -391,9 +391,9 @@ defmodule JidoCodeWeb.RunDetailLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:repositories}
     >
-      <.single_pane_shell
+      <.route_pane_shell
         id="run-detail-shell"
         breadcrumbs={run_detail_breadcrumbs(assigns)}
         pane={run_detail_pane(assigns)}
@@ -423,14 +423,14 @@ defmodule JidoCodeWeb.RunDetailLive do
               <p
                 :if={normalize_optional_string(Map.get(@run, :current_stage))}
                 id="run-detail-current-stage"
-                class="text-sm text-base-content/80"
+                class="text-sm text-foreground"
               >
                 Governed stage: {Map.get(@run, :current_stage)}
               </p>
               <p
                 :if={normalize_optional_string(Map.get(@run, :managed_repo_id))}
                 id="run-detail-managed-repo-id"
-                class="text-xs text-base-content/70"
+                class="text-xs text-muted-foreground"
               >
                 Managed repo: {Map.get(@run, :managed_repo_id)}
               </p>
@@ -445,19 +445,19 @@ defmodule JidoCodeWeb.RunDetailLive do
 
             <section
               id="run-detail-governance-summary"
-              class="space-y-3 rounded border border-base-300 bg-base-100 p-4"
+              class="space-y-3 rounded border border-border bg-card p-4"
             >
               <h2 class="text-lg font-semibold">Governance</h2>
 
               <section
                 :if={@change_request}
                 id="run-detail-change-request"
-                class="space-y-1 rounded border border-base-300/70 bg-base-200/30 p-3"
+                class="space-y-1 rounded border border-border/70 bg-muted/30 p-3"
               >
                 <p id="run-detail-change-request-status" class="text-sm">
                   Review request: {Map.get(@change_request, :status) |> status_label()}
                 </p>
-                <p id="run-detail-change-request-summary" class="text-sm text-base-content/80">
+                <p id="run-detail-change-request-summary" class="text-sm text-foreground">
                   {Map.get(@change_request, :summary) |> normalize_optional_string()}
                 </p>
               </section>
@@ -468,20 +468,20 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <%= if @work_item do %>
                   <div
                     id="run-detail-work-item-entry"
-                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                    class="rounded border border-border/60 bg-muted/20 p-3 space-y-1"
                   >
                     <p id="run-detail-work-item-summary" class="text-sm font-medium">
                       {Map.get(@work_item, :summary)}
                     </p>
-                    <p id="run-detail-work-item-status" class="text-xs text-base-content/80">
+                    <p id="run-detail-work-item-status" class="text-xs text-foreground">
                       Status: {Map.get(@work_item, :status) |> status_label()}
                     </p>
-                    <p id="run-detail-work-item-category" class="text-xs text-base-content/80">
+                    <p id="run-detail-work-item-category" class="text-xs text-foreground">
                       Category: {Map.get(@work_item, :category)}
                     </p>
                   </div>
                 <% else %>
-                  <p id="run-detail-work-item-empty" class="text-xs text-base-content/70">
+                  <p id="run-detail-work-item-empty" class="text-xs text-muted-foreground">
                     No governed work item is linked to this run yet.
                   </p>
                 <% end %>
@@ -494,7 +494,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <% @conversation_linkage && @conversation_linkage.conversation -> %>
                     <div
                       id="run-detail-conversation-entry"
-                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
+                      class="rounded border border-border/60 bg-muted/20 p-3 space-y-2"
                     >
                       <div class="flex flex-wrap items-center gap-2">
                         <.conversation_role_badge
@@ -514,35 +514,35 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <p
                         :if={conversation_resolution_action(@conversation_linkage.conversation)}
                         id="run-detail-conversation-resolution"
-                        class="text-xs text-base-content/80"
+                        class="text-xs text-foreground"
                       >
                         Work resolution: {conversation_resolution_action(@conversation_linkage.conversation)}
                       </p>
                       <p
                         :if={conversation_resolution_detail(@conversation_linkage.conversation)}
                         id="run-detail-conversation-detail"
-                        class="text-xs text-base-content/70"
+                        class="text-xs text-muted-foreground"
                       >
                         {conversation_resolution_detail(@conversation_linkage.conversation)}
                       </p>
                       <p
                         :if={@conversation_linkage.origin && @conversation_linkage.origin["workflow"]}
                         id="run-detail-conversation-origin-workflow"
-                        class="text-xs text-base-content/70"
+                        class="text-xs text-muted-foreground"
                       >
                         Origin workflow: {@conversation_linkage.origin["workflow"]}
                       </p>
                       <p
                         :if={@conversation_linkage.origin && @conversation_linkage.origin["resolution_reason"]}
                         id="run-detail-conversation-origin-reason"
-                        class="text-xs text-base-content/70"
+                        class="text-xs text-muted-foreground"
                       >
                         {@conversation_linkage.origin["resolution_reason"]}
                       </p>
                       <p
                         :if={@conversation_linkage.notice}
                         id="run-detail-conversation-lineage-note"
-                        class="text-xs text-warning"
+                        class="text-xs text-accent-yellow"
                       >
                         {@conversation_linkage.notice.detail}
                       </p>
@@ -556,14 +556,14 @@ defmodule JidoCodeWeb.RunDetailLive do
                         />
                         <span
                           id="run-detail-conversation-historical-id"
-                          class="text-xs text-base-content/70"
+                          class="text-xs text-muted-foreground"
                         >
                           Historical origin: {@conversation_linkage.historical_conversation.id}
                         </span>
                       </p>
                       <.link
                         id="run-detail-conversation-open-repo"
-                        class="link link-primary text-xs"
+                        class="text-primary underline-offset-4 hover:underline text-xs"
                         navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
                       >
                         {@conversation_linkage.action_label}
@@ -572,7 +572,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <% @conversation_linkage && @conversation_linkage.origin -> %>
                     <div
                       id="run-detail-conversation-origin-only"
-                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-2"
+                      class="rounded border border-border/60 bg-muted/20 p-3 space-y-2"
                     >
                       <.conversation_role_badge id="run-detail-conversation-origin-role" historical={true} />
                       <p id="run-detail-conversation-origin-label" class="text-sm font-medium">
@@ -581,27 +581,27 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <p
                         :if={@conversation_linkage.origin["workflow"]}
                         id="run-detail-conversation-origin-workflow"
-                        class="text-xs text-base-content/80"
+                        class="text-xs text-foreground"
                       >
                         Origin workflow: {@conversation_linkage.origin["workflow"]}
                       </p>
                       <p
                         :if={@conversation_linkage.origin["resolution_reason"]}
                         id="run-detail-conversation-origin-reason"
-                        class="text-xs text-base-content/70"
+                        class="text-xs text-muted-foreground"
                       >
                         {@conversation_linkage.origin["resolution_reason"]}
                       </p>
                       <p
                         :if={@conversation_linkage.notice}
                         id="run-detail-conversation-origin-note"
-                        class="text-xs text-warning"
+                        class="text-xs text-accent-yellow"
                       >
                         {@conversation_linkage.notice.detail}
                       </p>
                       <.link
                         id="run-detail-conversation-open-repo"
-                        class="link link-primary text-xs"
+                        class="text-primary underline-offset-4 hover:underline text-xs"
                         navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
                       >
                         {@conversation_linkage.action_label}
@@ -610,28 +610,28 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <% @conversation_linkage && @conversation_linkage.notice -> %>
                     <div
                       id="run-detail-conversation-notice"
-                      class="rounded border border-warning/40 bg-warning/10 p-3 space-y-1"
+                      class="rounded border border-accent-yellow/40 bg-accent-yellow/10 p-3 space-y-1"
                     >
                       <p id="run-detail-conversation-notice-label" class="text-sm font-medium">
                         Conversation lineage is temporarily unavailable.
                       </p>
-                      <p id="run-detail-conversation-notice-detail" class="text-xs text-base-content/70">
+                      <p id="run-detail-conversation-notice-detail" class="text-xs text-muted-foreground">
                         {@conversation_linkage.notice.detail}
                       </p>
                       <.link
                         id="run-detail-conversation-open-repo"
-                        class="link link-primary text-xs"
+                        class="text-primary underline-offset-4 hover:underline text-xs"
                         navigate={route_for_conversation_linkage(@project_id, @conversation_linkage, @return_to_path)}
                       >
                         Open repo detail
                       </.link>
                     </div>
                   <% @work_item -> %>
-                    <p id="run-detail-conversation-empty" class="text-xs text-base-content/70">
+                    <p id="run-detail-conversation-empty" class="text-xs text-muted-foreground">
                       No productive repository conversation is linked to this governed work item yet.
                     </p>
                   <% true -> %>
-                    <p id="run-detail-conversation-unavailable" class="text-xs text-base-content/70">
+                    <p id="run-detail-conversation-unavailable" class="text-xs text-muted-foreground">
                       No governed work item is linked to this run yet, so conversation lineage is unavailable.
                     </p>
                 <% end %>
@@ -641,7 +641,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p class="text-sm font-medium">Evidence records</p>
 
                 <%= if @evidence_records == [] do %>
-                  <p id="run-detail-evidence-empty" class="text-xs text-base-content/70">
+                  <p id="run-detail-evidence-empty" class="text-xs text-muted-foreground">
                     No governed evidence records have been captured yet.
                   </p>
                 <% else %>
@@ -651,12 +651,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                       id={
                         "run-detail-evidence-entry-#{governed_record_dom_token(Map.get(evidence, :id) || index)}"
                       }
-                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                      class="rounded border border-border/60 bg-muted/20 p-3 space-y-1"
                     >
                       <p id={"run-detail-evidence-key-#{index}"} class="text-sm font-medium">
                         {Map.get(evidence, :key)}
                       </p>
-                      <p id={"run-detail-evidence-summary-#{index}"} class="text-xs text-base-content/80">
+                      <p id={"run-detail-evidence-summary-#{index}"} class="text-xs text-foreground">
                         {Map.get(evidence, :summary)}
                       </p>
                     </li>
@@ -668,43 +668,43 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p class="text-sm font-medium">Runtime evidence</p>
 
                 <%= if @runtime_evidence_summary do %>
-                  <div class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1">
+                  <div class="rounded border border-border/60 bg-muted/20 p-3 space-y-1">
                     <p id="run-detail-runtime-evidence-status" class="text-sm">
                       Runtime posture:
                       <span class={runtime_evidence_badge_class(@runtime_evidence_summary.status)}>
                         {runtime_evidence_status_label(@runtime_evidence_summary.status)}
                       </span>
                     </p>
-                    <p id="run-detail-runtime-evidence-summary" class="text-xs text-base-content/80">
+                    <p id="run-detail-runtime-evidence-summary" class="text-xs text-foreground">
                       {@runtime_evidence_summary.summary}
                     </p>
                     <p
                       :if={@runtime_evidence_summary.delivery_mode}
                       id="run-detail-runtime-evidence-delivery-mode"
-                      class="text-xs text-base-content/80"
+                      class="text-xs text-foreground"
                     >
                       Delivery path: {humanize_runtime_value(@runtime_evidence_summary.delivery_mode)}
                     </p>
                     <p
                       :if={@runtime_evidence_summary.reason_code}
                       id="run-detail-runtime-evidence-reason"
-                      class="text-xs text-base-content/80"
+                      class="text-xs text-foreground"
                     >
                       Runtime reason: {humanize_runtime_value(@runtime_evidence_summary.reason_code)}
                     </p>
                     <p
                       :if={@runtime_evidence_summary.integration_summary}
                       id="run-detail-runtime-evidence-integration"
-                      class="text-xs text-base-content/80"
+                      class="text-xs text-foreground"
                     >
                       Latest integration signal: {@runtime_evidence_summary.integration_summary}
                     </p>
-                    <p id="run-detail-runtime-evidence-note" class="text-xs text-base-content/70">
+                    <p id="run-detail-runtime-evidence-note" class="text-xs text-muted-foreground">
                       Product governance stores bounded runtime evidence here; runtime transport remains opaque.
                     </p>
                   </div>
                 <% else %>
-                  <p id="run-detail-runtime-evidence-empty" class="text-xs text-base-content/70">
+                  <p id="run-detail-runtime-evidence-empty" class="text-xs text-muted-foreground">
                     No bounded runtime evidence has been materialized for this run yet.
                   </p>
                 <% end %>
@@ -714,7 +714,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p class="text-sm font-medium">Decisions</p>
 
                 <%= if @decisions == [] do %>
-                  <p id="run-detail-decisions-empty" class="text-xs text-base-content/70">
+                  <p id="run-detail-decisions-empty" class="text-xs text-muted-foreground">
                     No governance decisions have been recorded yet.
                   </p>
                 <% else %>
@@ -724,7 +724,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                       id={
                         "run-detail-decision-entry-#{governed_record_dom_token(Map.get(decision, :id) || index)}"
                       }
-                      class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                      class="rounded border border-border/60 bg-muted/20 p-3 space-y-1"
                     >
                       <p id={"run-detail-decision-value-#{index}"} class="text-sm font-medium">
                         {Map.get(decision, :decision) |> status_label()}
@@ -732,7 +732,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <p
                         :if={normalize_optional_string(Map.get(decision, :rationale))}
                         id={"run-detail-decision-rationale-#{index}"}
-                        class="text-xs text-base-content/80"
+                        class="text-xs text-foreground"
                       >
                         {Map.get(decision, :rationale)}
                       </p>
@@ -744,11 +744,11 @@ defmodule JidoCodeWeb.RunDetailLive do
               <section
                 :if={@memory_context}
                 id="run-detail-memory-context"
-                class="space-y-3 rounded border border-base-300/70 bg-base-200/20 p-3"
+                class="space-y-3 rounded border border-border/70 bg-muted/20 p-3"
               >
                 <div class="space-y-1">
                   <p class="text-sm font-medium">Repository memory context</p>
-                  <p id="run-detail-memory-context-state" class="text-xs text-base-content/70">
+                  <p id="run-detail-memory-context-state" class="text-xs text-muted-foreground">
                     Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
                   </p>
                   <.operator_state_notice
@@ -781,32 +781,32 @@ defmodule JidoCodeWeb.RunDetailLive do
                   class="grid gap-3 md:grid-cols-2"
                 >
                   <section :if={@memory_context.governed_history.work_item} class="space-y-2">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Work item history
                     </p>
                     <div
                       id="run-detail-memory-work-item-history"
-                      class="rounded border border-base-300/50 bg-base-100 p-2"
+                      class="rounded border border-border/50 bg-card p-2"
                     >
                       <p class="text-xs font-medium">{@memory_context.governed_history.work_item.label}</p>
-                      <p class="text-xs text-base-content/70">
+                      <p class="text-xs text-muted-foreground">
                         Memory: {@memory_context.governed_history.work_item.memory_count} | Provenance: {@memory_context.governed_history.work_item.provenance_count}
                       </p>
                     </div>
                   </section>
 
                   <section :if={@memory_context.governed_history.evidence != []} class="space-y-2">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Evidence history
                     </p>
                     <ol id="run-detail-memory-evidence-history" class="space-y-2">
                       <li
                         :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.evidence, 1)}
                         id={"run-detail-memory-evidence-history-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                        class="rounded border border-border/50 bg-card p-2"
                       >
                         <p class="text-xs font-medium">{entry.label}</p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
                         </p>
                       </li>
@@ -814,17 +814,17 @@ defmodule JidoCodeWeb.RunDetailLive do
                   </section>
 
                   <section :if={@memory_context.governed_history.decisions != []} class="space-y-2">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Decision history
                     </p>
                     <ol id="run-detail-memory-decision-history" class="space-y-2">
                       <li
                         :for={{entry, index} <- Enum.with_index(@memory_context.governed_history.decisions, 1)}
                         id={"run-detail-memory-decision-history-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                        class="rounded border border-border/50 bg-card p-2"
                       >
                         <p class="text-xs font-medium">{entry.label}</p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Memory: {entry.memory_count} | Provenance: {entry.provenance_count}
                         </p>
                       </li>
@@ -833,12 +833,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                 </div>
 
                 <section id="run-detail-conversation-recall" class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Conversation-origin recall
                   </p>
 
                   <%= if @memory_context.conversation_recall.items == [] do %>
-                    <p id="run-detail-conversation-recall-empty" class="text-xs text-base-content/70">
+                    <p id="run-detail-conversation-recall-empty" class="text-xs text-muted-foreground">
                       No bounded conversation-origin recall currently points at this governed history.
                     </p>
                   <% else %>
@@ -846,7 +846,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.conversation_recall.items, 1)}
                         id={"run-detail-conversation-recall-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-3"
+                        class="rounded border border-border/50 bg-card p-3"
                       >
                         <.conversation_origin_card
                           dom_prefix={"run-detail-conversation-recall-#{index}"}
@@ -869,9 +869,9 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <section
                     :if={@memory_context.governed_surfaces.work_item}
                     id="run-detail-work-item-memory"
-                    class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                    class="space-y-2 rounded border border-border/50 bg-card p-3"
                   >
-                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Work item memory context
                     </p>
                     <.governed_memory_surface
@@ -885,14 +885,14 @@ defmodule JidoCodeWeb.RunDetailLive do
                     id="run-detail-evidence-memory-contexts"
                     class="space-y-2"
                   >
-                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Evidence memory context
                     </p>
                     <ol class="space-y-2">
                       <li
                         :for={context <- @memory_context.governed_surfaces.evidence}
                         id={"run-detail-evidence-memory-context-#{governed_record_dom_token(context.id)}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                        class="rounded border border-border/50 bg-card p-2"
                       >
                         <.governed_memory_surface
                           dom_prefix={"run-detail-evidence-memory-#{governed_record_dom_token(context.id)}"}
@@ -907,14 +907,14 @@ defmodule JidoCodeWeb.RunDetailLive do
                     id="run-detail-decision-memory-contexts"
                     class="space-y-2"
                   >
-                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Decision memory context
                     </p>
                     <ol class="space-y-2">
                       <li
                         :for={context <- @memory_context.governed_surfaces.decisions}
                         id={"run-detail-decision-memory-context-#{governed_record_dom_token(context.id)}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-2"
+                        class="rounded border border-border/50 bg-card p-2"
                       >
                         <.governed_memory_surface
                           dom_prefix={"run-detail-decision-memory-#{governed_record_dom_token(context.id)}"}
@@ -927,7 +927,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                           phx-click="supersede_memory"
                           phx-value-memory_iri={decision_memory_iri(@memory_context.memories.items)}
                           phx-value-decision_id={context.id}
-                          class="btn btn-xs btn-outline"
+                          class="ui-button ui-button-xs ui-button-outline"
                         >
                           Supersede with decision
                         </button>
@@ -937,12 +937,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                 </div>
 
                 <section id="run-detail-memory-items" class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Durable memories
                   </p>
 
                   <%= if @memory_context.memories.items == [] do %>
-                    <p id="run-detail-memory-empty" class="text-xs text-base-content/70">
+                    <p id="run-detail-memory-empty" class="text-xs text-muted-foreground">
                       No durable memories currently point at this governed history.
                     </p>
                   <% else %>
@@ -950,12 +950,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.memories.items, 1)}
                         id={"run-detail-memory-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                        class="rounded border border-border/50 bg-card p-3 space-y-1"
                       >
                         <p class="text-sm font-medium">
                           {memory_item_kind(item)}: {memory_item_content(item)}
                         </p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
                         </p>
                         <div class="flex flex-wrap gap-2">
@@ -964,7 +964,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                             id={"run-detail-memory-validate-#{index}"}
                             phx-click="validate_memory"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Validate
                           </button>
@@ -973,7 +973,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                             id={"run-detail-memory-invalidate-#{index}"}
                             phx-click="invalidate_memory"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline btn-warning"
+                            class="ui-button ui-button-xs ui-button-warning"
                           >
                             Invalidate
                           </button>
@@ -982,7 +982,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                             id={"run-detail-memory-promote-#{index}"}
                             phx-click="promote_memory_follow_up"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-primary"
+                            class="ui-button ui-button-xs ui-button-primary"
                           >
                             Create follow-up
                           </button>
@@ -996,24 +996,24 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <section
                   :if={@memory_follow_up_preview && @memory_follow_up_preview.available?}
                   id="run-detail-memory-follow-up-preview"
-                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                  class="space-y-2 rounded border border-border/50 bg-card p-3"
                 >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Memory-aware follow-up
                   </p>
                   <p id="run-detail-memory-follow-up-preview-summary" class="text-sm font-medium">
                     {@memory_follow_up_preview.summary}
                   </p>
-                  <p id="run-detail-memory-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                  <p id="run-detail-memory-follow-up-preview-metadata" class="text-xs text-muted-foreground">
                     Recommended action: {@memory_follow_up_preview.recommended_action_label} | Priority: {@memory_follow_up_preview.priority} | Urgency: {@memory_follow_up_preview.urgency}
                   </p>
-                  <p id="run-detail-memory-follow-up-preview-kinds" class="text-xs text-base-content/70">
+                  <p id="run-detail-memory-follow-up-preview-kinds" class="text-xs text-muted-foreground">
                     Selected memory kinds: {Enum.join(@memory_follow_up_preview.memory_kinds, ", ")}
                   </p>
                   <.link
                     :if={@memory_follow_up_preview.route}
                     id="run-detail-memory-follow-up-preview-route"
-                    class="link link-primary text-xs"
+                    class="text-primary underline-offset-4 hover:underline text-xs"
                     navigate={@memory_follow_up_preview.route}
                   >
                     {@memory_follow_up_preview.route_label}
@@ -1023,24 +1023,24 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <section
                   :if={@conversation_follow_up_preview && @conversation_follow_up_preview.available?}
                   id="run-detail-conversation-follow-up-preview"
-                  class="space-y-2 rounded border border-base-300/50 bg-base-100 p-3"
+                  class="space-y-2 rounded border border-border/50 bg-card p-3"
                 >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Conversation-aware follow-up
                   </p>
                   <p id="run-detail-conversation-follow-up-preview-summary" class="text-sm font-medium">
                     {@conversation_follow_up_preview.summary}
                   </p>
-                  <p id="run-detail-conversation-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                  <p id="run-detail-conversation-follow-up-preview-metadata" class="text-xs text-muted-foreground">
                     Recommended action: {@conversation_follow_up_preview.recommended_action_label} | Priority: {@conversation_follow_up_preview.priority} | Urgency: {@conversation_follow_up_preview.urgency}
                   </p>
-                  <p id="run-detail-conversation-follow-up-preview-count" class="text-xs text-base-content/70">
+                  <p id="run-detail-conversation-follow-up-preview-count" class="text-xs text-muted-foreground">
                     Selected bounded recalls: {@conversation_follow_up_preview.selected_count}
                   </p>
                   <.link
                     :if={@conversation_follow_up_preview.route}
                     id="run-detail-conversation-follow-up-preview-route"
-                    class="link link-primary text-xs"
+                    class="text-primary underline-offset-4 hover:underline text-xs"
                     navigate={@conversation_follow_up_preview.route}
                   >
                     {@conversation_follow_up_preview.route_label}
@@ -1048,12 +1048,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                 </section>
 
                 <section id="run-detail-memory-provenance" class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Workflow provenance
                   </p>
 
                   <%= if @memory_context.provenance.items == [] do %>
-                    <p id="run-detail-memory-provenance-empty" class="text-xs text-base-content/70">
+                    <p id="run-detail-memory-provenance-empty" class="text-xs text-muted-foreground">
                       No workflow provenance currently points at this governed history.
                     </p>
                   <% else %>
@@ -1061,12 +1061,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.provenance.items, 1)}
                         id={"run-detail-memory-provenance-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-100 p-3 space-y-1"
+                        class="rounded border border-border/50 bg-card p-3 space-y-1"
                       >
                         <p class="text-sm font-medium">
                           {provenance_item_kind(item)}: {provenance_item_label(item)}
                         </p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Revision: {provenance_item_revision(item)}
                         </p>
                         <.memory_link_groups dom_prefix={"run-detail-memory-provenance-#{index}"} item={item} />
@@ -1080,35 +1080,35 @@ defmodule JidoCodeWeb.RunDetailLive do
             <%= if @issue_triage_artifacts do %>
               <section
                 id="run-detail-issue-triage-artifacts"
-                class="space-y-2 rounded border border-base-300 bg-base-100 p-4"
+                class="space-y-2 rounded border border-border bg-card p-4"
               >
                 <h2 class="text-lg font-semibold">Issue triage artifacts</h2>
-                <p id="run-detail-issue-artifact-persistence-status" class="text-sm text-base-content/80">
+                <p id="run-detail-issue-artifact-persistence-status" class="text-sm text-foreground">
                   Persistence status: {@issue_triage_artifacts.persistence_status}
                 </p>
                 <p id="run-detail-issue-triage-classification" class="text-sm">
                   Classification: {@issue_triage_artifacts.classification}
                 </p>
-                <p id="run-detail-issue-research-summary" class="text-sm text-base-content/80">
+                <p id="run-detail-issue-research-summary" class="text-sm text-foreground">
                   {@issue_triage_artifacts.research_summary}
                 </p>
-                <p id="run-detail-issue-response-draft" class="text-sm text-base-content/80">
+                <p id="run-detail-issue-response-draft" class="text-sm text-foreground">
                   {@issue_triage_artifacts.proposed_response}
                 </p>
-                <p id="run-detail-issue-response-post-status" class="text-sm text-base-content/80">
+                <p id="run-detail-issue-response-post-status" class="text-sm text-foreground">
                   Response post status: {@issue_triage_artifacts.response_post_status}
                 </p>
                 <p
                   :if={@issue_triage_artifacts.posted_comment_url}
                   id="run-detail-issue-response-post-url"
-                  class="text-sm text-base-content/80"
+                  class="text-sm text-foreground"
                 >
                   Posted comment:
                   <.link
                     href={@issue_triage_artifacts.posted_comment_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="link link-primary break-all"
+                    class="text-primary underline-offset-4 hover:underline break-all"
                   >
                     {@issue_triage_artifacts.posted_comment_url}
                   </.link>
@@ -1116,35 +1116,35 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p
                   :if={@issue_triage_artifacts.posted_comment_id}
                   id="run-detail-issue-response-post-comment-id"
-                  class="text-xs text-base-content/70"
+                  class="text-xs text-muted-foreground"
                 >
                   Posted comment ID: {@issue_triage_artifacts.posted_comment_id}
                 </p>
                 <p
                   :if={@issue_triage_artifacts.response_posted_at}
                   id="run-detail-issue-response-posted-at"
-                  class="text-xs text-base-content/70"
+                  class="text-xs text-muted-foreground"
                 >
                   Posted at: {@issue_triage_artifacts.response_posted_at}
                 </p>
                 <p
                   :if={@issue_triage_artifacts.issue_reference}
                   id="run-detail-issue-artifact-issue-reference"
-                  class="text-xs text-base-content/70"
+                  class="text-xs text-muted-foreground"
                 >
                   Issue reference: {@issue_triage_artifacts.issue_reference}
                 </p>
                 <p
                   :if={@issue_triage_artifacts.source_issue_number}
                   id="run-detail-issue-artifact-source-issue-number"
-                  class="text-xs text-base-content/70"
+                  class="text-xs text-muted-foreground"
                 >
                   Source issue number: {@issue_triage_artifacts.source_issue_number}
                 </p>
                 <p
                   :if={@issue_triage_artifacts.linked_run_id}
                   id="run-detail-issue-artifact-run-id"
-                  class="text-xs text-base-content/70"
+                  class="text-xs text-muted-foreground"
                 >
                   Linked run: <span class="font-mono">{@issue_triage_artifacts.linked_run_id}</span>
                 </p>
@@ -1152,15 +1152,15 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <%= if @issue_triage_artifacts.typed_failure do %>
                   <section
                     id="run-detail-issue-artifact-persistence-error"
-                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                    class="space-y-1 rounded border border-destructive/40 bg-destructive/5 p-3"
                   >
-                    <p id="run-detail-issue-artifact-persistence-error-type" class="text-sm font-semibold text-error">
+                    <p id="run-detail-issue-artifact-persistence-error-type" class="text-sm font-semibold text-destructive">
                       Typed persistence failure: {@issue_triage_artifacts.typed_failure.error_type}
                     </p>
-                    <p id="run-detail-issue-artifact-persistence-error-detail" class="text-sm text-base-content/80">
+                    <p id="run-detail-issue-artifact-persistence-error-detail" class="text-sm text-foreground">
                       {@issue_triage_artifacts.typed_failure.detail}
                     </p>
-                    <p id="run-detail-issue-artifact-persistence-error-remediation" class="text-sm text-base-content/80">
+                    <p id="run-detail-issue-artifact-persistence-error-remediation" class="text-sm text-foreground">
                       {@issue_triage_artifacts.typed_failure.remediation}
                     </p>
                   </section>
@@ -1169,15 +1169,15 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <%= if @issue_triage_artifacts.response_post_failure do %>
                   <section
                     id="run-detail-issue-response-post-error"
-                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                    class="space-y-1 rounded border border-destructive/40 bg-destructive/5 p-3"
                   >
-                    <p id="run-detail-issue-response-post-error-type" class="text-sm font-semibold text-error">
+                    <p id="run-detail-issue-response-post-error-type" class="text-sm font-semibold text-destructive">
                       Typed post failure: {@issue_triage_artifacts.response_post_failure.error_type}
                     </p>
-                    <p id="run-detail-issue-response-post-error-detail" class="text-sm text-base-content/80">
+                    <p id="run-detail-issue-response-post-error-detail" class="text-sm text-foreground">
                       {@issue_triage_artifacts.response_post_failure.detail}
                     </p>
-                    <p id="run-detail-issue-response-post-error-remediation" class="text-sm text-base-content/80">
+                    <p id="run-detail-issue-response-post-error-remediation" class="text-sm text-foreground">
                       {@issue_triage_artifacts.response_post_failure.remediation}
                     </p>
                   </section>
@@ -1185,23 +1185,23 @@ defmodule JidoCodeWeb.RunDetailLive do
               </section>
             <% end %>
 
-            <section id="run-detail-artifact-browser" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
+            <section id="run-detail-artifact-browser" class="space-y-3 rounded border border-border bg-card p-4">
               <h2 class="text-lg font-semibold">Run artifacts</h2>
-              <p id="run-detail-artifact-browser-note" class="text-sm text-base-content/80">
+              <p id="run-detail-artifact-browser-note" class="text-sm text-foreground">
                 Browse persisted artifact records grouped by category.
               </p>
 
               <section
                 :for={category <- @artifact_categories}
                 id={"run-detail-artifact-category-#{category.id}"}
-                class="space-y-2 rounded border border-base-300/70 bg-base-200/30 p-3"
+                class="space-y-2 rounded border border-border/70 bg-muted/30 p-3"
               >
                 <h3 id={"run-detail-artifact-category-title-#{category.id}"} class="text-sm font-semibold">
                   {category.label}
                 </h3>
 
                 <%= if category.entries == [] do %>
-                  <p id={"run-detail-artifact-category-missing-#{category.id}"} class="text-xs text-warning">
+                  <p id={"run-detail-artifact-category-missing-#{category.id}"} class="text-xs text-accent-yellow">
                     Missing artifact records for this category.
                   </p>
                 <% else %>
@@ -1209,24 +1209,24 @@ defmodule JidoCodeWeb.RunDetailLive do
                     <li
                       :for={entry <- category.entries}
                       id={"run-detail-artifact-entry-#{entry.identifier}"}
-                      class="space-y-1 rounded border border-base-300 bg-base-100 p-2"
+                      class="space-y-1 rounded border border-border bg-card p-2"
                     >
                       <p id={"run-detail-artifact-identifier-#{entry.identifier}"} class="text-xs">
                         Identifier: <span class="font-mono">{entry.identifier}</span>
                       </p>
-                      <p id={"run-detail-artifact-source-#{entry.identifier}"} class="text-xs text-base-content/80">
+                      <p id={"run-detail-artifact-source-#{entry.identifier}"} class="text-xs text-foreground">
                         Source: <span class="font-mono">{entry.source}</span>
                       </p>
                       <.link
                         id={"run-detail-artifact-view-#{entry.identifier}"}
                         href={"#run-detail-artifact-payload-#{entry.identifier}"}
-                        class="link link-primary text-xs"
+                        class="text-primary underline-offset-4 hover:underline text-xs"
                       >
                         View artifact
                       </.link>
                       <article
                         id={"run-detail-artifact-payload-#{entry.identifier}"}
-                        class="rounded border border-base-300/70 bg-base-200/40 p-2"
+                        class="rounded border border-border/70 bg-muted/40 p-2"
                       >
                         <p class="text-xs font-medium">{entry.summary}</p>
                         <pre
@@ -1241,8 +1241,11 @@ defmodule JidoCodeWeb.RunDetailLive do
             </section>
 
             <%= if @failure_context do %>
-              <section id="run-detail-failure-context" class="space-y-2 rounded border border-error/40 bg-error/5 p-4">
-                <h2 class="text-lg font-semibold text-error">Failure context</h2>
+              <section
+                id="run-detail-failure-context"
+                class="space-y-2 rounded border border-destructive/40 bg-destructive/5 p-4"
+              >
+                <h2 class="text-lg font-semibold text-destructive">Failure context</h2>
                 <p id="run-detail-failure-error-type" class="text-sm">
                   Error type: <span class="font-mono">{@failure_context.error_type}</span>
                 </p>
@@ -1255,15 +1258,15 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <p id="run-detail-failure-failed-step" class="text-sm">
                   Failed step: <span class="font-mono">{@failure_context.failed_step}</span>
                 </p>
-                <p id="run-detail-failure-detail" class="text-sm text-base-content/80">
+                <p id="run-detail-failure-detail" class="text-sm text-foreground">
                   {@failure_context.detail}
                 </p>
-                <p id="run-detail-failure-remediation" class="text-sm text-base-content/80">
+                <p id="run-detail-failure-remediation" class="text-sm text-foreground">
                   {@failure_context.remediation}
                 </p>
 
                 <%= if @failure_context.missing_fields != [] do %>
-                  <p id="run-detail-failure-missing-fields" class="text-sm text-base-content/80">
+                  <p id="run-detail-failure-missing-fields" class="text-sm text-foreground">
                     Missing failure context fields: {Enum.join(@failure_context.missing_fields, ", ")}
                   </p>
                 <% end %>
@@ -1271,14 +1274,14 @@ defmodule JidoCodeWeb.RunDetailLive do
             <% end %>
 
             <%= if awaiting_approval?(@run.status) do %>
-              <section id="run-detail-approval-panel" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
+              <section id="run-detail-approval-panel" class="space-y-3 rounded border border-border bg-card p-4">
                 <h2 class="text-lg font-semibold">Approval request payload</h2>
-                <p id="run-detail-approval-panel-note" class="text-sm text-base-content/80">
+                <p id="run-detail-approval-panel-note" class="text-sm text-foreground">
                   Review this context before approving.
                 </p>
 
                 <%= if @approval_context do %>
-                  <div id="run-detail-approval-context" class="space-y-2 rounded border border-base-300 p-3">
+                  <div id="run-detail-approval-context" class="space-y-2 rounded border border-border p-3">
                     <p id="run-detail-approval-diff-summary" class="text-sm">
                       Diff summary: {@approval_context.diff_summary}
                     </p>
@@ -1287,7 +1290,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                     </p>
                     <div class="space-y-1">
                       <p class="text-sm font-medium">Risk notes</p>
-                      <ul id="run-detail-approval-risk-notes" class="list-disc pl-5 text-sm text-base-content/80">
+                      <ul id="run-detail-approval-risk-notes" class="list-disc pl-5 text-sm text-foreground">
                         <li
                           :for={{risk_note, index} <- Enum.with_index(@approval_context.risk_notes, 1)}
                           id={"run-detail-approval-risk-note-#{index}"}
@@ -1298,23 +1301,23 @@ defmodule JidoCodeWeb.RunDetailLive do
                     </div>
                   </div>
                 <% else %>
-                  <p id="run-detail-approval-context-missing" class="text-sm text-warning">
+                  <p id="run-detail-approval-context-missing" class="text-sm text-accent-yellow">
                     Approval context is unavailable.
                   </p>
                 <% end %>
 
                 <%= if @approval_context_blocker do %>
                   <section
-                    id="run-detail-approval-context-error"
-                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                    id="run-detail-approval-context-destructive"
+                    class="space-y-1 rounded border border-destructive/40 bg-destructive/5 p-3"
                   >
-                    <p id="run-detail-approval-context-error-message" class="text-sm font-semibold text-error">
+                    <p id="run-detail-approval-context-destructive-message" class="text-sm font-semibold text-destructive">
                       {@approval_context_blocker.message}
                     </p>
-                    <p id="run-detail-approval-context-error-detail" class="text-sm text-base-content/80">
+                    <p id="run-detail-approval-context-destructive-detail" class="text-sm text-foreground">
                       {@approval_context_blocker.detail}
                     </p>
-                    <p id="run-detail-approval-context-remediation" class="text-sm text-base-content/80">
+                    <p id="run-detail-approval-context-remediation" class="text-sm text-foreground">
                       {@approval_context_blocker.remediation}
                     </p>
                   </section>
@@ -1324,7 +1327,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <button
                     id="run-detail-approve-button"
                     type="button"
-                    class="btn btn-primary"
+                    class="ui-button ui-button-primary"
                     phx-click="approve_run"
                   >
                     Approve
@@ -1338,7 +1341,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                       label="Rejection rationale (optional)"
                       value=""
                     />
-                    <button id="run-detail-reject-button" type="submit" class="btn btn-outline">
+                    <button id="run-detail-reject-button" type="submit" class="ui-button ui-button-outline">
                       Reject
                     </button>
                   </form>
@@ -1347,15 +1350,15 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <%= if @approval_action_error do %>
                   <section
                     id="run-detail-approval-action-error"
-                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                    class="space-y-1 rounded border border-destructive/40 bg-destructive/5 p-3"
                   >
-                    <p id="run-detail-approval-action-error-type" class="text-sm font-semibold text-error">
+                    <p id="run-detail-approval-action-error-type" class="text-sm font-semibold text-destructive">
                       Typed action failure: {@approval_action_error.error_type}
                     </p>
-                    <p id="run-detail-approval-action-error-detail" class="text-sm text-base-content/80">
+                    <p id="run-detail-approval-action-error-detail" class="text-sm text-foreground">
                       {@approval_action_error.detail}
                     </p>
-                    <p id="run-detail-approval-action-error-remediation" class="text-sm text-base-content/80">
+                    <p id="run-detail-approval-action-error-remediation" class="text-sm text-foreground">
                       {@approval_action_error.remediation}
                     </p>
                   </section>
@@ -1364,30 +1367,30 @@ defmodule JidoCodeWeb.RunDetailLive do
             <% end %>
 
             <%= if full_run_retry_available?(@run.status) do %>
-              <section id="run-detail-retry-panel" class="space-y-3 rounded border border-base-300 bg-base-100 p-4">
+              <section id="run-detail-retry-panel" class="space-y-3 rounded border border-border bg-card p-4">
                 <h2 class="text-lg font-semibold">Retry run</h2>
-                <p id="run-detail-retry-note" class="text-sm text-base-content/80">
+                <p id="run-detail-retry-note" class="text-sm text-foreground">
                   Starts a full-run retry attempt and preserves failure lineage for artifact and reason lookup.
                 </p>
                 <button
                   id="run-detail-retry-button"
                   type="button"
-                  class="btn btn-outline"
+                  class="ui-button ui-button-outline"
                   phx-click="retry_run"
                 >
                   Retry full run
                 </button>
 
                 <%= if @step_retry_state.available do %>
-                  <section id="run-detail-step-retry-panel" class="space-y-2 rounded border border-base-300 p-3">
-                    <p id="run-detail-step-retry-note" class="text-sm text-base-content/80">
+                  <section id="run-detail-step-retry-panel" class="space-y-2 rounded border border-border p-3">
+                    <p id="run-detail-step-retry-note" class="text-sm text-foreground">
                       Restarts retry at contract step <span class="font-mono">{@step_retry_state.retry_step}</span>
                       while preserving prior failure lineage.
                     </p>
                     <button
                       id="run-detail-step-retry-button"
                       type="button"
-                      class="btn btn-outline"
+                      class="ui-button ui-button-outline"
                       phx-click="retry_step"
                     >
                       Retry from contract step
@@ -1397,12 +1400,12 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <section
                     :if={@step_retry_state.guidance}
                     id="run-detail-step-retry-guidance"
-                    class="space-y-1 rounded border border-base-300/70 bg-base-200/40 p-3"
+                    class="space-y-1 rounded border border-border/70 bg-muted/40 p-3"
                   >
-                    <p id="run-detail-step-retry-guidance-detail" class="text-sm text-base-content/80">
+                    <p id="run-detail-step-retry-guidance-detail" class="text-sm text-foreground">
                       {@step_retry_state.guidance.detail}
                     </p>
-                    <p id="run-detail-step-retry-guidance-remediation" class="text-sm text-base-content/80">
+                    <p id="run-detail-step-retry-guidance-remediation" class="text-sm text-foreground">
                       {@step_retry_state.guidance.remediation}
                     </p>
                   </section>
@@ -1411,15 +1414,15 @@ defmodule JidoCodeWeb.RunDetailLive do
                 <%= if @retry_action_error do %>
                   <section
                     id="run-detail-retry-action-error"
-                    class="space-y-1 rounded border border-error/40 bg-error/5 p-3"
+                    class="space-y-1 rounded border border-destructive/40 bg-destructive/5 p-3"
                   >
-                    <p id="run-detail-retry-action-error-type" class="text-sm font-semibold text-error">
+                    <p id="run-detail-retry-action-error-type" class="text-sm font-semibold text-destructive">
                       Typed action failure: {@retry_action_error.error_type}
                     </p>
-                    <p id="run-detail-retry-action-error-detail" class="text-sm text-base-content/80">
+                    <p id="run-detail-retry-action-error-detail" class="text-sm text-foreground">
                       {@retry_action_error.detail}
                     </p>
-                    <p id="run-detail-retry-action-error-remediation" class="text-sm text-base-content/80">
+                    <p id="run-detail-retry-action-error-remediation" class="text-sm text-foreground">
                       {@retry_action_error.remediation}
                     </p>
                   </section>
@@ -1434,21 +1437,21 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <li
                     :for={{entry, index} <- Enum.with_index(@retry_lineage_entries, 1)}
                     id={"run-detail-retry-lineage-entry-#{index}"}
-                    class="rounded border border-base-300 bg-base-100 p-3 space-y-1"
+                    class="rounded border border-border bg-card p-3 space-y-1"
                   >
                     <p id={"run-detail-retry-lineage-run-id-#{index}"} class="text-sm">
                       Prior run: <span class="font-mono">{entry.run_id}</span>
                     </p>
-                    <p id={"run-detail-retry-lineage-status-#{index}"} class="text-xs text-base-content/80">
+                    <p id={"run-detail-retry-lineage-status-#{index}"} class="text-xs text-foreground">
                       Status: {entry.status} (attempt {entry.retry_attempt})
                     </p>
-                    <p id={"run-detail-retry-lineage-reason-type-#{index}"} class="text-xs text-base-content/80">
+                    <p id={"run-detail-retry-lineage-reason-type-#{index}"} class="text-xs text-foreground">
                       Typed reason: {entry.reason_type}
                     </p>
-                    <p id={"run-detail-retry-lineage-detail-#{index}"} class="text-xs text-base-content/80">
+                    <p id={"run-detail-retry-lineage-detail-#{index}"} class="text-xs text-foreground">
                       {entry.detail}
                     </p>
-                    <p id={"run-detail-retry-lineage-artifact-count-#{index}"} class="text-xs text-base-content/80">
+                    <p id={"run-detail-retry-lineage-artifact-count-#{index}"} class="text-xs text-foreground">
                       Preserved artifact keys: {entry.artifact_count}
                     </p>
                   </li>
@@ -1460,7 +1463,7 @@ defmodule JidoCodeWeb.RunDetailLive do
               <h2 class="text-lg font-semibold">Status timeline</h2>
 
               <%= if @timeline_entries == [] do %>
-                <p id="run-detail-timeline-empty" class="text-sm text-base-content/70">
+                <p id="run-detail-timeline-empty" class="text-sm text-muted-foreground">
                   No status transitions recorded.
                 </p>
               <% else %>
@@ -1468,22 +1471,22 @@ defmodule JidoCodeWeb.RunDetailLive do
                   <li
                     :for={{entry, index} <- Enum.with_index(@timeline_entries, 1)}
                     id={"run-detail-timeline-entry-#{index}"}
-                    class="rounded border border-base-300 bg-base-100 p-3 space-y-1"
+                    class="rounded border border-border bg-card p-3 space-y-1"
                   >
                     <p id={"run-detail-timeline-transition-#{index}"} class="text-sm font-medium">
                       {entry.to_status}
                     </p>
-                    <p id={"run-detail-timeline-step-#{index}"} class="text-xs text-base-content/80">
+                    <p id={"run-detail-timeline-step-#{index}"} class="text-xs text-foreground">
                       Step: {entry.current_step}
                     </p>
-                    <p id={"run-detail-timeline-duration-#{index}"} class="text-xs text-base-content/70">
+                    <p id={"run-detail-timeline-duration-#{index}"} class="text-xs text-muted-foreground">
                       Duration: {entry.duration}
                     </p>
-                    <p id={"run-detail-timeline-at-#{index}"} class="text-xs text-base-content/70">
+                    <p id={"run-detail-timeline-at-#{index}"} class="text-xs text-muted-foreground">
                       Recorded at: {entry.transitioned_at}
                     </p>
                     <%= if entry.approval_audit do %>
-                      <p id={"run-detail-timeline-approval-audit-#{index}"} class="text-xs text-base-content/80">
+                      <p id={"run-detail-timeline-approval-audit-#{index}"} class="text-xs text-foreground">
                         Approval audit: {entry.approval_audit}
                       </p>
                     <% end %>
@@ -1492,9 +1495,9 @@ defmodule JidoCodeWeb.RunDetailLive do
               <% end %>
             </section>
           <% else %>
-            <section id="run-detail-missing" class="rounded border border-error/40 bg-error/5 p-4 space-y-2">
+            <section id="run-detail-missing" class="rounded border border-destructive/40 bg-destructive/5 p-4 space-y-2">
               <h2 id="run-detail-missing-title" class="text-lg font-semibold">Run not found</h2>
-              <p id="run-detail-missing-detail" class="text-sm text-base-content/80">
+              <p id="run-detail-missing-detail" class="text-sm text-foreground">
                 Could not find run <span class="font-mono">{@run_id}</span> for this project.
               </p>
             </section>
@@ -1504,13 +1507,13 @@ defmodule JidoCodeWeb.RunDetailLive do
         <:footer_actions>
           <.link
             id="run-detail-return-link"
-            class="btn btn-sm btn-outline"
+            class="ui-button ui-button-sm ui-button-outline"
             navigate={@return_to_path}
           >
             Back to {return_to_label(@return_to_path)}
           </.link>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
@@ -1520,13 +1523,13 @@ defmodule JidoCodeWeb.RunDetailLive do
       ManagedRepoRoutes.repo_detail_parent_return_to(Map.get(assigns, :return_to_path), "/repos")
 
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "run-detail-breadcrumb-parent",
         label: return_to_label(broad_parent_path),
         navigate: broad_parent_path
       }),
       run_detail_repo_breadcrumb(assigns, broad_parent_path),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "run-detail-breadcrumb-current",
         label: run_detail_breadcrumb_label(assigns),
         current?: true
@@ -1536,7 +1539,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp run_detail_pane(assigns) do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "run-detail",
       title: "Run detail",
       summary: run_detail_pane_summary(assigns)
@@ -1549,7 +1552,7 @@ defmodule JidoCodeWeb.RunDetailLive do
         nil
 
       project_id ->
-        OperatorShell.breadcrumb(%{
+        RouteShell.breadcrumb(%{
           id: "run-detail-breadcrumb-repo",
           label: "Repo detail",
           navigate: ManagedRepoRoutes.project_detail_path(project_id, return_to: broad_parent_path)
@@ -1893,14 +1896,14 @@ defmodule JidoCodeWeb.RunDetailLive do
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="space-y-1">
           <p id={"#{@dom_prefix}-label"} class="text-sm font-medium">{@context.label}</p>
-          <p id={"#{@dom_prefix}-counts"} class="text-xs text-base-content/70">
+          <p id={"#{@dom_prefix}-counts"} class="text-xs text-muted-foreground">
             Memory: {@context.memory_count} | Provenance: {@context.provenance_count}
           </p>
         </div>
         <.link
           :if={@context.route}
           id={"#{@dom_prefix}-route"}
-          class="link link-primary text-xs"
+          class="text-primary underline-offset-4 hover:underline text-xs"
           navigate={@context.route}
         >
           Open governed record
@@ -1908,7 +1911,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       </div>
 
       <%= if @context.memories.items == [] do %>
-        <p id={"#{@dom_prefix}-memory-empty"} class="text-xs text-base-content/70">
+        <p id={"#{@dom_prefix}-memory-empty"} class="text-xs text-muted-foreground">
           No durable memories currently point at this governed record.
         </p>
       <% else %>
@@ -1916,12 +1919,12 @@ defmodule JidoCodeWeb.RunDetailLive do
           <li
             :for={{item, index} <- Enum.with_index(@context.memories.items, 1)}
             id={"#{@dom_prefix}-memory-item-#{index}"}
-            class="rounded border border-base-300/50 bg-base-200/20 p-2 space-y-1"
+            class="rounded border border-border/50 bg-muted/20 p-2 space-y-1"
           >
             <p class="text-xs font-medium">
               {memory_item_kind(item)}: {memory_item_content(item)}
             </p>
-            <p class="text-xs text-base-content/70">
+            <p class="text-xs text-muted-foreground">
               Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
             </p>
             <div class="flex flex-wrap gap-2">
@@ -1930,7 +1933,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                 id={"#{@dom_prefix}-memory-validate-#{index}"}
                 phx-click="validate_memory"
                 phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                class="btn btn-xs btn-outline"
+                class="ui-button ui-button-xs ui-button-outline"
               >
                 Validate
               </button>
@@ -1939,7 +1942,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                 id={"#{@dom_prefix}-memory-invalidate-#{index}"}
                 phx-click="invalidate_memory"
                 phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                class="btn btn-xs btn-outline btn-warning"
+                class="ui-button ui-button-xs ui-button-warning"
               >
                 Invalidate
               </button>
@@ -1948,7 +1951,7 @@ defmodule JidoCodeWeb.RunDetailLive do
                 id={"#{@dom_prefix}-memory-promote-#{index}"}
                 phx-click="promote_memory_follow_up"
                 phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                class="btn btn-xs btn-primary"
+                class="ui-button ui-button-xs ui-button-primary"
               >
                 Create follow-up
               </button>
@@ -1959,7 +1962,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       <% end %>
 
       <%= if @context.provenance.items == [] do %>
-        <p id={"#{@dom_prefix}-provenance-empty"} class="text-xs text-base-content/70">
+        <p id={"#{@dom_prefix}-provenance-empty"} class="text-xs text-muted-foreground">
           No workflow provenance currently points at this governed record.
         </p>
       <% else %>
@@ -1967,12 +1970,12 @@ defmodule JidoCodeWeb.RunDetailLive do
           <li
             :for={{item, index} <- Enum.with_index(@context.provenance.items, 1)}
             id={"#{@dom_prefix}-provenance-item-#{index}"}
-            class="rounded border border-base-300/50 bg-base-200/20 p-2 space-y-1"
+            class="rounded border border-border/50 bg-muted/20 p-2 space-y-1"
           >
             <p class="text-xs font-medium">
               {provenance_item_kind(item)}: {provenance_item_label(item)}
             </p>
-            <p class="text-xs text-base-content/70">
+            <p class="text-xs text-muted-foreground">
               Revision: {provenance_item_revision(item)}
             </p>
             <.memory_link_groups dom_prefix={"#{@dom_prefix}-provenance-#{index}"} item={item} />
@@ -2635,10 +2638,10 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp runtime_evidence_summary(_run, _evidence_records, _repo_posture), do: nil
 
-  defp runtime_evidence_badge_class("blocked"), do: "badge badge-error"
-  defp runtime_evidence_badge_class("degraded"), do: "badge badge-warning"
-  defp runtime_evidence_badge_class("available"), do: "badge badge-success"
-  defp runtime_evidence_badge_class(_status), do: "badge badge-outline"
+  defp runtime_evidence_badge_class("blocked"), do: "ui-badge ui-badge-error"
+  defp runtime_evidence_badge_class("degraded"), do: "ui-badge ui-badge-warning"
+  defp runtime_evidence_badge_class("available"), do: "ui-badge ui-badge-success"
+  defp runtime_evidence_badge_class(_status), do: "ui-badge ui-badge-outline"
 
   defp runtime_evidence_status_label(status) do
     case normalize_optional_string(status) do

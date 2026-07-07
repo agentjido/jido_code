@@ -74,7 +74,7 @@ defmodule JidoCodeWeb.PhaseSixtySixIntegrationTest do
              string_position(html, "owner/repo-phase66-older")
 
     view
-    |> element("#dashboard-shell-parent-subjects-runtime")
+    |> element("#dashboard-shell-section-groups-runtime")
     |> render_click()
 
     assert_patch(view, "/dashboard?onboarding=completed&section=runtime&subject=runtime")
@@ -83,7 +83,7 @@ defmodule JidoCodeWeb.PhaseSixtySixIntegrationTest do
     refute has_element?(view, "#dashboard-overview-panel")
 
     view
-    |> element("#dashboard-shell-parent-subjects-work")
+    |> element("#dashboard-shell-section-groups-work")
     |> render_click()
 
     assert_patch(view, "/dashboard?onboarding=completed&section=overview&subject=work")

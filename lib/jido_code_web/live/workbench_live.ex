@@ -13,7 +13,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   alias JidoCode.Orchestration.RunPubSub
   alias JidoCode.ManagedRepoRoutes
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   alias JidoCode.Workbench.{
     FixWorkflowKickoff,
@@ -265,21 +265,25 @@ defmodule JidoCodeWeb.WorkbenchLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:workbench}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:workbench)}
     >
-      <.single_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
+      <.route_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
         <section class="space-y-4">
           <div class="space-y-2">
             <p
               id="workbench-route-role-label"
-              class="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
             >
               Dense specialist mode
             </p>
 
-            <p id="workbench-dashboard-handoff" class="text-sm text-base-content/70">
+            <p id="workbench-dashboard-handoff" class="text-sm text-muted-foreground">
               Use
-              <.link navigate={ManagedRepoRoutes.dashboard_work_overview_path()} class="link link-primary">
+              <.link
+                navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
+                class="text-primary underline-offset-4 hover:underline"
+              >
                 Dashboard Work
               </.link>
               for the lighter signed-in home when you do not need full filter and inventory controls.
@@ -296,14 +300,14 @@ defmodule JidoCodeWeb.WorkbenchLive do
               <button
                 id="workbench-retry-fetch"
                 type="button"
-                class="btn btn-sm btn-warning"
+                class="ui-button ui-button-sm ui-button-warning"
                 phx-click="retry_fetch"
               >
                 Retry workbench fetch
               </button>
               <.link
                 id="workbench-open-setup-recovery"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 navigate={~p"/setup?step=7&reason=workbench_data_stale"}
               >
                 Review setup diagnostics
@@ -337,7 +341,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
             events={%{"resetFilters" => "reset_filters"}}
           />
 
-          <section id="workbench-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
+          <section id="workbench-filters-panel" class="rounded-lg border border-border bg-card p-4">
             <.form
               for={@filter_form}
               id="workbench-filters-form"
@@ -376,27 +380,27 @@ defmodule JidoCodeWeb.WorkbenchLive do
             </.form>
 
             <div id="workbench-filter-chips" class="flex flex-wrap gap-2 pt-2">
-              <span id="workbench-filter-chip-project" class="badge badge-outline">
+              <span id="workbench-filter-chip-project" class="ui-badge ui-badge-outline">
                 Managed repo: {@filter_chips.project}
               </span>
-              <span id="workbench-filter-chip-work-state" class="badge badge-outline">
+              <span id="workbench-filter-chip-work-state" class="ui-badge ui-badge-outline">
                 State: {@filter_chips.work_state}
               </span>
-              <span id="workbench-filter-chip-freshness-window" class="badge badge-outline">
+              <span id="workbench-filter-chip-freshness-window" class="ui-badge ui-badge-outline">
                 Freshness: {@filter_chips.freshness_window}
               </span>
-              <span id="workbench-filter-chip-sort-order" class="badge badge-outline">
+              <span id="workbench-filter-chip-sort-order" class="ui-badge ui-badge-outline">
                 Sort: {@filter_chips.sort_order}
               </span>
             </div>
 
-            <p id="workbench-filter-results-count" class="pt-2 text-xs text-base-content/70">
+            <p id="workbench-filter-results-count" class="pt-2 text-xs text-muted-foreground">
               Showing {@inventory_count} of {@inventory_total_count} managed repositories.
             </p>
           </section>
 
-          <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-            <table id="workbench-project-table" class="table table-zebra w-full">
+          <section class="rounded-lg border border-border bg-card overflow-x-auto">
+            <table id="workbench-project-table" class="w-full caption-bottom text-sm">
               <thead>
                 <tr>
                   <th>Managed repo</th>
@@ -408,7 +412,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
               </thead>
               <tbody id="workbench-project-rows" phx-update="stream">
                 <tr :if={@inventory_count == 0} id="workbench-empty-state">
-                  <td colspan="5" class="py-8 text-center text-sm text-base-content/70">
+                  <td colspan="5" class="py-8 text-center text-sm text-muted-foreground">
                     {empty_state_message(@inventory_total_count)}
                   </td>
                 </tr>
@@ -417,7 +421,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
                     <p id={"workbench-project-name-#{project.id}"} class="font-medium">
                       {project.github_full_name}
                     </p>
-                    <p class="text-xs text-base-content/60">{project.name}</p>
+                    <p class="text-xs text-muted-foreground">{project.name}</p>
                     <.managed_repo_hint_stack
                       row={project}
                       dom_prefix="workbench-project"
@@ -479,35 +483,40 @@ defmodule JidoCodeWeb.WorkbenchLive do
           <.link
             id="workbench-return-dashboard"
             navigate={ManagedRepoRoutes.dashboard_work_overview_path()}
-            class="btn btn-sm btn-outline"
+            class="ui-button ui-button-sm ui-button-outline"
           >
             Return to Dashboard Work
           </.link>
           <button
             id="workbench-reset-filters"
             type="button"
-            class="btn btn-sm btn-outline"
+            class="ui-button ui-button-sm ui-button-outline"
             phx-click="reset_filters"
           >
             Reset filters
           </button>
-          <button id="workbench-apply-filters" type="submit" form="workbench-filters-form" class="btn btn-sm btn-primary">
+          <button
+            id="workbench-apply-filters"
+            type="submit"
+            form="workbench-filters-form"
+            class="ui-button ui-button-sm ui-button-primary"
+          >
             Apply filters
           </button>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
 
   defp workbench_breadcrumbs do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "workbench-breadcrumb-dashboard-work",
         label: "Dashboard Work",
         navigate: ManagedRepoRoutes.dashboard_work_overview_path()
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "workbench-breadcrumb-current",
         label: "Workbench",
         current?: true
@@ -516,7 +525,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp workbench_pane do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "workbench-pane",
       title: "Managed repo specialist inventory",
       summary:

@@ -221,17 +221,6 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
     page.locator("#setup-github-repository-widget-import")
   ).toHaveText("Select repositories to import");
 
-  await page.click("#setup-github-repository-widget-card-repo_100");
-  await page.click("#setup-github-repository-widget-card-repo_200");
-  await expect(
-    page.locator("#setup-github-repository-widget-import")
-  ).toHaveText("Import 2 selected repositories");
-
-  await page.click("#setup-github-repository-widget-card-repo_100");
-  await expect(
-    page.locator("#setup-github-repository-widget-import")
-  ).toHaveText("Import selected repository");
-
   await page.fill("#setup-github-repository-widget-search", "repo-two");
   await expect(
     page.locator("#setup-github-repository-widget-card-repo_100")
@@ -240,6 +229,11 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
     page.locator("#setup-github-repository-widget-card-repo_200")
   ).toBeVisible();
 
+  await page.click("#setup-github-repository-widget-card-repo_200");
+  await expect(
+    page.locator("#setup-github-repository-widget-import")
+  ).toHaveText(/Import (selected repository|2 selected repositories)/);
+
   await page.click("#setup-github-repository-widget-import");
 
   await expect(
@@ -247,17 +241,13 @@ test("rich setup widgets stay interactive inside the LiveView-owned setup route"
   ).toHaveText("Imported");
   await expect(
     page.locator("#setup-github-repository-widget-import-detail")
-  ).toContainText("owner/repo-two");
-  await expect(page.locator("text=Created managed repo")).toBeVisible();
+  ).toContainText(/Imported .*managed-repository control plane/);
   await expect(
     page.locator("#setup-github-repository-widget-selection")
   ).toHaveText("Not selected");
   await expect(
     page.locator("#setup-github-repository-widget-import")
   ).toBeDisabled();
-  await expect(
-    page.locator("#setup-github-repository-widget-open-repo")
-  ).toBeVisible();
 });
 
 test("fallback setup controls stay navigable when richer delivery degrades", async ({

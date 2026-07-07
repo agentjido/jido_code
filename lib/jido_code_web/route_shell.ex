@@ -1,4 +1,4 @@
-defmodule JidoCodeWeb.OperatorShell do
+defmodule JidoCodeWeb.RouteShell do
   @moduledoc false
 
   @type badge :: %{
@@ -14,7 +14,7 @@ defmodule JidoCodeWeb.OperatorShell do
           optional(:current?) => boolean()
         }
 
-  @type subject_item :: %{
+  @type section_item :: %{
           required(:id) => atom() | String.t(),
           required(:label) => String.t(),
           optional(:summary) => String.t() | nil,
@@ -43,14 +43,14 @@ defmodule JidoCodeWeb.OperatorShell do
     }
   end
 
-  @spec parent_subject(map()) :: subject_item()
-  def parent_subject(attrs) when is_map(attrs) do
-    subject_item(attrs)
+  @spec section_group(map()) :: section_item()
+  def section_group(attrs) when is_map(attrs) do
+    normalize_section_item(attrs)
   end
 
-  @spec child_subject(map()) :: subject_item()
-  def child_subject(attrs) when is_map(attrs) do
-    subject_item(attrs)
+  @spec section_item(map()) :: section_item()
+  def section_item(attrs) when is_map(attrs) do
+    normalize_section_item(attrs)
   end
 
   @spec pane(map()) :: pane()
@@ -62,7 +62,7 @@ defmodule JidoCodeWeb.OperatorShell do
     }
   end
 
-  defp subject_item(attrs) do
+  defp normalize_section_item(attrs) do
     %{
       id: Map.fetch!(attrs, :id),
       label: fetch_string!(attrs, :label),

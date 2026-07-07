@@ -152,7 +152,7 @@ defmodule JidoCodeWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200">
+    <main id="welcome-public-shell" class="min-h-screen bg-gradient-to-br from-muted via-background to-muted">
       <div class={[
         "mx-auto flex w-full px-6",
         (@bootstrap_status.state == :ready and @current_user) && "max-w-6xl py-12",
@@ -161,13 +161,13 @@ defmodule JidoCodeWeb.HomeLive do
         <div class={["w-full", (@bootstrap_status.state != :ready or !@current_user) && "max-w-xl"]}>
           <%= case @bootstrap_status.state do %>
             <% :bootstrap_required -> %>
-              <div class="space-y-6 rounded-3xl border border-base-300 bg-base-100 p-10 shadow-2xl">
+              <div class="space-y-6 rounded-3xl border border-border bg-card p-10 shadow-2xl">
                 <div class="space-y-3 text-center">
-                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-base-content/50">
+                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">
                     First-Run Setup
                   </p>
-                  <h1 class="text-4xl font-bold text-base-content">Create your admin account</h1>
-                  <p class="text-base leading-7 text-base-content/70">
+                  <h1 class="text-4xl font-bold text-foreground">Create your admin account</h1>
+                  <p class="text-base leading-7 text-muted-foreground">
                     {bootstrap_intro_copy(@deployment_mode)}
                   </p>
                 </div>
@@ -175,40 +175,40 @@ defmodule JidoCodeWeb.HomeLive do
                 <div id="system-check" class="space-y-2">
                   <div
                     :if={@prereq_status == :checking}
-                    class="flex items-center justify-center gap-2 py-3 text-base-content/60"
+                    class="flex items-center justify-center gap-2 py-3 text-muted-foreground"
                   >
                     <.icon name="hero-arrow-path" class="size-5 animate-spin" />
                     <span>Checking your system…</span>
                   </div>
 
                   <div :if={@prereq_status == :pass} class="flex items-center justify-center gap-2 py-2">
-                    <span class="badge badge-success gap-1">
+                    <span class="ui-badge ui-badge-success gap-1">
                       <.icon name="hero-check-circle-mini" class="size-4" /> System ready
                     </span>
                   </div>
 
                   <div :if={@prereq_status in [:fail, :timeout]} class="space-y-2">
                     <div class={[
-                      "alert",
-                      if(@prereq_status == :timeout, do: "alert-warning", else: "alert-error")
+                      "ui-alert",
+                      if(@prereq_status == :timeout, do: "ui-alert-warning", else: "ui-alert-error")
                     ]}>
                       <.icon name="hero-exclamation-triangle-mini" class="size-5" />
                       <span>{prerequisite_banner_message(@prereq_status)}</span>
                     </div>
 
-                    <details :if={@prereq_report} class="rounded-lg border border-base-300 bg-base-100 p-3">
-                      <summary class="cursor-pointer text-sm font-medium text-base-content/80">
+                    <details :if={@prereq_report} class="rounded-lg border border-border bg-card p-3">
+                      <summary class="cursor-pointer text-sm font-medium text-foreground">
                         Show technical details
                       </summary>
                       <ul class="mt-2 space-y-1 text-sm">
                         <li :for={check <- @prereq_report.checks} class="flex items-start gap-2">
-                          <span class={["badge badge-sm mt-0.5", prereq_badge_class(check.status)]}>
+                          <span class={["ui-badge ui-badge-sm mt-0.5", prereq_badge_class(check.status)]}>
                             {prereq_status_label(check.status)}
                           </span>
                           <div>
                             <span class="font-medium">{check.name}</span>
-                            <span class="text-base-content/60">{[" — ", check.detail]}</span>
-                            <p :if={check.status != :pass} class="text-warning text-xs">
+                            <span class="text-muted-foreground">{[" — ", check.detail]}</span>
+                            <p :if={check.status != :pass} class="text-accent-yellow text-xs">
                               {check.remediation}
                             </p>
                           </div>
@@ -217,20 +217,20 @@ defmodule JidoCodeWeb.HomeLive do
                     </details>
 
                     <div class="flex justify-center">
-                      <button phx-click="recheck_prereqs" class="btn btn-sm btn-outline">
+                      <button phx-click="recheck_prereqs" class="ui-button ui-button-sm ui-button-outline">
                         <.icon name="hero-arrow-path-mini" class="size-4" /> Re-check
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <div :if={@save_error} id="welcome-save-error" class="alert alert-error">
+                <div :if={@save_error} id="welcome-save-error" class="ui-alert ui-alert-error">
                   <.icon name="hero-x-circle-mini" class="size-5" />
                   <span>{@save_error}</span>
                 </div>
 
                 <div id="owner-form-section" class="space-y-4">
-                  <div :if={@prereq_status != :pass} class="text-center text-sm text-base-content/50 py-2">
+                  <div :if={@prereq_status != :pass} class="text-center text-sm text-muted-foreground py-2">
                     <.icon name="hero-lock-closed-mini" class="size-4 inline" /> Complete system check first
                   </div>
 
@@ -246,7 +246,7 @@ defmodule JidoCodeWeb.HomeLive do
                           required
                           autocomplete="new-password"
                         />
-                        <p class="mt-1 text-xs text-base-content/50">Minimum 8 characters</p>
+                        <p class="mt-1 text-xs text-muted-foreground">Minimum 8 characters</p>
                       </div>
                       <.input
                         field={@owner_form[:password_confirmation]}
@@ -256,7 +256,7 @@ defmodule JidoCodeWeb.HomeLive do
                         required
                         autocomplete="new-password"
                       />
-                      <button type="submit" class="btn btn-primary btn-block">
+                      <button type="submit" class="ui-button ui-button-primary ui-button-block">
                         Create Account & Continue
                       </button>
                     </.form>
@@ -264,22 +264,22 @@ defmodule JidoCodeWeb.HomeLive do
                 </div>
               </div>
             <% :continue_setup -> %>
-              <div class="space-y-6 rounded-3xl border border-base-300 bg-base-100 p-10 shadow-2xl">
+              <div class="space-y-6 rounded-3xl border border-border bg-card p-10 shadow-2xl">
                 <div class="space-y-3 text-center">
-                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-base-content/50">
+                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">
                     Continue Setup
                   </p>
-                  <h1 class="text-4xl font-bold text-base-content">Sign in to finish onboarding</h1>
-                  <p class="text-base leading-7 text-base-content/70">
+                  <h1 class="text-4xl font-bold text-foreground">Sign in to finish onboarding</h1>
+                  <p class="text-base leading-7 text-muted-foreground">
                     Use the existing admin account to continue setup. Public account creation is closed after the first install.
                   </p>
                 </div>
 
-                <div class="rounded-2xl border border-base-300 bg-base-200/60 p-4 text-center text-sm text-base-content/70">
-                  Existing admin: <span class="font-semibold text-base-content">{@owner_email || "Unavailable"}</span>
+                <div class="rounded-2xl border border-border bg-muted/60 p-4 text-center text-sm text-muted-foreground">
+                  Existing admin: <span class="font-semibold text-foreground">{@owner_email || "Unavailable"}</span>
                 </div>
 
-                <div :if={@save_error} id="welcome-save-error" class="alert alert-error">
+                <div :if={@save_error} id="welcome-save-error" class="ui-alert ui-alert-error">
                   <.icon name="hero-x-circle-mini" class="size-5" />
                   <span>{@save_error}</span>
                 </div>
@@ -293,14 +293,14 @@ defmodule JidoCodeWeb.HomeLive do
                     required
                     autocomplete="current-password"
                   />
-                  <button type="submit" class="btn btn-primary btn-block">
+                  <button type="submit" class="ui-button ui-button-primary ui-button-block">
                     Sign In & Continue
                   </button>
                 </.form>
 
-                <div class="rounded-2xl border border-warning/30 bg-warning/10 p-5">
-                  <h2 class="text-lg font-semibold text-base-content">Need to recover access?</h2>
-                  <p class="mt-2 text-sm leading-6 text-base-content/75">
+                <div class="rounded-2xl border border-accent-yellow/30 bg-accent-yellow/10 p-5">
+                  <h2 class="text-lg font-semibold text-foreground">Need to recover access?</h2>
+                  <p class="mt-2 text-sm leading-6 text-muted-foreground">
                     Recovery is only for the existing bootstrap admin and requires explicit verification before credentials are changed.
                   </p>
 
@@ -337,38 +337,38 @@ defmodule JidoCodeWeb.HomeLive do
                       type="checkbox"
                       label="I understand this resets the existing bootstrap admin credentials"
                     />
-                    <button type="submit" class="btn btn-warning btn-block">
+                    <button type="submit" class="ui-button ui-button-warning ui-button-block">
                       Recover Admin Access
                     </button>
                   </.form>
                 </div>
               </div>
             <% :invalid_state -> %>
-              <div class="space-y-6 rounded-3xl border border-error/30 bg-base-100 p-10 shadow-2xl">
+              <div class="space-y-6 rounded-3xl border border-destructive/30 bg-card p-10 shadow-2xl">
                 <div class="space-y-3 text-center">
-                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-error/80">
+                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-destructive/80">
                     Bootstrap Repair Needed
                   </p>
-                  <h1 class="text-4xl font-bold text-base-content">The install needs attention</h1>
-                  <p class="text-base leading-7 text-base-content/70">
+                  <h1 class="text-4xl font-bold text-foreground">The install needs attention</h1>
+                  <p class="text-base leading-7 text-muted-foreground">
                     The public bootstrap flow is paused because the local account state is inconsistent.
                   </p>
                 </div>
 
-                <div id="welcome-save-error" class="alert alert-error">
+                <div id="welcome-save-error" class="ui-alert ui-alert-error">
                   <.icon name="hero-x-circle-mini" class="size-5" />
                   <span>{@save_error || "Repair the bootstrap state before continuing."}</span>
                 </div>
               </div>
             <% :ready -> %>
-              <div class="space-y-6 rounded-3xl border border-base-300 bg-base-100 p-10 shadow-2xl">
+              <div class="space-y-6 rounded-3xl border border-border bg-card p-10 shadow-2xl">
                 <div class="space-y-3 text-center">
                   <%!-- covers: baseline.surface.welcome_landing_copy --%>
-                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-base-content/50">
+                  <p class="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">
                     {if @current_user, do: "Ready", else: "Bootstrap Complete"}
                   </p>
-                  <h1 class="text-4xl font-bold text-base-content">Welcome to Jido Code</h1>
-                  <p class="text-base leading-7 text-base-content/70">
+                  <h1 class="text-4xl font-bold text-foreground">Welcome to Jido Code</h1>
+                  <p class="text-base leading-7 text-muted-foreground">
                     {if(@current_user,
                       do: ready_signed_in_intro_copy(@deployment_mode),
                       else: ready_intro_copy(@deployment_mode)
@@ -378,41 +378,49 @@ defmodule JidoCodeWeb.HomeLive do
 
                 <div class="space-y-4">
                   <%= if @current_user do %>
-                    <div class="rounded-2xl border border-success/30 bg-success/10 p-5 text-left">
-                      <p class="text-sm uppercase tracking-[0.16em] text-success">Signed In</p>
-                      <p class="mt-2 text-lg font-semibold text-base-content">{@current_user.email}</p>
-                      <p class="mt-3 text-sm leading-6 text-base-content/75">
+                    <div class="rounded-2xl border border-accent-green/30 bg-accent-green/10 p-5 text-left">
+                      <p class="text-sm uppercase tracking-[0.16em] text-accent-green">Signed In</p>
+                      <p class="mt-2 text-lg font-semibold text-foreground">{@current_user.email}</p>
+                      <p class="mt-3 text-sm leading-6 text-muted-foreground">
                         Bootstrap is complete. Use dashboard for normal product work, and use settings when you need to manage provider login or deployment-local Git automation.
                       </p>
                     </div>
 
                     <div class="grid gap-3 sm:grid-cols-2">
-                      <.link id="welcome-open-dashboard" navigate={~p"/dashboard"} class="btn btn-primary btn-block">
+                      <.link
+                        id="welcome-open-dashboard"
+                        navigate={~p"/dashboard"}
+                        class="ui-button ui-button-primary ui-button-block"
+                      >
                         Open Dashboard
                       </.link>
-                      <.link id="welcome-open-settings" navigate={~p"/settings/auth"} class="btn btn-outline btn-block">
+                      <.link
+                        id="welcome-open-settings"
+                        navigate={~p"/settings/auth"}
+                        class="ui-button ui-button-outline ui-button-block"
+                      >
                         Open Auth & Integrations
                       </.link>
                     </div>
 
                     <div class="grid gap-3">
-                      <a href="/sign-out" class="btn btn-ghost btn-block">Sign Out</a>
+                      <a href="/sign-out" class="ui-button ui-button-ghost ui-button-block">Sign Out</a>
                     </div>
 
                     <div
                       id="welcome-ready-handoff-note"
-                      class="rounded-2xl border border-base-300 bg-base-200/60 p-4 text-left text-sm text-base-content/70"
+                      class="rounded-2xl border border-border bg-muted/60 p-4 text-left text-sm text-muted-foreground"
                     >
                       Local email auth remains the fallback path even when hosted provider sign-in is enabled. Dashboard is the default authenticated entry, and Settings owns durable provider and Git integration management.
                     </div>
                   <% else %>
                     <div class="grid gap-3">
-                      <a href="/sign-in" class="btn btn-primary btn-block">Sign In</a>
+                      <a href="/sign-in" class="ui-button ui-button-primary ui-button-block">Sign In</a>
                     </div>
 
                     <%= if @github_login_enabled? do %>
                       <div class="grid gap-3">
-                        <a href={@github_login_path} class="btn btn-neutral btn-block">
+                        <a href={@github_login_path} class="ui-button ui-button-neutral ui-button-block">
                           Sign In with GitHub
                         </a>
                       </div>
@@ -423,7 +431,7 @@ defmodule JidoCodeWeb.HomeLive do
           <% end %>
         </div>
       </div>
-    </div>
+    </main>
     """
   end
 
@@ -558,10 +566,10 @@ defmodule JidoCodeWeb.HomeLive do
   defp prerequisite_banner_message(_status),
     do: "Some system requirements aren't met yet."
 
-  defp prereq_badge_class(:pass), do: "badge-success"
-  defp prereq_badge_class(:fail), do: "badge-error"
-  defp prereq_badge_class(:timeout), do: "badge-warning"
-  defp prereq_badge_class(_status), do: "badge-neutral"
+  defp prereq_badge_class(:pass), do: "ui-badge-success"
+  defp prereq_badge_class(:fail), do: "ui-badge-error"
+  defp prereq_badge_class(:timeout), do: "ui-badge-warning"
+  defp prereq_badge_class(_status), do: "ui-badge-neutral"
 
   defp prereq_status_label(:pass), do: "Pass"
   defp prereq_status_label(:fail), do: "Fail"

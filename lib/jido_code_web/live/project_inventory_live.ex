@@ -4,7 +4,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Workbench.Inventory
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   @default_branch_filter_value "all"
   @default_filter_values %{
@@ -59,14 +59,15 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
     <Layouts.app
       flash={@flash}
       current_scope={%{}}
-      operator_navigation={JidoCodeWeb.OperatorNavigation.from_view(__MODULE__, assigns)}
+      active_area={:repositories}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:repositories)}
     >
-      <.single_pane_shell
+      <.route_pane_shell
         id="project-inventory-shell"
         breadcrumbs={project_inventory_breadcrumbs()}
         pane={project_inventory_pane()}
       >
-        <section id="project-inventory-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
+        <section id="project-inventory-filters-panel" class="rounded-lg border border-border bg-card p-4">
           <.form
             for={@filter_form}
             id="project-inventory-filters-form"
@@ -91,21 +92,25 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
           </.form>
 
           <div id="project-inventory-filter-chips" class="flex flex-wrap gap-2 pt-2">
-            <span id="project-inventory-filter-chip-search" class="badge badge-outline">
+            <span id="project-inventory-filter-chip-search" class="ui-badge ui-badge-outline">
               Search: {search_chip_label(@filter_values)}
             </span>
-            <span id="project-inventory-filter-chip-default-branch" class="badge badge-outline">
+            <span id="project-inventory-filter-chip-default-branch" class="ui-badge ui-badge-outline">
               Default branch: {default_branch_chip_label(@filter_values)}
             </span>
           </div>
 
-          <p id="project-inventory-results-count" class="pt-2 text-xs text-base-content/70">
+          <p id="project-inventory-results-count" class="pt-2 text-xs text-muted-foreground">
             Showing {@project_count} of {@project_total_count} repositories.
           </p>
         </section>
 
-        <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-          <table id="project-inventory-table" class="table table-zebra w-full">
+        <section class="rounded-lg border border-border bg-card overflow-x-auto">
+          <table
+            id="project-inventory-table"
+            aria-label="Managed repository inventory"
+            class="w-full caption-bottom text-sm"
+          >
             <thead>
               <tr>
                 <th>Repository</th>
@@ -116,7 +121,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
             </thead>
             <tbody id="project-inventory-rows" phx-update="stream">
               <tr :if={@project_count == 0} id="project-inventory-empty-state">
-                <td colspan="4" class="py-8 text-center text-sm text-base-content/70">
+                <td colspan="4" class="py-8 text-center text-sm text-muted-foreground">
                   No repositories match the active search and filters.
                 </td>
               </tr>
@@ -130,11 +135,15 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
                 </td>
                 <td id={"project-inventory-actions-#{project.id}"}>
                   <%= if detail_path = project_detail_path(project, @filter_values) do %>
-                    <.link id={"project-inventory-open-#{project.id}"} class="link link-primary" href={detail_path}>
+                    <.link
+                      id={"project-inventory-open-#{project.id}"}
+                      class="text-primary underline-offset-4 hover:underline"
+                      href={detail_path}
+                    >
                       Open repo
                     </.link>
                   <% else %>
-                    <span id={"project-inventory-open-disabled-#{project.id}"} class="text-base-content/50">
+                    <span id={"project-inventory-open-disabled-#{project.id}"} class="text-muted-foreground">
                       Repo detail unavailable
                     </span>
                   <% end %>
@@ -145,26 +154,26 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
         </section>
 
         <:footer_actions>
-          <.link id="project-inventory-reset-filters" patch={~p"/repos"} class="btn btn-sm btn-outline">
+          <.link id="project-inventory-reset-filters" patch={~p"/repos"} class="ui-button ui-button-sm ui-button-outline">
             Clear filters
           </.link>
           <button
             id="project-inventory-apply-filters"
             type="submit"
             form="project-inventory-filters-form"
-            class="btn btn-sm btn-primary"
+            class="ui-button ui-button-sm ui-button-primary"
           >
             Apply filters
           </button>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
 
   defp project_inventory_breadcrumbs do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "project-inventory-breadcrumb-current",
         label: "Repositories",
         current?: true
@@ -173,7 +182,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   end
 
   defp project_inventory_pane do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "project-inventory-pane",
       title: "Managed repository inventory",
       summary: "Search and filter imported repositories, then open repo detail."

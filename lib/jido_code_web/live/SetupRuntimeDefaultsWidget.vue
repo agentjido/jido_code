@@ -6,6 +6,9 @@
 // covers: setup.onboarding.runtime_environment_selection_persisted_metadata
 // covers: setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 import { computed, ref, watch } from "vue"
+import { Alert } from "@/vue/components/ui/alert"
+import { Button } from "@/vue/components/ui/button"
+import { Input } from "@/vue/components/ui/input"
 
 type RuntimeOption = {
   label: string
@@ -76,24 +79,24 @@ const saveRuntimeDefaults = () => {
 </script>
 
 <template>
-  <section id="setup-runtime-defaults-panel" class="space-y-4 rounded-2xl border border-base-300 bg-base-100/80 p-5">
+  <section id="setup-runtime-defaults-panel" class="space-y-4 rounded-2xl border border-border bg-card/80 p-5">
     <div class="space-y-2">
-      <p class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">Runtime defaults</p>
-      <p id="setup-runtime-defaults-description" class="text-sm text-base-content/70">
+      <p class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Runtime defaults</p>
+      <p id="setup-runtime-defaults-description" class="text-sm text-muted-foreground">
         {{ props.runtimeDescription }}
       </p>
     </div>
 
-    <div v-if="props.saveError" id="setup-runtime-save-error" class="alert alert-error">
+    <Alert v-if="props.saveError" id="setup-runtime-save-error" variant="destructive">
       <span>{{ props.saveError }}</span>
-    </div>
+    </Alert>
 
     <form id="setup-runtime-environment-form" class="space-y-3" @submit.prevent="saveRuntimeDefaults">
-      <label class="fieldset">
-        <span class="label mb-1">Runtime environment</span>
+      <label class="space-y-1">
+        <span class="text-sm font-medium">Runtime environment</span>
         <select
           id="setup-runtime-environment-select"
-          class="select w-full"
+          class="ui-select w-full"
           :disabled="props.buttonsDisabled"
           :value="localMode"
           @change="changeMode(($event.target as HTMLSelectElement).value)"
@@ -104,13 +107,12 @@ const saveRuntimeDefaults = () => {
         </select>
       </label>
 
-      <label v-if="showWorkspaceRoot" class="fieldset">
-        <span class="label mb-1">Default workspace root</span>
-        <input
+      <label v-if="showWorkspaceRoot" class="space-y-1">
+        <span class="text-sm font-medium">Default workspace root</span>
+        <Input
           id="setup-runtime-workspace-root"
           v-model="localWorkspaceRoot"
           type="text"
-          class="input w-full"
           placeholder="/absolute/path/used/for/new/local-imports"
           autocomplete="off"
           :disabled="props.buttonsDisabled"
@@ -118,39 +120,39 @@ const saveRuntimeDefaults = () => {
         />
       </label>
 
-      <button
+      <Button
         id="setup-runtime-environment-save"
         type="submit"
         :disabled="props.buttonsDisabled"
-        :class="['btn btn-primary w-full sm:w-auto', props.buttonsDisabled && 'btn-disabled']"
+        class="w-full sm:w-auto"
       >
         Save runtime defaults
-      </button>
+      </Button>
     </form>
 
-    <dl class="space-y-4 border-t border-base-300/70 pt-4">
+    <dl class="space-y-4 border-t border-border/70 pt-4">
       <div class="space-y-1">
-        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">Install flavor</dt>
+        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Install flavor</dt>
         <dd id="setup-install-flavor" class="text-sm font-medium">{{ props.installFlavor }}</dd>
       </div>
 
       <div class="space-y-1">
-        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">Admin email</dt>
+        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Admin email</dt>
         <dd id="setup-owner-email" class="text-sm font-medium">{{ props.ownerEmail }}</dd>
       </div>
 
       <div class="space-y-1">
-        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">Saved runtime default</dt>
+        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Saved runtime default</dt>
         <dd id="setup-saved-runtime-environment" class="text-sm font-medium">
           {{ props.savedRuntimeLabel }}
         </dd>
-        <p id="setup-saved-runtime-note" class="text-sm text-base-content/60">
+        <p id="setup-saved-runtime-note" class="text-sm text-muted-foreground">
           {{ props.savedRuntimeNote }}
         </p>
       </div>
 
       <div class="space-y-1">
-        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">Saved choice</dt>
+        <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Saved choice</dt>
         <dd id="setup-selected-start-path" class="text-sm font-medium">
           {{ props.selectedStartPathLabel }}
         </dd>

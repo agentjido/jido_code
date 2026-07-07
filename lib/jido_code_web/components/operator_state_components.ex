@@ -19,6 +19,9 @@ defmodule JidoCodeWeb.OperatorStateComponents do
     ~H"""
     <section
       id={@id}
+      role={notice_role(@kind)}
+      aria-live={notice_aria_live(@kind)}
+      aria-label={@title}
       class={[
         "rounded-lg border space-y-2",
         state_classes(@kind),
@@ -26,17 +29,25 @@ defmodule JidoCodeWeb.OperatorStateComponents do
         @class
       ]}
     >
-      <p id={"#{state_dom_prefix(@dom_prefix, @id)}-label"} class="font-semibold">{@title}</p>
-      <p :if={typed_state_value(@state)} id={"#{state_dom_prefix(@dom_prefix, @id)}-type"} class="text-sm">
+      <p id={"#{state_dom_prefix(@dom_prefix, @id)}-label"} class="break-words font-semibold">{@title}</p>
+      <p
+        :if={typed_state_value(@state)}
+        id={"#{state_dom_prefix(@dom_prefix, @id)}-type"}
+        class="break-words text-sm"
+      >
         {typed_prefix(@kind)}: {typed_state_value(@state)}
       </p>
-      <p :if={state_detail(@state)} id={"#{state_dom_prefix(@dom_prefix, @id)}-detail"} class="text-sm">
+      <p
+        :if={state_detail(@state)}
+        id={"#{state_dom_prefix(@dom_prefix, @id)}-detail"}
+        class="break-words text-sm"
+      >
         {state_detail(@state)}
       </p>
       <p
         :if={state_remediation(@state)}
         id={"#{state_dom_prefix(@dom_prefix, @id)}-remediation"}
-        class="text-sm"
+        class="break-words text-sm"
       >
         {state_remediation(@state)}
       </p>
@@ -48,9 +59,18 @@ defmodule JidoCodeWeb.OperatorStateComponents do
     """
   end
 
-  defp state_classes(:error), do: "border-error/60 bg-error/10"
-  defp state_classes(:info), do: "border-info/60 bg-info/10"
-  defp state_classes(_kind), do: "border-warning/60 bg-warning/10"
+  defp state_classes(:error), do: "border-destructive/60 bg-destructive/10"
+  defp state_classes(:info), do: "border-accent-cyan/60 bg-accent-cyan/10"
+  defp state_classes(_kind), do: "border-accent-yellow/60 bg-accent-yellow/10"
+
+  defp notice_role(:error) do
+    "alert"
+  end
+
+  defp notice_role(_kind), do: "status"
+
+  defp notice_aria_live(:error), do: "assertive"
+  defp notice_aria_live(_kind), do: "polite"
 
   defp typed_prefix(:error), do: "Typed error"
   defp typed_prefix(:info), do: "Typed info"

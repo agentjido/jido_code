@@ -30,7 +30,7 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
           :if={recovery_available?(@recovery) and is_binary(@recover_event)}
           id={@recover_id}
           type="button"
-          class="btn btn-sm btn-outline"
+          class="ui-button ui-button-sm ui-button-outline"
           phx-click={@recover_event}
         >
           {recovery_label(@recovery)}
@@ -92,21 +92,21 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
         <p
           :if={conversation_origin_preview(@item)}
           id={"#{@dom_prefix}-preview"}
-          class="text-sm text-base-content/80"
+          class="text-sm text-foreground"
         >
           {conversation_origin_preview(@item)}
         </p>
         <p
           :if={conversation_origin_metadata(@item) != []}
           id={"#{@dom_prefix}-metadata"}
-          class="text-xs text-base-content/60"
+          class="text-xs text-muted-foreground"
         >
           {Enum.join(conversation_origin_metadata(@item), " | ")}
         </p>
         <p
           :if={conversation_anchor(@item)}
           id={"#{@dom_prefix}-anchor"}
-          class="text-xs text-base-content/60"
+          class="text-xs text-muted-foreground"
         >
           Code anchor: {conversation_anchor(@item)}
         </p>
@@ -124,7 +124,7 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
   def memory_link_group(assigns) do
     ~H"""
     <div class="space-y-1">
-      <p id={"#{@dom_prefix}-label"} class="text-[11px] font-medium uppercase tracking-wide text-base-content/60">
+      <p id={"#{@dom_prefix}-label"} class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {@label}
       </p>
       <div id={"#{@dom_prefix}-links"} class="flex flex-wrap gap-2">
@@ -133,14 +133,14 @@ defmodule JidoCodeWeb.MemorySurfaceComponents do
             <.link
               id={"#{@dom_prefix}-link-#{index}"}
               href={link.route}
-              class="link link-primary text-xs"
+              class="text-primary underline-offset-4 hover:underline text-xs"
             >
               {link.label}
             </.link>
           <% else %>
             <span
               id={"#{@dom_prefix}-label-only-#{index}"}
-              class="badge badge-outline badge-sm text-xs font-normal"
+              class="ui-badge ui-badge-sm ui-badge-outline text-xs font-normal"
             >
               {link.label}
             </span>

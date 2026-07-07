@@ -4,6 +4,8 @@
 // covers: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
 // covers: architecture.frontend_stack.server_authored_props_streams_and_events
 import { computed, ref } from "vue"
+import { Badge } from "@/vue/components/ui/badge"
+import { Button } from "@/vue/components/ui/button"
 
 type SummaryCard = {
   id: string
@@ -89,17 +91,17 @@ const graphStateLabel = computed(() => {
   }
 })
 
-const graphBadgeClass = computed(() => {
+const graphBadgeToneClass = computed(() => {
   switch (props.graph.state) {
     case "ready":
-      return "badge badge-success"
+      return "border-accent-green/50 bg-accent-green/10 text-accent-green"
     case "stale":
     case "degraded":
-      return "badge badge-warning"
+      return "border-accent-yellow/50 bg-accent-yellow/10 text-accent-yellow"
     case "failed":
-      return "badge badge-error"
+      return "border-destructive/50 bg-destructive/10 text-destructive"
     default:
-      return "badge badge-outline"
+      return "border-border bg-muted/70 text-muted-foreground"
   }
 })
 
@@ -128,25 +130,22 @@ const lensRows = computed(() => {
   }
 })
 
-const lensButtonClass = (candidate: ExplorerLens) => [
-  "btn btn-xs join-item",
-  lens.value === candidate ? "btn-primary" : "btn-ghost",
-]
+const lensButtonVariant = (candidate: ExplorerLens) => (lens.value === candidate ? "default" : "ghost")
 </script>
 
 <template>
-  <section class="rounded-lg border border-base-300 bg-base-200/20 p-4 space-y-4">
+  <section class="rounded-lg border border-border bg-muted/40 p-4 space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="space-y-1">
         <h3 class="text-lg font-semibold">Semantic explorer</h3>
-        <p class="text-sm text-base-content/70">
+        <p class="text-sm text-muted-foreground">
           This managed repository keeps semantic inspection bounded to modules, functions, runtime patterns, and impact relationships.
         </p>
       </div>
 
       <div class="space-y-1 text-right">
-        <span :class="graphBadgeClass">{{ graphStateLabel }}</span>
-        <p class="text-xs text-base-content/70">
+        <Badge variant="outline" :class="graphBadgeToneClass">{{ graphStateLabel }}</Badge>
+        <p class="text-xs text-muted-foreground">
           Managed repo {{ props.managedRepoId ?? "pending" }}
         </p>
       </div>
@@ -157,52 +156,52 @@ const lensButtonClass = (candidate: ExplorerLens) => [
         v-for="card in props.summaryCards"
         :key="card.id"
         :id="`project-detail-semantic-card-${card.id}`"
-        class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+        class="rounded-lg border border-border/70 bg-card p-3"
       >
-        <p class="text-xs uppercase text-base-content/60">{{ card.label }}</p>
+        <p class="text-xs uppercase text-muted-foreground">{{ card.label }}</p>
         <p class="mt-1 text-2xl font-semibold">{{ card.count }}</p>
-        <p class="mt-2 text-xs text-base-content/70">{{ card.detail }}</p>
+        <p class="mt-2 text-xs text-muted-foreground">{{ card.detail }}</p>
       </article>
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="space-y-1">
         <p class="text-sm font-medium">Inspection lens</p>
-        <p class="text-xs text-base-content/70">
+        <p class="text-xs text-muted-foreground">
           Imported revision {{ props.graph.importedRevision ?? "not loaded" }}
           <span v-if="props.graph.currentRevision"> · current revision {{ props.graph.currentRevision }}</span>
         </p>
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="join">
-          <button
+        <div class="inline-flex rounded-md border border-border bg-muted/40 p-1">
+          <Button
             v-for="button in lensButtons"
             :key="button.id"
-            :class="lensButtonClass(button.id)"
-            type="button"
+            :variant="lensButtonVariant(button.id)"
+            size="sm"
             @click="lens = button.id"
           >
             {{ button.label }}
-          </button>
+          </Button>
         </div>
 
-        <button
+        <Button
           v-if="props.recovery.available"
           id="project-detail-semantic-widget-recover"
-          type="button"
-          class="btn btn-xs btn-outline"
+          variant="outline"
+          size="sm"
           @click="emit('requestRecovery')"
         >
           {{ props.recovery.label ?? "Recover semantic graph" }}
-        </button>
+        </Button>
       </div>
     </div>
 
     <div
       v-if="lensRows.length === 0"
       id="project-detail-semantic-empty-state"
-      class="rounded border border-dashed border-base-300/80 bg-base-100 px-4 py-5 text-sm text-base-content/70"
+      class="rounded border border-dashed border-border/80 bg-card px-4 py-5 text-sm text-muted-foreground"
     >
       No bounded semantic entries are currently available for this lens.
     </div>
@@ -211,10 +210,10 @@ const lensButtonClass = (candidate: ExplorerLens) => [
       <article
         v-for="row in lensRows"
         :key="`${lens}-${row.title}-${row.detail}`"
-        class="rounded-lg border border-base-300/70 bg-base-100 p-3 space-y-1"
+        class="rounded-lg border border-border/70 bg-card p-3 space-y-1"
       >
         <p class="font-medium">{{ row.title }}</p>
-        <p class="text-xs text-base-content/70 break-all">{{ row.detail }}</p>
+        <p class="text-xs text-muted-foreground break-all">{{ row.detail }}</p>
       </article>
     </div>
   </section>

@@ -83,35 +83,35 @@ defmodule JidoCodeWeb.OperatorAuthSettings do
 
   def provider_status_badge_class(:success),
     do:
-      "rounded-full border border-success/40 bg-success/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-success"
+      "rounded-full border border-accent-green/40 bg-accent-green/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent-green"
 
   def provider_status_badge_class(:warning),
     do:
-      "rounded-full border border-warning/40 bg-warning/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-warning"
+      "rounded-full border border-accent-yellow/40 bg-accent-yellow/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow"
 
   def provider_status_badge_class(_tone),
     do:
-      "rounded-full border border-base-300 bg-base-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60"
+      "rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
 
   def integration_status_badge_class(:ready),
     do:
-      "rounded-full border border-success/40 bg-success/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-success"
+      "rounded-full border border-accent-green/40 bg-accent-green/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent-green"
 
   def integration_status_badge_class(:blocked),
     do:
-      "rounded-full border border-warning/40 bg-warning/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-warning"
+      "rounded-full border border-accent-yellow/40 bg-accent-yellow/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow"
 
   def integration_status_badge_class(:invalid),
     do:
-      "rounded-full border border-warning/40 bg-warning/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-warning"
+      "rounded-full border border-accent-yellow/40 bg-accent-yellow/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow"
 
   def integration_status_badge_class(:not_configured),
     do:
-      "rounded-full border border-base-300 bg-base-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60"
+      "rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
 
   def integration_status_badge_class(_status),
     do:
-      "rounded-full border border-base-300 bg-base-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60"
+      "rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
 
   def integration_status_label(:ready), do: "Ready"
   def integration_status_label(:blocked), do: "Blocked"

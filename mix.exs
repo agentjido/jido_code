@@ -242,7 +242,7 @@ defmodule JidoCode.MixProject do
         "phoenix_vite.npm vite build --manifest --emptyOutDir true",
         "phoenix_vite.npm vite build --ssrManifest --emptyOutDir false --ssr js/server.js --outDir ../priv/static"
       ],
-      "frontend.verify": ["assets.setup", "assets.build"],
+      "frontend.verify": ["assets.setup", "cmd npm run frontend:test", "assets.build"],
       "browser.verify": ["frontend.verify", "cmd npm run e2e:test"],
       "runtime.verify": [
         "test test/jido_code/runtime/pods_test.exs test/jido_code/runtime/repository_runtime_acceptance_test.exs test/jido_code/runtime/repository_runtime_test.exs test/jido_code/runtime/snapshot_test.exs test/jido_code/runtime/snapshot_store_test.exs test/jido_code/agent_workspace_test.exs"

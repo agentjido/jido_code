@@ -1,7 +1,8 @@
 {
   "scripts": {
     "e2e:test": "playwright test --config test/e2e/playwright.config.ts",
-    "e2e:test:headed": "playwright test --config test/e2e/playwright.config.ts --headed"
+    "e2e:test:headed": "playwright test --config test/e2e/playwright.config.ts --headed",
+    "frontend:test": "vitest run --config assets/vitest.config.ts"
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",
@@ -28,6 +29,7 @@
     "tailwindcss": "^4.1.0",
     "typescript": "^5.4.5",
     "vite": "^6.3.0",
+    "vitest": "^3.2.7",
     "vue-tsc": "^2.0.13"
   }
 }

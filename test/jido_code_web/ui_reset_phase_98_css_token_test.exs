@@ -135,7 +135,12 @@ defmodule JidoCodeWeb.UIResetPhase98CSSTokenTest do
     @string_literal_re
     |> Regex.scan(content, capture: :all_but_first)
     |> List.flatten()
-    |> Enum.reject(&(String.contains?(&1, "(") or String.contains?(&1, ")")))
+    |> Enum.reject(&non_class_string?/1)
     |> Enum.join("\n")
+  end
+
+  defp non_class_string?(value) do
+    String.contains?(value, ["(", ")"]) or
+      (String.contains?(value, "/") and not Regex.match?(~r/\s/, value))
   end
 end

@@ -32,7 +32,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Shared CSS tokens must support both SaladUI-generated HEEx markup and shadcn-vue generated assets without DaisyUI themes.
 - `mix frontend.verify` remains the browser-pipeline verification gate for dependency, Vite, SSR, and shared browser-helper changes.
 
-[ ] 98 Phase 98 - SaladUI And Shadcn-Vue Foundation
+[x] 98 Phase 98 - SaladUI And Shadcn-Vue Foundation
   Replace the current DaisyUI browser foundation with the ariston-style SaladUI plus generated shadcn-vue primitive stack.
 
   [x] 98.1 Section - Dependency And Asset Baseline
@@ -86,19 +86,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 98.3.2.2 Subtask - Add `assets/vue/lib/utils.ts` with `cn()` using `clsx` and `tailwind-merge`.
       [x] 98.3.2.3 Subtask - Add tests proving `assets/vue/components/ui` primitives and example components are not direct LiveVue mount targets.
 
-  [ ] 98.4 Section - Integration Tests
+  [x] 98.4 Section - Integration Tests
     End the phase by proving the new dependency, CSS, HEEx, and Vue primitive boundaries compile and fail safely.
 
-    [ ] 98.4.1 Task - Add frontend stack contract tests.
+    [x] 98.4.1 Task - Add frontend stack contract tests.
       Verify the foundation matches the ariston-style split and cannot drift back to DaisyUI.
 
-      [ ] 98.4.1.1 Subtask - Assert `components.json` targets the Phoenix asset layout and shadcn-vue aliases.
-      [ ] 98.4.1.2 Subtask - Assert app CSS exposes shadcn-aligned tokens without DaisyUI plugin usage.
-      [ ] 98.4.1.3 Subtask - Assert SaladUI dependency, `TwMerge.Cache`, and `JidoCodeWeb.Components.UI` delegates are present.
+      [x] 98.4.1.1 Subtask - Assert `components.json` targets the Phoenix asset layout and shadcn-vue aliases.
+      [x] 98.4.1.2 Subtask - Assert app CSS exposes shadcn-aligned tokens without DaisyUI plugin usage.
+      [x] 98.4.1.3 Subtask - Assert SaladUI dependency, `TwMerge.Cache`, and `JidoCodeWeb.Components.UI` delegates are present.
 
-    [ ] 98.4.2 Task - Verify browser and SSR primitives.
+    [x] 98.4.2 Task - Verify browser and SSR primitives.
       Prove generated Vue primitives render through the LiveVue pipeline without becoming route owners.
 
-      [ ] 98.4.2.1 Subtask - Add Vitest or equivalent SSR coverage for a shadcn-vue primitive preview.
-      [ ] 98.4.2.2 Subtask - Add registry tests proving only production islands are mountable.
-      [ ] 98.4.2.3 Subtask - Run `mix frontend.verify` and focused LiveVue component tests.
+      [x] 98.4.2.1 Subtask - Add Vitest or equivalent SSR coverage for a shadcn-vue primitive preview.
+      [x] 98.4.2.2 Subtask - Add registry tests proving only production islands are mountable.
+      [x] 98.4.2.3 Subtask - Run `mix frontend.verify` and focused LiveVue component tests.

@@ -19,6 +19,12 @@ root workspace with a top button menu, route-owned active area state, and a
 shared status strip. The target metadata lives in `JidoCodeWeb.Areas` while the
 current UI is replaced section by section.
 
+The target component split follows the local `ariston-webui` reference:
+SaladUI backs selected LiveView/HEEx primitives through app-owned wrappers,
+while generated shadcn-vue assets live under `assets/vue/components/ui` and are
+used only inside bounded LiveVue islands. DaisyUI is a deletion target, not the
+future compatibility layer.
+
 ## Frontend Composition Model
 
 ```mermaid
@@ -61,6 +67,8 @@ The boundary is intentionally explicit:
 
 - LiveView owns the page
 - LiveView owns the area button menu and shell status
+- SaladUI primitives stay behind app-owned HEEx wrappers
+- generated shadcn-vue primitives stay inside Vue island assets
 - server-authored data crosses into Vue through bounded props or streams
 - Vue emits route back into LiveView events
 - degraded behavior remains product-oriented

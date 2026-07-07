@@ -31,7 +31,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - The current subject-tree/operator-shell UI, DaisyUI classes, and existing Vue widgets are deletion or rewrite targets unless explicitly retained behind the new shell contract.
 - `shadcdn` in project shorthand means the shadcn-vue generated component path under `assets/vue/components/ui`, backed by local assets and normal npm dependencies.
 
-[ ] 97 Phase 97 - UI Reset Contract And External Shell Inventory
+[x] 97 Phase 97 - UI Reset Contract And External Shell Inventory
   Define the replacement target and deletion boundary before any UI code is moved so the reset stays deliberate, complete, and testable.
 
   [x] 97.1 Section - Target Shell Contract
@@ -85,19 +85,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 97.3.2.2 Subtask - Land the root area shell before rewriting product area content.
       [x] 97.3.2.3 Subtask - Remove DaisyUI only after every runtime reference to DaisyUI component classes is gone.
 
-  [ ] 97.4 Section - Integration Tests
+  [x] 97.4 Section - Integration Tests
     End the phase with planning-level contract tests that make the UI reset scope visible before implementation begins.
 
-    [ ] 97.4.1 Task - Add inventory and contract guard coverage.
+    [x] 97.4.1 Task - Add inventory and contract guard coverage.
       Verify the reset plan is represented by executable checks before code replacement starts.
 
-      [ ] 97.4.1.1 Subtask - Add a frontend reset contract test that lists the expected new shell boundary files and deletion targets.
-      [ ] 97.4.1.2 Subtask - Add a current DaisyUI usage inventory assertion that can be driven to zero in later phases.
-      [ ] 97.4.1.3 Subtask - Add a route inventory assertion that distinguishes root-shell area routes from detail routes and public setup routes.
+      [x] 97.4.1.1 Subtask - Add a frontend reset contract test that lists the expected new shell boundary files and deletion targets.
+      [x] 97.4.1.2 Subtask - Add a current DaisyUI usage inventory assertion that can be driven to zero in later phases.
+      [x] 97.4.1.3 Subtask - Add a route inventory assertion that distinguishes root-shell area routes from detail routes and public setup routes.
 
-    [ ] 97.4.2 Task - Verify planning traceability.
+    [x] 97.4.2 Task - Verify planning traceability.
       Prove the UI reset track is discoverable and consistent with repo planning conventions.
 
-      [ ] 97.4.2.1 Subtask - Update `.planning/README.md` with the Phase 97 through Phase 101 reset track.
-      [ ] 97.4.2.2 Subtask - Add developer guidance references for the ariston-style shell, SaladUI, and shadcn-vue asset split.
-      [ ] 97.4.2.3 Subtask - Run focused documentation or planning checks used by the repo for phase traceability.
+      [x] 97.4.2.1 Subtask - Update `.planning/README.md` with the Phase 97 through Phase 101 reset track.
+      [x] 97.4.2.2 Subtask - Add developer guidance references for the ariston-style shell, SaladUI, and shadcn-vue asset split.
+      [x] 97.4.2.3 Subtask - Run focused documentation or planning checks used by the repo for phase traceability.

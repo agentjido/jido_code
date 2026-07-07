@@ -31,7 +31,8 @@ For day-to-day development:
 
 - `mix assets.setup` installs the Vite and LiveVue browser dependencies
 - `mix assets.build` builds the current browser bundle and SSR output
-- `mix frontend.verify` runs the repo-owned browser pipeline verification
+- `mix frontend.verify` runs the repo-owned browser pipeline verification plus UI reset guardrails
+- `mix ui_reset.verify` runs focused area shell, no-DaisyUI, explicit-registry, and fallback checks
 - `mix source_graph.verify` runs the repo-owned semantic source-code graph verification suite
 - `mix memory.verify` verifies the ontology pair, typed governed links, and the repo-owned memory recovery path
 - `mix semantic.verify` runs the full product-facing semantic graph verification suite
@@ -138,12 +139,13 @@ mix quality
 ```
 
 This extends `mix q` with:
-- `mix frontend.verify` - LiveVue/Vite/SSR pipeline verification
-- `mix source_graph.verify` - repository-scoped semantic graph verification
-- `mix memory.verify` - repository-scoped memory graph and capture-plane verification
-- `mix semantic.verify` - product-facing semantic workflow and UI verification
+- `mix frontend.verify` - LiveVue/Vite/SSR pipeline verification plus UI reset guardrails
 - `mix doctor --raise` - Documentation coverage check
 - `mix dialyzer` - Broader static type analysis
+
+Run `mix source_graph.verify`, `mix memory.verify`, `mix semantic.verify`, or
+`mix runtime.verify` when your change touches those product boundaries; they are
+kept separate from the fast UI reset loop.
 
 For running tests with coverage:
 
@@ -156,14 +158,21 @@ The repo-local package-quality baseline is expressed through `mix.exs`, this gui
 
 ## Frontend Conventions
 
-The routed browser shell stays LiveView-first. Reach for Vue only when a surface genuinely needs richer client-side composition than HEEx plus lightweight hooks can comfortably support.
+The routed browser shell stays LiveView-first. The current product shell is the root area button menu plus shared status strip in `<Layouts.app ...>`, backed by `JidoCodeWeb.Areas`. Reach for Vue only when a surface genuinely needs richer client-side composition than HEEx plus lightweight hooks can comfortably support.
 
-- Keep pages and route ownership in LiveView and mount Vue through `<.vue_surface ...>` rather than raw `<.vue ...>` calls.
+- Keep pages, route ownership, area navigation, auth, and server-owned form workflows in LiveView.
+- Add a new area by updating `JidoCodeWeb.Areas`, routing/live-action ownership, `JidoCodeWeb.AreaPanels` when the area has a root overview, and route-shell tests.
+- Use `JidoCodeWeb.Components.UI` as the application boundary for SaladUI-backed HEEx primitives. If product code needs a new SaladUI primitive, add a wrapper there first.
+- Keep generated shadcn-vue primitives under `assets/vue/components/ui/`; use them from Vue islands, not from HEEx.
+- Mount Vue islands through `<.vue_surface ...>` rather than raw `<.vue ...>` calls.
 - Treat `props:` as server-authored data from LiveView. If a Vue surface needs LiveView streams, pass them through `streams:` so diff behavior stays intact.
 - Map Vue emits back into LiveView with `events: %{"emit-name" => "live_view_event"}` or explicit `Phoenix.LiveView.JS` values instead of letting Vue own the workflow.
+- Register production-mounted Vue islands explicitly in `assets/vue/index.ts`; do not restore broad `import.meta.glob` auto-registration.
 - Use the `JidoCodeWeb.LiveVueCase` helpers only on screens that actually mount Vue. Plain LiveView routes should keep using the normal `Phoenix.LiveViewTest` path.
 - Keep degraded frontend behavior product-oriented. If a Vue surface cannot load or SSR is reduced, the page should fall back to bounded LiveView fallback messaging rather than raw Vite, SSR, or manifest errors.
-- Run `mix frontend.verify` whenever a change touches `live_vue`, shared browser helpers, Vite config, SSR entrypoints, or the root browser dependency surface.
+- Do not reintroduce DaisyUI dependencies, DaisyUI component classes, route-local chrome that competes with the area shell, or the old subject-tree shell.
+- Run `mix frontend.verify` whenever a change touches `live_vue`, shared browser helpers, Vite config, SSR entrypoints, generated Vue primitives, the explicit island registry, or the root browser dependency surface.
+- Run `mix ui_reset.verify` for focused checks when touching the area shell, SaladUI wrappers, shadcn-vue islands, fallback behavior, or UI reset documentation.
 
 ## Conversation Conventions
 

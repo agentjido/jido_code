@@ -63,6 +63,7 @@ mix setup
 mix assets.setup
 mix assets.build
 mix frontend.verify
+mix ui_reset.verify
 mix server
 mix test
 mix onboarding.reset --keep-owner
@@ -126,12 +127,16 @@ Keep the semantic graph as a bounded enhancement, not a hidden dependency:
 <!-- covers: docs.product_foundation.readme_frontend_stack_orientation_present -->
 ## Frontend Stack
 
-`jido_code` keeps LiveView as the routed product shell and uses `live_vue` only for bounded regions that genuinely need richer client-side composition.
+`jido_code` has one official browser architecture: a LiveView-owned routed area shell, SaladUI-backed HEEx primitives behind app-owned wrappers, and generated shadcn-vue primitives inside bounded `live_vue` islands.
 
-- Keep route ownership, auth/session boundaries, and straightforward forms in LiveView and HEEx.
+- Keep route ownership, auth/session boundaries, area navigation, shell status, and straightforward forms in LiveView and HEEx.
+- Add or change product areas through `JidoCodeWeb.Areas`, the Phoenix router, and the root `<Layouts.app ...>` shell instead of route-local chrome.
+- Use `JidoCodeWeb.Components.UI` for SaladUI HEEx primitives and add new wrappers there before product LiveViews depend on a new primitive.
 - Mount Vue-backed regions through `<.vue_surface ...>` rather than raw LiveVue calls so props, streams, and emits stay product-owned.
+- Keep generated shadcn-vue primitives under `assets/vue/components/ui/` and register only production-mounted islands explicitly in `assets/vue/index.ts`.
 - Treat `props:` and `streams:` as server-authored boundaries and map Vue emits back into LiveView events.
-- When changing the browser stack, run `mix frontend.verify`. Hybrid screens must degrade to product-oriented fallback messaging instead of exposing raw Vite or SSR failures to operators.
+- Do not reintroduce DaisyUI dependencies, DaisyUI component classes, broad Vue auto-registration, or the old subject-tree shell.
+- When changing the browser stack, run `mix frontend.verify`; for focused reset guardrails, run `mix ui_reset.verify`. Hybrid screens must degrade to product-oriented fallback messaging instead of exposing raw Vite or SSR failures to operators.
 
 ## Conversation Model
 
@@ -149,7 +154,8 @@ Productive coding conversations are managed-repository scoped and usually attach
 mix setup               # deps and asset build
 mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
-mix frontend.verify     # run the repo-owned browser pipeline verification
+mix frontend.verify     # run browser pipeline verification plus UI reset guardrails
+mix ui_reset.verify     # run focused area shell, no-DaisyUI, explicit-registry, and fallback checks
 mix runtime.verify      # verify repository runtime, pod lifecycle, snapshots, and AgentWorkspace routing
 mix source_graph.verify # run the repo-owned semantic graph verification suite
 mix memory.verify       # verify the ontology pair, typed governed links, and repo-owned memory recovery path

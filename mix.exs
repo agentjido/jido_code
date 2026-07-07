@@ -64,11 +64,13 @@ defmodule JidoCode.MixProject do
         "coveralls.github": :test,
         "coveralls.html": :test,
         "control_plane.verify": :test,
+        "frontend.verify": :test,
         precommit: :test,
         "memory.verify": :test,
         "runtime.verify": :test,
         "semantic.verify": :test,
-        "source_graph.verify": :test
+        "source_graph.verify": :test,
+        "ui_reset.verify": :test
       ]
     ]
   end
@@ -242,8 +244,11 @@ defmodule JidoCode.MixProject do
         "phoenix_vite.npm vite build --manifest --emptyOutDir true",
         "phoenix_vite.npm vite build --ssrManifest --emptyOutDir false --ssr js/server.js --outDir ../priv/static"
       ],
-      "frontend.verify": ["assets.setup", "cmd npm run frontend:test", "assets.build"],
+      "frontend.verify": ["assets.setup", "cmd npm run frontend:test", "assets.build", "ui_reset.verify"],
       "browser.verify": ["frontend.verify", "cmd npm run e2e:test"],
+      "ui_reset.verify": [
+        "test test/jido_code_web/ui_reset_phase_97_integration_test.exs test/jido_code_web/ui_reset_phase_98_dependency_asset_baseline_test.exs test/jido_code_web/ui_reset_phase_98_css_token_test.exs test/jido_code_web/ui_reset_phase_98_livevue_boundary_test.exs test/jido_code_web/ui_reset_phase_100_core_components_test.exs test/jido_code_web/ui_reset_phase_100_integration_test.exs test/jido_code_web/ui_reset_phase_101_resilience_test.exs test/jido_code_web/ui_reset_phase_101_contributor_guidance_test.exs test/jido_code_web/ui_reset_inventory_test.exs test/jido_code_web/ui_reset_policy_test.exs test/jido_code_web/frontend_assets_test.exs test/jido_code_web/components/live_vue_components_test.exs test/jido_code_web/components/operator_state_components_test.exs test/jido_code_web/live/operator_area_shell_live_test.exs"
+      ],
       "runtime.verify": [
         "test test/jido_code/runtime/pods_test.exs test/jido_code/runtime/repository_runtime_acceptance_test.exs test/jido_code/runtime/repository_runtime_test.exs test/jido_code/runtime/snapshot_test.exs test/jido_code/runtime/snapshot_store_test.exs test/jido_code/agent_workspace_test.exs"
       ],

@@ -50,22 +50,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 101.1.2.2 Subtask - Ensure server-owned core actions remain reachable when optional Vue islands degrade.
       [x] 101.1.2.3 Subtask - Surface frontend degradation evidence through shell status or bounded panel messaging instead of raw Vite or SSR errors.
 
-  [ ] 101.2 Section - Documentation And Contributor Guidance
+  [x] 101.2 Section - Documentation And Contributor Guidance
     Replace old frontend guidance with the final UI reset architecture.
 
-    [ ] 101.2.1 Task - Update contributor-facing docs.
+    [x] 101.2.1 Task - Update contributor-facing docs.
       Make the new stack and decision rules clear at the normal entrypoints.
 
-      [ ] 101.2.1.1 Subtask - Update README, CONTRIBUTING, and AGENTS to describe the SaladUI HEEx boundary, shadcn-vue generated assets, explicit LiveVue registry, and area shell.
-      [ ] 101.2.1.2 Subtask - Update developer docs to say when to use Phoenix core components, `JidoCodeWeb.Components.UI`, and Vue primitives.
-      [ ] 101.2.1.3 Subtask - Document how to add a new area, a new SaladUI wrapper, and a new shadcn-vue island without reviving broad auto-registration.
+      [x] 101.2.1.1 Subtask - Update README, CONTRIBUTING, and AGENTS to describe the SaladUI HEEx boundary, shadcn-vue generated assets, explicit LiveVue registry, and area shell.
+      [x] 101.2.1.2 Subtask - Update developer docs to say when to use Phoenix core components, `JidoCodeWeb.Components.UI`, and Vue primitives.
+      [x] 101.2.1.3 Subtask - Document how to add a new area, a new SaladUI wrapper, and a new shadcn-vue island without reviving broad auto-registration.
 
-    [ ] 101.2.2 Task - Update quality gates and CI.
+    [x] 101.2.2 Task - Update quality gates and CI.
       Make the new frontend reset enforceable.
 
-      [ ] 101.2.2.1 Subtask - Add or update `mix frontend.verify` coverage for generated Vue primitives, explicit island registry, and CSS token checks.
-      [ ] 101.2.2.2 Subtask - Add CI checks that fail on DaisyUI dependencies, DaisyUI component classes, or old shell module imports.
-      [ ] 101.2.2.3 Subtask - Keep the fast local loop practical by separating focused UI reset checks from broader semantic, memory, and runtime gates unless those boundaries are touched.
+      [x] 101.2.2.1 Subtask - Add or update `mix frontend.verify` coverage for generated Vue primitives, explicit island registry, and CSS token checks.
+      [x] 101.2.2.2 Subtask - Add CI checks that fail on DaisyUI dependencies, DaisyUI component classes, or old shell module imports.
+      [x] 101.2.2.3 Subtask - Keep the fast local loop practical by separating focused UI reset checks from broader semantic, memory, and runtime gates unless those boundaries are touched.
 
   [ ] 101.3 Section - Final Cleanup And Current Truth Alignment
     Remove remaining obsolete artifacts and make the reset the only documented UI truth.

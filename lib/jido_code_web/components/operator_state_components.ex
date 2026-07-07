@@ -19,8 +19,8 @@ defmodule JidoCodeWeb.OperatorStateComponents do
     ~H"""
     <section
       id={@id}
-      role={if @kind == :error, do: "alert", else: "status"}
-      aria-live={if @kind == :error, do: "assertive", else: "polite"}
+      role={notice_role(@kind)}
+      aria-live={notice_aria_live(@kind)}
       aria-label={@title}
       class={[
         "rounded-lg border space-y-2",
@@ -62,6 +62,15 @@ defmodule JidoCodeWeb.OperatorStateComponents do
   defp state_classes(:error), do: "border-destructive/60 bg-destructive/10"
   defp state_classes(:info), do: "border-accent-cyan/60 bg-accent-cyan/10"
   defp state_classes(_kind), do: "border-accent-yellow/60 bg-accent-yellow/10"
+
+  defp notice_role(:error) do
+    "alert"
+  end
+
+  defp notice_role(_kind), do: "status"
+
+  defp notice_aria_live(:error), do: "assertive"
+  defp notice_aria_live(_kind), do: "polite"
 
   defp typed_prefix(:error), do: "Typed error"
   defp typed_prefix(:info), do: "Typed info"

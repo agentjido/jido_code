@@ -59,8 +59,9 @@ defmodule JidoCodeWeb.UIResetPhase101ResilienceTest do
     notice_source = read_runtime!("lib/jido_code_web/components/operator_state_components.ex")
     root_source = read_runtime!("lib/jido_code_web/live/operator_root_live.ex")
 
-    assert notice_source =~ ~s(role={if @kind == :error, do: "alert", else: "status"})
-    assert notice_source =~ ~s(aria-live={if @kind == :error, do: "assertive", else: "polite"})
+    assert notice_source =~ ~S|role={notice_role(@kind)}|
+    assert notice_source =~ ~S|aria-live={notice_aria_live(@kind)}|
+    assert notice_source =~ "defp notice_role(:error)"
     assert notice_source =~ "break-words"
 
     assert root_source =~ ~s(aria-label="Product area route map")

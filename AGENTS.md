@@ -36,9 +36,12 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
 
 - Start LiveView templates with `<Layouts.app flash={@flash} ...>`.
 - Pass `current_scope` to `<Layouts.app>` where authenticated scope is needed.
+- Keep the routed shell, area button menu, shell status strip, and route-owned area state in LiveView.
+- Add or change product areas through `JidoCodeWeb.Areas`, router/live-action ownership, and `JidoCodeWeb.AreaPanels` instead of introducing route-local global chrome.
 - Never call `<.flash_group>` outside the layouts module.
 - Use `<.input>` from core components for forms when available.
 - Use `<.icon>` for hero icons.
+- Use `JidoCodeWeb.Components.UI` as the app-owned SaladUI boundary; add a wrapper there before depending on a new SaladUI primitive from product LiveViews.
 - Use HEEx-compatible interpolation and class list syntax.
 - Do not use deprecated `live_redirect`/`live_patch`; use `<.link navigate={...}>`, `<.link patch={...}>`, `push_navigate`, `push_patch`.
 - Prefer LiveView streams for collection rendering and updates.
@@ -48,6 +51,8 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
 - Keep the routed page shell in LiveView. Use Vue only for bounded richer regions.
 - Mount Vue-backed regions through `<.vue_surface ...>` instead of raw `<.vue ...>` calls.
 - Keep server-authored state bounded in `props:` or `streams:` and route Vue emits back into LiveView events.
+- Keep generated shadcn-vue primitives in `assets/vue/components/ui/` and import them only from bounded Vue islands.
+- Register production-mounted islands explicitly in `assets/vue/index.ts`; do not restore broad Vue auto-registration.
 - If a hybrid surface degrades, keep the operator experience in product-oriented server-rendered fallback mode rather than surfacing raw Vite, SSR, or manifest failures.
 - When touching `live_vue`, Vite, SSR entrypoints, or shared browser helpers, run `mix frontend.verify`.
 
@@ -71,6 +76,7 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
   - `@source "../css";`
   - `@source "../js";`
   - `@source "../../lib/jido_code_web";`
+- Do not reintroduce DaisyUI dependencies, DaisyUI component classes, or DaisyUI theme blocks.
 - Do not use inline `<script>` tags in HEEx.
 - For LiveView hooks, use colocated hooks (`<script :type={Phoenix.LiveView.ColocatedHook}>`) or registered external hooks.
 
@@ -80,6 +86,7 @@ Implement and evolve `jido_code` as the primary product and implementation repo 
 - Avoid `Process.sleep/1`; use monitor/assert patterns or `:sys.get_state/1` synchronization.
 - For LiveView tests, use `Phoenix.LiveViewTest` helpers (`element/2`, `has_element?/2`, `render_submit/2`, `render_change/2`) and stable DOM IDs.
 - Do not assert raw full HTML when selector-based assertions are possible.
+- When touching the UI reset boundary, run `mix ui_reset.verify`; when touching LiveVue, Vite, SSR, or generated Vue primitives, run `mix frontend.verify`.
 
 ## Dependency Usage Rules
 

@@ -32,7 +32,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Vue islands use shadcn-vue primitives and explicit semantic-event handoff only where richer client behavior materially helps.
 - DaisyUI removal is allowed once all first-party runtime references are gone.
 
-[ ] 100 Phase 100 - Product Surface Rebuild And Legacy UI Deletion
+[x] 100 Phase 100 - Product Surface Rebuild And Legacy UI Deletion
   Rebuild the actual operator product areas inside the new shell and delete the old UI implementation.
 
   [x] 100.1 Section - Core Area Surface Rebuild
@@ -86,19 +86,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 100.3.2.2 Subtask - Remove DaisyUI from npm dependencies and lockfile after zero first-party class references remain.
       [x] 100.3.2.3 Subtask - Remove stale docs and comments that describe DaisyUI or the previous subject-tree shell as current truth.
 
-  [ ] 100.4 Section - Integration Tests
+  [x] 100.4 Section - Integration Tests
     End the phase by proving rebuilt surfaces replace the old UI without losing product behavior.
 
-    [ ] 100.4.1 Task - Add rebuilt surface coverage.
+    [x] 100.4.1 Task - Add rebuilt surface coverage.
       Verify the main areas and detail routes work through the new shell.
 
-      [ ] 100.4.1.1 Subtask - Add or update LiveView tests for dashboard, repositories, workbench, workflows, agents, settings, and setup handoff.
-      [ ] 100.4.1.2 Subtask - Add or update LiveView tests for run, work-item, evidence, decision, conversation, memory, and semantic detail paths.
-      [ ] 100.4.1.3 Subtask - Add semantic-event roundtrip tests for every retained LiveVue island.
+      [x] 100.4.1.1 Subtask - Add or update LiveView tests for dashboard, repositories, workbench, workflows, agents, settings, and setup handoff.
+      [x] 100.4.1.2 Subtask - Add or update LiveView tests for run, work-item, evidence, decision, conversation, memory, and semantic detail paths.
+      [x] 100.4.1.3 Subtask - Add semantic-event roundtrip tests for every retained LiveVue island.
 
-    [ ] 100.4.2 Task - Add deletion and regression guard coverage.
+    [x] 100.4.2 Task - Add deletion and regression guard coverage.
       Prove the legacy UI no longer exists in the official product path.
 
-      [ ] 100.4.2.1 Subtask - Add a zero-DaisyUI-reference test across first-party `lib`, `assets`, `test`, docs, and planning exceptions.
-      [ ] 100.4.2.2 Subtask - Add tests proving old operator navigation modules and old Vue widgets are not imported or mounted.
-      [ ] 100.4.2.3 Subtask - Run `mix frontend.verify`, focused LiveView suites, and browser smoke tests for the rebuilt shell.
+      [x] 100.4.2.1 Subtask - Add a zero-DaisyUI-reference test across first-party `lib`, `assets`, `test`, docs, and planning exceptions.
+      [x] 100.4.2.2 Subtask - Add tests proving old operator navigation modules and old Vue widgets are not imported or mounted.
+      [x] 100.4.2.3 Subtask - Run `mix frontend.verify`, focused LiveView suites, and browser smoke tests for the rebuilt shell.

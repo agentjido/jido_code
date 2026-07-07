@@ -209,7 +209,7 @@ defmodule JidoCodeWeb.Areas do
     %{id: :operator_navigation, module: nil, replacement: :area_menu},
     %{id: :operator_shell_components, module: JidoCodeWeb.OperatorShellComponents, replacement: :content},
     %{id: :subject_tree_shell, module: nil, replacement: :area_menu},
-    %{id: :daisyui_theme, module: nil, replacement: :shadcn_tokens}
+    %{id: :legacy_theme, module: nil, replacement: :shadcn_tokens}
   ]
 
   def registered_areas, do: @areas

@@ -67,22 +67,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 99.2.2.2 Subtask - Remove or rewrite `OperatorShellComponents` and any subject-tree-only helpers.
       [x] 99.2.2.3 Subtask - Update all LiveViews to pass `active_area` and `area_state` instead of `operator_navigation`.
 
-  [ ] 99.3 Section - Root Area Content Skeletons
+  [x] 99.3 Section - Root Area Content Skeletons
     Introduce simple area panels before rebuilding full product workflows.
 
-    [ ] 99.3.1 Task - Add area-local panel skeletons.
+    [x] 99.3.1 Task - Add area-local panel skeletons.
       Keep the shell routable and visible while later phases rebuild dense content.
 
-      [ ] 99.3.1.1 Subtask - Add placeholder-free, product-shaped panels for each major area using SaladUI HEEx primitives.
-      [ ] 99.3.1.2 Subtask - Keep area body content in LiveView assigns and product services rather than client-side stores.
-      [ ] 99.3.1.3 Subtask - Mount Vue islands only for bounded interactive regions that already have explicit props and event handlers.
+      [x] 99.3.1.1 Subtask - Add placeholder-free, product-shaped panels for each major area using SaladUI HEEx primitives.
+      [x] 99.3.1.2 Subtask - Keep area body content in LiveView assigns and product services rather than client-side stores.
+      [x] 99.3.1.3 Subtask - Mount Vue islands only for bounded interactive regions that already have explicit props and event handlers.
 
-    [ ] 99.3.2 Task - Preserve detail-route continuity.
+    [x] 99.3.2 Task - Preserve detail-route continuity.
       Keep deep links useful while the root shell replaces the surrounding UI.
 
-      [ ] 99.3.2.1 Subtask - Keep repository, run, work item, evidence, and decision detail routes addressable.
-      [ ] 99.3.2.2 Subtask - Render detail routes in the new shell with correct active area and context strip.
-      [ ] 99.3.2.3 Subtask - Replace old breadcrumb and context-chip fragments with area handoff targets or shell status content.
+      [x] 99.3.2.1 Subtask - Keep repository, run, work item, evidence, and decision detail routes addressable.
+      [x] 99.3.2.2 Subtask - Render detail routes in the new shell with correct active area and context strip.
+      [x] 99.3.2.3 Subtask - Replace old breadcrumb and context-chip fragments with area handoff targets or shell status content.
 
   [ ] 99.4 Section - Integration Tests
     End the phase by proving the new shell owns routing, active state, and basic navigation.

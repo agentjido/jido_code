@@ -27,7 +27,8 @@ defmodule JidoCodeWeb.OperatorRootLive do
      socket
      |> assign(:active_area, area.area)
      |> assign(:area, area)
-     |> assign(:shell_state, shell_state)}
+     |> assign(:shell_state, shell_state)
+     |> assign(:area_panel, JidoCodeWeb.AreaPanels.panel_for(area.area))}
   end
 
   @impl true
@@ -38,6 +39,7 @@ defmodule JidoCodeWeb.OperatorRootLive do
       current_scope={@shell_state.current_scope}
       active_area={@active_area}
       area_state={@shell_state}
+      area_panel={@area_panel}
     >
       <section
         id="operator-root-shell"

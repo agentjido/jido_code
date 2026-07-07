@@ -15,6 +15,13 @@ defmodule JidoCodeWeb.Components.UI do
 
   defdelegate button(assigns), to: SaladUI.Button
 
+  defdelegate card(assigns), to: SaladUI.Card
+  defdelegate card_header(assigns), to: SaladUI.Card
+  defdelegate card_title(assigns), to: SaladUI.Card
+  defdelegate card_description(assigns), to: SaladUI.Card
+  defdelegate card_content(assigns), to: SaladUI.Card
+  defdelegate card_footer(assigns), to: SaladUI.Card
+
   defdelegate dialog(assigns), to: SaladUI.Dialog
   defdelegate dialog_trigger(assigns), to: SaladUI.Dialog
   defdelegate dialog_content(assigns), to: SaladUI.Dialog

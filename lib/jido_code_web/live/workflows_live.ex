@@ -81,6 +81,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
       flash={@flash}
       current_scope={%{}}
       active_area={:workflows}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:workflows)}
     >
       <.single_pane_shell id="workflows-shell" breadcrumbs={workflows_breadcrumbs()} pane={workflows_pane()}>
         <section

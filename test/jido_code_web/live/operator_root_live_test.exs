@@ -43,6 +43,7 @@ defmodule JidoCodeWeb.OperatorRootLiveTest do
       assert has_element?(view, "#operator-root-title", label)
       assert has_element?(view, "#operator-area-menu-#{area_id}[aria-current='page']")
       assert has_element?(view, "#operator-status-area", "Area: #{label}")
+      assert has_element?(view, "#area-overview-panel-#{area_id}")
       assert has_element?(view, "#operator-root-route-#{area_id}[aria-current='page']")
     end
   end

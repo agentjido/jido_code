@@ -236,6 +236,7 @@ defmodule JidoCodeWeb.DashboardLive do
       flash={@flash}
       current_scope={%{}}
       active_area={:dashboard}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:dashboard)}
     >
       <div
         id="dashboard-root"

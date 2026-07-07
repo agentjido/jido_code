@@ -43,6 +43,7 @@ defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
       live(recycle(authed_conn), ~p"/dashboard?subject=work&section=overview", on_error: :warn)
 
     assert_area_shell(dashboard_view, "dashboard", "Dashboard", "Operational home and next actions")
+    assert has_element?(dashboard_view, "#area-overview-panel-dashboard")
     assert has_element?(dashboard_view, "#operator-area-menu-workbench")
     assert has_element?(dashboard_view, "#operator-area-menu-conversations")
     refute has_element?(dashboard_view, "#operator-global-nav")
@@ -51,23 +52,27 @@ defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
     {:ok, workbench_view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
     assert_area_shell(workbench_view, "workbench", "Workbench", "Dense specialist workspace")
+    assert has_element?(workbench_view, "#area-overview-panel-workbench")
     refute has_element?(workbench_view, "#operator-global-nav")
     refute has_element?(workbench_view, "#operator-context-nav")
 
-    {:ok, settings_view, _html} = live(recycle(authed_conn), ~p"/settings/auth", on_error: :warn)
+    {:ok, settings_view, _html} = live(recycle(authed_conn), ~p"/settings", on_error: :warn)
 
     assert_area_shell(settings_view, "settings", "Settings", "Auth, integrations, and runtime defaults")
+    assert has_element?(settings_view, "#area-overview-panel-settings")
     refute has_element?(settings_view, "#operator-context-settings-tab")
 
     {:ok, repo_view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     assert_area_shell(repo_view, "repositories", "Repositories", "Managed repositories and detail context")
+    refute has_element?(repo_view, "#area-overview-panel-repositories")
     refute has_element?(repo_view, "#operator-context-repo")
 
     {:ok, run_view, _html} =
       live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     assert_area_shell(run_view, "repositories", "Repositories", "Managed repositories and detail context")
+    refute has_element?(run_view, "#area-overview-panel-repositories")
     refute has_element?(run_view, "#operator-context-run")
   end
 
@@ -188,6 +193,8 @@ defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
 
     {:ok, inventory_view, _html} = live(recycle(authed_conn), ~p"/repos", on_error: :warn)
 
+    assert_area_shell(inventory_view, "repositories", "Repositories", "Managed repositories and detail context")
+    assert has_element?(inventory_view, "#area-overview-panel-repositories")
     assert_single_pane_shell(inventory_view, "project-inventory-shell", "project-inventory-pane")
     assert has_element?(inventory_view, "#project-inventory-reset-filters[href='/repos']")
 
@@ -200,12 +207,16 @@ defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
 
     {:ok, workflows_view, _html} = live(recycle(authed_conn), ~p"/workflows", on_error: :warn)
 
+    assert_area_shell(workflows_view, "workflows", "Workflows", "Governed run launch and history")
+    assert has_element?(workflows_view, "#area-overview-panel-workflows")
     assert_single_pane_shell(workflows_view, "workflows-shell", "workflows-pane")
     assert has_element?(workflows_view, "#workflows-start-run")
     refute has_element?(workflows_view, "#workflows-nav")
 
     {:ok, agents_view, _html} = live(recycle(authed_conn), ~p"/agents", on_error: :warn)
 
+    assert_area_shell(agents_view, "agents", "Agents", "Repo-scoped support automation")
+    assert has_element?(agents_view, "#area-overview-panel-agents")
     assert_single_pane_shell(agents_view, "agents-shell", "agents-pane")
     assert has_element?(agents_view, "#agents-project-table")
     refute has_element?(agents_view, "#agents-nav")

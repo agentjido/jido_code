@@ -54,6 +54,11 @@ defmodule JidoCodeWeb.Layouts do
     doc: "optional shell subtitle override"
   )
 
+  attr(:area_panel, :map,
+    default: nil,
+    doc: "optional root-area overview panel rendered before route content"
+  )
+
   slot(:actions)
   slot(:inner_block, required: true)
 
@@ -103,6 +108,7 @@ defmodule JidoCodeWeb.Layouts do
 
     <main id="operator-shell-content" class="bg-background px-4 py-6 sm:px-6 lg:px-8">
       <div class="mx-auto max-w-7xl space-y-4">
+        <.area_overview_panel :if={@area_panel} panel={@area_panel} />
         {render_slot(@inner_block)}
       </div>
     </main>
@@ -176,6 +182,74 @@ defmodule JidoCodeWeb.Layouts do
         {warning}
       </span>
     </div>
+    """
+  end
+
+  attr(:panel, :map, required: true)
+
+  defp area_overview_panel(assigns) do
+    ~H"""
+    <section id={"area-overview-panel-#{@panel.id}"} data-area={@panel.id} class="space-y-4">
+      <UI.card class="rounded-lg shadow-none">
+        <UI.card_header class="gap-3">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0 space-y-2">
+              <UI.badge variant="outline">{@panel.posture}</UI.badge>
+              <UI.card_title class="text-xl tracking-normal">{@panel.title}</UI.card_title>
+              <UI.card_description class="max-w-3xl">{@panel.summary}</UI.card_description>
+            </div>
+            <.link
+              id={@panel.primary_action.id}
+              navigate={@panel.primary_action.path}
+              class="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {@panel.primary_action.label}
+            </.link>
+          </div>
+        </UI.card_header>
+
+        <UI.card_content class="space-y-4">
+          <div id={"area-overview-metrics-#{@panel.id}"} class="grid gap-3 md:grid-cols-3">
+            <div
+              :for={metric <- @panel.metrics}
+              id={"area-overview-metric-#{@panel.id}-#{metric.id}"}
+              class="rounded-lg border border-border bg-muted/30 p-3"
+            >
+              <p class="text-xs font-medium text-muted-foreground">{metric.label}</p>
+              <p class="mt-1 text-base font-semibold text-foreground">{metric.value}</p>
+              <p class="mt-1 text-xs leading-5 text-muted-foreground">{metric.detail}</p>
+            </div>
+          </div>
+
+          <UI.separator />
+
+          <div id={"area-overview-sections-#{@panel.id}"} class="grid gap-3 lg:grid-cols-2">
+            <div
+              :for={section <- @panel.sections}
+              id={"area-overview-section-#{@panel.id}-#{section.id}"}
+              class="rounded-lg border border-border bg-card p-4"
+            >
+              <h3 class="text-sm font-semibold text-foreground">{section.title}</h3>
+              <p class="mt-2 text-sm leading-6 text-muted-foreground">{section.body}</p>
+            </div>
+          </div>
+        </UI.card_content>
+
+        <UI.card_footer class="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-sm text-muted-foreground">Area handoffs</p>
+          <div id={"area-overview-handoffs-#{@panel.id}"} class="flex flex-wrap gap-2">
+            <.link
+              :for={handoff <- @panel.handoffs}
+              id={"area-overview-handoff-#{handoff.id}"}
+              navigate={handoff.path}
+              class="inline-flex min-h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {handoff.label}
+            </.link>
+          </div>
+        </UI.card_footer>
+      </UI.card>
+    </section>
     """
   end
 

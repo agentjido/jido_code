@@ -60,6 +60,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
       flash={@flash}
       current_scope={%{}}
       active_area={:repositories}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:repositories)}
     >
       <.single_pane_shell
         id="project-inventory-shell"

@@ -266,6 +266,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
       flash={@flash}
       current_scope={%{}}
       active_area={:workbench}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:workbench)}
     >
       <.single_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
         <section class="space-y-4">

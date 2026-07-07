@@ -114,6 +114,7 @@ defmodule JidoCodeWeb.AgentsLive do
       flash={@flash}
       current_scope={%{}}
       active_area={:agents}
+      area_panel={JidoCodeWeb.AreaPanels.panel_for(:agents)}
     >
       <.single_pane_shell id="agents-shell" breadcrumbs={agents_breadcrumbs()} pane={agents_pane()}>
         <.operator_state_notice

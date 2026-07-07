@@ -79,6 +79,7 @@ defmodule JidoCodeWeb.SettingsLive do
       flash={@flash}
       current_scope={%{}}
       active_area={:settings}
+      area_panel={if @active_tab == "github", do: JidoCodeWeb.AreaPanels.panel_for(:settings), else: nil}
     >
       <.subject_tree_shell
         id="settings-shell"

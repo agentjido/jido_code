@@ -404,6 +404,11 @@
     color: oklch(0.16 0.014 260);
   }
 
+  .ui-button-destructive {
+    background: var(--destructive);
+    color: var(--destructive-foreground);
+  }
+
   .ui-button-outline {
     border-color: var(--border);
     background: var(--background);

@@ -245,23 +245,23 @@ defmodule JidoCode.Workbench.InventorySurface do
   def memory_graph_hint(_project), do: nil
 
   @spec semantic_graph_hint_badge_class(map()) :: String.t()
-  def semantic_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
-  def semantic_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
-  def semantic_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
+  def semantic_graph_hint_badge_class(%{state: :ready}), do: "ui-badge ui-badge-sm ui-badge-success"
+  def semantic_graph_hint_badge_class(%{state: :blocked}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def semantic_graph_hint_badge_class(%{state: :stale}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def semantic_graph_hint_badge_class(%{state: :degraded}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def semantic_graph_hint_badge_class(%{state: :failed}), do: "ui-badge ui-badge-sm ui-badge-error"
+  def semantic_graph_hint_badge_class(%{state: :not_ready}), do: "ui-badge ui-badge-sm ui-badge-outline"
+  def semantic_graph_hint_badge_class(_hint), do: "ui-badge ui-badge-sm ui-badge-outline"
 
   @spec memory_graph_hint_badge_class(map()) :: String.t()
-  def memory_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
-  def memory_graph_hint_badge_class(%{state: :blocked}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :invalidated}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
-  def memory_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
-  def memory_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
-  def memory_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
+  def memory_graph_hint_badge_class(%{state: :ready}), do: "ui-badge ui-badge-sm ui-badge-success"
+  def memory_graph_hint_badge_class(%{state: :blocked}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def memory_graph_hint_badge_class(%{state: :stale}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def memory_graph_hint_badge_class(%{state: :invalidated}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def memory_graph_hint_badge_class(%{state: :degraded}), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def memory_graph_hint_badge_class(%{state: :failed}), do: "ui-badge ui-badge-sm ui-badge-error"
+  def memory_graph_hint_badge_class(%{state: :not_ready}), do: "ui-badge ui-badge-sm ui-badge-outline"
+  def memory_graph_hint_badge_class(_hint), do: "ui-badge ui-badge-sm ui-badge-outline"
 
   @spec semantic_graph_hint_recovery_path(map(), String.t() | nil) :: String.t() | nil
   def semantic_graph_hint_recovery_path(project, detail_path) do
@@ -301,13 +301,13 @@ defmodule JidoCode.Workbench.InventorySurface do
   end
 
   @spec run_outcome_status_badge_class(term()) :: String.t()
-  def run_outcome_status_badge_class("completed"), do: "badge badge-success badge-xs"
-  def run_outcome_status_badge_class("running"), do: "badge badge-info badge-xs"
-  def run_outcome_status_badge_class("failed"), do: "badge badge-error badge-xs"
-  def run_outcome_status_badge_class("cancelled"), do: "badge badge-warning badge-xs"
-  def run_outcome_status_badge_class("awaiting_approval"), do: "badge badge-warning badge-xs"
-  def run_outcome_status_badge_class("pending"), do: "badge badge-outline badge-xs"
-  def run_outcome_status_badge_class(_status), do: "badge badge-outline badge-xs"
+  def run_outcome_status_badge_class("completed"), do: "ui-badge ui-badge-sm ui-badge-success"
+  def run_outcome_status_badge_class("running"), do: "ui-badge ui-badge-sm ui-badge-info"
+  def run_outcome_status_badge_class("failed"), do: "ui-badge ui-badge-sm ui-badge-error"
+  def run_outcome_status_badge_class("cancelled"), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def run_outcome_status_badge_class("awaiting_approval"), do: "ui-badge ui-badge-sm ui-badge-warning"
+  def run_outcome_status_badge_class("pending"), do: "ui-badge ui-badge-sm ui-badge-outline"
+  def run_outcome_status_badge_class(_status), do: "ui-badge ui-badge-sm ui-badge-outline"
 
   @spec run_outcome_status_label(term()) :: String.t()
   def run_outcome_status_label(status) do

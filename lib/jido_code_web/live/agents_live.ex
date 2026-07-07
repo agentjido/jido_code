@@ -125,8 +125,8 @@ defmodule JidoCodeWeb.AgentsLive do
           kind={:error}
         />
 
-        <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-          <table id="agents-project-table" class="table table-zebra w-full">
+        <section class="rounded-lg border border-border bg-card overflow-x-auto">
+          <table id="agents-project-table" class="w-full caption-bottom text-sm">
             <thead>
               <tr>
                 <th>Repository</th>
@@ -138,7 +138,7 @@ defmodule JidoCodeWeb.AgentsLive do
             </thead>
             <tbody id="agents-project-rows" phx-update="stream">
               <tr :if={@project_count == 0} id="agents-project-empty">
-                <td colspan="5" class="py-8 text-center text-sm text-base-content/70">
+                <td colspan="5" class="py-8 text-center text-sm text-muted-foreground">
                   No repositories are available for Issue Bot configuration.
                 </td>
               </tr>
@@ -148,7 +148,7 @@ defmodule JidoCodeWeb.AgentsLive do
                   <p id={"agents-project-github-full-name-#{project_config.id}"} class="font-medium">
                     {project_config.github_full_name}
                   </p>
-                  <p id={"agents-project-name-#{project_config.id}"} class="text-xs text-base-content/60">
+                  <p id={"agents-project-name-#{project_config.id}"} class="text-xs text-muted-foreground">
                     {project_config.name}
                   </p>
                 </td>
@@ -170,7 +170,7 @@ defmodule JidoCodeWeb.AgentsLive do
                         id={
                           "agents-issue-bot-event-option-#{project_config.id}-#{issue_bot_webhook_event_dom_id(event)}"
                         }
-                        class="label cursor-pointer justify-start gap-2 py-0"
+                        class="inline-flex cursor-pointer items-center justify-start gap-2 py-0 text-xs"
                       >
                         <input
                           id={
@@ -180,7 +180,7 @@ defmodule JidoCodeWeb.AgentsLive do
                           name="webhook_events[]"
                           value={event}
                           checked={issue_bot_webhook_event_selected?(project_config.webhook_events, event)}
-                          class="checkbox checkbox-xs"
+                          class="ui-checkbox ui-checkbox-sm"
                         />
                         <span class="text-xs">{event}</span>
                       </label>
@@ -188,14 +188,14 @@ defmodule JidoCodeWeb.AgentsLive do
                     <button
                       id={"agents-issue-bot-events-save-#{project_config.id}"}
                       type="submit"
-                      class="btn btn-xs btn-outline"
+                      class="ui-button ui-button-xs ui-button-outline"
                     >
                       Save events
                     </button>
                   </form>
                 </td>
                 <td>
-                  <p id={"agents-issue-bot-approval-mode-#{project_config.id}"} class="text-xs text-base-content/70">
+                  <p id={"agents-issue-bot-approval-mode-#{project_config.id}"} class="text-xs text-muted-foreground">
                     {issue_bot_approval_mode_label(project_config.approval_policy)}
                   </p>
                   <form
@@ -207,7 +207,7 @@ defmodule JidoCodeWeb.AgentsLive do
                     <select
                       id={"agents-issue-bot-approval-select-#{project_config.id}"}
                       name="approval_mode"
-                      class="select select-xs select-bordered w-full max-w-[14rem]"
+                      class="w-full max-w-[14rem] ui-select text-xs"
                     >
                       <option
                         :for={approval_mode <- @issue_bot_supported_approval_modes}
@@ -220,12 +220,12 @@ defmodule JidoCodeWeb.AgentsLive do
                     <button
                       id={"agents-issue-bot-approval-save-#{project_config.id}"}
                       type="submit"
-                      class="btn btn-xs btn-outline"
+                      class="ui-button ui-button-xs ui-button-outline"
                     >
                       Save policy
                     </button>
                   </form>
-                  <p id={"agents-issue-bot-last-updated-#{project_config.id}"} class="text-[11px] text-base-content/60">
+                  <p id={"agents-issue-bot-last-updated-#{project_config.id}"} class="text-[11px] text-muted-foreground">
                     Last updated: {issue_bot_last_updated_label(project_config.last_updated)}
                   </p>
                 </td>
@@ -234,7 +234,7 @@ defmodule JidoCodeWeb.AgentsLive do
                     <button
                       id={"agents-issue-bot-enable-#{project_config.id}"}
                       type="button"
-                      class="btn btn-xs btn-success"
+                      class="ui-button ui-button-xs ui-button-secondary"
                       phx-click="set_issue_bot_enabled"
                       phx-value-project_id={project_config.id}
                       phx-value-enabled="true"
@@ -245,7 +245,7 @@ defmodule JidoCodeWeb.AgentsLive do
                     <button
                       id={"agents-issue-bot-disable-#{project_config.id}"}
                       type="button"
-                      class="btn btn-xs btn-outline btn-warning"
+                      class="ui-button ui-button-xs ui-button-warning"
                       phx-click="set_issue_bot_enabled"
                       phx-value-project_id={project_config.id}
                       phx-value-enabled="false"
@@ -301,8 +301,8 @@ defmodule JidoCodeWeb.AgentsLive do
   defp issue_bot_status_label(true), do: "Enabled"
   defp issue_bot_status_label(false), do: "Disabled"
 
-  defp issue_bot_status_class(true), do: "badge badge-success"
-  defp issue_bot_status_class(false), do: "badge badge-warning"
+  defp issue_bot_status_class(true), do: "ui-badge ui-badge-success"
+  defp issue_bot_status_class(false), do: "ui-badge ui-badge-warning"
 
   defp issue_bot_webhook_event_selected?(webhook_events, event) when is_list(webhook_events) do
     event in webhook_events

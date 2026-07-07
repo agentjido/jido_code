@@ -152,7 +152,7 @@ defmodule JidoCodeWeb.SettingsLive do
               id="settings-github-open-add-modal"
               type="button"
               phx-click="open_add_modal"
-              class="btn btn-primary"
+              class="ui-button ui-button-primary"
             >
               <.icon name="hero-plus" class="mr-1 size-4" /> Add Repository
             </button>
@@ -163,7 +163,7 @@ defmodule JidoCodeWeb.SettingsLive do
               id="settings-auth-refresh-github-service-checks"
               type="button"
               phx-click="refresh_github_service_checks"
-              class="btn btn-outline btn-sm"
+              class="ui-button ui-button-sm ui-button-outline"
             >
               Refresh GitHub Validation
             </button>
@@ -174,12 +174,12 @@ defmodule JidoCodeWeb.SettingsLive do
       <div
         :if={@show_add_modal}
         id="add-repo-modal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-base-content/40 p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4"
       >
-        <div class="w-full max-w-lg rounded-lg border border-base-300 bg-base-100 p-6 shadow-xl">
+        <div class="w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-xl">
           <div class="flex items-center justify-between gap-4">
             <h2 class="text-lg font-semibold">Add GitHub Repository</h2>
-            <button type="button" class="btn btn-sm btn-ghost" phx-click="close_add_modal">
+            <button type="button" class="ui-button ui-button-sm ui-button-ghost" phx-click="close_add_modal">
               <.icon name="hero-x-mark" class="w-4 h-4" />
             </button>
           </div>
@@ -187,7 +187,7 @@ defmodule JidoCodeWeb.SettingsLive do
             <div
               :if={@repo_save_error}
               id="settings-github-repo-save-error"
-              class="rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm"
+              class="rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4 text-sm"
             >
               {@repo_save_error}
             </div>
@@ -203,15 +203,15 @@ defmodule JidoCodeWeb.SettingsLive do
               label="Repository Name"
               placeholder="e.g., jido"
             />
-            <p class="text-sm text-base-content/60">
+            <p class="text-sm text-muted-foreground">
               This imports the repository into the managed-repository control plane. Webhook
               secrets remain managed in Security settings via encrypted SecretRef entries.
             </p>
             <div class="mt-6 flex justify-end gap-3">
-              <button type="button" class="btn btn-outline" phx-click="close_add_modal">
+              <button type="button" class="ui-button ui-button-outline" phx-click="close_add_modal">
                 Cancel
               </button>
-              <button type="submit" class="btn btn-primary">
+              <button type="submit" class="ui-button ui-button-primary">
                 Add Repository
               </button>
             </div>
@@ -227,7 +227,7 @@ defmodule JidoCodeWeb.SettingsLive do
     <div>
       <div class="mb-6">
         <h2 class="text-xl font-semibold">GitHub Repositories</h2>
-        <p class="mt-1 text-sm text-base-content/70">
+        <p class="mt-1 text-sm text-muted-foreground">
           Manage repositories connected to your agent workflows.
         </p>
       </div>
@@ -236,21 +236,21 @@ defmodule JidoCodeWeb.SettingsLive do
         <div
           :for={{dom_id, repo} <- @repos}
           id={dom_id}
-          class="rounded-lg border border-base-300 bg-base-100 p-4"
+          class="rounded-lg border border-border bg-card p-4"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <.icon name="hero-folder" class="w-6 h-6 text-base-content/50" />
+              <.icon name="hero-folder" class="w-6 h-6 text-muted-foreground" />
               <div>
                 <p class="font-medium">{repo.full_name}</p>
                 <% settings_summary = repo_settings_summary(repo.settings) %>
-                <p id={"settings-github-repo-settings-#{repo.id}"} class="text-sm text-base-content/60">
+                <p id={"settings-github-repo-settings-#{repo.id}"} class="text-sm text-muted-foreground">
                   {settings_summary.text}
                 </p>
                 <p
                   :if={settings_summary.security_alert?}
                   id={"settings-github-repo-security-alert-#{repo.id}"}
-                  class="text-xs text-warning mt-1"
+                  class="text-xs text-accent-yellow mt-1"
                 >
                   {settings_summary.alert_message}
                 </p>
@@ -264,16 +264,16 @@ defmodule JidoCodeWeb.SettingsLive do
                 phx-click="toggle_repo"
                 phx-value-id={repo.id}
                 class={[
-                  "btn btn-sm min-w-24",
-                  repo.enabled && "btn-success",
-                  !repo.enabled && "btn-outline"
+                  "min-w-24 ui-button ui-button-sm",
+                  repo.enabled && "bg-accent-green text-background",
+                  !repo.enabled && "ui-button-outline"
                 ]}
               >
                 {if repo.enabled, do: "Enabled", else: "Disabled"}
               </button>
               <button
                 type="button"
-                class="btn btn-outline btn-error btn-sm"
+                class="ui-button ui-button-sm ui-button-outline text-destructive"
                 phx-click="delete_repo"
                 phx-value-id={repo.id}
                 data-confirm="Are you sure you want to remove this repository?"
@@ -286,11 +286,11 @@ defmodule JidoCodeWeb.SettingsLive do
 
         <div
           :if={Enum.empty?(Map.values(@repos))}
-          class="rounded-lg border border-base-300 bg-base-100 p-6 text-center"
+          class="rounded-lg border border-border bg-card p-6 text-center"
         >
-          <.icon name="hero-inbox" class="w-12 h-12 mx-auto text-base-content/30 mb-3" />
-          <p class="text-base-content/70">No repositories configured yet.</p>
-          <p class="text-sm text-base-content/50 mt-1">
+          <.icon name="hero-inbox" class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+          <p class="text-muted-foreground">No repositories configured yet.</p>
+          <p class="text-sm text-muted-foreground mt-1">
             Click "Add Repository" to import your first GitHub repository into the managed
             control plane.
           </p>
@@ -305,15 +305,15 @@ defmodule JidoCodeWeb.SettingsLive do
     <div>
       <div class="mb-6">
         <h2 class="text-xl font-semibold">Agent Configuration</h2>
-        <p class="text-sm text-base-content/70 mt-1">
+        <p class="text-sm text-muted-foreground mt-1">
           Configure AI agents and their behaviors
         </p>
       </div>
 
-      <div class="rounded-lg border border-base-300 bg-base-100 p-6 text-center">
-        <.icon name="hero-cpu-chip" class="w-12 h-12 mx-auto text-base-content/30 mb-3" />
-        <p class="text-base-content/70">Agent settings coming soon.</p>
-        <p class="text-sm text-base-content/50 mt-1">
+      <div class="rounded-lg border border-border bg-card p-6 text-center">
+        <.icon name="hero-cpu-chip" class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <p class="text-muted-foreground">Agent settings coming soon.</p>
+        <p class="text-sm text-muted-foreground mt-1">
           This section will allow you to configure agent behaviors and preferences.
         </p>
       </div>
@@ -326,15 +326,15 @@ defmodule JidoCodeWeb.SettingsLive do
     <div>
       <div class="mb-6">
         <h2 class="text-xl font-semibold">Account Settings</h2>
-        <p class="text-sm text-base-content/70 mt-1">
+        <p class="text-sm text-muted-foreground mt-1">
           Manage your account and preferences
         </p>
       </div>
 
-      <div class="rounded-lg border border-base-300 bg-base-100 p-6 text-center">
-        <.icon name="hero-user-circle" class="w-12 h-12 mx-auto text-base-content/30 mb-3" />
-        <p class="text-base-content/70">Account settings coming soon.</p>
-        <p class="text-sm text-base-content/50 mt-1">
+      <div class="rounded-lg border border-border bg-card p-6 text-center">
+        <.icon name="hero-user-circle" class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <p class="text-muted-foreground">Account settings coming soon.</p>
+        <p class="text-sm text-muted-foreground mt-1">
           This section will allow you to manage your profile and account preferences.
         </p>
       </div>
@@ -347,26 +347,26 @@ defmodule JidoCodeWeb.SettingsLive do
     <div class="space-y-6">
       <div>
         <h2 class="text-xl font-semibold">Auth & Integrations</h2>
-        <p class="text-sm text-base-content/70 mt-1">
+        <p class="text-sm text-muted-foreground mt-1">
           Manage hosted provider login broker trust separately from deployment-local Git automation credentials.
         </p>
       </div>
 
       <section
         id="settings-auth-provider-login-settings"
-        class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
+        class="rounded-3xl border border-border bg-card p-8 shadow-xl"
       >
         <div class="mb-6 flex items-start justify-between gap-6">
           <div class="space-y-2">
-            <p class="text-xs font-bold uppercase tracking-[0.22em] text-base-content/45">
+            <p class="text-xs font-bold uppercase tracking-[0.22em] text-muted-foreground">
               Operator Settings
             </p>
-            <h3 class="text-2xl font-semibold text-base-content">Provider Login</h3>
-            <p class="max-w-3xl text-sm leading-6 text-base-content/70">
+            <h3 class="text-2xl font-semibold text-foreground">Provider Login</h3>
+            <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
               Configure broker trust and allowlist policy separately from deployment-local Git automation credentials.
             </p>
           </div>
-          <div class="rounded-2xl border border-base-300 bg-base-200/70 px-4 py-3 text-sm text-base-content/70">
+          <div class="rounded-2xl border border-border bg-muted/70 px-4 py-3 text-sm text-muted-foreground">
             Local email sign-in stays available even if every provider card below is disabled.
           </div>
         </div>
@@ -375,28 +375,28 @@ defmodule JidoCodeWeb.SettingsLive do
           <article
             :for={card <- @provider_login_cards}
             id={"settings-auth-provider-login-card-#{card.provider}"}
-            class="rounded-2xl border border-base-300 bg-base-200/40 p-5"
+            class="rounded-2xl border border-border bg-muted/40 p-5"
           >
             <div class="flex items-start justify-between gap-4">
               <div>
-                <h4 class="text-lg font-semibold text-base-content">{card.display_name}</h4>
-                <p class="text-sm text-base-content/60">{card.provider_host}</p>
+                <h4 class="text-lg font-semibold text-foreground">{card.display_name}</h4>
+                <p class="text-sm text-muted-foreground">{card.provider_host}</p>
               </div>
               <span class={OperatorAuthSettings.provider_status_badge_class(card.status.tone)}>
                 {card.status.label}
               </span>
             </div>
 
-            <p class="mt-4 text-sm leading-6 text-base-content/70">{card.status.detail}</p>
+            <p class="mt-4 text-sm leading-6 text-muted-foreground">{card.status.detail}</p>
 
             <p
               :if={card.status.missing_fields != []}
-              class="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-warning"
+              class="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-accent-yellow"
             >
               Missing: {Enum.join(card.status.missing_fields, ", ")}
             </p>
 
-            <p class="mt-3 text-xs leading-5 text-base-content/55">{card.entrypoint_note}</p>
+            <p class="mt-3 text-xs leading-5 text-muted-foreground">{card.entrypoint_note}</p>
 
             <.form
               for={%{}}
@@ -439,8 +439,8 @@ defmodule JidoCodeWeb.SettingsLive do
                 placeholder="One value per line or comma separated"
               />
 
-              <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
-                <p class="text-xs font-bold uppercase tracking-[0.18em] text-base-content/45">
+              <div class="rounded-2xl border border-border bg-card/70 p-4">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Broker Trust
                 </p>
                 <div class="mt-3 space-y-3">
@@ -468,7 +468,7 @@ defmodule JidoCodeWeb.SettingsLive do
                 </div>
               </div>
 
-              <button type="submit" class="btn btn-primary btn-block">
+              <button type="submit" class="ui-button ui-button-primary ui-button-block">
                 Save {card.display_name} Login Settings
               </button>
             </.form>
@@ -478,23 +478,23 @@ defmodule JidoCodeWeb.SettingsLive do
 
       <section
         id="settings-auth-git-provider-integrations"
-        class="rounded-3xl border border-base-300 bg-base-100 p-8 shadow-xl"
+        class="rounded-3xl border border-border bg-card p-8 shadow-xl"
       >
         <div class="mb-6 flex items-start gap-6">
           <div class="space-y-2">
-            <h3 class="text-2xl font-semibold text-base-content">Git Provider Integrations</h3>
-            <p class="max-w-3xl text-sm leading-6 text-base-content/70">
+            <h3 class="text-2xl font-semibold text-foreground">Git Provider Integrations</h3>
+            <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
               Deployment-local Git automation credentials stay separate from provider-login broker trust. GitHub App is preferred, PAT is fallback, and GitLab or Bitbucket remain placeholders for now.
             </p>
           </div>
         </div>
 
         <div class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
+          <article class="rounded-2xl border border-border bg-muted/40 p-5">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <h4 class="text-lg font-semibold text-base-content">GitHub Service Integration</h4>
-                <p class="text-sm text-base-content/60">
+                <h4 class="text-lg font-semibold text-foreground">GitHub Service Integration</h4>
+                <p class="text-sm text-muted-foreground">
                   Deployment-local automation credentials and repository access validation
                 </p>
               </div>
@@ -504,11 +504,11 @@ defmodule JidoCodeWeb.SettingsLive do
             </div>
 
             <div id="settings-auth-github-service-status" class="mt-4 space-y-4">
-              <p class="text-sm leading-6 text-base-content/70">
+              <p class="text-sm leading-6 text-muted-foreground">
                 {OperatorAuthSettings.github_service_summary(@github_service_report)}
               </p>
 
-              <p class="text-xs uppercase tracking-[0.18em] text-base-content/45">
+              <p class="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Last checked: {OperatorAuthSettings.format_datetime(@github_service_report.checked_at)}
               </p>
 
@@ -516,30 +516,30 @@ defmodule JidoCodeWeb.SettingsLive do
                 <div
                   :for={path_result <- @github_service_report.paths}
                   id={"settings-auth-github-service-path-#{path_result.path}"}
-                  class="rounded-2xl border border-base-300 bg-base-100/70 p-4"
+                  class="rounded-2xl border border-border bg-card/70 p-4"
                 >
                   <div class="flex items-start justify-between gap-4">
                     <div>
-                      <p class="font-medium text-base-content">{path_result.name}</p>
-                      <p class="mt-1 text-sm text-base-content/65">{path_result.detail}</p>
+                      <p class="font-medium text-foreground">{path_result.name}</p>
+                      <p class="mt-1 text-sm text-muted-foreground">{path_result.detail}</p>
                     </div>
                     <span class={OperatorAuthSettings.integration_status_badge_class(path_result.status)}>
                       {OperatorAuthSettings.integration_status_label(path_result.status)}
                     </span>
                   </div>
 
-                  <p class="mt-3 text-xs uppercase tracking-[0.18em] text-base-content/45">
+                  <p class="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Repository access: {OperatorAuthSettings.repository_access_label(path_result.repository_access)}
                   </p>
 
                   <p
                     :if={path_result.missing_repositories != []}
-                    class="mt-2 text-sm text-warning"
+                    class="mt-2 text-sm text-accent-yellow"
                   >
                     Missing repositories: {Enum.join(path_result.missing_repositories, ", ")}
                   </p>
 
-                  <p class="mt-2 text-sm text-base-content/70">
+                  <p class="mt-2 text-sm text-muted-foreground">
                     Remediation: {path_result.remediation}
                   </p>
                 </div>
@@ -550,32 +550,32 @@ defmodule JidoCodeWeb.SettingsLive do
           <div class="space-y-6">
             <article
               id="settings-auth-github-service-secret-refs"
-              class="rounded-2xl border border-base-300 bg-base-200/40 p-5"
+              class="rounded-2xl border border-border bg-muted/40 p-5"
             >
-              <h4 class="text-lg font-semibold text-base-content">Deployment-Local Secrets</h4>
-              <p class="mt-2 text-sm leading-6 text-base-content/70">
+              <h4 class="text-lg font-semibold text-foreground">Deployment-Local Secrets</h4>
+              <p class="mt-2 text-sm leading-6 text-muted-foreground">
                 These secret refs back GitHub automation. They are not stored in the provider-login broker config.
               </p>
 
-              <div class="mt-4 space-y-2 text-sm text-base-content/75">
+              <div class="mt-4 space-y-2 text-sm text-muted-foreground">
                 <p :for={{credential, secret_ref} <- @github_service_secret_refs}>
                   <span class="font-medium">{OperatorAuthSettings.service_credential_label(credential)}:</span>
-                  <code class="ml-2 rounded bg-base-300/70 px-2 py-1 text-xs">{secret_ref}</code>
+                  <code class="ml-2 rounded bg-border/70 px-2 py-1 text-xs">{secret_ref}</code>
                 </p>
               </div>
             </article>
 
-            <article class="rounded-2xl border border-base-300 bg-base-200/40 p-5">
-              <h4 class="text-lg font-semibold text-base-content">Future Providers</h4>
-              <div class="mt-3 space-y-3 text-sm text-base-content/70">
-                <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
-                  <p class="font-medium text-base-content">GitLab</p>
+            <article class="rounded-2xl border border-border bg-muted/40 p-5">
+              <h4 class="text-lg font-semibold text-foreground">Future Providers</h4>
+              <div class="mt-3 space-y-3 text-sm text-muted-foreground">
+                <div class="rounded-2xl border border-border bg-card/70 p-4">
+                  <p class="font-medium text-foreground">GitLab</p>
                   <p class="mt-1">
                     Login config is modeled, but GitLab service automation is still a named placeholder adapter.
                   </p>
                 </div>
-                <div class="rounded-2xl border border-base-300 bg-base-100/70 p-4">
-                  <p class="font-medium text-base-content">Bitbucket</p>
+                <div class="rounded-2xl border border-border bg-card/70 p-4">
+                  <p class="font-medium text-foreground">Bitbucket</p>
                   <p class="mt-1">
                     Login config is modeled, but Bitbucket service automation is still a named placeholder adapter.
                   </p>
@@ -594,7 +594,7 @@ defmodule JidoCodeWeb.SettingsLive do
     <div class="space-y-6">
       <div>
         <h2 class="text-xl font-semibold">Security Controls</h2>
-        <p class="text-sm text-base-content/70 mt-1">
+        <p class="text-sm text-muted-foreground mt-1">
           Review token/key expiry, revoke compromised credentials, and capture revocation audit timestamps.
         </p>
       </div>
@@ -602,7 +602,7 @@ defmodule JidoCodeWeb.SettingsLive do
       <div
         :if={@security_status_error}
         id="settings-security-status-error"
-        class="rounded-lg border border-warning/50 bg-warning/10 p-4"
+        class="rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4"
       >
         <p id="settings-security-status-error-type" class="text-sm font-medium">
           Typed error: {@security_status_error.error_type}
@@ -618,7 +618,7 @@ defmodule JidoCodeWeb.SettingsLive do
       <div
         :if={@security_revocation_error}
         id="settings-security-revocation-error"
-        class="rounded-lg border border-warning/50 bg-warning/10 p-4"
+        class="rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4"
       >
         <p id="settings-security-revocation-error-type" class="text-sm font-medium">
           Typed error: {@security_revocation_error.error_type}
@@ -631,11 +631,11 @@ defmodule JidoCodeWeb.SettingsLive do
         </p>
       </div>
 
-      <div id="settings-security-secret-refs" class="rounded-lg border border-base-300 bg-base-100 p-4">
+      <div id="settings-security-secret-refs" class="rounded-lg border border-border bg-card p-4">
         <div class="space-y-4">
           <div>
             <h3 class="text-lg font-semibold">Operational Secret References</h3>
-            <p class="text-sm text-base-content/70">
+            <p class="text-sm text-muted-foreground">
               Persist operational values as encrypted SecretRef ciphertext while keeping metadata queryable.
             </p>
           </div>
@@ -643,7 +643,7 @@ defmodule JidoCodeWeb.SettingsLive do
           <div
             :if={@security_secret_error}
             id="settings-security-secret-error"
-            class="rounded-lg border border-warning/50 bg-warning/10 p-4"
+            class="rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4"
           >
             <p id="settings-security-secret-error-type" class="text-sm font-medium">
               Typed error: {@security_secret_error.error_type}
@@ -685,7 +685,7 @@ defmodule JidoCodeWeb.SettingsLive do
             />
 
             <div class="md:col-span-2">
-              <button id="settings-security-secret-save" type="submit" class="btn btn-primary">
+              <button id="settings-security-secret-save" type="submit" class="ui-button ui-button-primary">
                 Save SecretRef
               </button>
             </div>
@@ -695,7 +695,7 @@ defmodule JidoCodeWeb.SettingsLive do
             <div
               :if={Enum.empty?(@security_secret_refs)}
               id="settings-security-secret-empty"
-              class="rounded-lg border border-base-300 bg-base-100 p-4"
+              class="rounded-lg border border-border bg-card p-4"
             >
               No SecretRef metadata stored yet.
             </div>
@@ -703,42 +703,42 @@ defmodule JidoCodeWeb.SettingsLive do
             <div
               :for={secret <- @security_secret_refs}
               id={"settings-security-secret-#{secret.id}"}
-              class="rounded-lg border border-base-300 bg-base-100 p-4"
+              class="rounded-lg border border-border bg-card p-4"
             >
               <div class="space-y-3">
                 <dl class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div>
-                    <dt class="text-xs uppercase text-base-content/60">Scope</dt>
+                    <dt class="text-xs uppercase text-muted-foreground">Scope</dt>
                     <dd id={"settings-security-secret-scope-value-#{secret.id}"} class="font-medium">
                       {secret.scope}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase text-base-content/60">Name</dt>
+                    <dt class="text-xs uppercase text-muted-foreground">Name</dt>
                     <dd id={"settings-security-secret-name-value-#{secret.id}"} class="font-medium">
                       {secret.name}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase text-base-content/60">Source</dt>
+                    <dt class="text-xs uppercase text-muted-foreground">Source</dt>
                     <dd id={"settings-security-secret-source-value-#{secret.id}"} class="font-medium">
                       {secret.source}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase text-base-content/60">Key Version</dt>
+                    <dt class="text-xs uppercase text-muted-foreground">Key Version</dt>
                     <dd id={"settings-security-secret-key-version-#{secret.id}"} class="font-medium">
                       {secret.key_version}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase text-base-content/60">Last Rotated At</dt>
+                    <dt class="text-xs uppercase text-muted-foreground">Last Rotated At</dt>
                     <dd id={"settings-security-secret-rotated-at-#{secret.id}"} class="font-medium">
                       {format_security_datetime(secret.last_rotated_at)}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase text-base-content/60">Expires At</dt>
+                    <dt class="text-xs uppercase text-muted-foreground">Expires At</dt>
                     <dd id={"settings-security-secret-expires-at-#{secret.id}"} class="font-medium">
                       {format_optional_security_datetime(secret.expires_at)}
                     </dd>
@@ -747,7 +747,7 @@ defmodule JidoCodeWeb.SettingsLive do
                 <button
                   id={"settings-security-secret-revoke-#{secret.id}"}
                   type="button"
-                  class="btn btn-outline btn-error"
+                  class="ui-button ui-button-outline text-destructive"
                   phx-click="revoke_security_secret_ref"
                   phx-value-id={secret.id}
                 >
@@ -761,12 +761,12 @@ defmodule JidoCodeWeb.SettingsLive do
 
       <div
         id="settings-security-provider-rotation"
-        class="rounded-lg border border-base-300 bg-base-100 p-4"
+        class="rounded-lg border border-border bg-card p-4"
       >
         <div class="space-y-4">
           <div>
             <h3 class="text-lg font-semibold">Provider Credential Rotation</h3>
-            <p class="text-sm text-base-content/70">
+            <p class="text-sm text-muted-foreground">
               Rotate provider credentials with atomic reference updates and rollback protection.
             </p>
           </div>
@@ -774,7 +774,7 @@ defmodule JidoCodeWeb.SettingsLive do
           <div
             :if={@security_provider_rotation_error}
             id="settings-security-provider-rotation-error"
-            class="rounded-lg border border-warning/50 bg-warning/10 p-4"
+            class="rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4"
           >
             <p id="settings-security-provider-rotation-error-type" class="text-sm font-medium">
               Typed error: {@security_provider_rotation_error.error_type}
@@ -808,7 +808,7 @@ defmodule JidoCodeWeb.SettingsLive do
               placeholder="Never shown after rotation"
             />
             <div class="md:col-span-2">
-              <button id="settings-security-provider-rotation-submit" type="submit" class="btn btn-primary">
+              <button id="settings-security-provider-rotation-submit" type="submit" class="ui-button ui-button-primary">
                 Rotate provider credential
               </button>
             </div>
@@ -817,53 +817,53 @@ defmodule JidoCodeWeb.SettingsLive do
           <div
             :if={@security_provider_rotation_report}
             id="settings-security-provider-rotation-report"
-            class="rounded-lg border border-base-300 bg-base-100 p-4"
+            class="rounded-lg border border-border bg-card p-4"
           >
             <dl class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Provider</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Provider</dt>
                 <dd id="settings-security-provider-rotation-provider-value" class="font-medium">
                   {@security_provider_rotation_report.provider}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Credential Name</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Credential Name</dt>
                 <dd id="settings-security-provider-rotation-name-value" class="font-medium">
                   {@security_provider_rotation_report.name}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Before Version</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Before Version</dt>
                 <dd id="settings-security-provider-rotation-before-version" class="font-medium">
                   {@security_provider_rotation_report.before.key_version}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Before Verification</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Before Verification</dt>
                 <dd id="settings-security-provider-rotation-before-status" class="font-medium">
                   {provider_rotation_verification_label(@security_provider_rotation_report.before.verification.status)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">After Version</dt>
+                <dt class="text-xs uppercase text-muted-foreground">After Version</dt>
                 <dd id="settings-security-provider-rotation-after-version" class="font-medium">
                   {@security_provider_rotation_report.after.key_version}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">After Verification</dt>
+                <dt class="text-xs uppercase text-muted-foreground">After Verification</dt>
                 <dd id="settings-security-provider-rotation-after-status" class="font-medium">
                   {provider_rotation_verification_label(@security_provider_rotation_report.after.verification.status)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Rollback</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Rollback</dt>
                 <dd id="settings-security-provider-rotation-rollback-status" class="font-medium">
                   {provider_rotation_rollback_label(@security_provider_rotation_report.rollback_performed)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Continuity Alarm</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Continuity Alarm</dt>
                 <dd id="settings-security-provider-rotation-continuity-alarm" class="font-medium">
                   {provider_rotation_alarm_label(@security_provider_rotation_report.continuity_alarm)}
                 </dd>
@@ -873,14 +873,14 @@ defmodule JidoCodeWeb.SettingsLive do
         </div>
       </div>
 
-      <div id="settings-security-secret-audit-log" class="rounded-lg border border-base-300 bg-base-100 p-4">
+      <div id="settings-security-secret-audit-log" class="rounded-lg border border-border bg-card p-4">
         <div class="space-y-3">
           <h3 class="text-lg font-semibold">Secret Lifecycle Audit</h3>
 
           <div
             :if={@security_secret_audit_error}
             id="settings-security-secret-audit-error"
-            class="rounded-lg border border-warning/50 bg-warning/10 p-4"
+            class="rounded-lg border border-accent-yellow/50 bg-accent-yellow/10 p-4"
           >
             <p id="settings-security-secret-audit-error-type" class="text-sm font-medium">
               Typed error: {@security_secret_audit_error.error_type}
@@ -903,7 +903,7 @@ defmodule JidoCodeWeb.SettingsLive do
             </li>
           </ul>
 
-          <p :if={Enum.empty?(@security_secret_lifecycle_audits)} class="text-sm text-base-content/60">
+          <p :if={Enum.empty?(@security_secret_lifecycle_audits)} class="text-sm text-muted-foreground">
             No secret lifecycle events recorded yet.
           </p>
         </div>
@@ -915,7 +915,7 @@ defmodule JidoCodeWeb.SettingsLive do
         <div
           :if={Enum.empty?(@security_tokens)}
           id="settings-security-token-empty"
-          class="rounded-lg border border-base-300 bg-base-100 p-4"
+          class="rounded-lg border border-border bg-card p-4"
         >
           No owner session tokens found.
         </div>
@@ -923,30 +923,30 @@ defmodule JidoCodeWeb.SettingsLive do
         <div
           :for={token <- @security_tokens}
           id={"settings-security-token-#{token.id}"}
-          class="rounded-lg border border-base-300 bg-base-100 p-4"
+          class="rounded-lg border border-border bg-card p-4"
         >
           <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <dl class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Status</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Status</dt>
                 <dd id={"settings-security-token-status-#{token.id}"} class="font-medium">
                   {security_status_label(token.status)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Purpose</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Purpose</dt>
                 <dd id={"settings-security-token-purpose-#{token.id}"} class="font-medium">
                   {token.purpose}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Expires At</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Expires At</dt>
                 <dd id={"settings-security-token-expires-at-#{token.id}"} class="font-medium">
                   {format_security_datetime(token.expires_at)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Revoked At</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Revoked At</dt>
                 <dd id={"settings-security-token-revoked-at-#{token.id}"} class="font-medium">
                   {format_security_datetime(token.revoked_at)}
                 </dd>
@@ -956,7 +956,7 @@ defmodule JidoCodeWeb.SettingsLive do
             <button
               id={"settings-security-revoke-token-#{token.id}"}
               type="button"
-              class="btn btn-outline btn-error"
+              class="ui-button ui-button-outline text-destructive"
               phx-click="revoke_security_token"
               phx-value-jti={token.id}
             >
@@ -972,7 +972,7 @@ defmodule JidoCodeWeb.SettingsLive do
         <div
           :if={Enum.empty?(@security_api_keys)}
           id="settings-security-api-key-empty"
-          class="rounded-lg border border-base-300 bg-base-100 p-4"
+          class="rounded-lg border border-border bg-card p-4"
         >
           No owner API keys found.
         </div>
@@ -980,30 +980,30 @@ defmodule JidoCodeWeb.SettingsLive do
         <div
           :for={api_key <- @security_api_keys}
           id={"settings-security-api-key-#{api_key.id}"}
-          class="rounded-lg border border-base-300 bg-base-100 p-4"
+          class="rounded-lg border border-border bg-card p-4"
         >
           <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <dl class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Status</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Status</dt>
                 <dd id={"settings-security-api-key-status-#{api_key.id}"} class="font-medium">
                   {security_status_label(api_key.status)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">ID</dt>
+                <dt class="text-xs uppercase text-muted-foreground">ID</dt>
                 <dd id={"settings-security-api-key-id-#{api_key.id}"} class="font-medium">
                   {api_key.id}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Expires At</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Expires At</dt>
                 <dd id={"settings-security-api-key-expires-at-#{api_key.id}"} class="font-medium">
                   {format_security_datetime(api_key.expires_at)}
                 </dd>
               </div>
               <div>
-                <dt class="text-xs uppercase text-base-content/60">Revoked At</dt>
+                <dt class="text-xs uppercase text-muted-foreground">Revoked At</dt>
                 <dd id={"settings-security-api-key-revoked-at-#{api_key.id}"} class="font-medium">
                   {format_security_datetime(api_key.revoked_at)}
                 </dd>
@@ -1013,7 +1013,7 @@ defmodule JidoCodeWeb.SettingsLive do
             <button
               id={"settings-security-revoke-api-key-#{api_key.id}"}
               type="button"
-              class="btn btn-outline btn-error"
+              class="ui-button ui-button-outline text-destructive"
               phx-click="revoke_security_api_key"
               phx-value-id={api_key.id}
             >
@@ -1023,7 +1023,7 @@ defmodule JidoCodeWeb.SettingsLive do
         </div>
       </div>
 
-      <div id="settings-security-audit-log" class="rounded-lg border border-base-300 bg-base-100 p-4">
+      <div id="settings-security-audit-log" class="rounded-lg border border-border bg-card p-4">
         <h3 class="text-lg font-semibold mb-3">Revocation Audit</h3>
         <ul class="space-y-2">
           <li
@@ -1034,7 +1034,7 @@ defmodule JidoCodeWeb.SettingsLive do
             {security_audit_message(audit)}
           </li>
         </ul>
-        <p :if={Enum.empty?(@security_audit_events)} class="text-sm text-base-content/60">
+        <p :if={Enum.empty?(@security_audit_events)} class="text-sm text-muted-foreground">
           No revocation events recorded in this browser session.
         </p>
       </div>

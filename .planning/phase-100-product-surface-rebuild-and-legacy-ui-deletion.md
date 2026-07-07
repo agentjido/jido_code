@@ -35,22 +35,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 100 Phase 100 - Product Surface Rebuild And Legacy UI Deletion
   Rebuild the actual operator product areas inside the new shell and delete the old UI implementation.
 
-  [ ] 100.1 Section - Core Area Surface Rebuild
+  [x] 100.1 Section - Core Area Surface Rebuild
     Recompose the main product areas with SaladUI HEEx primitives and bounded shadcn-vue islands.
 
-    [ ] 100.1.1 Task - Rebuild dashboard, repositories, and workbench areas.
+    [x] 100.1.1 Task - Rebuild dashboard, repositories, and workbench areas.
       Replace old cards, tabs, and subject-tree content with the new area shell language.
 
-      [ ] 100.1.1.1 Subtask - Rebuild dashboard summary, runtime posture, recent work, and next-action panels with `UI.*` HEEx primitives.
-      [ ] 100.1.1.2 Subtask - Rebuild repository inventory and managed-repository detail panels with server-owned filters, tables, and action buttons.
-      [ ] 100.1.1.3 Subtask - Rebuild workbench as a dense specialist workspace using the same shell status and handoff contract.
+      [x] 100.1.1.1 Subtask - Rebuild dashboard summary, runtime posture, recent work, and next-action panels with `UI.*` HEEx primitives.
+      [x] 100.1.1.2 Subtask - Rebuild repository inventory and managed-repository detail panels with server-owned filters, tables, and action buttons.
+      [x] 100.1.1.3 Subtask - Rebuild workbench as a dense specialist workspace using the same shell status and handoff contract.
 
-    [ ] 100.1.2 Task - Rebuild workflows, agents, and settings areas.
+    [x] 100.1.2 Task - Rebuild workflows, agents, and settings areas.
       Make adjacent operational routes feel native to the new shell instead of standalone pages.
 
-      [ ] 100.1.2.1 Subtask - Rebuild workflow launch and run history surfaces with SaladUI tables, alerts, and buttons.
-      [ ] 100.1.2.2 Subtask - Rebuild agents and runtime configuration surfaces with server-owned form and action boundaries.
-      [ ] 100.1.2.3 Subtask - Rebuild settings, provider auth, GitHub integration, and setup handoff content with the new shell and status patterns.
+      [x] 100.1.2.1 Subtask - Rebuild workflow launch and run history surfaces with SaladUI tables, alerts, and buttons.
+      [x] 100.1.2.2 Subtask - Rebuild agents and runtime configuration surfaces with server-owned form and action boundaries.
+      [x] 100.1.2.3 Subtask - Rebuild settings, provider auth, GitHub integration, and setup handoff content with the new shell and status patterns.
 
   [ ] 100.2 Section - Detail And Conversation Surface Rebuild
     Bring dense detail routes and conversation surfaces into the same UI reset.

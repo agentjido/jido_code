@@ -86,7 +86,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
       <.single_pane_shell id="workflows-shell" breadcrumbs={workflows_breadcrumbs()} pane={workflows_pane()}>
         <section
           id="workflows-manual-run-form-panel"
-          class="space-y-3 rounded-lg border border-base-300 bg-base-100 p-4"
+          class="space-y-3 rounded-lg border border-border bg-card p-4"
         >
           <.form
             for={@run_form}
@@ -116,12 +116,12 @@ defmodule JidoCodeWeb.WorkflowsLive do
             <%= if selected_workflow do %>
               <section
                 id="workflows-selected-template"
-                class="space-y-2 rounded-lg border border-base-300 bg-base-200/40 p-3"
+                class="space-y-2 rounded-lg border border-border bg-muted/40 p-3"
               >
                 <p id="workflows-selected-template-label" class="text-sm font-semibold">
                   Required inputs for {selected_workflow.label}
                 </p>
-                <p id="workflows-selected-template-description" class="text-sm text-base-content/70">
+                <p id="workflows-selected-template-description" class="text-sm text-muted-foreground">
                   {selected_workflow.description}
                 </p>
 
@@ -139,7 +139,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
             <p
               :if={@repository_count == 0}
               id="workflows-start-run-disabled-reason"
-              class="text-sm text-warning"
+              class="text-sm text-accent-yellow"
             >
               Import at least one repository before starting manual workflow runs.
             </p>
@@ -148,39 +148,39 @@ defmodule JidoCodeWeb.WorkflowsLive do
           <section :if={@run_feedback} id="workflows-run-feedback" class="space-y-1">
             <%= case @run_feedback.status do %>
               <% :ok -> %>
-                <p id="workflows-run-feedback-status" class="text-sm text-success">
+                <p id="workflows-run-feedback-status" class="text-sm text-accent-green">
                   Run creation succeeded.
                 </p>
-                <p id="workflows-run-feedback-run-id" class="text-sm text-success">
+                <p id="workflows-run-feedback-run-id" class="text-sm text-accent-green">
                   Run: <span class="font-mono">{@run_feedback.run.run_id}</span>
                 </p>
-                <p id="workflows-run-feedback-workflow-version" class="text-sm text-success">
+                <p id="workflows-run-feedback-workflow-version" class="text-sm text-accent-green">
                   Workflow version: {run_workflow_version_summary(@run_feedback.run.workflow_version)}
                 </p>
                 <.link
                   id="workflows-run-feedback-run-link"
-                  class="link link-primary text-sm"
+                  class="text-primary underline-offset-4 hover:underline text-sm"
                   href={@run_feedback.run.detail_path}
                 >
                   Open run detail
                 </.link>
               <% :error -> %>
-                <p id="workflows-run-feedback-status" class="text-sm text-error">
+                <p id="workflows-run-feedback-status" class="text-sm text-destructive">
                   Run creation failed.
                 </p>
-                <p id="workflows-run-feedback-error-type" class="text-sm text-error">
+                <p id="workflows-run-feedback-error-type" class="text-sm text-destructive">
                   Typed validation error: {@run_feedback.error.error_type}
                 </p>
-                <p id="workflows-run-feedback-error-detail" class="text-sm text-error">
+                <p id="workflows-run-feedback-error-detail" class="text-sm text-destructive">
                   {@run_feedback.error.detail}
                 </p>
-                <p id="workflows-run-feedback-error-remediation" class="text-sm text-base-content/70">
+                <p id="workflows-run-feedback-error-remediation" class="text-sm text-muted-foreground">
                   {@run_feedback.error.remediation}
                 </p>
                 <ul
                   :if={@run_feedback.error.field_errors != []}
                   id="workflows-run-feedback-field-errors"
-                  class="list-disc space-y-1 pl-5 text-xs text-error"
+                  class="list-disc space-y-1 pl-5 text-xs text-destructive"
                 >
                   <li
                     :for={{field_error, index} <- Enum.with_index(@run_feedback.error.field_errors, 1)}
@@ -193,8 +193,8 @@ defmodule JidoCodeWeb.WorkflowsLive do
           </section>
         </section>
 
-        <section id="workflows-runs-panel" class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
-          <table id="workflows-runs-table" class="table table-zebra w-full">
+        <section id="workflows-runs-panel" class="rounded-lg border border-border bg-card overflow-x-auto">
+          <table id="workflows-runs-table" class="w-full caption-bottom text-sm">
             <thead>
               <tr>
                 <th>Run ID</th>
@@ -208,7 +208,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
             </thead>
             <tbody :if={@run_count == 0} id="workflows-runs-empty-body">
               <tr id="workflows-runs-empty-state">
-                <td colspan="7" class="py-8 text-center text-sm text-base-content/70">
+                <td colspan="7" class="py-8 text-center text-sm text-muted-foreground">
                   No workflow runs started from this page yet.
                 </td>
               </tr>
@@ -239,7 +239,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
                 <td id={"workflows-run-route-#{run_dom_token(run.run_id)}"}>
                   <.link
                     id={"workflows-run-detail-link-#{run_dom_token(run.run_id)}"}
-                    class="link link-primary"
+                    class="text-primary underline-offset-4 hover:underline"
                     href={run.detail_path}
                   >
                     Open run detail
@@ -252,13 +252,18 @@ defmodule JidoCodeWeb.WorkflowsLive do
 
         <:footer_actions>
           <%= if @repository_count > 0 do %>
-            <button id="workflows-start-run" type="submit" form="workflows-manual-run-form" class="btn btn-primary">
+            <button
+              id="workflows-start-run"
+              type="submit"
+              form="workflows-manual-run-form"
+              class="ui-button ui-button-primary"
+            >
               Start workflow run
             </button>
           <% else %>
             <span
               id="workflows-start-run-disabled"
-              class="btn btn-disabled cursor-not-allowed"
+              class="ui-button ui-button-disabled cursor-not-allowed"
               aria-disabled="true"
             >
               Start workflow run

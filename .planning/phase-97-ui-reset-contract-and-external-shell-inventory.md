@@ -68,22 +68,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 97.2.2.2 Subtask - Identify all DaisyUI class usage in Vue, HEEx, CSS, tests, and helpers.
       [x] 97.2.2.3 Subtask - Identify asset entrypoints, Vite config, SSR entrypoints, and test helpers that need to adopt the explicit island registry pattern from ariston-webui.
 
-  [ ] 97.3 Section - Deletion Policy And Migration Order
+  [x] 97.3 Section - Deletion Policy And Migration Order
     Set the greenfield rule that old UI is removed once the replacement path exists instead of retaining mixed shells.
 
-    [ ] 97.3.1 Task - Define no-compatibility UI reset rules.
+    [x] 97.3.1 Task - Define no-compatibility UI reset rules.
       Prevent the reset from becoming a second long-lived UI architecture.
 
-      [ ] 97.3.1.1 Subtask - State that there will be no DaisyUI compatibility layer after the cutover phase.
-      [ ] 97.3.1.2 Subtask - State that old route chrome, old operator-navigation helpers, and old Vue widgets are deleted or rewritten rather than hidden.
-      [ ] 97.3.1.3 Subtask - Keep only product service contracts, test fixtures, auth/session behavior, and LiveVue mount helpers where they still fit the new shell.
+      [x] 97.3.1.1 Subtask - State that there will be no DaisyUI compatibility layer after the cutover phase.
+      [x] 97.3.1.2 Subtask - State that old route chrome, old operator-navigation helpers, and old Vue widgets are deleted or rewritten rather than hidden.
+      [x] 97.3.1.3 Subtask - Keep only product service contracts, test fixtures, auth/session behavior, and LiveVue mount helpers where they still fit the new shell.
 
-    [ ] 97.3.2 Task - Sequence the reset around safe compile boundaries.
+    [x] 97.3.2 Task - Sequence the reset around safe compile boundaries.
       Keep the repo buildable while still planning for complete UI replacement.
 
-      [ ] 97.3.2.1 Subtask - Do dependency and CSS foundation work before route deletion.
-      [ ] 97.3.2.2 Subtask - Land the root area shell before rewriting product area content.
-      [ ] 97.3.2.3 Subtask - Remove DaisyUI only after every runtime reference to DaisyUI component classes is gone.
+      [x] 97.3.2.1 Subtask - Do dependency and CSS foundation work before route deletion.
+      [x] 97.3.2.2 Subtask - Land the root area shell before rewriting product area content.
+      [x] 97.3.2.3 Subtask - Remove DaisyUI only after every runtime reference to DaisyUI component classes is gone.
 
   [ ] 97.4 Section - Integration Tests
     End the phase with planning-level contract tests that make the UI reset scope visible before implementation begins.

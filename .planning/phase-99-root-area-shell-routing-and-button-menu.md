@@ -30,7 +30,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Detail routes can either be area-owned panels or separate LiveViews that still render inside the new `Layouts.app` shell.
 - Navigation state remains server-authored through route params, assigns, and LiveView patch or navigate operations.
 
-[ ] 99 Phase 99 - Root Area Shell Routing And Button Menu
+[x] 99 Phase 99 - Root Area Shell Routing And Button Menu
   Replace the current authenticated navigation model with an ariston-style root area shell and button menu.
 
   [x] 99.1 Section - Area Model And Route Map
@@ -84,19 +84,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 99.3.2.2 Subtask - Render detail routes in the new shell with correct active area and context strip.
       [x] 99.3.2.3 Subtask - Replace old breadcrumb and context-chip fragments with area handoff targets or shell status content.
 
-  [ ] 99.4 Section - Integration Tests
+  [x] 99.4 Section - Integration Tests
     End the phase by proving the new shell owns routing, active state, and basic navigation.
 
-    [ ] 99.4.1 Task - Add root shell routing tests.
+    [x] 99.4.1 Task - Add root shell routing tests.
       Verify every authenticated route enters the same shell language.
 
-      [ ] 99.4.1.1 Subtask - Add LiveView tests for each area route showing the button menu, active button, title, subtitle, and status strip.
-      [ ] 99.4.1.2 Subtask - Add tests proving unauthenticated users still land on the expected public/bootstrap flow.
-      [ ] 99.4.1.3 Subtask - Add tests proving detail routes keep correct active area and context status.
+      [x] 99.4.1.1 Subtask - Add LiveView tests for each area route showing the button menu, active button, title, subtitle, and status strip.
+      [x] 99.4.1.2 Subtask - Add tests proving unauthenticated users still land on the expected public/bootstrap flow.
+      [x] 99.4.1.3 Subtask - Add tests proving detail routes keep correct active area and context status.
 
-    [ ] 99.4.2 Task - Add shell browser coverage.
+    [x] 99.4.2 Task - Add shell browser coverage.
       Verify the button menu and responsive shell work in real browser rendering.
 
-      [ ] 99.4.2.1 Subtask - Add Playwright coverage for desktop and mobile button menu wrapping.
-      [ ] 99.4.2.2 Subtask - Add keyboard and accessible-current assertions for area navigation.
-      [ ] 99.4.2.3 Subtask - Run `mix frontend.verify` and the focused shell LiveView tests.
+      [x] 99.4.2.1 Subtask - Add Playwright coverage for desktop and mobile button menu wrapping.
+      [x] 99.4.2.2 Subtask - Add keyboard and accessible-current assertions for area navigation.
+      [x] 99.4.2.3 Subtask - Run `mix frontend.verify` and the focused shell LiveView tests.

@@ -130,9 +130,9 @@ defmodule JidoCodeWeb.Layouts do
     <nav
       id="operator-area-menu"
       aria-label="Product areas"
-      class="overflow-x-auto rounded-lg border border-border bg-card p-1"
+      class="rounded-lg border border-border bg-card p-1"
     >
-      <div class="flex min-w-max flex-nowrap gap-1 sm:min-w-0 sm:flex-wrap">
+      <div class="flex flex-wrap gap-1">
         <.link
           :for={item <- @items}
           id={"operator-area-menu-#{item.id}"}

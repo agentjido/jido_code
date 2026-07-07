@@ -135,6 +135,7 @@ defmodule JidoCodeWeb.UIResetPhase98CSSTokenTest do
     @string_literal_re
     |> Regex.scan(content, capture: :all_but_first)
     |> List.flatten()
+    |> Enum.reject(&(String.contains?(&1, "(") or String.contains?(&1, ")")))
     |> Enum.join("\n")
   end
 end

@@ -1,36 +1,52 @@
 import { h, type Component } from "vue"
-import { createLiveVue, findComponent, type LiveHook, type ComponentMap } from "live_vue"
+import {
+  createLiveVue,
+  findComponent,
+  type ComponentMap,
+  type LiveHook,
+} from "live_vue"
+import DashboardRunSummaryWidget from "../../lib/jido_code_web/live/DashboardRunSummaryWidget.vue"
+import DashboardRuntimePostureWidget from "../../lib/jido_code_web/live/DashboardRuntimePostureWidget.vue"
+import ProjectDetailOverviewWidget from "../../lib/jido_code_web/live/ProjectDetailOverviewWidget.vue"
+import ProjectDetailSemanticExplorerWidget from "../../lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue"
+import RunGovernanceOverviewWidget from "../../lib/jido_code_web/live/RunGovernanceOverviewWidget.vue"
+import SettingsOverviewWidget from "../../lib/jido_code_web/live/SettingsOverviewWidget.vue"
+import SetupGitHubRepositorySelectorWidget from "../../lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue"
+import SetupRuntimeDefaultsWidget from "../../lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue"
+import SetupStartPathSelectorWidget from "../../lib/jido_code_web/live/SetupStartPathSelectorWidget.vue"
+import WorkbenchSummaryWidget from "../../lib/jido_code_web/live/WorkbenchSummaryWidget.vue"
 
-// needed to make $live available in the Vue component
 declare module "vue" {
   interface ComponentCustomProperties {
     $live: LiveHook
   }
 }
 
-export default createLiveVue({
-  // name will be passed as-is in v-component of the .vue HEEX component
-  resolve: name => {
-    // we're importing from ../../lib to allow collocating Vue files with LiveView files
-    // eager: true disables lazy loading - all these components will be part of the app.js bundle
-    // more: https://vite.dev/guide/features.html#glob-import
-    const components = {
-      ...import.meta.glob("./**/*.vue", { eager: true }),
-      ...import.meta.glob("../../lib/**/*.vue", { eager: true }),
-    } as ComponentMap
+export const liveVueComponents = {
+  "../../lib/jido_code_web/live/DashboardRunSummaryWidget.vue": DashboardRunSummaryWidget,
+  "../../lib/jido_code_web/live/DashboardRuntimePostureWidget.vue": DashboardRuntimePostureWidget,
+  "../../lib/jido_code_web/live/ProjectDetailOverviewWidget.vue": ProjectDetailOverviewWidget,
+  "../../lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue": ProjectDetailSemanticExplorerWidget,
+  "../../lib/jido_code_web/live/RunGovernanceOverviewWidget.vue": RunGovernanceOverviewWidget,
+  "../../lib/jido_code_web/live/SettingsOverviewWidget.vue": SettingsOverviewWidget,
+  "../../lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue": SetupGitHubRepositorySelectorWidget,
+  "../../lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue": SetupRuntimeDefaultsWidget,
+  "../../lib/jido_code_web/live/SetupStartPathSelectorWidget.vue": SetupStartPathSelectorWidget,
+  "../../lib/jido_code_web/live/WorkbenchSummaryWidget.vue": WorkbenchSummaryWidget,
+} satisfies ComponentMap
 
-    // finds component by name or path suffix and gives a nice error message.
-    // `path/to/component/index.vue` can be found as `path/to/component` or simply `component`
-    // `path/to/Component.vue` can be found as `path/to/Component` or simply `Component`
-    return findComponent(components as ComponentMap, name)
-  },
-  // it's a default implementation of creating and mounting vue app, you can easily extend it to add your own plugins, directives etc.
+export function resolveLiveVueComponent(name: string) {
+  return findComponent(liveVueComponents, name)
+}
+
+export default createLiveVue({
+  resolve: resolveLiveVueComponent,
   setup: ({ createApp, component, props, slots, plugin, el }) => {
     const app = createApp({ render: () => h(component as Component, props, slots) })
+
     app.use(plugin)
-    // add your own plugins here
-    // app.use(pinia)
     app.mount(el)
+
     return app
   },
 })

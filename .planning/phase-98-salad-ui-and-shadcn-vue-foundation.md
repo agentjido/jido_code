@@ -69,22 +69,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 98.2.2.2 Subtask - Keep DaisyUI npm removal gated by the Phase 97 policy until first-party runtime references are zero.
       [x] 98.2.2.3 Subtask - Add guard coverage that fails on new DaisyUI classes in first-party HEEx, Vue, CSS, and tests.
 
-  [ ] 98.3 Section - LiveView And LiveVue Boundary Cleanup
+  [x] 98.3 Section - LiveView And LiveVue Boundary Cleanup
     Align shared component imports and Vue island registration with the new split.
 
-    [ ] 98.3.1 Task - Introduce the app-owned SaladUI boundary.
+    [x] 98.3.1 Task - Introduce the app-owned SaladUI boundary.
       Keep LiveViews from depending directly on SaladUI module internals.
 
-      [ ] 98.3.1.1 Subtask - Alias `JidoCodeWeb.Components.UI` from `JidoCodeWeb.html_helpers/0`.
-      [ ] 98.3.1.2 Subtask - Delegate only adopted primitives and leave forms or inputs on existing Phoenix core components unless explicitly replaced.
-      [ ] 98.3.1.3 Subtask - Document that customized HEEx primitives should move under app-owned component modules rather than direct `SaladUI.*` imports in LiveViews.
+      [x] 98.3.1.1 Subtask - Alias `JidoCodeWeb.Components.UI` from `JidoCodeWeb.html_helpers/0`.
+      [x] 98.3.1.2 Subtask - Delegate only adopted primitives and leave forms or inputs on existing Phoenix core components unless explicitly replaced.
+      [x] 98.3.1.3 Subtask - Document that customized HEEx primitives should move under app-owned component modules rather than direct `SaladUI.*` imports in LiveViews.
 
-    [ ] 98.3.2 Task - Make the Vue island registry explicit.
+    [x] 98.3.2 Task - Make the Vue island registry explicit.
       Keep shadcn-vue primitives private to Vue islands and avoid broad glob mounting.
 
-      [ ] 98.3.2.1 Subtask - Replace `import.meta.glob` LiveVue discovery with an explicit production island registry.
-      [ ] 98.3.2.2 Subtask - Add `assets/vue/lib/utils.ts` with `cn()` using `clsx` and `tailwind-merge`.
-      [ ] 98.3.2.3 Subtask - Add tests proving `assets/vue/components/ui` primitives and example components are not direct LiveVue mount targets.
+      [x] 98.3.2.1 Subtask - Replace `import.meta.glob` LiveVue discovery with an explicit production island registry.
+      [x] 98.3.2.2 Subtask - Add `assets/vue/lib/utils.ts` with `cn()` using `clsx` and `tailwind-merge`.
+      [x] 98.3.2.3 Subtask - Add tests proving `assets/vue/components/ui` primitives and example components are not direct LiveVue mount targets.
 
   [ ] 98.4 Section - Integration Tests
     End the phase by proving the new dependency, CSS, HEEx, and Vue primitive boundaries compile and fail safely.

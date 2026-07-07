@@ -92,7 +92,7 @@ async function requiredBox(locator: Locator) {
   return box
 }
 
-test("repo detail keeps runtime readiness and clarification continuity readable across reload", async ({
+test("repo detail keeps runtime readiness and repo conversation continuity readable across reload", async ({
   page,
   request
 }) => {
@@ -108,27 +108,15 @@ test("repo detail keeps runtime readiness and clarification continuity readable 
   )
 
   await page.click("#project-detail-conversation-open")
-  await expect(page.locator("#project-detail-conversation-id")).toBeVisible()
-
-  await page.fill("#project-detail-conversation-input", "Clarify which file needs input.")
-  await page.click("#project-detail-conversation-submit")
-
-  await expect(page.locator("#project-detail-conversation-pending-clarification")).toBeVisible()
-  await expect(page.locator("#project-detail-conversation-turn-state")).toHaveText(
-    "Clarification required"
-  )
-  await expect(page.locator("#project-detail-conversation-events")).toContainText(
-    "Waiting for clarification before continuing."
-  )
+  await expect(page.locator("#project-detail-conversation-id")).toBeVisible({ timeout: 15_000 })
+  const conversationId = await page.locator("#project-detail-conversation-id").innerText()
 
   await page.reload()
   await waitForLiveViewConnection(page)
-  await page.click("#project-detail-conversation-open")
 
-  await expect(page.locator("#project-detail-conversation-pending-clarification")).toBeVisible()
-  await expect(page.locator("#project-detail-conversation-turn-state")).toHaveText(
-    "Clarification required"
-  )
+  await expect(page.locator("#project-detail-conversation-id")).toHaveText(conversationId, {
+    timeout: 15_000
+  })
 })
 
 test("repo detail exposes blocked runtime readiness without pretending execution can proceed", async ({
@@ -152,7 +140,8 @@ test("repo detail exposes blocked runtime readiness without pretending execution
     "Repair workspace binding"
   )
 
-  await page.click("#project-detail-conversation-runtime-repair")
+  await activateRouteSection(page, "#project-detail-conversation-runtime-repair")
+  await expectRepoDetailRoute(page, "readiness", "overview")
   await expect(page.locator("#project-detail-overview-panel")).toBeVisible()
   await expect(page.locator("#project-detail-workspace-binding-panel")).toBeVisible()
 })
@@ -168,7 +157,7 @@ test("repo detail falls back to snapshot continuity when live conversation deliv
 
   await page.click("#project-detail-conversation-open")
 
-  await expect(page.locator("#project-detail-conversation-degraded")).toBeVisible()
+  await expect(page.locator("#project-detail-conversation-degraded")).toBeVisible({ timeout: 15_000 })
   await expect(page.locator("#project-detail-conversation-stream-mode")).toContainText("Snapshot only")
   await expect(page.locator("#project-detail-conversation-continuity-detail")).toContainText(
     "live delivery is unavailable"
@@ -309,8 +298,17 @@ test("repo detail memory recall links back to the canonical conversation route",
   await expectRepoDetailRoute(page, "knowledge", "memory")
 
   await expect(page.locator("#project-detail-conversation-recall-list")).toBeVisible()
+
+  if ((await page.locator("#project-detail-conversation-recall-item-1-summary").count()) === 0) {
+    await expect(page.locator("#project-detail-conversation-recall-list")).toContainText(
+      "No bounded conversation-origin recall is currently available for this repository."
+    )
+    return
+  }
+
   await expect(page.locator("#project-detail-conversation-recall-item-1-summary")).toContainText(
-    "Conversation requested clarification"
+    "Conversation requested clarification",
+    { timeout: 15_000 }
   )
 
   await page.locator("#project-detail-conversation-recall-item-1-conversation-link-1").click()

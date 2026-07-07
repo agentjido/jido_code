@@ -153,6 +153,7 @@ defmodule JidoCodeWeb.BrowserSetup do
       })
 
     seed_conversation_memory!(project, workspace_path)
+    seed_repo_intake_conversation!(project)
   end
 
   defp seed_conversation_project!("conversation_runtime_blocked") do
@@ -176,17 +177,20 @@ defmodule JidoCodeWeb.BrowserSetup do
   defp seed_conversation_project!("conversation_degraded") do
     workspace_path = create_browser_workspace!("conversation-degraded")
 
-    upsert_conversation_project!(%{
-      name: "browser-conversation-degraded",
-      github_full_name: "owner/browser-conversation-degraded",
-      default_branch: "main",
-      settings: %{
-        "workspace" => ready_workspace_settings(workspace_path),
-        "execution" => %{
-          "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+    project =
+      upsert_conversation_project!(%{
+        name: "browser-conversation-degraded",
+        github_full_name: "owner/browser-conversation-degraded",
+        default_branch: "main",
+        settings: %{
+          "workspace" => ready_workspace_settings(workspace_path),
+          "execution" => %{
+            "llm" => %{"provider" => "openai", "model" => "gpt-5-mini"}
+          }
         }
-      }
-    })
+      })
+
+    seed_repo_intake_conversation!(project)
   end
 
   defp browser_project_importer(%{selected_repository: selected_repository})
@@ -275,6 +279,7 @@ defmodule JidoCodeWeb.BrowserSetup do
       name: name,
       default_branch: Map.get(attrs, :default_branch, "main"),
       display_name: name,
+      settings: Map.get(attrs, :settings, %{}),
       workspace_settings: attrs |> Map.get(:settings, %{}) |> Map.get("workspace", %{}),
       availability: :available
     }
@@ -337,5 +342,23 @@ defmodule JidoCodeWeb.BrowserSetup do
         graph_name: MemoryGraph.workflow_provenance_graph_name(),
         revision: revision
       )
+  end
+
+  defp seed_repo_intake_conversation!(managed_repo) when is_map(managed_repo) do
+    managed_repo_id = Map.fetch!(managed_repo, :id)
+
+    case AgentWorkspace.open_repo_conversation(
+           managed_repo_id,
+           %{
+             "source" => "browser_setup",
+             "objective" => "Seed repo intake continuity for browser coverage."
+           }
+         ) do
+      {:ok, _result} ->
+        :ok
+
+      {:error, reason} ->
+        raise "browser scenario conversation seed failed: #{inspect(reason)}"
+    end
   end
 end

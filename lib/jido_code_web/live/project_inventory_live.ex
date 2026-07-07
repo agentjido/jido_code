@@ -106,7 +106,11 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
         </section>
 
         <section class="rounded-lg border border-border bg-card overflow-x-auto">
-          <table id="project-inventory-table" class="w-full caption-bottom text-sm">
+          <table
+            id="project-inventory-table"
+            aria-label="Managed repository inventory"
+            class="w-full caption-bottom text-sm"
+          >
             <thead>
               <tr>
                 <th>Repository</th>

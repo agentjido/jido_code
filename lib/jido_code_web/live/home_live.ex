@@ -152,7 +152,7 @@ defmodule JidoCodeWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gradient-to-br from-muted via-background to-muted">
+    <main id="welcome-public-shell" class="min-h-screen bg-gradient-to-br from-muted via-background to-muted">
       <div class={[
         "mx-auto flex w-full px-6",
         (@bootstrap_status.state == :ready and @current_user) && "max-w-6xl py-12",
@@ -431,7 +431,7 @@ defmodule JidoCodeWeb.HomeLive do
           <% end %>
         </div>
       </div>
-    </div>
+    </main>
     """
   end
 

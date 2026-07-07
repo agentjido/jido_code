@@ -30,7 +30,7 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 - Operator paths must remain usable when SSR, Vite assets, or Vue island delivery degrade.
 - Contributor guidance and quality gates should make the new UI stack obvious for future work.
 
-[ ] 101 Phase 101 - UI Reset Hardening And Contributor Convergence
+[x] 101 Phase 101 - UI Reset Hardening And Contributor Convergence
   Harden the replacement UI as the durable default and update docs, tests, and quality gates so contributors do not recreate the old stack.
 
   [x] 101.1 Section - Resilience, Accessibility, And Browser Hardening
@@ -84,19 +84,19 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 101.3.2.2 Subtask - Update operator-surface guidance to describe the area button menu shell instead of the old subject-tree shell.
       [x] 101.3.2.3 Subtask - Add a chronology note explaining that Phases 97 through 101 supersede the previous DaisyUI and subject-tree UI implementation.
 
-  [ ] 101.4 Section - Integration Tests
+  [x] 101.4 Section - Integration Tests
     End the track with end-to-end verification that the reset is complete and durable.
 
-    [ ] 101.4.1 Task - Run final browser and accessibility verification.
+    [x] 101.4.1 Task - Run final browser and accessibility verification.
       Verify the new UI behaves as a complete product shell, not just compiled components.
 
-      [ ] 101.4.1.1 Subtask - Run Playwright smoke coverage for public bootstrap, authenticated root area navigation, detail routes, settings, and degraded Vue island delivery.
-      [ ] 101.4.1.2 Subtask - Add accessibility-focused assertions for area navigation, table labels, dialogs, popovers, command menus, status strips, and fallback panels.
-      [ ] 101.4.1.3 Subtask - Capture desktop and mobile screenshots for the root shell and representative dense routes.
+      [x] 101.4.1.1 Subtask - Run Playwright smoke coverage for public bootstrap, authenticated root area navigation, detail routes, settings, and degraded Vue island delivery.
+      [x] 101.4.1.2 Subtask - Add accessibility-focused assertions for area navigation, table labels, dialogs, popovers, command menus, status strips, and fallback panels.
+      [x] 101.4.1.3 Subtask - Capture desktop and mobile screenshots for the root shell and representative dense routes.
 
-    [ ] 101.4.2 Task - Run final contributor and regression gates.
+    [x] 101.4.2 Task - Run final contributor and regression gates.
       Verify the repo has converged on the new UI reset architecture.
 
-      [ ] 101.4.2.1 Subtask - Run `mix frontend.verify`, focused LiveView UI suites, and browser tests.
-      [ ] 101.4.2.2 Subtask - Run `mix semantic.verify`, `mix memory.verify`, or `mix runtime.verify` only if UI rebuild work touched those product boundaries.
-      [ ] 101.4.2.3 Subtask - Run final no-DaisyUI, no-old-shell, explicit-island-registry, and documentation-current-truth checks.
+      [x] 101.4.2.1 Subtask - Run `mix frontend.verify`, focused LiveView UI suites, and browser tests.
+      [x] 101.4.2.2 Subtask - Run `mix semantic.verify`, `mix memory.verify`, or `mix runtime.verify` only if UI rebuild work touched those product boundaries.
+      [x] 101.4.2.3 Subtask - Run final no-DaisyUI, no-old-shell, explicit-island-registry, and documentation-current-truth checks.

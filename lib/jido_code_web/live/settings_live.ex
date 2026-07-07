@@ -174,11 +174,14 @@ defmodule JidoCodeWeb.SettingsLive do
       <div
         :if={@show_add_modal}
         id="add-repo-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-repo-modal-title"
         class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4"
       >
         <div class="w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-xl">
           <div class="flex items-center justify-between gap-4">
-            <h2 class="text-lg font-semibold">Add GitHub Repository</h2>
+            <h2 id="add-repo-modal-title" class="text-lg font-semibold">Add GitHub Repository</h2>
             <button type="button" class="ui-button ui-button-sm ui-button-ghost" phx-click="close_add_modal">
               <.icon name="hero-x-mark" class="w-4 h-4" />
             </button>

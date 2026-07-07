@@ -70,6 +70,19 @@ defmodule JidoCodeWeb.UIResetPhase101ResilienceTest do
     assert root_source =~ "truncate"
   end
 
+  test "final smoke surfaces keep public landmarks, table labels, and dialog semantics" do
+    welcome_source = read_runtime!("lib/jido_code_web/live/home_live.ex")
+    inventory_source = read_runtime!("lib/jido_code_web/live/project_inventory_live.ex")
+    settings_source = read_runtime!("lib/jido_code_web/live/settings_live.ex")
+
+    assert welcome_source =~ ~s(<main id="welcome-public-shell")
+    assert inventory_source =~ ~s(aria-label="Managed repository inventory")
+    assert settings_source =~ ~s(role="dialog")
+    assert settings_source =~ ~s(aria-modal="true")
+    assert settings_source =~ ~s(aria-labelledby="add-repo-modal-title")
+    assert settings_source =~ ~s(id="add-repo-modal-title")
+  end
+
   defp read_runtime!(relative_path) do
     Path.expand("../../#{relative_path}", __DIR__)
     |> File.read!()

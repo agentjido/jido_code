@@ -62,6 +62,17 @@ defmodule JidoCodeWeb.OperatorAreaShellLiveTest do
     assert has_element?(settings_view, "#area-overview-panel-settings")
     refute has_element?(settings_view, "#operator-context-settings-tab")
 
+    settings_view
+    |> element("#settings-github-open-add-modal")
+    |> render_click()
+
+    assert has_element?(
+             settings_view,
+             "#add-repo-modal[role='dialog'][aria-modal='true'][aria-labelledby='add-repo-modal-title']"
+           )
+
+    assert has_element?(settings_view, "#add-repo-modal-title", "Add GitHub Repository")
+
     {:ok, repo_view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     assert_area_shell(repo_view, "repositories", "Repositories", "Managed repositories and detail context")

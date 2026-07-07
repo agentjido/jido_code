@@ -34,22 +34,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
 [ ] 97 Phase 97 - UI Reset Contract And External Shell Inventory
   Define the replacement target and deletion boundary before any UI code is moved so the reset stays deliberate, complete, and testable.
 
-  [ ] 97.1 Section - Target Shell Contract
+  [x] 97.1 Section - Target Shell Contract
     Describe the future shell as one LiveView-owned product application with bounded Vue islands and no legacy UI compatibility layer.
 
-    [ ] 97.1.1 Task - Define the root LiveView and area-routing model.
+    [x] 97.1.1 Task - Define the root LiveView and area-routing model.
       Establish the ariston-style root shell semantics for `jido_code` before replacing current routes.
 
-      [ ] 97.1.1.1 Subtask - Define a `JidoCodeWeb.Areas` or equivalent module with registered product areas, ids, labels, paths, local context keys, and handoff targets.
-      [ ] 97.1.1.2 Subtask - Decide which routes become root-shell areas versus route-specific detail views under the same shell.
-      [ ] 97.1.1.3 Subtask - Specify that area selection is route-owned and patchable or navigable through LiveView, not browser-local menu state.
+      [x] 97.1.1.1 Subtask - Define a `JidoCodeWeb.Areas` or equivalent module with registered product areas, ids, labels, paths, local context keys, and handoff targets.
+      [x] 97.1.1.2 Subtask - Decide which routes become root-shell areas versus route-specific detail views under the same shell.
+      [x] 97.1.1.3 Subtask - Specify that area selection is route-owned and patchable or navigable through LiveView, not browser-local menu state.
 
-    [ ] 97.1.2 Task - Define the external shell replacement boundary.
+    [x] 97.1.2 Task - Define the external shell replacement boundary.
       Make the ariston-style header, status strip, and button menu the new product chrome.
 
-      [ ] 97.1.2.1 Subtask - Map the ariston layout regions to `jido_code`: brand block, route subtitle, action slot, theme toggle, area button menu, status strip, and content body.
-      [ ] 97.1.2.2 Subtask - Define how authenticated scope, runtime readiness, warnings, and repo context appear in the shell status strip.
-      [ ] 97.1.2.3 Subtask - Declare the previous subject-tree shell, dashboard concern tabs, and bespoke signed-in navigation helpers as replacement targets.
+      [x] 97.1.2.1 Subtask - Map the ariston layout regions to `jido_code`: brand block, route subtitle, action slot, theme toggle, area button menu, status strip, and content body.
+      [x] 97.1.2.2 Subtask - Define how authenticated scope, runtime readiness, warnings, and repo context appear in the shell status strip.
+      [x] 97.1.2.3 Subtask - Declare the previous subject-tree shell, dashboard concern tabs, and bespoke signed-in navigation helpers as replacement targets.
 
   [ ] 97.2 Section - Current UI Deletion Inventory
     Inventory every current UI file and CSS dependency that must be replaced so DaisyUI and legacy shell assumptions do not survive by accident.

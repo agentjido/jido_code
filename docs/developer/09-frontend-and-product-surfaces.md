@@ -14,6 +14,11 @@ LiveView remains the routed product host shell.
 Vue is used through `live_vue` for bounded richer regions, not as a parallel SPA
 or a replacement browser application.
 
+The active UI reset target is an ariston-style area shell: a LiveView-owned
+root workspace with a top button menu, route-owned active area state, and a
+shared status strip. The target metadata lives in `JidoCodeWeb.Areas` while the
+current UI is replaced section by section.
+
 ## Frontend Composition Model
 
 ```mermaid
@@ -55,6 +60,7 @@ as an ad hoc client island.
 The boundary is intentionally explicit:
 
 - LiveView owns the page
+- LiveView owns the area button menu and shell status
 - server-authored data crosses into Vue through bounded props or streams
 - Vue emits route back into LiveView events
 - degraded behavior remains product-oriented
@@ -105,4 +111,3 @@ When adding UI:
 
 Continue with
 [`10-development-workflow-and-quality-gates.md`](https://github.com/mikehostetler/jido_code/blob/main/docs/developer/10-development-workflow-and-quality-gates.md).
-

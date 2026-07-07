@@ -29,6 +29,7 @@ defmodule JidoCodeWeb.SetupLive do
   alias JidoCode.Setup.ProjectImport
   alias JidoCode.Setup.SystemConfig
   alias JidoCode.Security.{Encryption, SecretRefs}
+  alias JidoCodeWeb.FrontendAssets
 
   @github_setup_step 7
   @start_paths [:local_repo, :github, :later]
@@ -342,13 +343,13 @@ defmodule JidoCodeWeb.SetupLive do
         <div class="grid gap-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-12">
           <div class="space-y-6">
             <div class="space-y-3">
-              <p id="setup-eyebrow" class="text-xs font-medium uppercase tracking-[0.3em] text-base-content/60">
+              <p id="setup-eyebrow" class="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
                 Setup
               </p>
               <h1 id="setup-title" class="text-4xl font-semibold tracking-tight sm:text-5xl">
                 Choose how to start
               </h1>
-              <p id="setup-description" class="max-w-md text-base text-base-content/70">
+              <p id="setup-description" class="max-w-md text-base text-muted-foreground">
                 {setup_description(@deployment_mode)}
               </p>
             </div>
@@ -369,18 +370,18 @@ defmodule JidoCodeWeb.SetupLive do
             >
               <section
                 id="setup-runtime-defaults-panel"
-                class="space-y-4 rounded-2xl border border-base-300 bg-base-100/80 p-5"
+                class="space-y-4 rounded-2xl border border-border bg-card/80 p-5"
               >
                 <div class="space-y-2">
-                  <p class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                  <p class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
                     Runtime defaults
                   </p>
-                  <p id="setup-runtime-defaults-description" class="text-sm text-base-content/70">
+                  <p id="setup-runtime-defaults-description" class="text-sm text-muted-foreground">
                     {runtime_environment_description(@runtime_environment_mode)}
                   </p>
                 </div>
 
-                <div :if={@runtime_save_error} id="setup-runtime-save-error" class="alert alert-error">
+                <div :if={@runtime_save_error} id="setup-runtime-save-error" class="ui-alert ui-alert-error">
                   <.icon name="hero-x-circle-mini" class="size-5" />
                   <span>{@runtime_save_error}</span>
                 </div>
@@ -415,17 +416,17 @@ defmodule JidoCodeWeb.SetupLive do
                     type="submit"
                     disabled={@buttons_disabled?}
                     class={[
-                      "btn btn-primary w-full sm:w-auto",
-                      @buttons_disabled? && "btn-disabled"
+                      "ui-button ui-button-primary w-full sm:w-auto",
+                      @buttons_disabled? && "ui-button-disabled"
                     ]}
                   >
                     Save runtime defaults
                   </button>
                 </.form>
 
-                <dl class="space-y-4 border-t border-base-300/70 pt-4">
+                <dl class="space-y-4 border-t border-border/70 pt-4">
                   <div class="space-y-1">
-                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
                       Install flavor
                     </dt>
                     <dd id="setup-install-flavor" class="text-sm font-medium">
@@ -434,7 +435,7 @@ defmodule JidoCodeWeb.SetupLive do
                   </div>
 
                   <div class="space-y-1">
-                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
                       Admin email
                     </dt>
                     <dd id="setup-owner-email" class="text-sm font-medium">
@@ -443,13 +444,13 @@ defmodule JidoCodeWeb.SetupLive do
                   </div>
 
                   <div class="space-y-1">
-                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
                       Saved runtime default
                     </dt>
                     <dd id="setup-saved-runtime-environment" class="text-sm font-medium">
                       {saved_runtime_environment_label(@persisted_default_environment)}
                     </dd>
-                    <p id="setup-saved-runtime-note" class="text-sm text-base-content/60">
+                    <p id="setup-saved-runtime-note" class="text-sm text-muted-foreground">
                       {saved_runtime_environment_note(
                         @persisted_default_environment,
                         @persisted_workspace_root
@@ -458,7 +459,7 @@ defmodule JidoCodeWeb.SetupLive do
                   </div>
 
                   <div class="space-y-1">
-                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-base-content/50">
+                    <dt class="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
                       Saved choice
                     </dt>
                     <dd id="setup-selected-start-path" class="text-sm font-medium">
@@ -469,13 +470,13 @@ defmodule JidoCodeWeb.SetupLive do
               </section>
             </.vue_surface>
 
-            <p id="setup-selected-start-note" class="max-w-md text-sm text-base-content/60">
+            <p id="setup-selected-start-note" class="max-w-md text-sm text-muted-foreground">
               {selected_start_path_note(@selected_start_path, @deployment_mode)}
             </p>
           </div>
 
           <div class="space-y-4">
-            <div :if={@diagnostic} id="setup-diagnostic" class="alert alert-warning">
+            <div :if={@diagnostic} id="setup-diagnostic" class="ui-alert ui-alert-warning">
               <.icon name="hero-exclamation-triangle-mini" class="size-5" />
               <span>{@diagnostic}</span>
             </div>
@@ -488,9 +489,22 @@ defmodule JidoCodeWeb.SetupLive do
               compact={true}
             />
 
-            <div :if={@save_error} id="setup-save-error" class="alert alert-error">
+            <div :if={@save_error} id="setup-save-error" class="ui-alert ui-alert-error">
               <.icon name="hero-x-circle-mini" class="size-5" />
               <span>{@save_error}</span>
+            </div>
+
+            <div
+              :if={not vue_surface_fallback?("SetupStartPathSelectorWidget")}
+              id="setup-start-choice-markers"
+              class="hidden"
+              aria-hidden="true"
+            >
+              <span
+                :for={option <- @start_options}
+                id={"setup-start-choice-#{option.id}"}
+                data-start-choice={option.id}
+              />
             </div>
 
             <.vue_surface
@@ -507,8 +521,8 @@ defmodule JidoCodeWeb.SetupLive do
                 id={"setup-start-choice-#{option.id}"}
                 class={[
                   "rounded-2xl border p-5 transition",
-                  @selected_start_path == option.id && "border-primary/50 bg-base-100 shadow-sm",
-                  @selected_start_path != option.id && "border-base-300 bg-base-100/80"
+                  @selected_start_path == option.id && "border-primary/50 bg-card shadow-sm",
+                  @selected_start_path != option.id && "border-border bg-card/80"
                 ]}
               >
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -518,13 +532,13 @@ defmodule JidoCodeWeb.SetupLive do
                       <span
                         :if={choice_badge_label(option.id, @selected_start_path, option.recommended?)}
                         id={"setup-start-choice-#{option.id}-badge"}
-                        class="badge badge-outline text-xs"
+                        class="ui-badge ui-badge-outline text-xs"
                       >
                         {choice_badge_label(option.id, @selected_start_path, option.recommended?)}
                       </span>
                     </div>
-                    <p class="text-sm font-medium text-base-content/80">{option.summary}</p>
-                    <p class="max-w-2xl text-sm text-base-content/60">{option.detail}</p>
+                    <p class="text-sm font-medium text-foreground">{option.summary}</p>
+                    <p class="max-w-2xl text-sm text-muted-foreground">{option.detail}</p>
                   </div>
 
                   <button
@@ -534,9 +548,9 @@ defmodule JidoCodeWeb.SetupLive do
                     phx-value-choice={option.id}
                     disabled={@buttons_disabled? or @selected_start_path == option.id}
                     class={[
-                      "btn btn-sm w-full sm:w-auto",
+                      "ui-button ui-button-sm w-full sm:w-auto",
                       option.button_class,
-                      (@buttons_disabled? or @selected_start_path == option.id) && "btn-disabled"
+                      (@buttons_disabled? or @selected_start_path == option.id) && "ui-button-disabled"
                     ]}
                   >
                     {choice_button_label(option.id, @selected_start_path)}
@@ -548,7 +562,7 @@ defmodule JidoCodeWeb.SetupLive do
             <section
               :if={show_github_repository_selector?(@selected_start_path)}
               id="setup-github-repository-panel"
-              class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-5"
+              class="space-y-4 rounded-2xl border border-border bg-card p-5"
             >
               <div
                 :if={github_repository_selector_deferred?(@github_pat_capture_state, @github_project_import_report)}
@@ -556,18 +570,18 @@ defmodule JidoCodeWeb.SetupLive do
               >
                 <div class="flex flex-wrap items-center gap-2">
                   <h2 class="text-xl font-semibold">Choose GitHub repositories</h2>
-                  <span id="setup-github-repository-badge" class="badge badge-outline text-xs">
+                  <span id="setup-github-repository-badge" class="ui-badge ui-badge-outline text-xs">
                     Optional follow-up
                   </span>
                 </div>
-                <p id="setup-github-repository-summary" class="text-sm font-medium text-base-content/80">
+                <p id="setup-github-repository-summary" class="text-sm font-medium text-foreground">
                   {github_repository_panel_summary(
                     @github_pat_capture_state,
                     @github_repository_listing_report,
                     @github_project_import_report
                   )}
                 </p>
-                <p class="max-w-2xl text-sm text-base-content/60">
+                <p class="max-w-2xl text-sm text-muted-foreground">
                   Pick one or more linked GitHub repositories to import into the control plane now, or finish onboarding and come back later. Each managed repository can keep its own workspace binding after import.
                 </p>
               </div>
@@ -575,24 +589,24 @@ defmodule JidoCodeWeb.SetupLive do
               <section
                 :if={github_pat_capture_visible?(@github_pat_capture_state, @github_project_import_report)}
                 id="setup-github-pat-panel"
-                class="space-y-4 rounded-2xl border border-base-300/70 bg-base-200/20 p-4"
+                class="space-y-4 rounded-2xl border border-border/70 bg-muted/40 p-4"
               >
                 <div class="space-y-2">
                   <div class="flex flex-wrap items-center gap-2">
                     <h3 class="text-lg font-semibold">Save a GitHub PAT for this install</h3>
-                    <span id="setup-github-pat-badge" class="badge badge-outline text-xs">
+                    <span id="setup-github-pat-badge" class="ui-badge ui-badge-outline text-xs">
                       Required for repo listing
                     </span>
                   </div>
-                  <p id="setup-github-pat-summary" class="text-sm text-base-content/80">
+                  <p id="setup-github-pat-summary" class="text-sm text-foreground">
                     {@github_pat_capture_state.detail}
                   </p>
-                  <p class="text-sm text-base-content/60">
+                  <p class="text-sm text-muted-foreground">
                     Save a deployment-local PAT now and setup will retry repository access automatically. The token is stored as an encrypted secret for this install, not in plaintext setup state.
                   </p>
                 </div>
 
-                <div :if={@github_pat_save_error} id="setup-github-pat-save-error" class="alert alert-error">
+                <div :if={@github_pat_save_error} id="setup-github-pat-save-error" class="ui-alert ui-alert-error">
                   <.icon name="hero-x-circle-mini" class="size-5" />
                   <span>{@github_pat_save_error}</span>
                 </div>
@@ -600,7 +614,7 @@ defmodule JidoCodeWeb.SetupLive do
                 <div
                   :if={not @github_pat_capture_state.encryption_ready?}
                   id="setup-github-pat-encryption-preflight"
-                  class="alert alert-warning"
+                  class="ui-alert ui-alert-warning"
                 >
                   <.icon name="hero-exclamation-triangle-mini" class="size-5" />
                   <span>{@github_pat_capture_state.encryption_preflight_detail}</span>
@@ -627,9 +641,9 @@ defmodule JidoCodeWeb.SetupLive do
                     type="submit"
                     disabled={@buttons_disabled? or not @github_pat_capture_state.encryption_ready?}
                     class={[
-                      "btn btn-primary md:self-end",
+                      "ui-button ui-button-primary md:self-end",
                       (@buttons_disabled? or not @github_pat_capture_state.encryption_ready?) &&
-                        "btn-disabled"
+                        "ui-button-disabled"
                     ]}
                   >
                     Save GitHub PAT
@@ -639,12 +653,12 @@ defmodule JidoCodeWeb.SetupLive do
                 <div
                   :if={@github_pat_capture_state.remediation}
                   id="setup-github-pat-remediation"
-                  class="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content/80"
+                  class="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 px-4 py-3 text-sm text-foreground"
                 >
                   {@github_pat_capture_state.remediation}
                 </div>
 
-                <p id="setup-github-pat-note" class="text-xs text-base-content/60">
+                <p id="setup-github-pat-note" class="text-xs text-muted-foreground">
                   Stored as encrypted SecretRef {@github_pat_capture_state.secret_ref_name}.
                 </p>
               </section>
@@ -652,13 +666,13 @@ defmodule JidoCodeWeb.SetupLive do
               <section
                 :if={github_repository_selector_deferred?(@github_pat_capture_state, @github_project_import_report)}
                 id="setup-github-repository-selector-deferred"
-                class="rounded-2xl border border-base-300/70 bg-base-200/20 p-4"
+                class="rounded-2xl border border-border/70 bg-muted/40 p-4"
               >
                 <div class="space-y-2">
-                  <p class="text-sm font-medium text-base-content/80">
+                  <p class="text-sm font-medium text-foreground">
                     Repository selection unlocks after this install has a saved GitHub PAT and setup refreshes access.
                   </p>
-                  <p class="text-sm text-base-content/60">
+                  <p class="text-sm text-muted-foreground">
                     Once the token is saved successfully, the repository picker will appear here automatically.
                   </p>
                 </div>
@@ -696,14 +710,14 @@ defmodule JidoCodeWeb.SetupLive do
                       </h2>
                       <span
                         id="setup-github-repository-fallback-badge"
-                        class="badge badge-outline text-xs"
+                        class="ui-badge ui-badge-outline text-xs"
                       >
                         {github_repository_panel_badge_label()}
                       </span>
                     </div>
                     <p
                       id="setup-github-repository-fallback-summary"
-                      class="text-sm font-medium text-base-content/80"
+                      class="text-sm font-medium text-foreground"
                     >
                       {github_repository_panel_summary(
                         @github_pat_capture_state,
@@ -713,49 +727,49 @@ defmodule JidoCodeWeb.SetupLive do
                     </p>
                     <p
                       id="setup-github-repository-fallback-detail"
-                      class="max-w-2xl text-sm text-base-content/60"
+                      class="max-w-2xl text-sm text-muted-foreground"
                     >
                       {github_repository_panel_detail()}
                     </p>
                     <p
                       id="setup-github-repository-fallback-boundary-note"
-                      class="text-sm text-base-content/70"
+                      class="text-sm text-muted-foreground"
                     >
                       {github_repository_widget_boundary_note()}
                     </p>
                   </div>
 
                   <div class="grid gap-3 md:grid-cols-3">
-                    <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
-                      <p class="text-xs uppercase text-base-content/60">Repository access</p>
+                    <article class="rounded-xl border border-border/70 bg-muted/40 p-3">
+                      <p class="text-xs uppercase text-muted-foreground">Repository access</p>
                       <p
                         id="setup-github-repository-fallback-status"
                         class="mt-1 text-lg font-semibold"
                       >
                         {github_listing_status_label(@github_repository_listing_report)}
                       </p>
-                      <p class="mt-2 text-xs text-base-content/70">
+                      <p class="mt-2 text-xs text-muted-foreground">
                         {@github_repository_listing_report.detail}
                       </p>
                     </article>
-                    <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
-                      <p class="text-xs uppercase text-base-content/60">Saved selection</p>
+                    <article class="rounded-xl border border-border/70 bg-muted/40 p-3">
+                      <p class="text-xs uppercase text-muted-foreground">Saved selection</p>
                       <p
                         id="setup-github-repository-fallback-selection"
                         class="mt-1 text-lg font-semibold"
                       >
                         {github_selected_repository_summary(@github_selected_repositories)}
                       </p>
-                      <p class="mt-2 text-xs text-base-content/70">
+                      <p class="mt-2 text-xs text-muted-foreground">
                         {github_repository_count_label(@github_repository_options)}
                       </p>
                     </article>
-                    <article class="rounded-xl border border-base-300/70 bg-base-200/20 p-3">
-                      <p class="text-xs uppercase text-base-content/60">Import state</p>
+                    <article class="rounded-xl border border-border/70 bg-muted/40 p-3">
+                      <p class="text-xs uppercase text-muted-foreground">Import state</p>
                       <p id="setup-github-import-fallback-status" class="mt-1 text-lg font-semibold">
                         {github_import_status_label(@github_project_import_report)}
                       </p>
-                      <p class="mt-2 text-xs text-base-content/70">
+                      <p class="mt-2 text-xs text-muted-foreground">
                         {github_import_detail(@github_project_import_report)}
                       </p>
                     </article>
@@ -764,7 +778,7 @@ defmodule JidoCodeWeb.SetupLive do
                   <div
                     :if={@github_repository_listing_report.remediation}
                     id="setup-github-repository-fallback-remediation"
-                    class="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content/80"
+                    class="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 px-4 py-3 text-sm text-foreground"
                   >
                     {@github_repository_listing_report.remediation}
                   </div>
@@ -797,12 +811,12 @@ defmodule JidoCodeWeb.SetupLive do
 
                     <div class="space-y-2">
                       <div class="flex flex-wrap items-center justify-between gap-2">
-                        <p class="text-sm font-medium text-base-content/80">
+                        <p class="text-sm font-medium text-foreground">
                           Linked GitHub repositories
                         </p>
                         <p
                           id="setup-github-repository-fallback-count"
-                          class="text-xs uppercase tracking-[0.2em] text-base-content/50"
+                          class="text-xs uppercase tracking-[0.2em] text-muted-foreground"
                         >
                           {github_repository_count_label(@github_repository_options)}
                         </p>
@@ -810,7 +824,7 @@ defmodule JidoCodeWeb.SetupLive do
 
                       <div
                         id="setup-github-repository-fallback-results-summary"
-                        class="flex flex-wrap items-center justify-between gap-2 text-sm text-base-content/70"
+                        class="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
                       >
                         <p>
                           {github_filtered_repository_count_label(
@@ -818,14 +832,14 @@ defmodule JidoCodeWeb.SetupLive do
                             @github_repository_options
                           )}
                         </p>
-                        <p class="font-medium text-base-content/80">
+                        <p class="font-medium text-foreground">
                           {github_selected_results_summary(@github_selected_repositories)}
                         </p>
                       </div>
 
                       <div
                         id="setup-github-repository-fallback-list"
-                        class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-base-300/70 bg-base-200/10 p-2"
+                        class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-border/70 bg-muted/30 p-2"
                       >
                         <button
                           :for={repository <- @github_filtered_repository_options}
@@ -839,27 +853,27 @@ defmodule JidoCodeWeb.SetupLive do
                             repository.full_name in @github_selected_repositories &&
                               "border-primary/60 bg-primary/10",
                             repository.full_name not in @github_selected_repositories &&
-                              "border-base-300/70 bg-base-100 hover:border-primary/40",
+                              "border-border/70 bg-card hover:border-primary/40",
                             @buttons_disabled? && "opacity-60"
                           ]}
                         >
                           <div class="flex items-start justify-between gap-3">
                             <div class="space-y-1">
                               <p class="font-medium">{repository.full_name}</p>
-                              <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
+                              <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                                 {repository.owner}
                               </p>
                             </div>
                             <span class={[
-                              "badge badge-outline text-xs",
-                              repository.full_name in @github_selected_repositories && "badge-primary"
+                              "ui-badge ui-badge-outline text-xs",
+                              repository.full_name in @github_selected_repositories && "ui-badge-primary"
                             ]}>
                               {if repository.full_name in @github_selected_repositories,
                                 do: "Selected",
                                 else: "Linked"}
                             </span>
                           </div>
-                          <p class="mt-3 text-sm text-base-content/70">
+                          <p class="mt-3 text-sm text-muted-foreground">
                             Import {repository.name} as a managed repository, keep GitHub as its source identity, and rebind its workspace later if needed.
                           </p>
                         </button>
@@ -867,7 +881,7 @@ defmodule JidoCodeWeb.SetupLive do
                         <div
                           :if={@github_filtered_repository_options == []}
                           id="setup-github-repository-fallback-empty"
-                          class="rounded-xl border border-dashed border-base-300/70 bg-base-100/70 px-4 py-5 text-sm text-base-content/70"
+                          class="rounded-xl border border-dashed border-border/70 bg-card/70 px-4 py-5 text-sm text-muted-foreground"
                         >
                           {github_repository_filter_empty_state(
                             @github_filtered_repository_options,
@@ -896,8 +910,8 @@ defmodule JidoCodeWeb.SetupLive do
                         phx-click="refresh_github_repository_listing"
                         disabled={@buttons_disabled?}
                         class={[
-                          "btn btn-outline",
-                          @buttons_disabled? && "btn-disabled"
+                          "ui-button ui-button-outline",
+                          @buttons_disabled? && "ui-button-disabled"
                         ]}
                       >
                         Refresh repositories
@@ -911,9 +925,9 @@ defmodule JidoCodeWeb.SetupLive do
                             @github_repository_options == []
                         }
                         class={[
-                          "btn btn-primary",
+                          "ui-button ui-button-primary",
                           (@buttons_disabled? or @github_selected_repositories == [] or
-                             @github_repository_options == []) && "btn-disabled"
+                             @github_repository_options == []) && "ui-button-disabled"
                         ]}
                       >
                         {github_import_button_label(@github_selected_repositories)}
@@ -924,13 +938,13 @@ defmodule JidoCodeWeb.SetupLive do
                   <div
                     :if={github_project_import_ready?(@github_project_import_report)}
                     id="setup-github-import-fallback-success"
-                    class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
+                    class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-green/40 bg-accent-green/10 px-4 py-3"
                   >
                     <div class="space-y-1">
                       <p class="font-medium">
                         {github_import_detail(@github_project_import_report)}
                       </p>
-                      <p class="text-sm text-base-content/70">
+                      <p class="text-sm text-muted-foreground">
                         You can open the imported managed repository now or continue to the dashboard.
                       </p>
                     </div>
@@ -939,7 +953,7 @@ defmodule JidoCodeWeb.SetupLive do
                       :if={github_project_path(@github_project_import_report)}
                       id="setup-github-import-fallback-open-repo"
                       navigate={github_project_path(@github_project_import_report)}
-                      class="btn btn-sm btn-outline"
+                      class="ui-button ui-button-sm ui-button-outline"
                     >
                       Open managed repo
                     </.link>
@@ -948,17 +962,17 @@ defmodule JidoCodeWeb.SetupLive do
               </.vue_surface>
             </section>
 
-            <section id="setup-complete-panel" class="rounded-2xl border border-base-300 bg-base-100 p-5">
+            <section id="setup-complete-panel" class="rounded-2xl border border-border bg-card p-5">
               <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-2">
                   <div class="flex flex-wrap items-center gap-2">
                     <h2 class="text-xl font-semibold">Continue into the app</h2>
-                    <span id="setup-complete-badge" class="badge badge-outline text-xs">Available now</span>
+                    <span id="setup-complete-badge" class="ui-badge ui-badge-outline text-xs">Available now</span>
                   </div>
-                  <p class="text-sm font-medium text-base-content/80">
+                  <p class="text-sm font-medium text-foreground">
                     {completion_summary(@selected_start_path)}
                   </p>
-                  <p class="max-w-2xl text-sm text-base-content/60">
+                  <p class="max-w-2xl text-sm text-muted-foreground">
                     GitHub setup, repo import, runtime defaults, and repo-level workspace bindings remain editable after onboarding.
                   </p>
                 </div>
@@ -969,8 +983,8 @@ defmodule JidoCodeWeb.SetupLive do
                   phx-click="complete_setup"
                   disabled={@buttons_disabled?}
                   class={[
-                    "btn w-full sm:w-auto btn-primary",
-                    @buttons_disabled? && "btn-disabled"
+                    "ui-button w-full sm:w-auto ui-button-primary",
+                    @buttons_disabled? && "ui-button-disabled"
                   ]}
                 >
                   Continue to dashboard
@@ -1088,7 +1102,8 @@ defmodule JidoCodeWeb.SetupLive do
         summary: "Start from a folder on this machine.",
         detail: "Use this when your source of truth already lives on your desktop.",
         recommended?: true,
-        button_class: "btn-primary"
+        button_class: "ui-button-primary",
+        button_variant: "default"
       },
       %{
         id: :github,
@@ -1096,7 +1111,8 @@ defmodule JidoCodeWeb.SetupLive do
         summary: "Use a hosted repository and GitHub-backed workflows.",
         detail: "Choose this if GitHub should stay your primary source-control path.",
         recommended?: false,
-        button_class: "btn-outline"
+        button_class: "ui-button-outline",
+        button_variant: "outline"
       },
       %{
         id: :later,
@@ -1104,7 +1120,8 @@ defmodule JidoCodeWeb.SetupLive do
         summary: "Keep moving and come back when you are ready to attach a repo.",
         detail: "This keeps the setup path simple while you finish the rest of the product wiring.",
         recommended?: false,
-        button_class: "btn-ghost"
+        button_class: "ui-button-ghost",
+        button_variant: "ghost"
       }
     ]
   end
@@ -1117,7 +1134,8 @@ defmodule JidoCodeWeb.SetupLive do
         summary: "Use GitHub as the first source-control path for this install.",
         detail: "This is the cleanest starting point for a hosted deployment.",
         recommended?: true,
-        button_class: "btn-primary"
+        button_class: "ui-button-primary",
+        button_variant: "default"
       },
       %{
         id: :later,
@@ -1125,7 +1143,8 @@ defmodule JidoCodeWeb.SetupLive do
         summary: "Keep moving and connect source control when you need it.",
         detail: "You can defer GitHub setup until the first feature that depends on it.",
         recommended?: false,
-        button_class: "btn-outline"
+        button_class: "ui-button-outline",
+        button_variant: "outline"
       }
     ]
   end
@@ -1448,10 +1467,14 @@ defmodule JidoCodeWeb.SetupLive do
       detail: option.detail,
       badgeLabel: choice_badge_label(option.id, selected_start_path, option.recommended?),
       buttonLabel: choice_button_label(option.id, selected_start_path),
-      buttonClass: option.button_class,
+      buttonVariant: option.button_variant,
       selected: selected_start_path == option.id,
       disabled: buttons_disabled? or selected_start_path == option.id
     }
+  end
+
+  defp vue_surface_fallback?(component) when is_binary(component) do
+    FrontendAssets.vue_surface_delivery(component).mode == :fallback
   end
 
   defp runtime_defaults_widget_props(assigns) do

@@ -69,22 +69,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 100.2.2.2 Subtask - Rebuild memory, provenance, semantic, and source-graph panes with SaladUI server controls and shadcn-vue exploration islands where appropriate.
       [x] 100.2.2.3 Subtask - Keep transcript browsing and semantic graph degradation product-oriented under the new shell.
 
-  [ ] 100.3 Section - Vue Island Rewrite And Legacy Asset Removal
+  [x] 100.3 Section - Vue Island Rewrite And Legacy Asset Removal
     Replace the current DaisyUI-styled LiveVue widgets with shadcn-vue primitives or delete them.
 
-    [ ] 100.3.1 Task - Rewrite retained Vue islands.
+    [x] 100.3.1 Task - Rewrite retained Vue islands.
       Make every retained island import only local generated primitives and shared utilities.
 
-      [ ] 100.3.1.1 Subtask - Rewrite retained dashboard, setup, settings, workbench, repository, run, semantic, and memory widgets against `@/vue/components/ui/*`.
-      [ ] 100.3.1.2 Subtask - Replace broad component discovery with explicit registry entries and tests for each production island.
-      [ ] 100.3.1.3 Subtask - Use explicit semantic-event names and LiveView handlers for all island-to-server actions.
+      [x] 100.3.1.1 Subtask - Rewrite retained dashboard, setup, settings, workbench, repository, run, semantic, and memory widgets against `@/vue/components/ui/*`.
+      [x] 100.3.1.2 Subtask - Replace broad component discovery with explicit registry entries and tests for each production island.
+      [x] 100.3.1.3 Subtask - Use explicit semantic-event names and LiveView handlers for all island-to-server actions.
 
-    [ ] 100.3.2 Task - Delete old UI assets and DaisyUI dependencies.
+    [x] 100.3.2 Task - Delete old UI assets and DaisyUI dependencies.
       Remove the old UI implementation after equivalent product paths are rebuilt.
 
-      [ ] 100.3.2.1 Subtask - Delete obsolete Vue widgets, CSS classes, operator-shell helpers, route-local nav fragments, and dead tests.
-      [ ] 100.3.2.2 Subtask - Remove DaisyUI from npm dependencies and lockfile after zero first-party class references remain.
-      [ ] 100.3.2.3 Subtask - Remove stale docs and comments that describe DaisyUI or the previous subject-tree shell as current truth.
+      [x] 100.3.2.1 Subtask - Delete obsolete Vue widgets, CSS classes, operator-shell helpers, route-local nav fragments, and dead tests.
+      [x] 100.3.2.2 Subtask - Remove DaisyUI from npm dependencies and lockfile after zero first-party class references remain.
+      [x] 100.3.2.3 Subtask - Remove stale docs and comments that describe DaisyUI or the previous subject-tree shell as current truth.
 
   [ ] 100.4 Section - Integration Tests
     End the phase by proving rebuilt surfaces replace the old UI without losing product behavior.

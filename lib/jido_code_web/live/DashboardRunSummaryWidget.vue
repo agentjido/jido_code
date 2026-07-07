@@ -4,6 +4,7 @@
 // covers: architecture.frontend_stack.server_authored_props_streams_and_events
 // covers: architecture.frontend_stack.adoption_is_incremental_per_surface
 import { computed, ref } from "vue"
+import { Button } from "@/vue/components/ui/button"
 
 type RunSummary = {
   id: string
@@ -45,10 +46,7 @@ const filteredRuns = computed(() => {
   }
 })
 
-const filterButtonClass = (mode: FilterMode) => [
-  "btn btn-xs join-item",
-  filter.value === mode ? "btn-primary" : "btn-ghost",
-]
+const filterButtonVariant = (mode: FilterMode) => (filter.value === mode ? "default" : "ghost")
 </script>
 
 <template>
@@ -56,32 +54,32 @@ const filterButtonClass = (mode: FilterMode) => [
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="space-y-1">
         <p class="text-sm font-medium">Operator lenses</p>
-        <p class="text-xs text-base-content/70">
+        <p class="text-xs text-muted-foreground">
           LiveView owns the feed; this widget only adds faster client-side slicing.
         </p>
       </div>
 
-      <div class="join">
-        <button :class="filterButtonClass('all')" type="button" @click="filter = 'all'">
+      <div class="inline-flex rounded-md border border-border bg-muted/40 p-1">
+        <Button :variant="filterButtonVariant('all')" size="sm" type="button" @click="filter = 'all'">
           All ({{ counts.all }})
-        </button>
-        <button :class="filterButtonClass('attention')" type="button" @click="filter = 'attention'">
+        </Button>
+        <Button :variant="filterButtonVariant('attention')" size="sm" type="button" @click="filter = 'attention'">
           Attention ({{ counts.attention }})
-        </button>
-        <button :class="filterButtonClass('terminal')" type="button" @click="filter = 'terminal'">
+        </Button>
+        <Button :variant="filterButtonVariant('terminal')" size="sm" type="button" @click="filter = 'terminal'">
           Terminal ({{ counts.terminal }})
-        </button>
+        </Button>
       </div>
     </div>
 
-    <p class="text-xs text-base-content/60">
+    <p class="text-xs text-muted-foreground">
       Feed snapshot from {{ props.lastRefreshedLabel }}
     </p>
 
     <div
       v-if="filteredRuns.length === 0"
       id="dashboard-run-summary-widget-empty"
-      class="rounded border border-dashed border-base-300/80 bg-base-200/10 px-4 py-5 text-sm text-base-content/70"
+      class="rounded border border-dashed border-border/80 bg-muted/30 px-4 py-5 text-sm text-muted-foreground"
     >
       {{
         props.runSummaryCount === 0
@@ -95,24 +93,24 @@ const filterButtonClass = (mode: FilterMode) => [
         v-for="run in filteredRuns"
         :id="`dashboard-run-summary-widget-${run.id}`"
         :key="run.id"
-        class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-2"
+        class="rounded-lg border border-border/70 bg-muted/40 p-3 space-y-2"
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="space-y-1">
-            <a :href="run.detailPath" class="link link-primary font-mono text-xs">
+            <a :href="run.detailPath" class="font-mono text-xs text-primary underline-offset-4 hover:underline">
               {{ run.runId }}
             </a>
-            <p class="text-xs text-base-content/70">{{ run.workflowName }}</p>
+            <p class="text-xs text-muted-foreground">{{ run.workflowName }}</p>
           </div>
 
           <span :class="run.statusBadgeClass">{{ run.status }}</span>
         </div>
 
-        <p v-if="run.governanceSummary" class="text-xs text-base-content/80">
+        <p v-if="run.governanceSummary" class="text-xs text-foreground">
           {{ run.governanceSummary }}
         </p>
 
-        <p class="text-xs text-base-content/70">
+        <p class="text-xs text-muted-foreground">
           {{ run.recencyLabel }}
         </p>
       </article>

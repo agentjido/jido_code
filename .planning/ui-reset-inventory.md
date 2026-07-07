@@ -23,6 +23,7 @@ future shell implementation.
 | File | Classification | Reset Handling | Stable Behavior |
 | --- | --- | --- | --- |
 | `lib/jido_code_web/live/dashboard_live.ex` | root area | rewrite | authenticated home, runtime posture, repo/work summaries |
+| `lib/jido_code_web/live/operator_root_live.ex` | root route | rewrite | authenticated area menu landing and shell overview |
 | `lib/jido_code_web/live/project_inventory_live.ex` | root area | rewrite | managed repository inventory, filters, import handoff |
 | `lib/jido_code_web/live/workbench_live.ex` | root area | rewrite | dense specialist workspace and work context |
 | `lib/jido_code_web/live/workflows_live.ex` | root area | rewrite | governed run launch and run history |
@@ -41,6 +42,7 @@ future shell implementation.
 | File | Classification | Reset Handling | Notes |
 | --- | --- | --- | --- |
 | `lib/jido_code_web/components/layouts.ex` | shell chrome | rewrite | becomes ariston-style area shell layout |
+| `lib/jido_code_web/components/ui.ex` | HEEx primitive boundary | keep and revise | application-owned SaladUI wrapper module |
 | `lib/jido_code_web/components/core_components.ex` | Phoenix core | rewrite selectively | keep forms, inputs, icons, flashes where appropriate |
 | `lib/jido_code_web/components/live_vue_components.ex` | LiveVue boundary | keep and revise | preserve bounded mount helper and degraded fallback |
 | `lib/jido_code_web/components/conversation_surface_components.ex` | product component | rewrite | remove DaisyUI badges and base color classes |
@@ -68,11 +70,11 @@ future shell implementation.
 
 | Boundary | Current Reference | Reset Handling |
 | --- | --- | --- |
-| npm dependency | `package.json` includes `daisyui` | remove after first-party references reach zero |
-| Tailwind plugin | `assets/css/app.css` imports DaisyUI plugin and themes | replace with shadcn-aligned tokens |
-| HEEx classes | `btn`, `badge`, `alert`, `tabs`, `base-*`, `rounded-box`, `join-*` | replace with SaladUI wrappers or `.ui-*` utilities |
-| Vue classes | `btn`, `badge`, `alert`, `base-*`, `join-*` | replace with generated shadcn-vue primitives |
-| tests | selector expectations using old nav or DaisyUI-shaped classes | replace with product behavior and shell contract assertions |
+| npm dependency | `package.json` and `package-lock.json` omit `daisyui` | keep removed after first-party runtime references reach zero |
+| Tailwind plugin | `assets/css/app.css` omits DaisyUI plugin and theme blocks | keep shadcn-aligned tokens as the browser foundation |
+| HEEx classes | Runtime surfaces use SaladUI wrappers or `.ui-*` utilities instead of legacy class primitives | guard against new `btn`, `badge`, `alert`, `tabs`, `base-*`, `rounded-box`, and `join-*` class usage |
+| Vue classes | Retained widgets import generated shadcn-vue primitives from `@/vue/components/ui/*` | keep LiveVue islands bounded to explicit primitives and semantic event handoff |
+| tests | selector expectations focus on product behavior and shell contracts | add no-legacy-reference guards as rebuilt surfaces land |
 
 ## Stable Product Behaviors To Preserve
 

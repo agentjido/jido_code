@@ -365,7 +365,7 @@ defmodule JidoCodeWeb.Layouts do
           class={[
             "group/toast z-100 pointer-events-auto relative w-full items-center justify-between origin-center overflow-hidden rounded-lg p-4 shadow-lg border col-start-1 col-end-1 row-start-1 row-end-2 flex",
             kind == :info && "bg-white text-black",
-            kind == :error && "bg-error text-error-content border-error"
+            kind == :error && "border-destructive bg-destructive text-destructive-foreground"
           ]}
         >
           <p class="text-sm">{msg}</p>
@@ -388,7 +388,7 @@ defmodule JidoCodeWeb.Layouts do
       if(assigns[:rest][:hidden] == true, do: "hidden", else: "flex"),
       # override styles per severity
       assigns[:kind] == :info && "bg-white text-black",
-      assigns[:kind] == :error && "bg-error text-error-content border-error"
+      assigns[:kind] == :error && "border-destructive bg-destructive text-destructive-foreground"
     ]
   end
 
@@ -409,7 +409,7 @@ defmodule JidoCodeWeb.Layouts do
 
   defp area_state(%{} = area_state, _active_area, _current_scope), do: area_state
 
-  defp area_state(_area_state, active_area, current_scope) when is_atom(active_area) do
+  defp area_state(_area_state, active_area, current_scope) when is_atom(active_area) and not is_nil(active_area) do
     Areas.shell_state(active_area, current_scope: current_scope, connection_status: :connected)
   end
 

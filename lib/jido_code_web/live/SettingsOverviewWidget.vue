@@ -2,6 +2,8 @@
 // covers: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
 // covers: architecture.frontend_stack.server_authored_props_streams_and_events
 // covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+import { Button } from "@/vue/components/ui/button"
+
 type OverviewCard = {
   id: string
   label: string
@@ -25,29 +27,28 @@ const cardClass = (card: OverviewCard) => [
   "rounded-lg border p-3 transition-colors",
   card.active
     ? "border-primary/70 bg-primary/10"
-    : "border-base-300/70 bg-base-200/20",
+    : "border-border/70 bg-muted/40",
 ]
 </script>
 
 <template>
-  <section class="rounded-lg border border-base-300 bg-base-100 p-4 space-y-4">
+  <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="space-y-1">
         <h2 class="text-lg font-semibold">Settings overview</h2>
-        <p class="text-sm text-base-content/70">
+        <p class="text-sm text-muted-foreground">
           LiveView still owns route state and mutations; Vue only groups the current operator snapshot.
         </p>
       </div>
 
-      <button
+      <Button
         v-if="props.openAddRepoVisible"
         id="settings-overview-open-add-repo"
-        type="button"
-        class="btn btn-sm btn-primary"
+        size="sm"
         @click="emit('openAddRepo')"
       >
         Add GitHub repository
-      </button>
+      </Button>
     </div>
 
     <div class="grid gap-3 md:grid-cols-3">
@@ -57,13 +58,13 @@ const cardClass = (card: OverviewCard) => [
         :key="card.id"
         :class="cardClass(card)"
       >
-        <p class="text-xs uppercase text-base-content/60">{{ card.label }}</p>
+        <p class="text-xs uppercase text-muted-foreground">{{ card.label }}</p>
         <p class="mt-1 text-2xl font-semibold">{{ card.value }}</p>
-        <p class="mt-2 text-xs text-base-content/70">{{ card.detail }}</p>
+        <p class="mt-2 text-xs text-muted-foreground">{{ card.detail }}</p>
       </article>
     </div>
 
-    <p id="settings-overview-active-tab-summary" class="text-sm text-base-content/80">
+    <p id="settings-overview-active-tab-summary" class="text-sm text-foreground">
       {{ props.activeTabSummary }}
     </p>
   </section>

@@ -24,7 +24,6 @@
     "@playwright/test": "^1.54.2",
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-vue": "^5.0.4",
-    "daisyui": "^5.0.0",
     "phoenix_vite": "file:./deps/phoenix_vite",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.4.5",

@@ -30,9 +30,9 @@ defmodule JidoCodeWeb.UIResetInventoryTest do
   test "inventory records current DaisyUI removal boundaries" do
     inventory = File.read!(@inventory_path)
 
-    assert inventory =~ "`package.json` includes `daisyui`"
-    assert inventory =~ "`assets/css/app.css` imports DaisyUI plugin and themes"
-    assert inventory =~ "`btn`, `badge`, `alert`, `tabs`, `base-*`, `rounded-box`, `join-*`"
-    assert inventory =~ "replace with generated shadcn-vue primitives"
+    assert inventory =~ "`package.json` and `package-lock.json` omit `daisyui`"
+    assert inventory =~ "`assets/css/app.css` omits DaisyUI plugin and theme blocks"
+    assert inventory =~ "guard against new `btn`, `badge`, `alert`, `tabs`, `base-*`, `rounded-box`, and `join-*`"
+    assert inventory =~ "Retained widgets import generated shadcn-vue primitives from `@/vue/components/ui/*`"
   end
 end

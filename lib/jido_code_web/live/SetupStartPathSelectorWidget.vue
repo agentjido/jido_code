@@ -6,6 +6,8 @@
 // covers: setup.onboarding.start_path_preference_persisted
 // covers: setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 import { computed } from "vue"
+import { Badge } from "@/vue/components/ui/badge"
+import { Button } from "@/vue/components/ui/button"
 
 type StartOption = {
   id: string
@@ -14,7 +16,7 @@ type StartOption = {
   detail: string
   badgeLabel: string | null
   buttonLabel: string
-  buttonClass: string
+  buttonVariant: "default" | "outline" | "ghost"
   selected: boolean
   disabled: boolean
 }
@@ -42,7 +44,7 @@ const chooseStartPath = (option: StartOption) => {
   <section class="space-y-4">
     <div
       id="setup-start-path-widget-summary"
-      class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-base-300/70 bg-base-200/20 px-4 py-3 text-sm text-base-content/70"
+      class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
     >
       <p>
         {{
@@ -51,7 +53,7 @@ const chooseStartPath = (option: StartOption) => {
             : "Choose the start path that best fits this install."
         }}
       </p>
-      <span v-if="selectedOption" class="badge badge-outline text-xs">LiveView owned</span>
+      <Badge v-if="selectedOption" variant="outline">LiveView owned</Badge>
     </div>
 
     <article
@@ -60,35 +62,36 @@ const chooseStartPath = (option: StartOption) => {
       :key="option.id"
       :class="[
         'rounded-2xl border p-5 transition',
-        option.selected ? 'border-primary/50 bg-base-100 shadow-sm' : 'border-base-300 bg-base-100/80',
+        option.selected ? 'border-primary/50 bg-card shadow-sm' : 'border-border bg-card/80',
       ]"
     >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <h2 class="text-xl font-semibold">{{ option.title }}</h2>
-            <span
+            <Badge
               v-if="option.badgeLabel"
               :id="`setup-start-choice-${option.id}-badge`"
-              class="badge badge-outline text-xs"
+              variant="outline"
             >
               {{ option.badgeLabel }}
-            </span>
+            </Badge>
           </div>
-          <p class="text-sm font-medium text-base-content/80">{{ option.summary }}</p>
-          <p class="max-w-2xl text-sm text-base-content/60">{{ option.detail }}</p>
+          <p class="text-sm font-medium text-foreground">{{ option.summary }}</p>
+          <p class="max-w-2xl text-sm text-muted-foreground">{{ option.detail }}</p>
         </div>
 
-        <button
+        <Button
           :id="`setup-start-choice-${option.id}-save`"
-          type="button"
+          :variant="option.buttonVariant"
+          size="sm"
           :disabled="option.disabled"
           :aria-pressed="option.selected"
-          :class="['btn btn-sm w-full sm:w-auto', option.buttonClass, option.disabled && 'btn-disabled']"
+          class="w-full sm:w-auto"
           @click="chooseStartPath(option)"
         >
           {{ option.buttonLabel }}
-        </button>
+        </Button>
       </div>
     </article>
   </section>

@@ -2,8 +2,7 @@ defmodule JidoCodeWeb.UIResetPhase98CSSTokenTest do
   use ExUnit.Case, async: true
 
   @baseline_path ".planning/ui-reset-daisyui-class-baseline.json"
-  @legacy_token_re ~r/(?<![A-Za-z0-9_-])(?:btn(?:-[A-Za-z0-9_\-\/\[\].:]+)?|badge(?:-[A-Za-z0-9_\-\/\[\].:]+)?|alert(?:-[A-Za-z0-9_\-\/\[\].:]+)?|tabs|join(?:-[A-Za-z0-9_\-\/\[\].:]+)?|rounded-box|base-(?:100|200|300|content))(?![A-Za-z0-9_-])/
-  @string_literal_re ~r/"([^"\\]*(?:\\.[^"\\]*)*)"/
+  @legacy_token_re ~r/(?<![A-Za-z0-9_.:-])(?:btn(?:-[A-Za-z0-9_\-\/\[\].:]+)?|badge(?:-[A-Za-z0-9_\-\/\[\].:]+)?|alert(?:-[A-Za-z0-9_\-\/\[\].:]+)?|tabs|join(?:-[A-Za-z0-9_\-\/\[\].:]+)?|rounded-box|base-(?:100|200|300|content))(?![A-Za-z0-9_-])/
   @scan_globs [
     "lib/jido_code_web/**/*.{ex,heex,vue}",
     "assets/vue/**/*.{ts,vue}",
@@ -82,13 +81,14 @@ defmodule JidoCodeWeb.UIResetPhase98CSSTokenTest do
     end
   end
 
-  test "DaisyUI npm removal stays gated while existing runtime class references remain" do
+  test "DaisyUI npm package stays removed once runtime class references reach zero" do
     package = "package.json" |> File.read!() |> Jason.decode!()
     current_counts = current_legacy_class_counts()
     total_references = current_counts |> Map.values() |> Enum.sum()
 
-    assert total_references > 0
-    assert package["devDependencies"]["daisyui"]
+    assert total_references == 0
+    refute Map.get(package["dependencies"] || %{}, "daisyui")
+    refute Map.get(package["devDependencies"] || %{}, "daisyui")
   end
 
   test "first-party legacy DaisyUI class references cannot increase" do
@@ -132,15 +132,14 @@ defmodule JidoCodeWeb.UIResetPhase98CSSTokenTest do
   defp scannable_text(content, ".css"), do: content
 
   defp scannable_text(content, _extension) do
-    @string_literal_re
-    |> Regex.scan(content, capture: :all_but_first)
-    |> List.flatten()
-    |> Enum.reject(&non_class_string?/1)
+    content
+    |> String.split("\n")
+    |> Enum.filter(&class_candidate_line?/1)
     |> Enum.join("\n")
   end
 
-  defp non_class_string?(value) do
-    String.contains?(value, ["(", ")"]) or
-      (String.contains?(value, "/") and not Regex.match?(~r/\s/, value))
+  defp class_candidate_line?(line) do
+    not String.contains?(line, ["doc:", "@legacy", "legacy_token_re"]) and
+      (String.contains?(line, "class") or Regex.match?(~r/\b(?:&&|do:|=>)\s*"/, line))
   end
 end

@@ -8,6 +8,9 @@
 // covers: setup.onboarding.github_repository_selection_supports_account_filter_and_matching_search
 // covers: setup.onboarding.hybrid_follow_up_regions_keep_sensitive_controls_liveview_owned
 import { computed, ref, watch } from "vue";
+import { Badge } from "@/vue/components/ui/badge";
+import { Button } from "@/vue/components/ui/button";
+import { Input } from "@/vue/components/ui/input";
 
 type RepositoryOption = {
   id: string;
@@ -146,19 +149,19 @@ const selectedResultsSummary = computed(() => {
   return `Selected: ${localSelection.value.length} repositories`;
 });
 
-const listingBadgeClass = computed(() => [
-  "badge badge-outline text-xs",
-  props.listingStatus === "ready" ? "badge-success" : "badge-warning",
-]);
+const listingBadgeToneClass = computed(() =>
+  props.listingStatus === "ready"
+    ? "border-accent-green/50 bg-accent-green/10 text-accent-green"
+    : "border-accent-yellow/50 bg-accent-yellow/10 text-accent-yellow"
+);
 
-const importBadgeClass = computed(() => [
-  "badge badge-outline text-xs",
+const importBadgeToneClass = computed(() =>
   props.importStatus === "ready"
-    ? "badge-success"
+    ? "border-accent-green/50 bg-accent-green/10 text-accent-green"
     : props.importStatus === "blocked"
-    ? "badge-warning"
-    : "badge-ghost",
-]);
+    ? "border-accent-yellow/50 bg-accent-yellow/10 text-accent-yellow"
+    : "border-border bg-muted/70 text-muted-foreground"
+);
 
 const importButtonDisabled = computed(
   () =>
@@ -183,7 +186,7 @@ const repositoryCardClass = (repository: RepositoryOption) => [
   "rounded-xl border p-3 text-left transition",
   localSelection.value.includes(repository.fullName)
     ? "border-primary/60 bg-primary/10"
-    : "border-base-300/70 bg-base-200/20 hover:border-primary/40",
+    : "border-border/70 bg-muted/40 hover:border-primary/40",
 ];
 
 const toggleRepository = (repositoryFullName: string) => {
@@ -213,22 +216,22 @@ const importRepository = () => {
         >
           {{ props.panelTitle }}
         </h2>
-        <span
+        <Badge
           id="setup-github-repository-widget-badge"
-          class="badge badge-outline text-xs"
+          variant="outline"
         >
           {{ props.panelBadgeLabel }}
-        </span>
+        </Badge>
       </div>
       <p
         id="setup-github-repository-widget-summary"
-        class="text-sm font-medium text-base-content/80"
+        class="text-sm font-medium text-foreground"
       >
         {{ props.panelSummary }}
       </p>
       <p
         id="setup-github-repository-widget-detail"
-        class="max-w-2xl text-sm text-base-content/60"
+        class="max-w-2xl text-sm text-muted-foreground"
       >
         {{ props.panelDetail }}
       </p>
@@ -238,39 +241,40 @@ const importRepository = () => {
       <div class="space-y-1">
         <div class="flex flex-wrap items-center gap-2">
           <h3 class="text-lg font-semibold">Linked GitHub repositories</h3>
-          <span
+          <Badge
             id="setup-github-repository-widget-status"
-            :class="listingBadgeClass"
+            variant="outline"
+            :class="listingBadgeToneClass"
           >
             {{ props.listingStatus === "ready" ? "Ready" : "Needs attention" }}
-          </span>
+          </Badge>
         </div>
         <p
           id="setup-github-repository-widget-boundary-note"
-          class="text-sm text-base-content/70"
+          class="text-sm text-muted-foreground"
         >
           {{ props.boundaryNote }}
         </p>
       </div>
 
-      <button
+      <Button
         id="setup-github-repository-widget-refresh"
-        type="button"
-        class="btn btn-sm btn-outline"
+        variant="outline"
+        size="sm"
         :disabled="props.buttonsDisabled"
         @click="emit('refreshRepositories')"
       >
         Refresh repositories
-      </button>
+      </Button>
     </div>
 
-    <div class="space-y-4 rounded-xl border border-base-300/70 bg-base-100 p-4">
+    <div class="space-y-4 rounded-xl border border-border/70 bg-card p-4">
       <div class="grid gap-3 md:grid-cols-3">
         <article
-          class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+          class="rounded-xl border border-border/70 bg-muted/40 p-4 space-y-3"
         >
           <div class="space-y-1">
-            <p class="text-xs uppercase text-base-content/60">
+            <p class="text-xs uppercase text-muted-foreground">
               Saved selection
             </p>
             <p
@@ -283,19 +287,19 @@ const importRepository = () => {
         </article>
 
         <article
-          class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+          class="rounded-xl border border-border/70 bg-muted/40 p-4 space-y-3"
         >
           <div class="space-y-1">
-            <p class="text-xs uppercase text-base-content/60">Linked access</p>
+            <p class="text-xs uppercase text-muted-foreground">Linked access</p>
             <p
               id="setup-github-repository-widget-count"
-              class="text-sm text-base-content/80"
+              class="text-sm text-foreground"
             >
               {{ props.repositoryCountLabel }}
             </p>
             <p
               id="setup-github-repository-widget-checked-at"
-              class="text-xs text-base-content/60"
+              class="text-xs text-muted-foreground"
             >
               Refreshed: {{ props.listingCheckedAt }}
             </p>
@@ -303,14 +307,15 @@ const importRepository = () => {
         </article>
 
         <article
-          class="rounded-xl border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+          class="rounded-xl border border-border/70 bg-muted/40 p-4 space-y-3"
         >
           <div class="space-y-1">
-            <p class="text-xs uppercase text-base-content/60">Import state</p>
+            <p class="text-xs uppercase text-muted-foreground">Import state</p>
             <div class="flex flex-wrap items-center gap-2">
-              <span
+              <Badge
                 id="setup-github-repository-widget-import-status"
-                :class="importBadgeClass"
+                variant="outline"
+                :class="importBadgeToneClass"
               >
                 {{
                   props.importStatus === "ready"
@@ -319,14 +324,14 @@ const importRepository = () => {
                     ? "Needs attention"
                     : "Not started"
                 }}
-              </span>
-              <span v-if="props.importMode" class="badge badge-outline text-xs">
+              </Badge>
+              <Badge v-if="props.importMode" variant="outline">
                 {{
                   props.importMode === "existing"
                     ? "Existing managed repo"
                     : "Created managed repo"
                 }}
-              </span>
+              </Badge>
             </div>
           </div>
         </article>
@@ -336,12 +341,12 @@ const importRepository = () => {
         <div
           class="grid gap-3 xl:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] xl:items-end"
         >
-          <label class="fieldset min-w-0">
-            <span class="label mb-1">GitHub account</span>
+          <label class="min-w-0 space-y-1">
+            <span class="text-sm font-medium">GitHub account</span>
             <select
               id="setup-github-repository-widget-account-filter"
               v-model="accountFilter"
-              class="select w-full"
+              class="ui-select w-full"
               :disabled="
                 props.buttonsDisabled || props.repositoryOptions.length === 0
               "
@@ -357,13 +362,12 @@ const importRepository = () => {
             </select>
           </label>
 
-          <label class="fieldset min-w-0">
-            <span class="label mb-1">Search linked repositories</span>
-            <input
+          <label class="min-w-0 space-y-1">
+            <span class="text-sm font-medium">Search linked repositories</span>
+            <Input
               id="setup-github-repository-widget-search"
               v-model="filterQuery"
               type="text"
-              class="input w-full"
               placeholder="owner/repository"
               :disabled="
                 props.buttonsDisabled || props.repositoryOptions.length === 0
@@ -371,19 +375,18 @@ const importRepository = () => {
             />
           </label>
 
-          <button
+          <Button
             id="setup-github-repository-widget-import"
-            type="button"
-            class="btn btn-primary w-full xl:w-auto xl:shrink-0"
+            class="w-full xl:w-auto xl:shrink-0"
             :disabled="importButtonDisabled"
             @click="importRepository"
           >
             {{ importButtonLabel }}
-          </button>
+          </Button>
         </div>
 
         <div
-          class="rounded-xl border border-base-300/70 bg-base-200/20 px-4 py-3 text-sm text-base-content/80"
+          class="rounded-xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-foreground"
         >
           {{ props.listingDetail }}
         </div>
@@ -391,7 +394,7 @@ const importRepository = () => {
         <div
           v-if="props.listingRemediation"
           id="setup-github-repository-widget-remediation"
-          class="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content/80"
+          class="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 px-4 py-3 text-sm text-foreground"
         >
           {{ props.listingRemediation }}
         </div>
@@ -399,14 +402,14 @@ const importRepository = () => {
         <div
           v-if="props.listingErrorType"
           id="setup-github-repository-widget-error-type"
-          class="text-xs uppercase tracking-[0.25em] text-base-content/50"
+          class="text-xs uppercase tracking-[0.25em] text-muted-foreground"
         >
           {{ props.listingErrorType }}
         </div>
 
         <div
           v-if="filteredRepositories.length === 0"
-          class="rounded-xl border border-dashed border-base-300/70 bg-base-200/10 px-4 py-5 text-sm text-base-content/70"
+          class="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-sm text-muted-foreground"
         >
           No linked repositories match the current filter.
         </div>
@@ -414,10 +417,10 @@ const importRepository = () => {
         <div v-else class="space-y-3">
           <div
             id="setup-github-repository-widget-results-summary"
-            class="flex flex-wrap items-center justify-between gap-2 text-sm text-base-content/70"
+            class="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
           >
             <p>{{ filteredRepositoryCountLabel }}</p>
-            <p class="font-medium text-base-content/80">
+            <p class="font-medium text-foreground">
               {{ selectedResultsSummary }}
             </p>
           </div>
@@ -440,17 +443,17 @@ const importRepository = () => {
                   <div class="space-y-1">
                     <p class="font-medium">{{ repository.fullName }}</p>
                     <p
-                      class="text-xs uppercase tracking-[0.2em] text-base-content/50"
+                      class="text-xs uppercase tracking-[0.2em] text-muted-foreground"
                     >
                       {{ repository.owner }}
                     </p>
                   </div>
-                  <span
-                    class="badge badge-outline text-xs"
+                  <Badge
+                    variant="outline"
                     :class="
                       localSelection.includes(repository.fullName)
-                        ? 'badge-primary'
-                        : 'badge-ghost'
+                        ? 'border-primary/50 bg-primary/10 text-primary'
+                        : 'border-border bg-muted/70 text-muted-foreground'
                     "
                   >
                     {{
@@ -458,9 +461,9 @@ const importRepository = () => {
                         ? "Selected"
                         : "Linked"
                     }}
-                  </span>
+                  </Badge>
                 </div>
-                <p class="mt-3 text-sm text-base-content/70">
+                <p class="mt-3 text-sm text-muted-foreground">
                   Import {{ repository.name }} as a managed repository and keep
                   GitHub as its source identity.
                 </p>
@@ -470,38 +473,40 @@ const importRepository = () => {
         </div>
 
         <div
-          class="rounded-xl border border-base-300/70 bg-base-200/20 px-4 py-3 space-y-2"
+          class="rounded-xl border border-border/70 bg-muted/40 px-4 py-3 space-y-2"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="font-medium">
               {{ props.importProjectDisplayName ?? "Repository import status" }}
             </p>
-            <a
+            <Button
               v-if="props.importProjectPath"
               id="setup-github-repository-widget-open-repo"
+              as="a"
               :href="props.importProjectPath"
-              class="btn btn-xs btn-outline"
+              variant="outline"
+              size="sm"
             >
               Open managed repo
-            </a>
+            </Button>
           </div>
           <p
             id="setup-github-repository-widget-import-detail"
-            class="text-sm text-base-content/80"
+            class="text-sm text-foreground"
           >
             {{ props.importDetail }}
           </p>
           <p
             v-if="props.importRemediation"
             id="setup-github-repository-widget-import-remediation"
-            class="text-sm text-warning"
+            class="text-sm text-accent-yellow"
           >
             {{ props.importRemediation }}
           </p>
           <p
             v-if="props.importErrorType"
             id="setup-github-repository-widget-import-error-type"
-            class="text-xs uppercase tracking-[0.25em] text-base-content/50"
+            class="text-xs uppercase tracking-[0.25em] text-muted-foreground"
           >
             {{ props.importErrorType }}
           </p>

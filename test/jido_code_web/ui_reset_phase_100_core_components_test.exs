@@ -5,18 +5,31 @@ defmodule JidoCodeWeb.UIResetPhase100CoreComponentsTest do
     lib/jido_code/workbench/inventory_surface.ex
     lib/jido_code_web/components/core_components.ex
     lib/jido_code_web/components/conversation_surface_components.ex
+    lib/jido_code_web/components/layouts.ex
     lib/jido_code_web/components/managed_repo_inventory_components.ex
     lib/jido_code_web/components/memory_surface_components.ex
     lib/jido_code_web/live/agents_live.ex
     lib/jido_code_web/live/dashboard_live.ex
+    lib/jido_code_web/live/DashboardRunSummaryWidget.vue
+    lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
     lib/jido_code_web/live/decision_detail_live.ex
     lib/jido_code_web/live/evidence_detail_live.ex
+    lib/jido_code_web/live/home_live.ex
     lib/jido_code_web/live/project_detail_live.ex
+    lib/jido_code_web/live/ProjectDetailOverviewWidget.vue
+    lib/jido_code_web/live/ProjectDetailSemanticExplorerWidget.vue
     lib/jido_code_web/live/project_inventory_live.ex
+    lib/jido_code_web/live/RunGovernanceOverviewWidget.vue
     lib/jido_code_web/live/run_detail_live.ex
     lib/jido_code_web/live/settings_live.ex
+    lib/jido_code_web/live/SettingsOverviewWidget.vue
+    lib/jido_code_web/live/setup_live.ex
+    lib/jido_code_web/live/SetupGitHubRepositorySelectorWidget.vue
+    lib/jido_code_web/live/SetupRuntimeDefaultsWidget.vue
+    lib/jido_code_web/live/SetupStartPathSelectorWidget.vue
     lib/jido_code_web/live/work_item_detail_live.ex
     lib/jido_code_web/live/workbench_live.ex
+    lib/jido_code_web/live/WorkbenchSummaryWidget.vue
     lib/jido_code_web/live/workflows_live.ex
     lib/jido_code_web/operator_auth_settings.ex
   ]

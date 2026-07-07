@@ -224,7 +224,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
       <section class="mx-auto max-w-5xl space-y-6 py-8">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Governed work item
             </p>
             <h1 :if={@work_item} id="work-item-detail-title" class="text-2xl font-semibold">
@@ -238,41 +238,41 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
           <.link
             :if={repo_route(@route_repo_id)}
             navigate={repo_route(@route_repo_id)}
-            class="link link-primary text-sm"
+            class="text-primary underline-offset-4 hover:underline text-sm"
           >
             Back to repository
           </.link>
         </div>
 
         <%= if @work_item do %>
-          <section class="grid gap-4 rounded-xl border border-base-300 bg-base-100 p-6 md:grid-cols-2">
+          <section class="grid gap-4 rounded-xl border border-border bg-card p-6 md:grid-cols-2">
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">ID</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ID</p>
               <p id="work-item-detail-id" class="font-mono text-sm">{@work_item.id}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Status</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</p>
               <p id="work-item-detail-status" class="text-sm">{display_atom(@work_item.status)}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Priority</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Priority</p>
               <p id="work-item-detail-priority" class="text-sm">{display_atom(@work_item.priority)}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Category</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Category</p>
               <p id="work-item-detail-category" class="text-sm">{display_string(@work_item.category)}</p>
             </div>
 
             <div class="space-y-1 md:col-span-2">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Summary</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</p>
               <p id="work-item-detail-summary" class="text-sm">{display_string(@work_item.summary)}</p>
             </div>
 
             <div class="space-y-1 md:col-span-2">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Recommended action
               </p>
               <p id="work-item-detail-recommended-action" class="text-sm">
@@ -281,7 +281,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Managed repo
               </p>
               <p id="work-item-detail-managed-repo" class="font-mono text-sm">
@@ -290,16 +290,16 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
             </div>
           </section>
 
-          <section class="space-y-2 rounded-xl border border-base-300 bg-base-100 p-6">
+          <section class="space-y-2 rounded-xl border border-border bg-card p-6">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <p class="text-sm font-medium">Governed run history</p>
-              <p id="work-item-detail-run-history-count" class="text-xs text-base-content/70">
+              <p id="work-item-detail-run-history-count" class="text-xs text-muted-foreground">
                 Linked runs: {length(@related_runs)}
               </p>
             </div>
 
             <%= if @related_runs == [] do %>
-              <p id="work-item-detail-run-history-empty" class="text-sm text-base-content/70">
+              <p id="work-item-detail-run-history-empty" class="text-sm text-muted-foreground">
                 No governed runs are currently linked to this work item.
               </p>
             <% else %>
@@ -307,14 +307,14 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                 <li
                   :for={{run, index} <- Enum.with_index(@related_runs, 1)}
                   id={"work-item-detail-run-entry-#{index}"}
-                  class="rounded border border-base-300/50 bg-base-200/20 p-3"
+                  class="rounded border border-border/50 bg-muted/20 p-3"
                 >
                   <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="space-y-1">
                       <p id={"work-item-detail-run-id-#{index}"} class="text-sm font-medium">
                         {display_string(map_get(run, :run_id, "run_id"))}
                       </p>
-                      <p id={"work-item-detail-run-status-#{index}"} class="text-xs text-base-content/70">
+                      <p id={"work-item-detail-run-status-#{index}"} class="text-xs text-muted-foreground">
                         Status: {display_atom(map_get(run, :status, "status"))}
                       </p>
                     </div>
@@ -322,7 +322,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                       :if={run_route(@route_repo_id, map_get(run, :run_id, "run_id"))}
                       id={"work-item-detail-run-route-#{index}"}
                       navigate={run_route(@route_repo_id, map_get(run, :run_id, "run_id"))}
-                      class="link link-primary text-xs"
+                      class="text-primary underline-offset-4 hover:underline text-xs"
                     >
                       Open run
                     </.link>
@@ -335,11 +335,11 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
           <section
             :if={@memory_context}
             id="work-item-detail-memory-context"
-            class="space-y-3 rounded-xl border border-base-300 bg-base-100 p-6"
+            class="space-y-3 rounded-xl border border-border bg-card p-6"
           >
             <div class="space-y-1">
               <p class="text-sm font-medium">Work item memory context</p>
-              <p id="work-item-detail-memory-context-state" class="text-xs text-base-content/70">
+              <p id="work-item-detail-memory-context-state" class="text-xs text-muted-foreground">
                 Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
               </p>
               <.operator_state_notice
@@ -364,11 +364,11 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
 
             <%= if @memory_context.surface do %>
               <div class="space-y-3">
-                <div class="rounded border border-base-300/50 bg-base-200/20 p-3">
+                <div class="rounded border border-border/50 bg-muted/20 p-3">
                   <p id="work-item-detail-memory-surface-label" class="text-sm font-medium">
                     {@memory_context.surface.label}
                   </p>
-                  <p id="work-item-detail-memory-surface-counts" class="text-xs text-base-content/70">
+                  <p id="work-item-detail-memory-surface-counts" class="text-xs text-muted-foreground">
                     Memory: {@memory_context.surface.memory_count} | Provenance: {@memory_context.surface.provenance_count}
                   </p>
                 </div>
@@ -376,37 +376,37 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                 <section
                   :if={@memory_follow_up_preview && @memory_follow_up_preview.available?}
                   id="work-item-detail-memory-follow-up-preview"
-                  class="space-y-2 rounded border border-base-300/50 bg-base-200/20 p-3"
+                  class="space-y-2 rounded border border-border/50 bg-muted/20 p-3"
                 >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Memory-aware follow-up
                   </p>
                   <p id="work-item-detail-memory-follow-up-preview-summary" class="text-sm font-medium">
                     {@memory_follow_up_preview.summary}
                   </p>
-                  <p id="work-item-detail-memory-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                  <p id="work-item-detail-memory-follow-up-preview-metadata" class="text-xs text-muted-foreground">
                     Recommended action: {@memory_follow_up_preview.recommended_action_label} | Priority: {@memory_follow_up_preview.priority} | Urgency: {@memory_follow_up_preview.urgency}
                   </p>
-                  <p id="work-item-detail-memory-follow-up-preview-kinds" class="text-xs text-base-content/70">
+                  <p id="work-item-detail-memory-follow-up-preview-kinds" class="text-xs text-muted-foreground">
                     Selected memory kinds: {Enum.join(@memory_follow_up_preview.memory_kinds, ", ")}
                   </p>
                   <.link
                     :if={@memory_follow_up_preview.route}
                     id="work-item-detail-memory-follow-up-preview-route"
                     navigate={@memory_follow_up_preview.route}
-                    class="link link-primary text-xs"
+                    class="text-primary underline-offset-4 hover:underline text-xs"
                   >
                     {@memory_follow_up_preview.route_label}
                   </.link>
                 </section>
 
                 <section class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Durable memories
                   </p>
 
                   <%= if @memory_context.surface.memories.items == [] do %>
-                    <p id="work-item-detail-memory-empty" class="text-xs text-base-content/70">
+                    <p id="work-item-detail-memory-empty" class="text-xs text-muted-foreground">
                       No durable memories currently point at this work item.
                     </p>
                   <% else %>
@@ -414,12 +414,12 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.surface.memories.items, 1)}
                         id={"work-item-detail-memory-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-200/20 p-3 space-y-2"
+                        class="rounded border border-border/50 bg-muted/20 p-3 space-y-2"
                       >
                         <p class="text-sm font-medium">
                           {memory_item_kind(item)}: {memory_item_content(item)}
                         </p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
                         </p>
                         <div class="flex flex-wrap gap-2">
@@ -428,7 +428,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                             id={"work-item-detail-memory-validate-#{index}"}
                             phx-click="validate_memory"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Validate
                           </button>
@@ -437,7 +437,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                             id={"work-item-detail-memory-invalidate-#{index}"}
                             phx-click="invalidate_memory"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Invalidate
                           </button>
@@ -446,7 +446,7 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                             id={"work-item-detail-memory-promote-#{index}"}
                             phx-click="promote_memory_follow_up"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Create follow-up
                           </button>
@@ -464,18 +464,18 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                   phx-click="supersede_memory"
                   phx-value-memory_iri={decision_memory_iri(@memory_context.surface.memories.items)}
                   phx-value-decision_id={map_get(latest_record(@decisions), :id, "id")}
-                  class="btn btn-xs btn-outline"
+                  class="ui-button ui-button-xs ui-button-outline"
                 >
                   Supersede with latest decision
                 </button>
 
                 <section class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Workflow provenance
                   </p>
 
                   <%= if @memory_context.surface.provenance.items == [] do %>
-                    <p id="work-item-detail-memory-provenance-empty" class="text-xs text-base-content/70">
+                    <p id="work-item-detail-memory-provenance-empty" class="text-xs text-muted-foreground">
                       No workflow provenance currently points at this work item.
                     </p>
                   <% else %>
@@ -483,12 +483,12 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.surface.provenance.items, 1)}
                         id={"work-item-detail-memory-provenance-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-200/20 p-3 space-y-1"
+                        class="rounded border border-border/50 bg-muted/20 p-3 space-y-1"
                       >
                         <p class="text-sm font-medium">
                           {provenance_item_kind(item)}: {provenance_item_label(item)}
                         </p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Revision: {provenance_item_revision(item)}
                         </p>
                         <.memory_link_groups dom_prefix={"work-item-detail-memory-provenance-#{index}"} item={item} />
@@ -500,8 +500,8 @@ defmodule JidoCodeWeb.WorkItemDetailLive do
             <% end %>
           </section>
         <% else %>
-          <section class="rounded-xl border border-warning/40 bg-warning/10 p-6">
-            <p id="work-item-detail-missing-detail" class="text-sm text-base-content/80">
+          <section class="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 p-6">
+            <p id="work-item-detail-missing-detail" class="text-sm text-foreground">
               No governed work item with id <span class="font-mono">{@work_item_id}</span>
               is available on this managed-repository route.
             </p>

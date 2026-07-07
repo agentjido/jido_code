@@ -12,7 +12,7 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
 
   def conversation_status_badge(assigns) do
     ~H"""
-    <span id={@id} class={["badge badge-sm badge-outline font-medium", status_badge_class(@status), @class]}>
+    <span id={@id} class={["ui-badge ui-badge-sm ui-badge-outline font-medium", status_badge_class(@status), @class]}>
       {status_label(@status)}
     </span>
     """
@@ -27,7 +27,7 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
 
   def conversation_role_badge(assigns) do
     ~H"""
-    <span id={@id} class={["badge badge-sm badge-outline font-medium", role_badge_class(assigns), @class]}>
+    <span id={@id} class={["ui-badge ui-badge-sm ui-badge-outline font-medium", role_badge_class(assigns), @class]}>
       {role_label(assigns)}
     </span>
     """
@@ -42,7 +42,7 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
     ~H"""
     <span
       id={@id}
-      class={["badge badge-sm badge-outline font-medium", stream_badge_class(@stream_mode), @class]}
+      class={["ui-badge ui-badge-sm ui-badge-outline font-medium", stream_badge_class(@stream_mode), @class]}
     >
       {stream_label(@stream_mode)}
       <span :if={@discontinuity_count > 0} class="ml-1 text-[10px] opacity-80">
@@ -66,24 +66,24 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
     <article id={@id} class={["rounded-md border p-3", event_row_class(@tone)]}>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2">
-          <span :if={!is_nil(@sequence)} class="font-mono text-xs text-base-content/60">
+          <span :if={!is_nil(@sequence)} class="font-mono text-xs text-muted-foreground">
             ##{@sequence}
           </span>
-          <span class={["badge badge-sm badge-outline font-semibold", event_label_class(@tone)]}>
+          <span class={["ui-badge ui-badge-sm ui-badge-outline font-semibold", event_label_class(@tone)]}>
             {@label}
           </span>
-          <span :if={present_string?(@event_name)} class="text-xs text-base-content/60">
+          <span :if={present_string?(@event_name)} class="text-xs text-muted-foreground">
             {@event_name}
           </span>
         </div>
-        <time :if={present_string?(@occurred_at)} class="text-xs text-base-content/60">
+        <time :if={present_string?(@occurred_at)} class="text-xs text-muted-foreground">
           {@occurred_at}
         </time>
       </div>
       <p class="mt-2 text-sm font-medium">
         {@title}
       </p>
-      <p :if={present_string?(@excerpt)} class="mt-1 whitespace-pre-wrap text-xs text-base-content/70">
+      <p :if={present_string?(@excerpt)} class="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
         {@excerpt}
       </p>
     </article>
@@ -92,25 +92,25 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
 
   defp status_badge_class(status) do
     case normalize_status(status) do
-      "active" -> "badge-success"
-      "paused" -> "badge-warning"
-      "completed" -> "badge-info"
-      "cancelled" -> "badge-error"
-      "failed" -> "badge-error"
-      "blocked" -> "badge-warning"
-      _other -> "badge-ghost"
+      "active" -> "ui-badge-success"
+      "paused" -> "ui-badge-warning"
+      "completed" -> "ui-badge-info"
+      "cancelled" -> "ui-badge-error"
+      "failed" -> "ui-badge-error"
+      "blocked" -> "ui-badge-warning"
+      _other -> "ui-badge-ghost"
     end
   end
 
   defp status_label(status), do: normalize_status(status)
 
-  defp role_badge_class(%{historical: true}), do: "badge-info"
+  defp role_badge_class(%{historical: true}), do: "ui-badge-info"
 
   defp role_badge_class(assigns) do
     case role_key(assigns) do
-      :repo_intake -> "badge-neutral"
-      :governed -> "badge-primary"
-      _other -> "badge-ghost"
+      :repo_intake -> "ui-badge-neutral"
+      :governed -> "ui-badge-primary"
+      _other -> "ui-badge-ghost"
     end
   end
 
@@ -139,10 +139,10 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
 
   defp stream_badge_class(stream_mode) do
     case normalize_status(stream_mode) do
-      "live" -> "badge-success"
-      "degraded" -> "badge-warning"
-      "idle" -> "badge-ghost"
-      _other -> "badge-ghost"
+      "live" -> "ui-badge-success"
+      "degraded" -> "ui-badge-warning"
+      "idle" -> "ui-badge-ghost"
+      _other -> "ui-badge-ghost"
     end
   end
 
@@ -166,25 +166,25 @@ defmodule JidoCodeWeb.ConversationSurfaceComponents do
   defp normalize_status(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_status(_value), do: "unknown"
 
-  defp event_row_class(:error), do: "border-error/60 bg-error/10"
-  defp event_row_class(:warning), do: "border-warning/60 bg-warning/10"
-  defp event_row_class(:success), do: "border-success/60 bg-success/10"
-  defp event_row_class(:status), do: "border-info/50 bg-info/10"
+  defp event_row_class(:error), do: "border-destructive/60 bg-destructive/10"
+  defp event_row_class(:warning), do: "border-accent-yellow/60 bg-accent-yellow/10"
+  defp event_row_class(:success), do: "border-accent-green/60 bg-accent-green/10"
+  defp event_row_class(:status), do: "border-accent-cyan/50 bg-accent-cyan/10"
   defp event_row_class(:input), do: "border-primary/50 bg-primary/5"
-  defp event_row_class(:progress), do: "border-info/40 bg-info/5"
-  defp event_row_class(:tool), do: "border-base-300/70 bg-base-100"
-  defp event_row_class(:turn), do: "border-base-300/70 bg-base-200/20"
-  defp event_row_class(_tone), do: "border-base-300/70 bg-base-200/30"
+  defp event_row_class(:progress), do: "border-accent-cyan/40 bg-accent-cyan/5"
+  defp event_row_class(:tool), do: "border-border/70 bg-card"
+  defp event_row_class(:turn), do: "border-border/70 bg-muted/20"
+  defp event_row_class(_tone), do: "border-border/70 bg-muted/30"
 
-  defp event_label_class(:error), do: "badge-error"
-  defp event_label_class(:warning), do: "badge-warning"
-  defp event_label_class(:success), do: "badge-success"
-  defp event_label_class(:status), do: "badge-info"
-  defp event_label_class(:input), do: "badge-primary"
-  defp event_label_class(:progress), do: "badge-info"
-  defp event_label_class(:tool), do: "badge-neutral"
-  defp event_label_class(:turn), do: "badge-ghost"
-  defp event_label_class(_tone), do: "badge-ghost"
+  defp event_label_class(:error), do: "ui-badge-error"
+  defp event_label_class(:warning), do: "ui-badge-warning"
+  defp event_label_class(:success), do: "ui-badge-success"
+  defp event_label_class(:status), do: "ui-badge-info"
+  defp event_label_class(:input), do: "ui-badge-primary"
+  defp event_label_class(:progress), do: "ui-badge-info"
+  defp event_label_class(:tool), do: "ui-badge-neutral"
+  defp event_label_class(:turn), do: "ui-badge-ghost"
+  defp event_label_class(_tone), do: "ui-badge-ghost"
 
   defp present_string?(value) when is_binary(value), do: String.trim(value) != ""
   defp present_string?(_value), do: false

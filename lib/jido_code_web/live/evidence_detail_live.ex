@@ -225,7 +225,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
       <section class="mx-auto max-w-5xl space-y-6 py-8">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Governed evidence
             </p>
             <h1 :if={@evidence} id="evidence-detail-title" class="text-2xl font-semibold">
@@ -240,14 +240,14 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
             <.link
               :if={run_route(@route_repo_id, @run && @run.run_id)}
               navigate={run_route(@route_repo_id, @run && @run.run_id)}
-              class="link link-primary text-sm"
+              class="text-primary underline-offset-4 hover:underline text-sm"
             >
               Open related run
             </.link>
             <.link
               :if={repo_route(@route_repo_id)}
               navigate={repo_route(@route_repo_id)}
-              class="link link-primary text-sm"
+              class="text-primary underline-offset-4 hover:underline text-sm"
             >
               Back to repository
             </.link>
@@ -255,34 +255,34 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
         </div>
 
         <%= if @evidence do %>
-          <section class="grid gap-4 rounded-xl border border-base-300 bg-base-100 p-6 md:grid-cols-2">
+          <section class="grid gap-4 rounded-xl border border-border bg-card p-6 md:grid-cols-2">
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">ID</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ID</p>
               <p id="evidence-detail-id" class="font-mono text-sm">{@evidence.id}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Key</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Key</p>
               <p id="evidence-detail-key" class="text-sm">{display_string(@evidence.key)}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Type</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</p>
               <p id="evidence-detail-type" class="text-sm">{display_string(@evidence.evidence_type)}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Source</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source</p>
               <p id="evidence-detail-source" class="text-sm">{display_string(@evidence.source)}</p>
             </div>
 
             <div class="space-y-1 md:col-span-2">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Summary</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</p>
               <p id="evidence-detail-summary" class="text-sm">{display_string(@evidence.summary)}</p>
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Run</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Run</p>
               <div class="space-y-1">
                 <p id="evidence-detail-run-id" class="font-mono text-sm">
                   {display_string(@run && @run.run_id, "Unavailable")}
@@ -291,7 +291,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                   :if={run_route(@route_repo_id, @run && @run.run_id)}
                   id="evidence-detail-run-route"
                   navigate={run_route(@route_repo_id, @run && @run.run_id)}
-                  class="link link-primary text-xs"
+                  class="text-primary underline-offset-4 hover:underline text-xs"
                 >
                   Open run
                 </.link>
@@ -299,7 +299,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
             </div>
 
             <div class="space-y-1">
-              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Work item</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Work item</p>
               <div class="space-y-1">
                 <p id="evidence-detail-work-item-id" class="font-mono text-sm">
                   {display_string(@work_item && @work_item.id, "Unattached")}
@@ -308,7 +308,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                   :if={work_item_route(@route_repo_id, @work_item && @work_item.id)}
                   id="evidence-detail-work-item-route"
                   navigate={work_item_route(@route_repo_id, @work_item && @work_item.id)}
-                  class="link link-primary text-xs"
+                  class="text-primary underline-offset-4 hover:underline text-xs"
                 >
                   Open work item
                 </.link>
@@ -316,16 +316,16 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
             </div>
           </section>
 
-          <section class="space-y-2 rounded-xl border border-base-300 bg-base-100 p-6">
+          <section class="space-y-2 rounded-xl border border-border bg-card p-6">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <p class="text-sm font-medium">Related decisions</p>
-              <p id="evidence-detail-related-decisions-count" class="text-xs text-base-content/70">
+              <p id="evidence-detail-related-decisions-count" class="text-xs text-muted-foreground">
                 Decisions: {length(@related_decisions)}
               </p>
             </div>
 
             <%= if @related_decisions == [] do %>
-              <p id="evidence-detail-related-decisions-empty" class="text-sm text-base-content/70">
+              <p id="evidence-detail-related-decisions-empty" class="text-sm text-muted-foreground">
                 No governed decisions are currently linked to this evidence run.
               </p>
             <% else %>
@@ -333,14 +333,14 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                 <li
                   :for={{decision, index} <- Enum.with_index(@related_decisions, 1)}
                   id={"evidence-detail-related-decision-#{index}"}
-                  class="rounded border border-base-300/50 bg-base-200/20 p-3"
+                  class="rounded border border-border/50 bg-muted/20 p-3"
                 >
                   <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="space-y-1">
                       <p id={"evidence-detail-related-decision-key-#{index}"} class="text-sm font-medium">
                         {display_string(decision.decision_key)}
                       </p>
-                      <p id={"evidence-detail-related-decision-outcome-#{index}"} class="text-xs text-base-content/70">
+                      <p id={"evidence-detail-related-decision-outcome-#{index}"} class="text-xs text-muted-foreground">
                         Outcome: {display_atom(decision.decision)}
                       </p>
                     </div>
@@ -348,7 +348,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                       :if={decision_route(@route_repo_id, decision.id)}
                       id={"evidence-detail-related-decision-route-#{index}"}
                       navigate={decision_route(@route_repo_id, decision.id)}
-                      class="link link-primary text-xs"
+                      class="text-primary underline-offset-4 hover:underline text-xs"
                     >
                       Open decision
                     </.link>
@@ -361,11 +361,11 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
           <section
             :if={@memory_context}
             id="evidence-detail-memory-context"
-            class="space-y-3 rounded-xl border border-base-300 bg-base-100 p-6"
+            class="space-y-3 rounded-xl border border-border bg-card p-6"
           >
             <div class="space-y-1">
               <p class="text-sm font-medium">Evidence memory context</p>
-              <p id="evidence-detail-memory-context-state" class="text-xs text-base-content/70">
+              <p id="evidence-detail-memory-context-state" class="text-xs text-muted-foreground">
                 Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
               </p>
               <.operator_state_notice
@@ -390,11 +390,11 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
 
             <%= if @memory_context.surface do %>
               <div class="space-y-3">
-                <div class="rounded border border-base-300/50 bg-base-200/20 p-3">
+                <div class="rounded border border-border/50 bg-muted/20 p-3">
                   <p id="evidence-detail-memory-surface-label" class="text-sm font-medium">
                     {@memory_context.surface.label}
                   </p>
-                  <p id="evidence-detail-memory-surface-counts" class="text-xs text-base-content/70">
+                  <p id="evidence-detail-memory-surface-counts" class="text-xs text-muted-foreground">
                     Memory: {@memory_context.surface.memory_count} | Provenance: {@memory_context.surface.provenance_count}
                   </p>
                 </div>
@@ -402,37 +402,37 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                 <section
                   :if={@memory_follow_up_preview && @memory_follow_up_preview.available?}
                   id="evidence-detail-memory-follow-up-preview"
-                  class="space-y-2 rounded border border-base-300/50 bg-base-200/20 p-3"
+                  class="space-y-2 rounded border border-border/50 bg-muted/20 p-3"
                 >
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Memory-aware follow-up
                   </p>
                   <p id="evidence-detail-memory-follow-up-preview-summary" class="text-sm font-medium">
                     {@memory_follow_up_preview.summary}
                   </p>
-                  <p id="evidence-detail-memory-follow-up-preview-metadata" class="text-xs text-base-content/70">
+                  <p id="evidence-detail-memory-follow-up-preview-metadata" class="text-xs text-muted-foreground">
                     Recommended action: {@memory_follow_up_preview.recommended_action_label} | Priority: {@memory_follow_up_preview.priority} | Urgency: {@memory_follow_up_preview.urgency}
                   </p>
-                  <p id="evidence-detail-memory-follow-up-preview-kinds" class="text-xs text-base-content/70">
+                  <p id="evidence-detail-memory-follow-up-preview-kinds" class="text-xs text-muted-foreground">
                     Selected memory kinds: {Enum.join(@memory_follow_up_preview.memory_kinds, ", ")}
                   </p>
                   <.link
                     :if={@memory_follow_up_preview.route}
                     id="evidence-detail-memory-follow-up-preview-route"
                     navigate={@memory_follow_up_preview.route}
-                    class="link link-primary text-xs"
+                    class="text-primary underline-offset-4 hover:underline text-xs"
                   >
                     {@memory_follow_up_preview.route_label}
                   </.link>
                 </section>
 
                 <section class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Durable memories
                   </p>
 
                   <%= if @memory_context.surface.memories.items == [] do %>
-                    <p id="evidence-detail-memory-empty" class="text-xs text-base-content/70">
+                    <p id="evidence-detail-memory-empty" class="text-xs text-muted-foreground">
                       No durable memories currently point at this evidence record.
                     </p>
                   <% else %>
@@ -440,12 +440,12 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.surface.memories.items, 1)}
                         id={"evidence-detail-memory-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-200/20 p-3 space-y-2"
+                        class="rounded border border-border/50 bg-muted/20 p-3 space-y-2"
                       >
                         <p class="text-sm font-medium">
                           {memory_item_kind(item)}: {memory_item_content(item)}
                         </p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Freshness: {memory_item_freshness(item)} | Decision status: {memory_item_decision_status(item)}
                         </p>
                         <div class="flex flex-wrap gap-2">
@@ -454,7 +454,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                             id={"evidence-detail-memory-validate-#{index}"}
                             phx-click="validate_memory"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Validate
                           </button>
@@ -463,7 +463,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                             id={"evidence-detail-memory-invalidate-#{index}"}
                             phx-click="invalidate_memory"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Invalidate
                           </button>
@@ -472,7 +472,7 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                             id={"evidence-detail-memory-promote-#{index}"}
                             phx-click="promote_memory_follow_up"
                             phx-value-memory_iri={map_get(item, :memory_iri, "memory_iri")}
-                            class="btn btn-xs btn-outline"
+                            class="ui-button ui-button-xs ui-button-outline"
                           >
                             Create follow-up
                           </button>
@@ -490,18 +490,18 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                   phx-click="supersede_memory"
                   phx-value-memory_iri={decision_memory_iri(@memory_context.surface.memories.items)}
                   phx-value-decision_id={map_get(latest_record(@related_decisions), :id, "id")}
-                  class="btn btn-xs btn-outline"
+                  class="ui-button ui-button-xs ui-button-outline"
                 >
                   Supersede with latest decision
                 </button>
 
                 <section class="space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Workflow provenance
                   </p>
 
                   <%= if @memory_context.surface.provenance.items == [] do %>
-                    <p id="evidence-detail-memory-provenance-empty" class="text-xs text-base-content/70">
+                    <p id="evidence-detail-memory-provenance-empty" class="text-xs text-muted-foreground">
                       No workflow provenance currently points at this evidence record.
                     </p>
                   <% else %>
@@ -509,12 +509,12 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
                       <li
                         :for={{item, index} <- Enum.with_index(@memory_context.surface.provenance.items, 1)}
                         id={"evidence-detail-memory-provenance-item-#{index}"}
-                        class="rounded border border-base-300/50 bg-base-200/20 p-3 space-y-1"
+                        class="rounded border border-border/50 bg-muted/20 p-3 space-y-1"
                       >
                         <p class="text-sm font-medium">
                           {provenance_item_kind(item)}: {provenance_item_label(item)}
                         </p>
-                        <p class="text-xs text-base-content/70">
+                        <p class="text-xs text-muted-foreground">
                           Revision: {provenance_item_revision(item)}
                         </p>
                         <.memory_link_groups dom_prefix={"evidence-detail-memory-provenance-#{index}"} item={item} />
@@ -526,8 +526,8 @@ defmodule JidoCodeWeb.EvidenceDetailLive do
             <% end %>
           </section>
         <% else %>
-          <section class="rounded-xl border border-warning/40 bg-warning/10 p-6">
-            <p id="evidence-detail-missing-detail" class="text-sm text-base-content/80">
+          <section class="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 p-6">
+            <p id="evidence-detail-missing-detail" class="text-sm text-foreground">
               No governed evidence with id <span class="font-mono">{@evidence_id}</span>
               is available on this managed-repository route.
             </p>

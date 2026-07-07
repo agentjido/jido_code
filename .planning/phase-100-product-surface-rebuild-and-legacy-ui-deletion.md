@@ -52,22 +52,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 100.1.2.2 Subtask - Rebuild agents and runtime configuration surfaces with server-owned form and action boundaries.
       [x] 100.1.2.3 Subtask - Rebuild settings, provider auth, GitHub integration, and setup handoff content with the new shell and status patterns.
 
-  [ ] 100.2 Section - Detail And Conversation Surface Rebuild
+  [x] 100.2 Section - Detail And Conversation Surface Rebuild
     Bring dense detail routes and conversation surfaces into the same UI reset.
 
-    [ ] 100.2.1 Task - Rebuild governed detail surfaces.
+    [x] 100.2.1 Task - Rebuild governed detail surfaces.
       Keep deep operational detail useful while deleting old DaisyUI markup.
 
-      [ ] 100.2.1.1 Subtask - Rebuild run detail with SaladUI accordions, tables, badges, alerts, and action buttons.
-      [ ] 100.2.1.2 Subtask - Rebuild work-item, evidence, and decision detail routes with consistent area context and server-owned actions.
-      [ ] 100.2.1.3 Subtask - Preserve stable DOM ids needed by existing tests and browser flows where the behavior remains the same.
+      [x] 100.2.1.1 Subtask - Rebuild run detail with SaladUI accordions, tables, badges, alerts, and action buttons.
+      [x] 100.2.1.2 Subtask - Rebuild work-item, evidence, and decision detail routes with consistent area context and server-owned actions.
+      [x] 100.2.1.3 Subtask - Preserve stable DOM ids needed by existing tests and browser flows where the behavior remains the same.
 
-    [ ] 100.2.2 Task - Rebuild conversation and memory surfaces.
+    [x] 100.2.2 Task - Rebuild conversation and memory surfaces.
       Preserve runtime and recall behavior while replacing visual composition.
 
-      [ ] 100.2.2.1 Subtask - Rebuild conversation event streams, composer controls, status badges, cancellation controls, and clarification states using new primitives.
-      [ ] 100.2.2.2 Subtask - Rebuild memory, provenance, semantic, and source-graph panes with SaladUI server controls and shadcn-vue exploration islands where appropriate.
-      [ ] 100.2.2.3 Subtask - Keep transcript browsing and semantic graph degradation product-oriented under the new shell.
+      [x] 100.2.2.1 Subtask - Rebuild conversation event streams, composer controls, status badges, cancellation controls, and clarification states using new primitives.
+      [x] 100.2.2.2 Subtask - Rebuild memory, provenance, semantic, and source-graph panes with SaladUI server controls and shadcn-vue exploration islands where appropriate.
+      [x] 100.2.2.3 Subtask - Keep transcript browsing and semantic graph degradation product-oriented under the new shell.
 
   [ ] 100.3 Section - Vue Island Rewrite And Legacy Asset Removal
     Replace the current DaisyUI-styled LiveVue widgets with shadcn-vue primitives or delete them.

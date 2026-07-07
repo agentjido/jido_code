@@ -452,7 +452,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     >
       <section class="space-y-2">
         <h1 id="project-detail-title" class="text-2xl font-bold">Managed repo detail</h1>
-        <p class="text-base-content/70">
+        <p class="text-muted-foreground">
           Launch builtin workflows from the managed-repository control view with governed run traceability.
         </p>
       </section>
@@ -479,11 +479,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             <p id="project-detail-github-full-name" class="text-lg font-semibold">
               {@project_detail.github_full_name}
             </p>
-            <p id="project-detail-project-name" class="text-sm text-base-content/70">
+            <p id="project-detail-project-name" class="text-sm text-muted-foreground">
               {@project_detail.name}
             </p>
           </div>
-          <.link id="project-detail-return-link" class="btn btn-sm btn-outline" navigate={@return_to_path}>
+          <.link id="project-detail-return-link" class="ui-button ui-button-sm ui-button-outline" navigate={@return_to_path}>
             Back to {return_to_label(@return_to_path)}
           </.link>
         </div>
@@ -512,7 +512,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             <section :if={@selected_detail_section == :overview} id="project-detail-overview-panel" class="space-y-4">
               <div class="space-y-1">
                 <h2 class="text-lg font-semibold">Repository overview</h2>
-                <p class="text-sm text-base-content/70">
+                <p class="text-sm text-muted-foreground">
                   Start with repository identity, launch posture, and high-level workflow readiness before drilling into work, knowledge, or execution detail.
                 </p>
               </div>
@@ -526,19 +526,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
               <section
                 id="project-detail-workspace-binding-panel"
-                class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-4"
+                class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-4"
               >
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="space-y-1">
                     <h3 class="font-semibold">Repo-scoped workspace binding</h3>
-                    <p class="text-sm text-base-content/70">
+                    <p class="text-sm text-muted-foreground">
                       Setup runtime defaults only seed new imports. This repository keeps its own execution binding here.
                     </p>
                   </div>
                   <span
                     id="project-detail-workspace-binding-badge"
                     class={[
-                      "badge border font-medium",
+                      "ui-badge border font-medium",
                       detail_section_badge_class(workspace_binding_badge_tone(@project_detail))
                     ]}
                   >
@@ -547,14 +547,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 </div>
 
                 <div class="grid gap-3 md:grid-cols-4">
-                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                    <p class="text-xs uppercase text-base-content/60">Execution mode</p>
+                  <article class="rounded-lg border border-border/70 bg-card p-3">
+                    <p class="text-xs uppercase text-muted-foreground">Execution mode</p>
                     <p id="project-detail-workspace-binding-environment" class="mt-1 text-sm font-semibold">
                       {workspace_binding_environment_label(@project_detail)}
                     </p>
                   </article>
-                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                    <p class="text-xs uppercase text-base-content/60">Repository workspace path</p>
+                  <article class="rounded-lg border border-border/70 bg-card p-3">
+                    <p class="text-xs uppercase text-muted-foreground">Repository workspace path</p>
                     <p
                       id="project-detail-workspace-binding-path"
                       class="mt-1 text-sm font-semibold break-all"
@@ -562,8 +562,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       {workspace_binding_path_label(@project_detail)}
                     </p>
                   </article>
-                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                    <p class="text-xs uppercase text-base-content/60">Derived parent directory</p>
+                  <article class="rounded-lg border border-border/70 bg-card p-3">
+                    <p class="text-xs uppercase text-muted-foreground">Derived parent directory</p>
                     <p
                       id="project-detail-workspace-binding-root"
                       class="mt-1 text-sm font-semibold break-all"
@@ -571,8 +571,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       {workspace_binding_root_label(@project_detail)}
                     </p>
                   </article>
-                  <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                    <p class="text-xs uppercase text-base-content/60">Route runtime readiness</p>
+                  <article class="rounded-lg border border-border/70 bg-card p-3">
+                    <p class="text-xs uppercase text-muted-foreground">Route runtime readiness</p>
                     <p id="project-detail-workspace-binding-readiness" class="mt-1 text-sm font-semibold">
                       {workspace_binding_route_readiness_label(@project_detail)}
                     </p>
@@ -618,7 +618,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <p
                     :if={workspace_binding_form_local?(@workspace_binding_form_values)}
                     id="project-detail-workspace-binding-derived-root-note"
-                    class="text-xs text-base-content/65"
+                    class="text-xs text-muted-foreground"
                   >
                     {workspace_binding_derived_root_note(@workspace_binding_form_values)}
                   </p>
@@ -626,12 +626,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <p
                     :if={!workspace_binding_form_local?(@workspace_binding_form_values)}
                     id="project-detail-workspace-binding-sprite-note"
-                    class="text-xs text-base-content/65"
+                    class="text-xs text-muted-foreground"
                   >
                     Cloud-default mode leaves this repository unbound until you later save a local workspace path here.
                   </p>
 
-                  <p id="project-detail-workspace-binding-form-note" class="text-sm text-base-content/70">
+                  <p id="project-detail-workspace-binding-form-note" class="text-sm text-muted-foreground">
                     This updates only {@project_detail.github_full_name}. It does not rewrite setup defaults or sibling repositories.
                   </p>
                 </.form>
@@ -641,14 +641,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 <article
                   :for={section <- overview_subject_guides(assigns)}
                   id={"project-detail-overview-guide-#{section.section}"}
-                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+                  class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-3"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="space-y-1">
                       <h3 class="font-semibold">{section.label}</h3>
                       <p
                         id={"project-detail-overview-guide-#{section.section}-summary"}
-                        class="text-sm text-base-content/70"
+                        class="text-sm text-muted-foreground"
                       >
                         {section.summary}
                       </p>
@@ -657,7 +657,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       :if={section.badge}
                       id={"project-detail-overview-guide-#{section.section}-badge"}
                       class={[
-                        "badge badge-sm border font-medium",
+                        "ui-badge ui-badge-sm border font-medium",
                         detail_section_badge_class(section.badge.tone)
                       ]}
                     >
@@ -667,7 +667,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                   <.link
                     id={"project-detail-overview-open-#{section.section}"}
-                    class="btn btn-xs btn-outline"
+                    class="ui-button ui-button-xs ui-button-outline"
                     patch={
                       project_detail_section_path(
                         @project_detail,
@@ -690,14 +690,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             >
               <div class="space-y-1">
                 <h2 class="text-lg font-semibold">Repository conversation</h2>
-                <p class="text-sm text-base-content/70">
+                <p class="text-sm text-muted-foreground">
                   Repository conversations stay product-owned on this managed-repository route: repo intake stays bounded here, governed work-item conversations stay resumable here, and live delivery recovers from the latest durable snapshot when the stream degrades.
                 </p>
               </div>
 
               <section id="project-detail-conversation-workspace-summary" class="grid gap-3 md:grid-cols-3">
-                <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                <article class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Current focus
                   </p>
                   <p id="project-detail-conversation-workspace-focus" class="font-semibold">
@@ -707,7 +707,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       @repo_intake_surface
                     )}
                   </p>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     {conversation_workspace_focus_summary(
                       @selected_work_item_id,
                       @conversation_surface,
@@ -716,20 +716,20 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   </p>
                 </article>
 
-                <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                <article class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Governed work
                   </p>
                   <p id="project-detail-conversation-governed-count" class="font-semibold">
                     {length(@conversation_roster)} active thread{if length(@conversation_roster) == 1, do: "", else: "s"}
                   </p>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     {conversation_governed_summary(@conversation_roster)}
                   </p>
                 </article>
 
-                <article class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-2">
-                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/55">
+                <article class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Runtime posture
                   </p>
                   <p id="project-detail-conversation-workspace-runtime" class="font-semibold">
@@ -738,7 +738,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       @conversation_stream_mode
                     )}
                   </p>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     {conversation_workspace_runtime_summary(
                       @conversation_runtime,
                       @conversation_stream_mode
@@ -759,12 +759,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 <aside class="space-y-4">
                   <section
                     id="project-detail-conversation-intake"
-                    class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
+                    class="rounded-lg border border-border/70 bg-card p-4 space-y-3"
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="space-y-1">
                         <h3 class="font-semibold">Repo intake</h3>
-                        <p class="text-sm text-base-content/70">
+                        <p class="text-sm text-muted-foreground">
                           Keep triage and pre-work clarification here before work settles onto governed WorkItems.
                         </p>
                       </div>
@@ -786,34 +786,34 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                           />
                           <p
                             id="project-detail-conversation-intake-id"
-                            class="text-xs font-mono text-base-content/60"
+                            class="text-xs font-mono text-muted-foreground"
                           >
                             {Map.get(@repo_intake_surface.conversation, :id)}
                           </p>
                         </div>
                         <p
                           id="project-detail-conversation-intake-detail"
-                          class="text-sm text-base-content/80"
+                          class="text-sm text-foreground"
                         >
                           {repo_intake_summary(@repo_intake_surface)}
                         </p>
                         <p
                           :if={repo_intake_handoff_work_item_id(@repo_intake_surface)}
                           id="project-detail-conversation-intake-handoff"
-                          class="text-xs text-base-content/70"
+                          class="text-xs text-muted-foreground"
                         >
                           Latest handoff targets WorkItem {repo_intake_handoff_work_item_id(@repo_intake_surface)}.
                         </p>
                         <p
                           :if={conversation_latest_activity_label(@repo_intake_surface)}
                           id="project-detail-conversation-intake-latest-activity"
-                          class="text-xs text-base-content/70"
+                          class="text-xs text-muted-foreground"
                         >
                           Latest activity: {conversation_latest_activity_label(@repo_intake_surface)}
                         </p>
                       </div>
                     <% else %>
-                      <p id="project-detail-conversation-intake-empty" class="text-sm text-base-content/70">
+                      <p id="project-detail-conversation-intake-empty" class="text-sm text-muted-foreground">
                         No repo intake conversation is open yet for this managed repository.
                       </p>
                     <% end %>
@@ -832,7 +832,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         :if={@selected_work_item_id}
                         id="project-detail-conversation-focus-intake"
                         type="button"
-                        class="btn btn-xs btn-outline"
+                        class="ui-button ui-button-xs ui-button-outline"
                         phx-click="focus_repo_intake_conversation"
                       >
                         View repo intake detail
@@ -840,7 +840,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       <button
                         id="project-detail-conversation-open"
                         type="button"
-                        class="btn btn-sm btn-primary"
+                        class="ui-button ui-button-sm ui-button-primary"
                         phx-click="open_repo_conversation"
                       >
                         {@repo_intake_surface.action_label}
@@ -850,16 +850,16 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                   <section
                     id="project-detail-conversation-roster"
-                    class="rounded-lg border border-base-300/70 bg-base-100 p-4 space-y-3"
+                    class="rounded-lg border border-border/70 bg-card p-4 space-y-3"
                   >
                     <div class="flex flex-wrap items-center justify-between gap-3">
                       <div class="space-y-1">
                         <h3 class="font-semibold">Active governed conversations</h3>
-                        <p class="text-sm text-base-content/70">
+                        <p class="text-sm text-muted-foreground">
                           Each active work item keeps its own productive conversation thread.
                         </p>
                       </div>
-                      <span id="project-detail-conversation-roster-count" class="badge badge-outline">
+                      <span id="project-detail-conversation-roster-count" class="ui-badge ui-badge-outline">
                         {length(@conversation_roster)}
                       </span>
                     </div>
@@ -874,7 +874,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     />
 
                     <%= if @conversation_roster == [] do %>
-                      <p id="project-detail-conversation-roster-empty" class="text-sm text-base-content/70">
+                      <p id="project-detail-conversation-roster-empty" class="text-sm text-muted-foreground">
                         No active governed work-item conversations are attached to this repository yet.
                       </p>
                     <% else %>
@@ -886,7 +886,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             "rounded-lg border p-3 space-y-2",
                             if(conversation_roster_selected?(@selected_work_item_id, entry),
                               do: "border-primary/60 bg-primary/5",
-                              else: "border-base-300/70 bg-base-200/20"
+                              else: "border-border/70 bg-muted/20"
                             )
                           ]}
                         >
@@ -898,7 +898,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                               >
                                 {Map.get(entry.work_item || %{}, :summary)}
                               </p>
-                              <p class="text-xs text-base-content/70">
+                              <p class="text-xs text-muted-foreground">
                                 {Map.get(entry.work_item || %{}, :id)}
                               </p>
                             </div>
@@ -918,7 +918,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                           <p
                             id={"project-detail-conversation-roster-detail-#{Map.get(entry.work_item || %{}, :id)}"}
-                            class="text-sm text-base-content/80"
+                            class="text-sm text-foreground"
                           >
                             {conversation_surface_summary(entry)}
                           </p>
@@ -926,7 +926,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                           <p
                             :if={conversation_latest_activity_label(entry)}
                             id={"project-detail-conversation-roster-latest-activity-#{Map.get(entry.work_item || %{}, :id)}"}
-                            class="text-xs text-base-content/70"
+                            class="text-xs text-muted-foreground"
                           >
                             Latest activity: {conversation_latest_activity_label(entry)}
                           </p>
@@ -934,7 +934,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                           <p
                             :if={entry.historical_conversation}
                             id={"project-detail-conversation-roster-history-#{Map.get(entry.work_item || %{}, :id)}"}
-                            class="text-xs text-base-content/70"
+                            class="text-xs text-muted-foreground"
                           >
                             Historical lineage preserved from {entry.historical_conversation.id}.
                           </p>
@@ -943,7 +943,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             <button
                               id={"project-detail-conversation-roster-focus-#{Map.get(entry.work_item || %{}, :id)}"}
                               type="button"
-                              class="btn btn-xs btn-outline"
+                              class="ui-button ui-button-xs ui-button-outline"
                               phx-click="focus_work_item_conversation"
                               phx-value-work_item_id={Map.get(entry.work_item || %{}, :id)}
                             >
@@ -960,21 +960,21 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                 <section
                   id="project-detail-conversation-detail"
-                  class="rounded-lg border border-base-300/70 bg-base-100"
+                  class="rounded-lg border border-border/70 bg-card"
                 >
-                  <div class="border-b border-base-300/70 px-4 py-3 space-y-2">
+                  <div class="border-b border-border/70 px-4 py-3 space-y-2">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="space-y-1">
                         <h3 id="project-detail-conversation-detail-title" class="font-semibold">
                           {selected_conversation_title(@selected_work_item_id, @conversation_surface)}
                         </h3>
-                        <p class="text-sm text-base-content/70">
+                        <p class="text-sm text-muted-foreground">
                           {selected_conversation_summary(@selected_work_item_id, @conversation_surface)}
                         </p>
                         <p
                           :if={@selected_work_item_id && @conversation_surface.work_item}
                           id="project-detail-selected-work-item"
-                          class="text-xs text-base-content/70"
+                          class="text-xs text-muted-foreground"
                         >
                           Following governed conversation for WorkItem {@selected_work_item_id}.
                         </p>
@@ -996,7 +996,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         <p
                           :if={@conversation_surface.conversation}
                           id="project-detail-conversation-id"
-                          class="text-xs font-mono text-base-content/60"
+                          class="text-xs font-mono text-muted-foreground"
                         >
                           {Map.get(@conversation_surface.conversation, :id)}
                         </p>
@@ -1014,19 +1014,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                     <section
                       id="project-detail-conversation-runtime"
-                      class="rounded-lg border border-base-300/70 bg-base-200/20 p-3 space-y-3"
+                      class="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-3"
                     >
                       <div class="flex flex-wrap items-start justify-between gap-3">
                         <div class="space-y-1">
                           <h4 class="font-semibold">Conversation runtime readiness</h4>
-                          <p class="text-xs text-base-content/60">
+                          <p class="text-xs text-muted-foreground">
                             Selected LLM, repo-scoped workspace binding, and readiness stay visible on the route before runtime metadata.
                           </p>
                         </div>
                         <span
                           id="project-detail-conversation-runtime-status"
                           class={[
-                            "badge badge-sm badge-outline font-medium",
+                            "ui-badge ui-badge-sm ui-badge-outline font-medium",
                             conversation_runtime_status_class(@conversation_runtime)
                           ]}
                         >
@@ -1035,24 +1035,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       </div>
 
                       <div class="grid gap-2 md:grid-cols-3">
-                        <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
-                          <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                        <article class="rounded-md border border-border/70 bg-card p-3">
+                          <p class="text-[11px] uppercase tracking-wide text-muted-foreground">
                             Selected LLM
                           </p>
                           <p id="project-detail-conversation-runtime-llm" class="mt-1 text-sm font-medium break-all">
                             {conversation_runtime_llm_label(@conversation_runtime)}
                           </p>
                         </article>
-                        <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
-                          <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                        <article class="rounded-md border border-border/70 bg-card p-3">
+                          <p class="text-[11px] uppercase tracking-wide text-muted-foreground">
                             Selection source
                           </p>
                           <p id="project-detail-conversation-runtime-source" class="mt-1 text-sm font-medium">
                             {conversation_runtime_source_label(@conversation_runtime)}
                           </p>
                         </article>
-                        <article class="rounded-md border border-base-300/70 bg-base-100 p-3">
-                          <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                        <article class="rounded-md border border-border/70 bg-card p-3">
+                          <p class="text-[11px] uppercase tracking-wide text-muted-foreground">
                             Repo workspace path
                           </p>
                           <p
@@ -1085,7 +1085,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 anchor: "project-detail-workspace-binding-panel"
                               )
                             }
-                            class="btn btn-sm btn-outline"
+                            class="ui-button ui-button-sm ui-button-outline"
                           >
                             Repair workspace binding
                           </.link>
@@ -1104,7 +1104,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     <div
                       :if={@conversation_stream_mode == :degraded}
                       id="project-detail-conversation-degraded"
-                      class="rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm text-warning-content"
+                      class="rounded-lg border border-accent-yellow/60 bg-accent-yellow/10 p-3 text-sm text-accent-yellow"
                     >
                       <p class="font-semibold">Conversation stream degraded</p>
                       <p class="mt-1">{@conversation_degraded_mode_message}</p>
@@ -1114,20 +1114,20 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <%= cond do %>
                     <% @conversation_surface.snapshot -> %>
                       <div class="grid gap-3 lg:grid-cols-[2fr,1fr] p-4">
-                        <section class="rounded-lg border border-base-300/70 bg-base-100">
-                          <div class="border-b border-base-300/70 px-4 py-3">
+                        <section class="rounded-lg border border-border/70 bg-card">
+                          <div class="border-b border-border/70 px-4 py-3">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                               <div>
                                 <h3 class="font-semibold">Conversation transcript</h3>
-                                <p class="text-xs text-base-content/60">
+                                <p class="text-xs text-muted-foreground">
                                   Recent event-driven transcript and operator controls for the selected conversation.
                                 </p>
                               </div>
                             </div>
 
                             <div id="project-detail-conversation-continuity" class="mt-3 grid gap-2 md:grid-cols-3">
-                              <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
-                                <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                              <article class="rounded-md border border-border/70 bg-muted/20 p-3">
+                                <p class="text-[11px] uppercase tracking-wide text-muted-foreground">
                                   Stream continuity
                                 </p>
                                 <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -1139,7 +1139,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 </div>
                                 <p
                                   id="project-detail-conversation-continuity-detail"
-                                  class="mt-2 text-xs text-base-content/70"
+                                  class="mt-2 text-xs text-muted-foreground"
                                 >
                                   {conversation_continuity_detail(
                                     @conversation_stream_mode,
@@ -1148,8 +1148,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 </p>
                               </article>
 
-                              <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
-                                <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                              <article class="rounded-md border border-border/70 bg-muted/20 p-3">
+                                <p class="text-[11px] uppercase tracking-wide text-muted-foreground">
                                   Latest activity
                                 </p>
                                 <p
@@ -1159,13 +1159,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                   {conversation_latest_activity_label(@conversation_surface) ||
                                     "No recent conversation activity"}
                                 </p>
-                                <p class="mt-2 text-xs text-base-content/70">
+                                <p class="mt-2 text-xs text-muted-foreground">
                                   Route continuity stays anchored to the latest durable snapshot.
                                 </p>
                               </article>
 
-                              <article class="rounded-md border border-base-300/70 bg-base-200/20 p-3">
-                                <p class="text-[11px] uppercase tracking-wide text-base-content/60">
+                              <article class="rounded-md border border-border/70 bg-muted/20 p-3">
+                                <p class="text-[11px] uppercase tracking-wide text-muted-foreground">
                                   Current turn
                                 </p>
                                 <p
@@ -1176,7 +1176,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 </p>
                                 <p
                                   id="project-detail-conversation-sequence-summary"
-                                  class="mt-2 text-xs text-base-content/70"
+                                  class="mt-2 text-xs text-muted-foreground"
                                 >
                                   {conversation_sequence_summary(
                                     @conversation_last_event_sequence,
@@ -1202,11 +1202,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             <% end %>
                           </div>
 
-                          <div class="border-t border-base-300/70 px-4 py-4">
+                          <div class="border-t border-border/70 px-4 py-4">
                             <div
                               :if={conversation_pending_clarification(@conversation_snapshot)}
                               id="project-detail-conversation-pending-clarification"
-                              class="mb-3 rounded-lg border border-warning/60 bg-warning/10 p-3 text-sm"
+                              class="mb-3 rounded-lg border border-accent-yellow/60 bg-accent-yellow/10 p-3 text-sm"
                             >
                               <p class="font-semibold">Input required</p>
                               <p class="mt-1">
@@ -1234,13 +1234,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                     "Describe the repository work this conversation should coordinate…"
                                   end
                                 }
-                                class="input input-bordered flex-1"
+                                class="flex-1 ui-input"
                                 autocomplete="off"
                               />
                               <button
                                 id="project-detail-conversation-submit"
                                 type="submit"
-                                class="btn btn-primary"
+                                class="ui-button ui-button-primary"
                                 disabled={
                                   String.trim(@conversation_input) == "" || conversation_paused?(@conversation_snapshot)
                                 }
@@ -1254,11 +1254,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                         </section>
 
                         <aside class="space-y-3">
-                          <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                          <section class="rounded-lg border border-border/70 bg-card p-4">
                             <h3 class="font-semibold">Conversation state</h3>
                             <dl class="mt-3 space-y-2 text-sm">
                               <div class="flex justify-between gap-3">
-                                <dt class="text-base-content/70">Status</dt>
+                                <dt class="text-muted-foreground">Status</dt>
                                 <dd class="font-medium">
                                   <.conversation_status_badge
                                     id="project-detail-conversation-status-detail"
@@ -1267,7 +1267,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 </dd>
                               </div>
                               <div class="flex justify-between gap-3">
-                                <dt class="text-base-content/70">Scope</dt>
+                                <dt class="text-muted-foreground">Scope</dt>
                                 <dd class="font-medium">
                                   <.conversation_role_badge
                                     id="project-detail-conversation-scope"
@@ -1278,25 +1278,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 </dd>
                               </div>
                               <div class="flex justify-between gap-3">
-                                <dt class="text-base-content/70">Attachment</dt>
+                                <dt class="text-muted-foreground">Attachment</dt>
                                 <dd id="project-detail-conversation-attachment" class="font-medium">
                                   {Map.get(@conversation_surface.conversation, :attachment_mode)}
                                 </dd>
                               </div>
                               <div class="flex justify-between gap-3">
-                                <dt class="text-base-content/70">Work item</dt>
+                                <dt class="text-muted-foreground">Work item</dt>
                                 <dd id="project-detail-conversation-work-item" class="font-medium">
                                   {Map.get(@conversation_snapshot, :work_item_id) || "repo-scoped"}
                                 </dd>
                               </div>
                               <div class="flex justify-between gap-3">
-                                <dt class="text-base-content/70">Resolution</dt>
+                                <dt class="text-muted-foreground">Resolution</dt>
                                 <dd id="project-detail-conversation-work-resolution" class="font-medium">
                                   {conversation_work_resolution_action(@conversation_surface)}
                                 </dd>
                               </div>
                               <div class="flex justify-between gap-3">
-                                <dt class="text-base-content/70">Active turn</dt>
+                                <dt class="text-muted-foreground">Active turn</dt>
                                 <dd class="font-medium">
                                   {conversation_turn_state(@conversation_snapshot)}
                                 </dd>
@@ -1306,11 +1306,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             <section
                               :if={@conversation_surface.work_item}
                               id="project-detail-conversation-governed-work"
-                              class="mt-4 rounded-lg border border-base-300/70 bg-base-200/20 p-3"
+                              class="mt-4 rounded-lg border border-border/70 bg-muted/20 p-3"
                             >
                               <div class="flex items-start justify-between gap-3">
                                 <div class="space-y-1">
-                                  <p class="text-xs uppercase tracking-wide text-base-content/60">
+                                  <p class="text-xs uppercase tracking-wide text-muted-foreground">
                                     Governed work item
                                   </p>
                                   <p
@@ -1321,14 +1321,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                   </p>
                                   <p
                                     id="project-detail-conversation-governed-work-id"
-                                    class="text-xs font-mono text-base-content/60"
+                                    class="text-xs font-mono text-muted-foreground"
                                   >
                                     {Map.get(@conversation_surface.work_item, :id)}
                                   </p>
                                 </div>
                                 <span
                                   id="project-detail-conversation-governed-work-status"
-                                  class="rounded-full bg-base-200 px-3 py-1 text-xs font-semibold"
+                                  class="rounded-full bg-muted px-3 py-1 text-xs font-semibold"
                                 >
                                   {Map.get(@conversation_surface.work_item, :status)}
                                 </span>
@@ -1336,7 +1336,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                               <p
                                 id="project-detail-conversation-work-resolution-detail"
-                                class="mt-2 text-sm text-base-content/70"
+                                class="mt-2 text-sm text-muted-foreground"
                               >
                                 {conversation_work_resolution_detail(@conversation_surface)}
                               </p>
@@ -1345,7 +1345,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                                 <.link
                                   :if={conversation_workbench_path(@project_detail)}
                                   id="project-detail-conversation-open-workbench"
-                                  class="btn btn-xs btn-outline"
+                                  class="ui-button ui-button-xs ui-button-outline"
                                   navigate={conversation_workbench_path(@project_detail)}
                                 >
                                   Open in Workbench
@@ -1354,12 +1354,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             </section>
                           </section>
 
-                          <section class="rounded-lg border border-base-300/70 bg-base-100 p-4">
+                          <section class="rounded-lg border border-border/70 bg-card p-4">
                             <h3 class="font-semibold">Execution</h3>
                             <div
                               :if={conversation_latest_progress(@conversation_snapshot)}
                               id="project-detail-conversation-progress"
-                              class="mt-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm"
+                              class="mt-3 rounded-lg border border-accent-cyan/40 bg-accent-cyan/10 p-3 text-sm"
                             >
                               <p class="font-semibold">Latest progress</p>
                               <p class="mt-1">
@@ -1371,7 +1371,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                             <div
                               :if={conversation_stdout_preview(@conversation_snapshot) != []}
                               id="project-detail-conversation-stdout"
-                              class="mt-3 rounded-lg border border-base-300/70 bg-base-200/30 p-3 text-sm"
+                              class="mt-3 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm"
                             >
                               <p class="font-semibold">Recent tool output</p>
                               <pre class="mt-2 whitespace-pre-wrap font-mono text-xs">
@@ -1385,7 +1385,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                               <button
                                 id="project-detail-conversation-pause"
                                 type="button"
-                                class="btn btn-sm btn-outline"
+                                class="ui-button ui-button-sm ui-button-outline"
                                 phx-click="pause_conversation"
                                 disabled={
                                   conversation_paused?(@conversation_snapshot) ||
@@ -1397,7 +1397,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                               <button
                                 id="project-detail-conversation-resume"
                                 type="button"
-                                class="btn btn-sm btn-outline"
+                                class="ui-button ui-button-sm ui-button-outline"
                                 phx-click="resume_conversation"
                                 disabled={!conversation_paused?(@conversation_snapshot)}
                               >
@@ -1406,7 +1406,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                               <button
                                 id="project-detail-conversation-stop-turn"
                                 type="button"
-                                class="btn btn-sm btn-outline"
+                                class="ui-button ui-button-sm ui-button-outline"
                                 phx-click="stop_conversation_turn"
                                 disabled={!conversation_active_turn?(@conversation_snapshot)}
                               >
@@ -1418,25 +1418,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       </div>
                     <% @conversation_surface.conversation || @conversation_surface.work_item -> %>
                       <div class="p-4 space-y-4">
-                        <section class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3">
+                        <section class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-3">
                           <p
                             :if={@conversation_surface.conversation}
                             id="project-detail-conversation-detail-summary"
-                            class="text-sm text-base-content/80"
+                            class="text-sm text-foreground"
                           >
                             {conversation_surface_summary(@conversation_surface)}
                           </p>
                           <p
                             :if={@conversation_surface.work_item}
                             id="project-detail-conversation-detail-work-item"
-                            class="text-sm text-base-content/70"
+                            class="text-sm text-muted-foreground"
                           >
                             Governed work item: {Map.get(@conversation_surface.work_item, :summary)}
                           </p>
                           <p
                             :if={@conversation_surface.historical_conversation}
                             id="project-detail-conversation-detail-history"
-                            class="text-xs text-base-content/70"
+                            class="text-xs text-muted-foreground"
                           >
                             Historical lineage preserved from {@conversation_surface.historical_conversation.id}.
                           </p>
@@ -1445,7 +1445,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                               :if={@selected_work_item_id}
                               id="project-detail-conversation-open-selected"
                               type="button"
-                              class="btn btn-sm btn-primary"
+                              class="ui-button ui-button-sm ui-button-primary"
                               phx-click="open_selected_conversation"
                             >
                               {@conversation_surface.action_label}
@@ -1454,7 +1454,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                               :if={!@selected_work_item_id}
                               id="project-detail-conversation-open-detail"
                               type="button"
-                              class="btn btn-sm btn-primary"
+                              class="ui-button ui-button-sm ui-button-primary"
                               phx-click="open_repo_conversation"
                             >
                               {@repo_intake_surface.action_label}
@@ -1464,14 +1464,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       </div>
                     <% true -> %>
                       <div class="p-4">
-                        <div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 p-4 space-y-3">
-                          <p class="text-sm text-base-content/70">
+                        <div class="rounded-lg border border-dashed border-border bg-muted/30 p-4 space-y-3">
+                          <p class="text-sm text-muted-foreground">
                             Open a repository conversation to coordinate repo-scoped work without leaving the managed-repository detail route.
                           </p>
                           <button
                             id="project-detail-conversation-open-empty"
                             type="button"
-                            class="btn btn-primary btn-sm"
+                            class="ui-button ui-button-sm ui-button-primary"
                             phx-click="open_repo_conversation"
                           >
                             {@repo_intake_surface.action_label}
@@ -1487,7 +1487,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     Semantic source-code graph insights stay repo-scoped, bounded, product-owned, and tied to this repository's own workspace binding.
                   </p>
                 </div>
@@ -1522,34 +1522,34 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <div class="grid gap-3 md:grid-cols-4">
                     <article
                       id="project-detail-semantic-fallback-modules"
-                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                      class="rounded-lg border border-border/70 bg-card p-3"
                     >
-                      <p class="text-xs uppercase text-base-content/60">Modules</p>
+                      <p class="text-xs uppercase text-muted-foreground">Modules</p>
                       <p class="mt-1 text-xl font-semibold">
                         {semantic_group_count(@semantic_inspection.summary, :modules)}
                       </p>
                     </article>
                     <article
                       id="project-detail-semantic-fallback-functions"
-                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                      class="rounded-lg border border-border/70 bg-card p-3"
                     >
-                      <p class="text-xs uppercase text-base-content/60">Functions</p>
+                      <p class="text-xs uppercase text-muted-foreground">Functions</p>
                       <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.functions)}</p>
                     </article>
                     <article
                       id="project-detail-semantic-fallback-runtime-patterns"
-                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                      class="rounded-lg border border-border/70 bg-card p-3"
                     >
-                      <p class="text-xs uppercase text-base-content/60">Runtime patterns</p>
+                      <p class="text-xs uppercase text-muted-foreground">Runtime patterns</p>
                       <p class="mt-1 text-xl font-semibold">
                         {semantic_result_count(@semantic_inspection.runtime_patterns)}
                       </p>
                     </article>
                     <article
                       id="project-detail-semantic-fallback-impact"
-                      class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                      class="rounded-lg border border-border/70 bg-card p-3"
                     >
-                      <p class="text-xs uppercase text-base-content/60">Impact relationships</p>
+                      <p class="text-xs uppercase text-muted-foreground">Impact relationships</p>
                       <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.impact)}</p>
                     </article>
                   </div>
@@ -1559,7 +1559,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       <h3 class="font-medium">Modules</h3>
                       <p
                         :if={Enum.empty?(semantic_items(@semantic_inspection.modules))}
-                        class="text-sm text-base-content/70"
+                        class="text-sm text-muted-foreground"
                       >
                         No module summaries are currently available.
                       </p>
@@ -1574,7 +1574,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                       <h3 class="font-medium">Impact</h3>
                       <p
                         :if={Enum.empty?(semantic_items(@semantic_inspection.impact))}
-                        class="text-sm text-base-content/70"
+                        class="text-sm text-muted-foreground"
                       >
                         No bounded impact relationships are currently available.
                       </p>
@@ -1593,7 +1593,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, product-owned, and tied to this repository's own workspace binding.
                   </p>
                 </div>
@@ -1619,32 +1619,32 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               />
 
               <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                  <p class="text-xs uppercase text-base-content/60">Durable memories</p>
+                <article class="rounded-lg border border-border/70 bg-card p-3">
+                  <p class="text-xs uppercase text-muted-foreground">Durable memories</p>
                   <p id="project-detail-memory-summary-memories" class="mt-1 text-xl font-semibold">
                     {memory_group_count(@memory_inspection.summary, :memories)}
                   </p>
                 </article>
-                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                  <p class="text-xs uppercase text-base-content/60">Conversation recall</p>
+                <article class="rounded-lg border border-border/70 bg-card p-3">
+                  <p class="text-xs uppercase text-muted-foreground">Conversation recall</p>
                   <p id="project-detail-memory-summary-conversation-recall" class="mt-1 text-xl font-semibold">
                     {memory_projection_count(@memory_inspection.conversation_recall)}
                   </p>
                 </article>
-                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                  <p class="text-xs uppercase text-base-content/60">Workflow provenance</p>
+                <article class="rounded-lg border border-border/70 bg-card p-3">
+                  <p class="text-xs uppercase text-muted-foreground">Workflow provenance</p>
                   <p id="project-detail-memory-summary-provenance" class="mt-1 text-xl font-semibold">
                     {memory_group_count(@memory_inspection.summary, :provenance)}
                   </p>
                 </article>
-                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                  <p class="text-xs uppercase text-base-content/60">Memory state</p>
+                <article class="rounded-lg border border-border/70 bg-card p-3">
+                  <p class="text-xs uppercase text-muted-foreground">Memory state</p>
                   <p id="project-detail-memory-summary-state" class="mt-1 text-sm font-semibold">
                     {Map.get(@memory_inspection.graph, :state, :unavailable)}
                   </p>
                 </article>
-                <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-                  <p class="text-xs uppercase text-base-content/60">Validated revision</p>
+                <article class="rounded-lg border border-border/70 bg-card p-3">
+                  <p class="text-xs uppercase text-muted-foreground">Validated revision</p>
                   <p id="project-detail-memory-summary-revision" class="mt-1 text-sm font-semibold break-all">
                     {Map.get(@memory_inspection.graph, :validated_revision) || "Not validated"}
                   </p>
@@ -1654,20 +1654,20 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <div class="grid gap-3 xl:grid-cols-3">
                 <section id="project-detail-memory-list" class="space-y-2">
                   <h3 class="font-medium">Durable memory</h3>
-                  <p :if={Enum.empty?(memory_items(@memory_inspection.memories))} class="text-sm text-base-content/70">
+                  <p :if={Enum.empty?(memory_items(@memory_inspection.memories))} class="text-sm text-muted-foreground">
                     No durable memory is currently available for this repository.
                   </p>
                   <ul :if={!Enum.empty?(memory_items(@memory_inspection.memories))} class="space-y-2 text-sm">
                     <li
                       :for={item <- memory_items(@memory_inspection.memories)}
                       id={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
-                      class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                      class="rounded-md border border-border/60 bg-card p-3"
                     >
                       <p class="font-medium">
                         {Map.get(item, :memory_kind) || "Memory"}
                       </p>
-                      <p class="text-base-content/80">{Map.get(item, :content)}</p>
-                      <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
+                      <p class="text-foreground">{Map.get(item, :content)}</p>
+                      <p :if={Map.get(item, :module_name)} class="text-xs text-muted-foreground">
                         Code anchor: {Map.get(item, :module_name)}
                       </p>
                       <.memory_link_groups
@@ -1680,12 +1680,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                 <section id="project-detail-conversation-recall-list" class="space-y-2">
                   <h3 class="font-medium">Conversation-origin recall</h3>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     Bounded origin summaries stay explorable here without turning repository memory into a transcript browser.
                   </p>
                   <p
                     :if={Enum.empty?(memory_items(@memory_inspection.conversation_recall))}
-                    class="text-sm text-base-content/70"
+                    class="text-sm text-muted-foreground"
                   >
                     No bounded conversation-origin recall is currently available for this repository.
                   </p>
@@ -1696,7 +1696,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     <li
                       :for={{item, index} <- Enum.with_index(memory_items(@memory_inspection.conversation_recall), 1)}
                       id={"project-detail-conversation-recall-item-#{index}"}
-                      class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                      class="rounded-md border border-border/60 bg-card p-3"
                     >
                       <.conversation_origin_card
                         dom_prefix={"project-detail-conversation-recall-item-#{index}"}
@@ -1708,20 +1708,20 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
                 <section id="project-detail-provenance-list" class="space-y-2">
                   <h3 class="font-medium">Workflow provenance</h3>
-                  <p :if={Enum.empty?(memory_items(@memory_inspection.provenance))} class="text-sm text-base-content/70">
+                  <p :if={Enum.empty?(memory_items(@memory_inspection.provenance))} class="text-sm text-muted-foreground">
                     No workflow provenance is currently available for this repository.
                   </p>
                   <ul :if={!Enum.empty?(memory_items(@memory_inspection.provenance))} class="space-y-2 text-sm">
                     <li
                       :for={item <- memory_items(@memory_inspection.provenance)}
                       id={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
-                      class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                      class="rounded-md border border-border/60 bg-card p-3"
                     >
                       <p class="font-medium">
                         {Map.get(item, :label) || Map.get(item, :provenance_kind) || "Provenance"}
                       </p>
-                      <p :if={Map.get(item, :content)} class="text-base-content/80">{Map.get(item, :content)}</p>
-                      <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
+                      <p :if={Map.get(item, :content)} class="text-foreground">{Map.get(item, :content)}</p>
+                      <p :if={Map.get(item, :module_name)} class="text-xs text-muted-foreground">
                         Code anchor: {Map.get(item, :module_name)}
                       </p>
                       <.memory_link_groups
@@ -1738,21 +1738,21 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <section class="space-y-2">
                 <div class="space-y-1">
                   <h2 class="text-lg font-semibold">Workflow launch and defaults</h2>
-                  <p class="text-sm text-base-content/70">
+                  <p class="text-sm text-muted-foreground">
                     Keep repo-scoped workspace binding, readiness remediation, and governed workflow kickoff together so this route stays an action surface instead of generic repository tooling.
                   </p>
                 </div>
 
                 <article
                   id="project-detail-workflow-readiness-summary"
-                  class="rounded-lg border border-base-300/70 bg-base-200/20 p-4 space-y-3"
+                  class="rounded-lg border border-border/70 bg-muted/20 p-4 space-y-3"
                 >
                   <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="space-y-1">
                       <h3 class="font-semibold">Governed launch posture</h3>
                       <p
                         id="project-detail-workflow-readiness-detail"
-                        class="text-sm text-base-content/70"
+                        class="text-sm text-muted-foreground"
                       >
                         {workflow_launch_posture_summary(@project_detail)}
                       </p>
@@ -1760,7 +1760,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     <span
                       id="project-detail-workflow-readiness-badge"
                       class={[
-                        "badge border font-medium",
+                        "ui-badge border font-medium",
                         workflow_launch_posture_badge_class(@project_detail)
                       ]}
                     >
@@ -1772,19 +1772,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
               <section
                 id="project-detail-workflow-defaults"
-                class="rounded-lg border border-base-300 bg-base-200/40 p-3 space-y-1"
+                class="rounded-lg border border-border bg-muted/40 p-3 space-y-1"
               >
                 <p class="text-sm font-medium">Managed repository launch defaults</p>
-                <p id="project-detail-default-branch" class="text-sm text-base-content/80">
+                <p id="project-detail-default-branch" class="text-sm text-foreground">
                   Default branch: {@project_detail.default_branch}
                 </p>
-                <p id="project-detail-default-repository" class="text-sm text-base-content/80">
+                <p id="project-detail-default-repository" class="text-sm text-foreground">
                   Repository: {@project_detail.github_full_name}
                 </p>
                 <p
                   :if={@project_detail.managed_repo_id}
                   id="project-detail-managed-repo-id"
-                  class="text-xs text-base-content/70"
+                  class="text-xs text-muted-foreground"
                 >
                   Managed repo: {@project_detail.managed_repo_id}
                 </p>
@@ -1793,7 +1793,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <section
                 :if={!project_ready_for_launch?(@project_detail)}
                 id="project-detail-launch-disabled-guidance"
-                class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-1"
+                class="rounded-lg border border-accent-yellow/60 bg-accent-yellow/10 p-3 space-y-1"
               >
                 <p id="project-detail-launch-disabled-label" class="font-semibold">
                   Workflow launch controls are disabled
@@ -1813,7 +1813,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 <article
                   :for={workflow <- @supported_workflows}
                   id={"project-detail-workflow-card-#{workflow_dom_id(workflow.name)}"}
-                  class="rounded-lg border border-base-300 p-3 space-y-2"
+                  class="rounded-lg border border-border p-3 space-y-2"
                 >
                   <div>
                     <h2
@@ -1824,7 +1824,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     </h2>
                     <p
                       id={"project-detail-workflow-name-#{workflow_dom_id(workflow.name)}"}
-                      class="text-xs font-mono text-base-content/70"
+                      class="text-xs font-mono text-muted-foreground"
                     >
                       {workflow.name}
                     </p>
@@ -1834,7 +1834,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     <button
                       id={"project-detail-launch-#{workflow_dom_id(workflow.name)}"}
                       type="button"
-                      class="btn btn-sm btn-primary"
+                      class="ui-button ui-button-sm ui-button-primary"
                       phx-click="kickoff_workflow"
                       phx-value-workflow_name={workflow.name}
                     >
@@ -1843,7 +1843,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                   <% else %>
                     <span
                       id={"project-detail-launch-disabled-#{workflow_dom_id(workflow.name)}"}
-                      class="btn btn-sm btn-disabled cursor-not-allowed"
+                      class="ui-button ui-button-sm ui-button-disabled cursor-not-allowed"
                       aria-disabled="true"
                     >
                       Launch workflow
@@ -1863,7 +1863,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 id="project-detail-workspace-binding-save"
                 type="submit"
                 form="project-detail-workspace-binding-form"
-                class="btn btn-primary"
+                class="ui-button ui-button-primary"
               >
                 {workspace_binding_save_button_label(@workspace_binding_form_values)}
               </button>
@@ -1871,7 +1871,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <.link
                 :if={@selected_detail_section == :overview}
                 id="project-detail-overview-open-conversations-footer"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 patch={
                   project_detail_section_path(
                     @project_detail,
@@ -1887,7 +1887,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <.link
                 :if={@selected_detail_section == :overview}
                 id="project-detail-overview-open-workflows-footer"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 patch={
                   project_detail_section_path(
                     @project_detail,
@@ -1903,7 +1903,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <.link
                 :if={@selected_detail_section == :semantic}
                 id="project-detail-semantic-open-memory"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 patch={
                   project_detail_section_path(
                     @project_detail,
@@ -1930,7 +1930,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     anchor: "project-detail-workspace-binding-panel"
                   )
                 }
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
               >
                 Repair workspace binding
               </.link>
@@ -1939,7 +1939,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 :if={@selected_detail_section == :semantic and semantic_recovery_available?(@semantic_inspection)}
                 id="project-detail-semantic-recover"
                 type="button"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 phx-click="recover_semantic_graph"
               >
                 {semantic_recovery_label(@semantic_inspection)}
@@ -1948,7 +1948,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               <.link
                 :if={@selected_detail_section == :memory}
                 id="project-detail-memory-open-semantic"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 patch={
                   project_detail_section_path(
                     @project_detail,
@@ -1973,7 +1973,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     anchor: "project-detail-workspace-binding-panel"
                   )
                 }
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
               >
                 Repair workspace binding
               </.link>
@@ -1982,7 +1982,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 :if={@selected_detail_section == :memory and memory_recovery_available?(@memory_inspection)}
                 id="project-detail-memory-recover"
                 type="button"
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
                 phx-click="recover_memory_graph"
               >
                 {memory_recovery_label(@memory_inspection)}
@@ -2003,7 +2003,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                     anchor: "project-detail-workspace-binding-panel"
                   )
                 }
-                class="btn btn-sm btn-outline"
+                class="ui-button ui-button-sm ui-button-outline"
               >
                 Repair workspace binding
               </.link>
@@ -2312,11 +2312,11 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp detail_section_state_label(_state), do: "Unavailable"
 
-  defp detail_section_badge_class(:success), do: "border-success/50 bg-success/10 text-success"
-  defp detail_section_badge_class(:warning), do: "border-warning/50 bg-warning/10 text-warning-content"
-  defp detail_section_badge_class(:error), do: "border-error/50 bg-error/10 text-error"
-  defp detail_section_badge_class(:info), do: "border-info/50 bg-info/10 text-info"
-  defp detail_section_badge_class(:neutral), do: "border-base-300 bg-base-200/70 text-base-content/75"
+  defp detail_section_badge_class(:success), do: "border-accent-green/50 bg-accent-green/10 text-accent-green"
+  defp detail_section_badge_class(:warning), do: "border-accent-yellow/50 bg-accent-yellow/10 text-accent-yellow"
+  defp detail_section_badge_class(:error), do: "border-destructive/50 bg-destructive/10 text-destructive"
+  defp detail_section_badge_class(:info), do: "border-accent-cyan/50 bg-accent-cyan/10 text-accent-cyan"
+  defp detail_section_badge_class(:neutral), do: "border-border bg-muted/70 text-muted-foreground"
 
   defp workflow_launch_posture_badge_label(project_detail) do
     if project_ready_for_launch?(project_detail), do: "Ready", else: "Blocked"
@@ -3053,9 +3053,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp conversation_runtime_status_label(%{status: :blocked}), do: "Blocked"
   defp conversation_runtime_status_label(_runtime), do: "Idle"
 
-  defp conversation_runtime_status_class(%{status: :ready}), do: "badge-success"
-  defp conversation_runtime_status_class(%{status: :blocked}), do: "badge-error"
-  defp conversation_runtime_status_class(_runtime), do: "badge-ghost"
+  defp conversation_runtime_status_class(%{status: :ready}), do: "ui-badge-success"
+  defp conversation_runtime_status_class(%{status: :blocked}), do: "ui-badge-error"
+  defp conversation_runtime_status_class(_runtime), do: "ui-badge-ghost"
 
   defp conversation_runtime_llm_label(%{llm_selection: %{model_spec: model_spec}})
        when is_binary(model_spec),
@@ -3619,24 +3619,24 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     <section :if={@feedback} id={"#{@dom_prefix}-feedback"} class="space-y-1">
       <%= case @feedback.status do %>
         <% :ok -> %>
-          <p id={"#{@dom_prefix}-run-id"} class="text-xs text-success">
+          <p id={"#{@dom_prefix}-run-id"} class="text-xs text-accent-green">
             Run: <span class="font-mono">{@feedback.run.run_id}</span>
           </p>
           <.link
             id={"#{@dom_prefix}-run-link"}
-            class="link link-primary text-xs"
+            class="text-primary underline-offset-4 hover:underline text-xs"
             href={@feedback.run.detail_path}
           >
             Open run detail
           </.link>
         <% :error -> %>
-          <p id={"#{@dom_prefix}-error-type"} class="text-xs text-error">
+          <p id={"#{@dom_prefix}-error-type"} class="text-xs text-destructive">
             Typed kickoff error: {@feedback.error.error_type}
           </p>
-          <p id={"#{@dom_prefix}-error-detail"} class="text-xs text-error">
+          <p id={"#{@dom_prefix}-error-detail"} class="text-xs text-destructive">
             {@feedback.error.detail}
           </p>
-          <p id={"#{@dom_prefix}-error-remediation"} class="text-xs text-base-content/70">
+          <p id={"#{@dom_prefix}-error-remediation"} class="text-xs text-muted-foreground">
             {@feedback.error.remediation}
           </p>
       <% end %>

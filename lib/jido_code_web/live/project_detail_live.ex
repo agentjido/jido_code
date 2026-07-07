@@ -23,7 +23,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   alias JidoCode.Conversations.RuntimeReadiness
   alias JidoCode.ManagedRepoRoutes
   alias JidoCode.LLMSelection
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
   alias JidoCode.Workbench.ProjectDetail
   alias JidoCode.Workbench.ProjectConversation
   alias JidoCode.Workbench.ProjectMemoryInspection
@@ -496,19 +496,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         data-detail-section={Atom.to_string(@selected_detail_section)}
         class="space-y-4"
       >
-        <.subject_tree_shell
+        <.route_section_shell
           id="project-detail-shell"
           breadcrumbs={project_detail_breadcrumbs(assigns)}
-          parent_subjects={project_detail_parent_subjects(assigns)}
-          child_subjects={detail_section_items(assigns)}
-          child_nav_id="project-detail-section-nav"
-          child_nav_label={project_detail_child_nav_label(assigns.selected_detail_subject)}
-          child_nav_heading={project_detail_child_nav_heading(assigns.selected_detail_subject)}
-          child_nav_summary={project_detail_child_nav_summary(assigns.selected_detail_subject)}
+          section_groups={project_detail_section_groups(assigns)}
+          section_items={detail_section_items(assigns)}
+          section_nav_id="project-detail-section-nav"
+          section_nav_label={project_detail_section_nav_label(assigns.selected_detail_subject)}
+          section_nav_heading={project_detail_section_nav_heading(assigns.selected_detail_subject)}
+          section_nav_summary={project_detail_section_nav_summary(assigns.selected_detail_subject)}
           sidebar_id="project-detail-section-sidebar"
           content_id="project-detail-section-content"
         >
-          <.subject_pane pane={project_detail_selected_pane(assigns)}>
+          <.route_pane pane={project_detail_selected_pane(assigns)}>
             <section :if={@selected_detail_section == :overview} id="project-detail-overview-panel" class="space-y-4">
               <div class="space-y-1">
                 <h2 class="text-lg font-semibold">Repository overview</h2>
@@ -2008,8 +2008,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
                 Repair workspace binding
               </.link>
             </:footer_actions>
-          </.subject_pane>
-        </.subject_tree_shell>
+          </.route_pane>
+        </.route_section_shell>
       </section>
     </Layouts.app>
     """
@@ -2019,7 +2019,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     detail_subject_sections()
     |> Map.fetch!(assigns.selected_detail_subject)
     |> Enum.map(fn section ->
-      OperatorShell.child_subject(%{
+      RouteShell.section_item(%{
         id: section,
         label: detail_section_label(section),
         selected?: assigns.selected_detail_section == section,
@@ -2040,12 +2040,12 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp project_detail_breadcrumbs(assigns) do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "project-detail-breadcrumb-return",
         label: return_to_label(assigns.return_to_path),
         navigate: assigns.return_to_path
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "project-detail-breadcrumb-repo",
         label: assigns.project_detail.github_full_name,
         patch:
@@ -2056,7 +2056,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             assigns.selected_work_item_id
           )
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "project-detail-breadcrumb-subject",
         label: project_detail_subject_label(assigns.selected_detail_subject),
         patch:
@@ -2067,7 +2067,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             assigns.selected_work_item_id
           )
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "project-detail-breadcrumb-current",
         label: detail_section_label(assigns.selected_detail_section),
         current?: true
@@ -2075,9 +2075,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     ]
   end
 
-  defp project_detail_parent_subjects(assigns) do
+  defp project_detail_section_groups(assigns) do
     Enum.map(@detail_subject_order, fn subject ->
-      OperatorShell.parent_subject(%{
+      RouteShell.section_group(%{
         id: subject,
         label: project_detail_subject_label(subject),
         description: project_detail_subject_description(subject),
@@ -2096,7 +2096,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp project_detail_selected_pane(assigns) do
     section = assigns.selected_detail_section
 
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "project-detail-pane-#{section}",
       title: project_detail_pane_title(section),
       summary: project_detail_pane_summary(section)
@@ -2121,23 +2121,23 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   defp detail_subject_sections,
     do: %{readiness: [:overview], work: [:conversations, :workflows], knowledge: [:semantic, :memory]}
 
-  defp project_detail_child_nav_label(:readiness), do: "Repository readiness subjects"
-  defp project_detail_child_nav_label(:work), do: "Repository work subjects"
-  defp project_detail_child_nav_label(:knowledge), do: "Repository knowledge subjects"
+  defp project_detail_section_nav_label(:readiness), do: "Repository readiness sections"
+  defp project_detail_section_nav_label(:work), do: "Repository work sections"
+  defp project_detail_section_nav_label(:knowledge), do: "Repository knowledge sections"
 
-  defp project_detail_child_nav_heading(:readiness), do: "Readiness"
-  defp project_detail_child_nav_heading(:work), do: "Work"
-  defp project_detail_child_nav_heading(:knowledge), do: "Knowledge"
+  defp project_detail_section_nav_heading(:readiness), do: "Readiness"
+  defp project_detail_section_nav_heading(:work), do: "Work"
+  defp project_detail_section_nav_heading(:knowledge), do: "Knowledge"
 
-  defp project_detail_child_nav_summary(:readiness) do
+  defp project_detail_section_nav_summary(:readiness) do
     "Repository identity, repo-scoped workspace binding, and launch posture stay grouped here before deeper work begins."
   end
 
-  defp project_detail_child_nav_summary(:work) do
+  defp project_detail_section_nav_summary(:work) do
     "Repo intake, governed conversations, and workflow launch stay grouped on this canonical managed-repository route."
   end
 
-  defp project_detail_child_nav_summary(:knowledge) do
+  defp project_detail_section_nav_summary(:knowledge) do
     "Semantic inspection and durable memory stay grouped here for repository-scoped review and recovery."
   end
 

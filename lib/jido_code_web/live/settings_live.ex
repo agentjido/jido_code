@@ -17,7 +17,7 @@ defmodule JidoCodeWeb.SettingsLive do
   alias JidoCode.Security.SecretRefs
   alias JidoCode.Setup.ProjectImport
   alias JidoCodeWeb.OperatorAuthSettings
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
   alias JidoCodeWeb.Security.UiRedaction
 
   @secret_scope_options [
@@ -81,19 +81,19 @@ defmodule JidoCodeWeb.SettingsLive do
       active_area={:settings}
       area_panel={if @active_tab == "github", do: JidoCodeWeb.AreaPanels.panel_for(:settings), else: nil}
     >
-      <.subject_tree_shell
+      <.route_section_shell
         id="settings-shell"
         breadcrumbs={settings_breadcrumbs(assigns)}
-        parent_subjects={[]}
-        child_subjects={settings_nav_items(assigns)}
-        child_nav_id="settings-nav"
-        child_nav_label="Settings sections"
-        child_nav_heading="Settings"
-        child_nav_summary="Choose the operator setting you want to inspect or update."
+        section_groups={[]}
+        section_items={settings_nav_items(assigns)}
+        section_nav_id="settings-nav"
+        section_nav_label="Settings sections"
+        section_nav_heading="Settings"
+        section_nav_summary="Choose the operator setting you want to inspect or update."
         sidebar_id="settings-sidebar"
         content_id="settings-content"
       >
-        <.subject_pane pane={settings_selected_pane(assigns)}>
+        <.route_pane pane={settings_selected_pane(assigns)}>
           <section class="space-y-6">
             <.vue_surface
               id="settings-overview-widget"
@@ -168,8 +168,8 @@ defmodule JidoCodeWeb.SettingsLive do
               Refresh GitHub Validation
             </button>
           </:footer_actions>
-        </.subject_pane>
-      </.subject_tree_shell>
+        </.route_pane>
+      </.route_section_shell>
 
       <div
         :if={@show_add_modal}
@@ -1553,12 +1553,12 @@ defmodule JidoCodeWeb.SettingsLive do
 
   defp settings_breadcrumbs(assigns) do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "settings-breadcrumb-settings",
         label: "Settings",
         patch: ~p"/settings"
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "settings-breadcrumb-current",
         label: settings_tab_nav_label(Map.get(assigns, :active_tab)),
         current?: true
@@ -1570,7 +1570,7 @@ defmodule JidoCodeWeb.SettingsLive do
     active_tab = Map.get(assigns, :active_tab) || "github"
 
     for tab <- ~w(github agents account auth security) do
-      OperatorShell.child_subject(%{
+      RouteShell.section_item(%{
         id: tab,
         label: settings_tab_nav_label(tab),
         summary: settings_tab_summary(tab, assigns),
@@ -1584,7 +1584,7 @@ defmodule JidoCodeWeb.SettingsLive do
   defp settings_selected_pane(assigns) do
     active_tab = Map.get(assigns, :active_tab) || "github"
 
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "settings-pane-#{active_tab}",
       title: settings_pane_title(active_tab),
       summary: settings_active_tab_summary(assigns)

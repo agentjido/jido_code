@@ -70,7 +70,7 @@ async function activateTab(page: Page, selector: string) {
     throw new Error(`missing href for ${selector}`)
   }
 
-  await page.goto(href)
+  await page.goto(new URL(href, page.url()).toString())
   await waitForLiveViewConnection(page)
 }
 
@@ -78,18 +78,21 @@ async function expectDashboardUrl(
   page: Page,
   options: { subject: string; section: string; onboarding?: string }
 ) {
-  await page.waitForURL(url => {
-    if (url.pathname !== "/dashboard") {
-      return false
-    }
+  await expect
+    .poll(() => {
+      const url = new URL(page.url())
 
-    return (
-      url.searchParams.get("subject") === options.subject &&
-      url.searchParams.get("section") === options.section &&
-      (options.onboarding === undefined ||
-        url.searchParams.get("onboarding") === options.onboarding)
-    )
-  })
+      if (url.pathname !== "/dashboard") {
+        return null
+      }
+
+      const subject = url.searchParams.get("subject") ?? "work"
+      const section = url.searchParams.get("section") ?? "overview"
+      const onboarding = options.onboarding === undefined ? "" : url.searchParams.get("onboarding")
+
+      return [subject, section, onboarding ?? ""].join(":")
+    })
+    .toBe([options.subject, options.section, options.onboarding ?? ""].join(":"))
 }
 
 async function shellLayoutMetrics(page: Page, sidebarSelector: string, paneSelector: string) {
@@ -132,7 +135,7 @@ async function expectSidebarAbovePane(page: Page, sidebarSelector: string, paneS
   expect(Math.abs((metrics?.sidebarLeft ?? 0) - (metrics?.paneLeft ?? 0))).toBeLessThan(12)
 }
 
-test("dashboard subject-tree shell keeps the ready-state landing route scanable on wide screens", async ({
+test("dashboard route-section shell keeps the ready-state landing route scanable on wide screens", async ({
   page,
   request,
 }) => {
@@ -144,10 +147,10 @@ test("dashboard subject-tree shell keeps the ready-state landing route scanable 
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "work")
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")
   await expect(page.locator("#dashboard-shell-breadcrumbs")).toBeVisible()
-  await expect(page.locator("#dashboard-shell-parent-subjects")).toBeVisible()
+  await expect(page.locator("#dashboard-shell-section-groups")).toBeVisible()
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
-  await expect(page.locator("#dashboard-shell-parent-subjects-work")).toHaveAttribute("aria-current", "page")
+  await expect(page.locator("#dashboard-shell-section-groups-work")).toHaveAttribute("aria-current", "page")
   await expect(page.locator("#dashboard-section-nav-overview")).toHaveAttribute("aria-controls", "dashboard-pane-overview")
   await expect(page.locator("#dashboard-settings-handoff")).toContainText("Settings")
   await expectSidebarLeftOfPane(page, "#dashboard-sidebar-shell", "#dashboard-pane-overview")
@@ -176,20 +179,20 @@ test("dashboard subject-tree shell keeps the ready-state landing route scanable 
   await expect(page.locator("#dashboard-conversation-supervision")).toBeVisible()
   await expect(page.locator("#dashboard-run-summaries")).toHaveCount(0)
 
-  await activateTab(page, "#dashboard-shell-parent-subjects-knowledge")
+  await activateTab(page, "#dashboard-shell-section-groups-knowledge")
   await expectDashboardUrl(page, { subject: "knowledge", section: "memory", onboarding: "completed" })
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "knowledge")
-  await expect(page.locator("#dashboard-shell-parent-subjects-knowledge")).toHaveAttribute("aria-current", "page")
+  await expect(page.locator("#dashboard-shell-section-groups-knowledge")).toHaveAttribute("aria-current", "page")
   await expect(page.locator("#dashboard-memory-summaries")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav-memory")).toHaveAttribute("aria-current", "page")
 
-  await activateTab(page, "#dashboard-shell-parent-subjects-runtime")
+  await activateTab(page, "#dashboard-shell-section-groups-runtime")
   await expectDashboardUrl(page, { subject: "runtime", section: "runtime", onboarding: "completed" })
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "runtime")
-  await expect(page.locator("#dashboard-shell-parent-subjects-runtime")).toHaveAttribute("aria-current", "page")
+  await expect(page.locator("#dashboard-shell-section-groups-runtime")).toHaveAttribute("aria-current", "page")
   await expect(page.locator("#dashboard-runtime-evidence")).toBeVisible()
 
-  await activateTab(page, "#dashboard-shell-parent-subjects-work")
+  await activateTab(page, "#dashboard-shell-section-groups-work")
   await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
 
   await activateTab(page, "#dashboard-section-nav-next_steps")
@@ -197,7 +200,7 @@ test("dashboard subject-tree shell keeps the ready-state landing route scanable 
   await expect(page.locator("#dashboard-onboarding-next-actions")).toBeVisible()
 })
 
-test("dashboard subject navigation stays usable as a wrapped fallback on narrow screens", async ({
+test("dashboard section navigation stays usable as a wrapped fallback on narrow screens", async ({
   page,
   request,
 }) => {
@@ -206,10 +209,10 @@ test("dashboard subject navigation stays usable as a wrapped fallback on narrow 
   await signIn(page, "/dashboard?onboarding=completed")
 
   await expect(page.locator("#dashboard-shell-breadcrumbs")).toBeVisible()
-  await expect(page.locator("#dashboard-shell-parent-subjects")).toBeVisible()
+  await expect(page.locator("#dashboard-shell-section-groups")).toBeVisible()
   await expect(page.locator("#dashboard-sidebar-shell")).toBeVisible()
   await expect(page.locator("#dashboard-section-nav")).toBeVisible()
-  await expectNoHorizontalOverflow(page, "#dashboard-shell-parent-subjects")
+  await expectNoHorizontalOverflow(page, "#dashboard-shell-section-groups")
   await expectNoHorizontalOverflow(page, "#dashboard-section-nav")
   await expectSidebarAbovePane(page, "#dashboard-sidebar-shell", "#dashboard-pane-overview")
   await expect(page.locator("#dashboard-overview-panel")).toHaveCount(1)
@@ -219,11 +222,11 @@ test("dashboard subject navigation stays usable as a wrapped fallback on narrow 
   await expectDashboardUrl(page, { subject: "work", section: "next_steps", onboarding: "completed" })
   await expect(page.locator("#dashboard-onboarding-next-actions")).toBeVisible()
 
-  await activateTab(page, "#dashboard-shell-parent-subjects-knowledge")
+  await activateTab(page, "#dashboard-shell-section-groups-knowledge")
   await expectDashboardUrl(page, { subject: "knowledge", section: "memory", onboarding: "completed" })
   await expect(page.locator("#dashboard-memory-summaries")).toBeVisible()
 
-  await activateTab(page, "#dashboard-shell-parent-subjects-work")
+  await activateTab(page, "#dashboard-shell-section-groups-work")
   await expectDashboardUrl(page, { subject: "work", section: "overview", onboarding: "completed" })
 
   await activateTab(page, "#dashboard-section-nav-conversations")
@@ -302,7 +305,13 @@ test("dashboard repo detail links preserve Dashboard Work as the parent surface"
   await expect(page.locator("#project-detail-breadcrumb-return")).toContainText("Dashboard")
   await expect(page.locator("#project-detail-return-link")).toContainText("Back to Dashboard")
 
-  await page.locator("#project-detail-return-link").click()
+  const returnHref = await page.locator("#project-detail-return-link").getAttribute("href")
+
+  if (!returnHref) {
+    throw new Error("missing href for #project-detail-return-link")
+  }
+
+  await page.goto(new URL(returnHref, page.url()).toString())
   await expectDashboardUrl(page, { subject: "work", section: "overview" })
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-subject", "work")
   await expect(page.locator("#dashboard-root")).toHaveAttribute("data-dashboard-section", "overview")

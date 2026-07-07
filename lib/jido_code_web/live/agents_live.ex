@@ -2,7 +2,7 @@ defmodule JidoCodeWeb.AgentsLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Agents.SupportAgentConfigs
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   @impl true
   def mount(_params, _session, socket) do
@@ -116,7 +116,7 @@ defmodule JidoCodeWeb.AgentsLive do
       active_area={:agents}
       area_panel={JidoCodeWeb.AreaPanels.panel_for(:agents)}
     >
-      <.single_pane_shell id="agents-shell" breadcrumbs={agents_breadcrumbs()} pane={agents_pane()}>
+      <.route_pane_shell id="agents-shell" breadcrumbs={agents_breadcrumbs()} pane={agents_pane()}>
         <.operator_state_notice
           :if={@issue_bot_error}
           id="agents-issue-bot-error"
@@ -259,14 +259,14 @@ defmodule JidoCodeWeb.AgentsLive do
             </tbody>
           </table>
         </section>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
 
   defp agents_breadcrumbs do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "agents-breadcrumb-current",
         label: "Agents",
         current?: true
@@ -275,7 +275,7 @@ defmodule JidoCodeWeb.AgentsLive do
   end
 
   defp agents_pane do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "agents-pane",
       title: "Support agent controls",
       summary: "Configure per-project Issue Bot automation controls."

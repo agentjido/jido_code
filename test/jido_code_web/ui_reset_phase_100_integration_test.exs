@@ -114,13 +114,17 @@ defmodule JidoCodeWeb.UIResetPhase100IntegrationTest do
     product_sources =
       ["lib/jido_code_web/live/**/*.{ex,heex}", "lib/jido_code_web/components/**/*.{ex,heex}"]
       |> Enum.flat_map(&Path.wildcard/1)
-      |> Enum.reject(&String.ends_with?(&1, "operator_shell_components.ex"))
       |> Enum.sort()
 
     Enum.each(product_sources, fn path ->
       refute File.read!(path) =~ "OperatorShellComponents",
              "old operator shell should not be imported by #{path}"
+
+      refute File.read!(path) =~ "subject_tree_shell",
+             "old subject-tree component should not be used by #{path}"
     end)
+
+    refute File.exists?("lib/jido_code_web/components/operator_shell_components.ex")
 
     registry = File.read!("assets/vue/index.ts")
 

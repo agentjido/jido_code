@@ -39,8 +39,8 @@ defmodule JidoCodeWeb.UIResetPhase97IntegrationTest do
     inventory = File.read!(@inventory_path)
     policy = File.read!(@policy_path)
 
-    assert inventory =~ "Current browser chrome, subject-tree navigation, DaisyUI component classes"
-    assert inventory =~ "broad Vue auto-registration"
+    assert inventory =~ "Historical browser chrome, subject-tree navigation, DaisyUI component"
+    assert inventory =~ "broad Vue auto-registration are implementation that has been"
     assert policy =~ "No DaisyUI compatibility layer remains after the cutover phase."
     assert policy =~ "Old route chrome, subject-tree helpers, operator-navigation helpers"
     assert policy =~ "Generated shadcn-vue primitives live under `assets/vue/components/ui`"

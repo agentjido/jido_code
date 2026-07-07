@@ -16,7 +16,7 @@ defmodule JidoCodeWeb.DashboardLive do
   alias JidoCode.MemoryGraph.DashboardSummaryFeed
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   alias JidoCode.Workbench.{
     DashboardConversationFeed,
@@ -264,20 +264,20 @@ defmodule JidoCodeWeb.DashboardLive do
           class="mt-4"
         />
 
-        <.subject_tree_shell
+        <.route_section_shell
           id="dashboard-shell"
           class="mt-6"
           breadcrumbs={dashboard_breadcrumbs(assigns)}
-          parent_subjects={dashboard_parent_subjects(assigns)}
-          child_subjects={dashboard_section_nav_items(assigns)}
-          child_nav_id="dashboard-section-nav"
-          child_nav_label={dashboard_child_nav_label(assigns.selected_dashboard_subject)}
-          child_nav_heading={dashboard_child_nav_heading(assigns.selected_dashboard_subject)}
-          child_nav_summary={dashboard_child_nav_summary(assigns.selected_dashboard_subject)}
+          section_groups={dashboard_section_groups(assigns)}
+          section_items={dashboard_section_nav_items(assigns)}
+          section_nav_id="dashboard-section-nav"
+          section_nav_label={dashboard_section_nav_label(assigns.selected_dashboard_subject)}
+          section_nav_heading={dashboard_section_nav_heading(assigns.selected_dashboard_subject)}
+          section_nav_summary={dashboard_section_nav_summary(assigns.selected_dashboard_subject)}
           sidebar_id="dashboard-sidebar-shell"
           content_id="dashboard-content-shell"
         >
-          <.subject_pane pane={dashboard_selected_pane(assigns)}>
+          <.route_pane pane={dashboard_selected_pane(assigns)}>
             <section
               :if={@selected_dashboard_section == :overview}
               id="dashboard-overview-panel"
@@ -927,8 +927,8 @@ defmodule JidoCodeWeb.DashboardLive do
                 Refresh runtime posture
               </button>
             </:footer_actions>
-          </.subject_pane>
-        </.subject_tree_shell>
+          </.route_pane>
+        </.route_section_shell>
       </div>
     </Layouts.app>
     """
@@ -1021,7 +1021,7 @@ defmodule JidoCodeWeb.DashboardLive do
     |> dashboard_subject_sections()
     |> Map.fetch!(assigns.selected_dashboard_subject)
     |> Enum.map(fn section ->
-      OperatorShell.child_subject(%{
+      RouteShell.section_item(%{
         id: section,
         label: dashboard_section_label(section),
         summary: dashboard_section_summary(section, assigns),
@@ -1041,12 +1041,12 @@ defmodule JidoCodeWeb.DashboardLive do
 
   defp dashboard_breadcrumbs(assigns) do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "dashboard-breadcrumb-dashboard",
         label: "Dashboard",
         patch: dashboard_selection_path(assigns.onboarding_next_actions, :work, :overview)
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "dashboard-breadcrumb-subject",
         label: dashboard_subject_label(assigns.selected_dashboard_subject),
         patch:
@@ -1055,7 +1055,7 @@ defmodule JidoCodeWeb.DashboardLive do
             assigns.selected_dashboard_subject
           )
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "dashboard-breadcrumb-current",
         label: dashboard_section_label(assigns.selected_dashboard_section),
         current?: true
@@ -1063,12 +1063,12 @@ defmodule JidoCodeWeb.DashboardLive do
     ]
   end
 
-  defp dashboard_parent_subjects(assigns) do
+  defp dashboard_section_groups(assigns) do
     assigns.onboarding_next_actions
     |> dashboard_subject_sections()
     |> then(fn subject_sections ->
       Enum.map(@dashboard_subject_order, fn subject ->
-        OperatorShell.parent_subject(%{
+        RouteShell.section_group(%{
           id: subject,
           label: dashboard_subject_label(subject),
           description: dashboard_subject_description(subject),
@@ -1083,30 +1083,30 @@ defmodule JidoCodeWeb.DashboardLive do
   defp dashboard_selected_pane(assigns) do
     section = assigns.selected_dashboard_section
 
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "dashboard-pane-#{section}",
       title: dashboard_pane_title(section),
       summary: dashboard_pane_summary(section)
     })
   end
 
-  defp dashboard_child_nav_label(:work), do: "Dashboard work subjects"
-  defp dashboard_child_nav_label(:knowledge), do: "Dashboard knowledge subjects"
-  defp dashboard_child_nav_label(:runtime), do: "Dashboard runtime subjects"
+  defp dashboard_section_nav_label(:work), do: "Dashboard work sections"
+  defp dashboard_section_nav_label(:knowledge), do: "Dashboard knowledge sections"
+  defp dashboard_section_nav_label(:runtime), do: "Dashboard runtime sections"
 
-  defp dashboard_child_nav_heading(:work), do: "Work"
-  defp dashboard_child_nav_heading(:knowledge), do: "Knowledge"
-  defp dashboard_child_nav_heading(:runtime), do: "Runtime"
+  defp dashboard_section_nav_heading(:work), do: "Work"
+  defp dashboard_section_nav_heading(:knowledge), do: "Knowledge"
+  defp dashboard_section_nav_heading(:runtime), do: "Runtime"
 
-  defp dashboard_child_nav_summary(:work) do
+  defp dashboard_section_nav_summary(:work) do
     "Primary managed-repository inventory, governed runs, governed conversations, and ready follow-up stay grouped here without leaving the authenticated landing route."
   end
 
-  defp dashboard_child_nav_summary(:knowledge) do
+  defp dashboard_section_nav_summary(:knowledge) do
     "Bounded memory attention stays here and routes back to canonical managed-repository detail when a deeper review is needed."
   end
 
-  defp dashboard_child_nav_summary(:runtime) do
+  defp dashboard_section_nav_summary(:runtime) do
     "Delivery readiness and degraded-path runtime posture stay grouped here as bounded product signals."
   end
 

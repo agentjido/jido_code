@@ -3,16 +3,17 @@
 <!-- covers: architecture.frontend_stack.greenfield_ui_reset_removes_legacy_surfaces -->
 <!-- covers: architecture.frontend_stack.daisyui_removed_from_official_path -->
 
-This inventory records the Phase 97.2 deletion and rewrite targets for the
-greenfield UI reset. It is intentionally about current source files, not the
-future shell implementation.
+This inventory records the Phase 97 through 101 deletion and rewrite targets
+for the greenfield UI reset. It tracks current source files plus the historical
+UI files that have been deleted by the reset.
 
 ## Policy
 
 - Current product data, auth, runtime, semantic, memory, conversation, and
   governed-work services are behavior to preserve.
-- Current browser chrome, subject-tree navigation, DaisyUI component classes,
-  and broad Vue auto-registration are implementation to replace.
+- Historical browser chrome, subject-tree navigation, DaisyUI component
+  classes, and broad Vue auto-registration are implementation that has been
+  replaced or explicitly guarded.
 - Current LiveVue widgets are rewritten against generated shadcn-vue primitives
   or deleted. They are not retained as DaisyUI-styled islands.
 - Current stable DOM ids should survive where tests and user workflows still
@@ -48,7 +49,8 @@ future shell implementation.
 | `lib/jido_code_web/components/conversation_surface_components.ex` | product component | rewrite | remove DaisyUI badges and base color classes |
 | `lib/jido_code_web/components/memory_surface_components.ex` | product component | rewrite | move to shared tokens and SaladUI wrappers |
 | `lib/jido_code_web/components/managed_repo_inventory_components.ex` | product component | rewrite/delete | merge into new repository area if duplicated |
-| `lib/jido_code_web/components/operator_shell_components.ex` | legacy shell | delete | superseded by `JidoCodeWeb.Areas` and new layout |
+| `lib/jido_code_web/components/route_shell_components.ex` | route frame | keep | route-local breadcrumbs, section groups, section navigation, and pane frames under the root area shell |
+| `lib/jido_code_web/components/operator_shell_components.ex` | deleted legacy shell | deleted | superseded by `JidoCodeWeb.Areas`, `JidoCodeWeb.Layouts`, and route shell components |
 | `lib/jido_code_web/components/operator_state_components.ex` | product status | rewrite | keep product state shaping, replace visual classes |
 
 ## Vue Widgets

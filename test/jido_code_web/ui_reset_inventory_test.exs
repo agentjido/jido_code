@@ -34,5 +34,7 @@ defmodule JidoCodeWeb.UIResetInventoryTest do
     assert inventory =~ "`assets/css/app.css` omits DaisyUI plugin and theme blocks"
     assert inventory =~ "guard against new `btn`, `badge`, `alert`, `tabs`, `base-*`, `rounded-box`, and `join-*`"
     assert inventory =~ "Retained widgets import generated shadcn-vue primitives from `@/vue/components/ui/*`"
+    assert inventory =~ "`lib/jido_code_web/components/route_shell_components.ex` | route frame"
+    assert inventory =~ "`lib/jido_code_web/components/operator_shell_components.ex` | deleted legacy shell"
   end
 end

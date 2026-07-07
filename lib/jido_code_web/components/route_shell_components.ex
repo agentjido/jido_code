@@ -1,10 +1,11 @@
-defmodule JidoCodeWeb.OperatorShellComponents do
+defmodule JidoCodeWeb.RouteShellComponents do
   @moduledoc """
-  Transitional area-content wrappers used inside the root shell.
+  Route-local frame components used inside the root area shell.
 
   The root shell owns product-area navigation through `JidoCodeWeb.Layouts`.
-  These components keep existing route-owned panes addressable while their
-  internals move away from the legacy subject-tree visual language.
+  These components keep route-owned breadcrumbs, section groups, section
+  navigation, and pane framing addressable without reintroducing route-local
+  global chrome.
   """
 
   use Phoenix.Component
@@ -13,35 +14,35 @@ defmodule JidoCodeWeb.OperatorShellComponents do
 
   attr :id, :string, required: true
   attr :breadcrumbs, :list, default: []
-  attr :parent_subjects, :list, default: []
-  attr :child_subjects, :list, default: []
-  attr :child_nav_id, :string, required: true
-  attr :child_nav_label, :string, required: true
-  attr :child_nav_heading, :string, required: true
-  attr :child_nav_summary, :string, default: nil
+  attr :section_groups, :list, default: []
+  attr :section_items, :list, default: []
+  attr :section_nav_id, :string, required: true
+  attr :section_nav_label, :string, required: true
+  attr :section_nav_heading, :string, required: true
+  attr :section_nav_summary, :string, default: nil
   attr :sidebar_id, :string, default: nil
   attr :content_id, :string, default: nil
   attr :class, :any, default: nil
   slot :inner_block, required: true
 
-  def subject_tree_shell(assigns) do
+  def route_section_shell(assigns) do
     ~H"""
     <section id={@id} class={["space-y-4 overflow-x-clip", @class]}>
       <.breadcrumb_lane id={"#{@id}-breadcrumbs"} breadcrumbs={@breadcrumbs} />
-      <.parent_subject_rail
-        :if={@parent_subjects != []}
-        id={"#{@id}-parent-subjects"}
-        subjects={@parent_subjects}
+      <.section_group_rail
+        :if={@section_groups != []}
+        id={"#{@id}-section-groups"}
+        groups={@section_groups}
       />
 
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
         <aside id={@sidebar_id} class="min-w-0 lg:sticky lg:top-24 lg:w-80 lg:flex-none">
-          <.child_subject_sidebar
-            id={@child_nav_id}
-            label={@child_nav_label}
-            heading={@child_nav_heading}
-            summary={@child_nav_summary}
-            subjects={@child_subjects}
+          <.section_nav_sidebar
+            id={@section_nav_id}
+            label={@section_nav_label}
+            heading={@section_nav_heading}
+            summary={@section_nav_summary}
+            items={@section_items}
           />
         </aside>
 
@@ -61,18 +62,18 @@ defmodule JidoCodeWeb.OperatorShellComponents do
   slot :inner_block, required: true
   slot :footer_actions
 
-  def single_pane_shell(assigns) do
+  def route_pane_shell(assigns) do
     ~H"""
     <section id={@id} class={["space-y-4 overflow-x-clip", @class]}>
       <.breadcrumb_lane id={"#{@id}-breadcrumbs"} breadcrumbs={@breadcrumbs} />
 
-      <.subject_pane pane={@pane} class={@pane_class}>
+      <.route_pane pane={@pane} class={@pane_class}>
         {render_slot(@inner_block)}
 
         <:footer_actions>
           {render_slot(@footer_actions)}
         </:footer_actions>
-      </.subject_pane>
+      </.route_pane>
     </section>
     """
   end
@@ -138,96 +139,96 @@ defmodule JidoCodeWeb.OperatorShellComponents do
   end
 
   attr :id, :string, required: true
-  attr :subjects, :list, default: []
+  attr :groups, :list, default: []
 
-  def parent_subject_rail(assigns) do
+  def section_group_rail(assigns) do
     ~H"""
     <nav
       id={@id}
-      aria-label="Top-level subjects"
+      aria-label="Route section groups"
       class="overflow-x-auto rounded-lg border border-border bg-card px-3 py-3"
     >
       <div class="flex min-w-max flex-nowrap items-center gap-2 sm:min-w-0 sm:flex-wrap">
-        <.subject_chip :for={subject <- @subjects} rail_id={@id} subject={subject} />
+        <.section_group_chip :for={group <- @groups} rail_id={@id} group={group} />
       </div>
     </nav>
     """
   end
 
   attr :rail_id, :string, required: true
-  attr :subject, :map, required: true
+  attr :group, :map, required: true
 
-  defp subject_chip(assigns) do
+  defp section_group_chip(assigns) do
     ~H"""
     <.link
-      :if={is_binary(@subject.patch)}
-      id={"#{@rail_id}-#{@subject.id}"}
-      patch={@subject.patch}
-      aria-current={if(@subject.selected?, do: "page", else: nil)}
+      :if={is_binary(@group.patch)}
+      id={"#{@rail_id}-#{@group.id}"}
+      patch={@group.patch}
+      aria-current={if(@group.selected?, do: "page", else: nil)}
       class={[
         "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        if(@subject.selected?,
+        if(@group.selected?,
           do: "border-primary bg-primary/10 text-foreground shadow-sm",
           else: "border-border bg-muted/40 text-muted-foreground hover:bg-card hover:text-foreground"
         )
       ]}
     >
-      <.subject_chip_content subject={@subject} />
+      <.section_group_chip_content group={@group} />
     </.link>
 
     <.link
-      :if={!is_binary(@subject.patch) and is_binary(@subject.navigate)}
-      id={"#{@rail_id}-#{@subject.id}"}
-      navigate={@subject.navigate}
-      aria-current={if(@subject.selected?, do: "page", else: nil)}
+      :if={!is_binary(@group.patch) and is_binary(@group.navigate)}
+      id={"#{@rail_id}-#{@group.id}"}
+      navigate={@group.navigate}
+      aria-current={if(@group.selected?, do: "page", else: nil)}
       class={[
         "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        if(@subject.selected?,
+        if(@group.selected?,
           do: "border-primary bg-primary/10 text-foreground shadow-sm",
           else: "border-border bg-muted/40 text-muted-foreground hover:bg-card hover:text-foreground"
         )
       ]}
     >
-      <.subject_chip_content subject={@subject} />
+      <.section_group_chip_content group={@group} />
     </.link>
 
     <span
-      :if={!is_binary(@subject.patch) and !is_binary(@subject.navigate)}
-      id={"#{@rail_id}-#{@subject.id}"}
-      aria-current={if(@subject.selected?, do: "page", else: nil)}
+      :if={!is_binary(@group.patch) and !is_binary(@group.navigate)}
+      id={"#{@rail_id}-#{@group.id}"}
+      aria-current={if(@group.selected?, do: "page", else: nil)}
       class={[
         "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
-        if(@subject.selected?,
+        if(@group.selected?,
           do: "border-primary bg-primary/10 text-foreground shadow-sm",
           else: "border-border bg-muted/40 text-muted-foreground"
         )
       ]}
     >
-      <.subject_chip_content subject={@subject} />
+      <.section_group_chip_content group={@group} />
     </span>
     """
   end
 
-  attr :subject, :map, required: true
+  attr :group, :map, required: true
 
-  defp subject_chip_content(assigns) do
+  defp section_group_chip_content(assigns) do
     ~H"""
     <span class={[
       "inline-flex items-center gap-2 rounded-md text-sm",
-      if(@subject.selected?,
+      if(@group.selected?,
         do: "text-foreground",
         else: "text-inherit"
       )
     ]}>
-      <span class="font-semibold">{@subject.label}</span>
-      <.subject_description_bubble description={@subject.description} />
+      <span class="font-semibold">{@group.label}</span>
+      <.section_description_bubble description={@group.description} />
     </span>
     """
   end
 
   attr :description, :string, default: nil
 
-  defp subject_description_bubble(assigns) do
+  defp section_description_bubble(assigns) do
     ~H"""
     <span
       :if={@description}
@@ -246,9 +247,9 @@ defmodule JidoCodeWeb.OperatorShellComponents do
   attr :label, :string, required: true
   attr :heading, :string, required: true
   attr :summary, :string, default: nil
-  attr :subjects, :list, default: []
+  attr :items, :list, default: []
 
-  def child_subject_sidebar(assigns) do
+  def section_nav_sidebar(assigns) do
     ~H"""
     <section
       aria-labelledby={"#{@id}-heading"}
@@ -269,75 +270,75 @@ defmodule JidoCodeWeb.OperatorShellComponents do
         aria-describedby={if @summary, do: "#{@id}-note", else: nil}
         class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1"
       >
-        <.subject_link :for={subject <- @subjects} nav_id={@id} subject={subject} />
+        <.section_link :for={item <- @items} nav_id={@id} item={item} />
       </nav>
     </section>
     """
   end
 
   attr :nav_id, :string, required: true
-  attr :subject, :map, required: true
+  attr :item, :map, required: true
 
-  defp subject_link(assigns) do
+  defp section_link(assigns) do
     ~H"""
     <.link
-      :if={is_binary(@subject.patch)}
-      id={"#{@nav_id}-#{@subject.id}"}
-      patch={@subject.patch}
-      aria-current={if(@subject.selected?, do: "page", else: nil)}
-      aria-controls={@subject.pane_id}
-      aria-describedby={subject_link_describedby(@nav_id, @subject)}
-      data-pane-id={@subject.pane_id}
+      :if={is_binary(@item.patch)}
+      id={"#{@nav_id}-#{@item.id}"}
+      patch={@item.patch}
+      aria-current={if(@item.selected?, do: "page", else: nil)}
+      aria-controls={@item.pane_id}
+      aria-describedby={section_link_describedby(@nav_id, @item)}
+      data-pane-id={@item.pane_id}
       class={[
         "rounded-md border px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        if(@subject.selected?,
+        if(@item.selected?,
           do: "border-primary bg-primary/10 text-foreground shadow-sm",
           else: "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
         )
       ]}
     >
-      <.subject_link_content nav_id={@nav_id} subject={@subject} />
+      <.section_link_content nav_id={@nav_id} item={@item} />
     </.link>
 
     <.link
-      :if={!is_binary(@subject.patch) and is_binary(@subject.navigate)}
-      id={"#{@nav_id}-#{@subject.id}"}
-      navigate={@subject.navigate}
-      aria-current={if(@subject.selected?, do: "page", else: nil)}
-      aria-controls={@subject.pane_id}
-      aria-describedby={subject_link_describedby(@nav_id, @subject)}
-      data-pane-id={@subject.pane_id}
+      :if={!is_binary(@item.patch) and is_binary(@item.navigate)}
+      id={"#{@nav_id}-#{@item.id}"}
+      navigate={@item.navigate}
+      aria-current={if(@item.selected?, do: "page", else: nil)}
+      aria-controls={@item.pane_id}
+      aria-describedby={section_link_describedby(@nav_id, @item)}
+      data-pane-id={@item.pane_id}
       class={[
         "rounded-md border px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        if(@subject.selected?,
+        if(@item.selected?,
           do: "border-primary bg-primary/10 text-foreground shadow-sm",
           else: "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
         )
       ]}
     >
-      <.subject_link_content nav_id={@nav_id} subject={@subject} />
+      <.section_link_content nav_id={@nav_id} item={@item} />
     </.link>
     """
   end
 
   attr :nav_id, :string, required: true
-  attr :subject, :map, required: true
+  attr :item, :map, required: true
 
-  defp subject_link_content(assigns) do
+  defp section_link_content(assigns) do
     ~H"""
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0 space-y-1">
-        <p class="font-semibold">{@subject.label}</p>
-        <p :if={@subject.summary} id={"#{@nav_id}-#{@subject.id}-summary"} class="text-xs leading-5 text-muted-foreground">
-          {@subject.summary}
+        <p class="font-semibold">{@item.label}</p>
+        <p :if={@item.summary} id={"#{@nav_id}-#{@item.id}-summary"} class="text-xs leading-5 text-muted-foreground">
+          {@item.summary}
         </p>
       </div>
       <span
-        :if={@subject.badge}
-        id={"#{@nav_id}-#{@subject.id}-badge"}
-        class={["ui-badge ui-badge-sm font-medium", subject_badge_class(@subject.badge)]}
+        :if={@item.badge}
+        id={"#{@nav_id}-#{@item.id}-badge"}
+        class={["ui-badge ui-badge-sm font-medium", section_badge_class(@item.badge)]}
       >
-        {@subject.badge.label}
+        {@item.badge.label}
       </span>
     </div>
     """
@@ -348,7 +349,7 @@ defmodule JidoCodeWeb.OperatorShellComponents do
   slot :inner_block, required: true
   slot :footer_actions
 
-  def subject_pane(assigns) do
+  def route_pane(assigns) do
     ~H"""
     <section
       id={@pane.id}
@@ -379,8 +380,8 @@ defmodule JidoCodeWeb.OperatorShellComponents do
     """
   end
 
-  defp subject_link_describedby(nav_id, subject) do
-    [subject_summary_id(nav_id, subject), subject_badge_id(nav_id, subject)]
+  defp section_link_describedby(nav_id, item) do
+    [section_summary_id(nav_id, item), section_badge_id(nav_id, item)]
     |> Enum.reject(&is_nil/1)
     |> case do
       [] -> nil
@@ -388,22 +389,22 @@ defmodule JidoCodeWeb.OperatorShellComponents do
     end
   end
 
-  defp subject_summary_id(nav_id, %{summary: summary, id: id}) when is_binary(summary),
+  defp section_summary_id(nav_id, %{summary: summary, id: id}) when is_binary(summary),
     do: "#{nav_id}-#{id}-summary"
 
-  defp subject_summary_id(_nav_id, _subject), do: nil
+  defp section_summary_id(_nav_id, _item), do: nil
 
-  defp subject_badge_id(nav_id, %{badge: badge, id: id}) when is_map(badge),
+  defp section_badge_id(nav_id, %{badge: badge, id: id}) when is_map(badge),
     do: "#{nav_id}-#{id}-badge"
 
-  defp subject_badge_id(_nav_id, _subject), do: nil
+  defp section_badge_id(_nav_id, _item), do: nil
 
-  defp subject_badge_class(%{tone: :warning}),
+  defp section_badge_class(%{tone: :warning}),
     do: "ui-badge-warning"
 
-  defp subject_badge_class(%{tone: :neutral}),
+  defp section_badge_class(%{tone: :neutral}),
     do: "ui-badge-neutral"
 
-  defp subject_badge_class(_badge),
+  defp section_badge_class(_badge),
     do: "ui-badge-neutral"
 end

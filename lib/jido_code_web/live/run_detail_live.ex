@@ -25,7 +25,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   alias JidoCode.Orchestration.{Run, RunActions, RunPubSub}
   alias JidoCode.Orchestration.RecordStore, as: OrchestrationRecordStore
   alias JidoCode.Workbench.ProjectConversation
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -393,7 +393,7 @@ defmodule JidoCodeWeb.RunDetailLive do
       current_scope={%{}}
       active_area={:repositories}
     >
-      <.single_pane_shell
+      <.route_pane_shell
         id="run-detail-shell"
         breadcrumbs={run_detail_breadcrumbs(assigns)}
         pane={run_detail_pane(assigns)}
@@ -1513,7 +1513,7 @@ defmodule JidoCodeWeb.RunDetailLive do
             Back to {return_to_label(@return_to_path)}
           </.link>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
@@ -1523,13 +1523,13 @@ defmodule JidoCodeWeb.RunDetailLive do
       ManagedRepoRoutes.repo_detail_parent_return_to(Map.get(assigns, :return_to_path), "/repos")
 
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "run-detail-breadcrumb-parent",
         label: return_to_label(broad_parent_path),
         navigate: broad_parent_path
       }),
       run_detail_repo_breadcrumb(assigns, broad_parent_path),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "run-detail-breadcrumb-current",
         label: run_detail_breadcrumb_label(assigns),
         current?: true
@@ -1539,7 +1539,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp run_detail_pane(assigns) do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "run-detail",
       title: "Run detail",
       summary: run_detail_pane_summary(assigns)
@@ -1552,7 +1552,7 @@ defmodule JidoCodeWeb.RunDetailLive do
         nil
 
       project_id ->
-        OperatorShell.breadcrumb(%{
+        RouteShell.breadcrumb(%{
           id: "run-detail-breadcrumb-repo",
           label: "Repo detail",
           navigate: ManagedRepoRoutes.project_detail_path(project_id, return_to: broad_parent_path)

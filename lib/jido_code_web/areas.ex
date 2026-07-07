@@ -7,7 +7,7 @@ defmodule JidoCodeWeb.Areas do
 
   The values here describe the destination area model and the route ownership
   boundary that lets existing product LiveViews become area-owned surfaces while
-  the reset shell replaces legacy navigation and subject-tree chrome.
+  the reset shell replaces legacy navigation and old route-local chrome.
   """
 
   @areas [
@@ -207,8 +207,8 @@ defmodule JidoCodeWeb.Areas do
 
   @legacy_replacement_targets [
     %{id: :operator_navigation, module: nil, replacement: :area_menu},
-    %{id: :operator_shell_components, module: JidoCodeWeb.OperatorShellComponents, replacement: :content},
-    %{id: :subject_tree_shell, module: nil, replacement: :area_menu},
+    %{id: :route_local_chrome, module: nil, replacement: :route_shell_components},
+    %{id: :legacy_section_shell, module: nil, replacement: :route_section_shell},
     %{id: :legacy_theme, module: nil, replacement: :shadcn_tokens}
   ]
 

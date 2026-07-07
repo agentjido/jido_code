@@ -2,7 +2,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.WorkflowRuntime.ManualRunKickoff
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   @impl true
   def mount(_params, _session, socket) do
@@ -83,7 +83,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
       active_area={:workflows}
       area_panel={JidoCodeWeb.AreaPanels.panel_for(:workflows)}
     >
-      <.single_pane_shell id="workflows-shell" breadcrumbs={workflows_breadcrumbs()} pane={workflows_pane()}>
+      <.route_pane_shell id="workflows-shell" breadcrumbs={workflows_breadcrumbs()} pane={workflows_pane()}>
         <section
           id="workflows-manual-run-form-panel"
           class="space-y-3 rounded-lg border border-border bg-card p-4"
@@ -270,14 +270,14 @@ defmodule JidoCodeWeb.WorkflowsLive do
             </span>
           <% end %>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
 
   defp workflows_breadcrumbs do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "workflows-breadcrumb-current",
         label: "Workflows",
         current?: true
@@ -286,7 +286,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
   end
 
   defp workflows_pane do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "workflows-pane",
       title: "Governed workflow kickoff",
       summary: "Start manual workflow runs with explicit repo scope and required input metadata."

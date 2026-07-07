@@ -123,7 +123,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     encoded_project_return_to = URI.encode_www_form(project_return_to)
 
     assert has_element?(view, "[data-detail-subject='work'][data-detail-section='workflows']")
-    assert has_element?(view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#project-detail-shell-section-groups-work[aria-current='page']")
     assert has_element?(view, "#project-detail-workflow-readiness-summary")
     assert has_element?(view, "#project-detail-workflow-readiness-badge", "Ready")
     assert has_element?(view, "#project-detail-workflow-controls")
@@ -244,7 +244,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              "section[id^='project-detail-panel-'][data-detail-subject='readiness'][data-detail-section='overview']"
            )
 
-    assert has_element?(default_view, "#project-detail-shell-parent-subjects-readiness[aria-current='page']")
+    assert has_element?(default_view, "#project-detail-shell-section-groups-readiness[aria-current='page']")
     assert has_element?(default_view, "#project-detail-section-nav-overview[aria-current='page']")
     assert has_element?(default_view, "#project-detail-overview-panel")
     assert has_element?(default_view, "#project-detail-overview-open-workflows")
@@ -263,7 +263,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              "section[id^='project-detail-panel-'][data-detail-subject='knowledge'][data-detail-section='memory']"
            )
 
-    assert has_element?(memory_view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
+    assert has_element?(memory_view, "#project-detail-shell-section-groups-knowledge[aria-current='page']")
     assert has_element?(memory_view, "#project-detail-section-nav-memory[aria-current='page']")
     assert has_element?(memory_view, "#project-detail-memory-inspection")
     refute has_element?(memory_view, "#project-detail-workflow-controls")
@@ -280,7 +280,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              "section[id^='project-detail-panel-'][data-detail-subject='work'][data-detail-section='conversations']"
            )
 
-    assert has_element?(conversations_view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(conversations_view, "#project-detail-shell-section-groups-work[aria-current='page']")
 
     assert has_element?(
              conversations_view,
@@ -376,12 +376,12 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       )
 
     view
-    |> element("#project-detail-shell-parent-subjects-work")
+    |> element("#project-detail-shell-section-groups-work")
     |> render_click()
 
     assert_patch(view, expected_work_conversations_path)
     assert has_element?(view, "[data-detail-subject='work'][data-detail-section='conversations']")
-    assert has_element?(view, "#project-detail-shell-parent-subjects-work[aria-current='page']")
+    assert has_element?(view, "#project-detail-shell-section-groups-work[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-conversations[aria-current='page']")
     assert has_element?(view, "#project-detail-conversation-panel")
 
@@ -405,12 +405,12 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute has_element?(view, "#project-detail-workflows-panel")
 
     view
-    |> element("#project-detail-shell-parent-subjects-knowledge")
+    |> element("#project-detail-shell-section-groups-knowledge")
     |> render_click()
 
     assert_patch(view, expected_knowledge_semantic_path)
     assert has_element?(view, "[data-detail-subject='knowledge'][data-detail-section='semantic']")
-    assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
+    assert has_element?(view, "#project-detail-shell-section-groups-knowledge[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-semantic[aria-current='page']")
     assert has_element?(view, "#project-detail-semantic-inspection")
     refute has_element?(view, "#project-detail-conversation-panel")
@@ -433,7 +433,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute has_element?(view, "#project-detail-memory-inspection")
   end
 
-  test "repo detail renders breadcrumbs before child subjects and targets the selected pane", %{
+  test "repo detail renders breadcrumbs before section groups and targets the selected pane", %{
     conn: _conn
   } do
     bootstrap_owner!("repo-shell-owner@example.com", "owner-password-123")
@@ -471,16 +471,16 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              rendered_fragment_index(html, ~s(id="project-detail-shell-breadcrumbs"))
 
     assert rendered_fragment_index(html, ~s(id="project-detail-shell-breadcrumbs")) <
-             rendered_fragment_index(html, ~s(id="project-detail-shell-parent-subjects"))
+             rendered_fragment_index(html, ~s(id="project-detail-shell-section-groups"))
 
-    assert rendered_fragment_index(html, ~s(id="project-detail-shell-parent-subjects")) <
+    assert rendered_fragment_index(html, ~s(id="project-detail-shell-section-groups")) <
              rendered_fragment_index(html, ~s(id="project-detail-section-nav"))
 
     assert has_element?(view, "#project-detail-breadcrumb-subject", "Knowledge")
     assert has_element?(view, "#project-detail-breadcrumb-current[aria-current='page']", "Memory")
     assert has_element?(view, "#project-detail-breadcrumb-return[href='/repos']", "Repositories")
     assert has_element?(view, "#project-detail-return-link[href='/repos']", "Back to Repositories")
-    assert has_element?(view, "#project-detail-shell-parent-subjects-knowledge[aria-current='page']")
+    assert has_element?(view, "#project-detail-shell-section-groups-knowledge[aria-current='page']")
 
     assert has_element?(
              view,
@@ -645,7 +645,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert length(vue.props["workflowCards"]) == 2
 
     assert has_element?(view, "#project-detail-overview-panel")
-    assert has_element?(view, "#project-detail-shell-parent-subjects-readiness[aria-current='page']")
+    assert has_element?(view, "#project-detail-shell-section-groups-readiness[aria-current='page']")
     assert has_element?(view, "#project-detail-section-nav-overview[aria-current='page']")
     assert has_element?(view, "#project-detail-overview-subject-guides")
     assert has_element?(view, "#project-detail-overview-open-conversations")

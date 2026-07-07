@@ -50,20 +50,35 @@ async function openRepoDetailFromWorkbench(page: Page, githubFullName: string) {
 }
 
 async function expectRepoDetailRoute(page: Page, subject: string, section: string) {
-  await page.waitForURL(url => {
-    if (!url.pathname.startsWith("/repos/")) {
-      return false
-    }
+  await expect
+    .poll(() => {
+      const url = new URL(page.url())
 
-    return (
-      url.searchParams.get("subject") === subject &&
-      url.searchParams.get("section") === section
-    )
-  })
+      if (!url.pathname.startsWith("/repos/")) {
+        return null
+      }
+
+      return `${url.searchParams.get("subject")}:${url.searchParams.get("section")}`
+    })
+    .toBe(`${subject}:${section}`)
+}
+
+async function activateRouteSection(page: Page, selector: string) {
+  const locator = page.locator(selector)
+  await expect(locator).toBeVisible()
+
+  const href = await locator.getAttribute("href")
+
+  if (!href) {
+    throw new Error(`missing href for ${selector}`)
+  }
+
+  await page.goto(new URL(href, page.url()).toString())
+  await waitForLiveViewConnection(page)
 }
 
 async function openConversationFamily(page: Page) {
-  await page.click("#project-detail-shell-parent-subjects-work")
+  await activateRouteSection(page, "#project-detail-shell-section-groups-work")
   await expectRepoDetailRoute(page, "work", "conversations")
 }
 
@@ -163,7 +178,7 @@ test("repo detail falls back to snapshot continuity when live conversation deliv
   )
 })
 
-test("repo detail keeps desktop subject navigation on the left while panes switch in place", async ({
+test("repo detail keeps desktop section navigation on the left while panes switch in place", async ({
   page,
   request
 }) => {
@@ -174,9 +189,8 @@ test("repo detail keeps desktop subject navigation on the left while panes switc
 
   const sidebar = page.locator("#project-detail-section-sidebar")
   const content = page.locator("#project-detail-section-content")
-  const parentRail = page.locator("#project-detail-shell-parent-subjects")
+  const parentRail = page.locator("#project-detail-shell-section-groups")
   const overviewLink = page.locator("#project-detail-section-nav-overview")
-  const workChip = page.locator("#project-detail-shell-parent-subjects-work")
 
   await expect(page.locator("#project-detail-overview-panel")).toBeVisible()
   await expect(parentRail).toBeVisible()
@@ -187,7 +201,7 @@ test("repo detail keeps desktop subject navigation on the left while panes switc
   expect(sidebarBox.x).toBeLessThan(contentBox.x)
   await expect(overviewLink).toBeVisible()
 
-  await workChip.click()
+  await activateRouteSection(page, "#project-detail-shell-section-groups-work")
   await expectRepoDetailRoute(page, "work", "conversations")
 
   const conversationsLink = page.locator("#project-detail-section-nav-conversations")
@@ -198,18 +212,18 @@ test("repo detail keeps desktop subject navigation on the left while panes switc
   expect(Math.abs(workflowsBox.x - conversationsBox.x)).toBeLessThan(24)
   expect(workflowsBox.y).toBeGreaterThan(conversationsBox.y + 40)
 
-  await workflowsLink.click()
+  await activateRouteSection(page, "#project-detail-section-nav-workflows")
   await expectRepoDetailRoute(page, "work", "workflows")
   await expect(page.locator("#project-detail-workflows-panel")).toBeVisible()
   await expect(page.locator("#project-detail-overview-panel")).toHaveCount(0)
 
-  await conversationsLink.click()
+  await activateRouteSection(page, "#project-detail-section-nav-conversations")
   await expectRepoDetailRoute(page, "work", "conversations")
   await expect(page.locator("#project-detail-conversation-panel")).toBeVisible()
   await expect(page.locator("#project-detail-conversation-runtime-status")).toHaveText("Ready")
 })
 
-test("repo detail keeps narrow-screen subject navigation usable as a stacked fallback", async ({
+test("repo detail keeps narrow-screen section navigation usable as a stacked fallback", async ({
   page,
   request
 }) => {
@@ -218,11 +232,10 @@ test("repo detail keeps narrow-screen subject navigation usable as a stacked fal
   await signIn(page, "/workbench")
   await openRepoDetailFromWorkbench(page, "owner/browser-conversation-ready")
 
-  const parentRail = page.locator("#project-detail-shell-parent-subjects")
+  const parentRail = page.locator("#project-detail-shell-section-groups")
   const nav = page.locator("#project-detail-section-nav")
   const content = page.locator("#project-detail-section-content")
   const overviewLink = page.locator("#project-detail-section-nav-overview")
-  const workChip = page.locator("#project-detail-shell-parent-subjects-work")
 
   await expect(parentRail).toBeVisible()
   await expect(nav).toBeVisible()
@@ -235,7 +248,7 @@ test("repo detail keeps narrow-screen subject navigation usable as a stacked fal
   expect(navBox.y).toBeLessThan(contentBox.y)
   await expect(overviewLink).toBeVisible()
 
-  await workChip.click()
+  await activateRouteSection(page, "#project-detail-shell-section-groups-work")
   await expectRepoDetailRoute(page, "work", "conversations")
 
   const conversationsLink = page.locator("#project-detail-section-nav-conversations")
@@ -246,16 +259,15 @@ test("repo detail keeps narrow-screen subject navigation usable as a stacked fal
   expect(Math.abs(workflowsBox.x - conversationsBox.x)).toBeLessThan(12)
   expect(workflowsBox.y).toBeGreaterThan(conversationsBox.y)
 
-  await page.locator("#project-detail-shell-parent-subjects-knowledge").click()
+  await activateRouteSection(page, "#project-detail-shell-section-groups-knowledge")
   await expectRepoDetailRoute(page, "knowledge", "semantic")
 
-  const memoryLink = page.locator("#project-detail-section-nav-memory")
-  await memoryLink.click()
+  await activateRouteSection(page, "#project-detail-section-nav-memory")
 
   await expectRepoDetailRoute(page, "knowledge", "memory")
   await expect(page.locator("#project-detail-memory-inspection")).toBeVisible()
 
-  await page.locator("#project-detail-memory-open-semantic").click()
+  await activateRouteSection(page, "#project-detail-memory-open-semantic")
 
   await expectRepoDetailRoute(page, "knowledge", "semantic")
   await expect(page.locator("#project-detail-semantic-inspection")).toBeVisible()

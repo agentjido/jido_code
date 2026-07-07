@@ -8,6 +8,7 @@ defmodule JidoCodeWeb.UIResetPhase100CoreComponentsTest do
     lib/jido_code_web/components/layouts.ex
     lib/jido_code_web/components/managed_repo_inventory_components.ex
     lib/jido_code_web/components/memory_surface_components.ex
+    lib/jido_code_web/components/route_shell_components.ex
     lib/jido_code_web/live/agents_live.ex
     lib/jido_code_web/live/dashboard_live.ex
     lib/jido_code_web/live/DashboardRunSummaryWidget.vue

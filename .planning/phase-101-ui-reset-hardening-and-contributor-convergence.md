@@ -67,22 +67,22 @@ Back to index: [README](https://github.com/mikehostetler/jido_code/blob/main/.pl
       [x] 101.2.2.2 Subtask - Add CI checks that fail on DaisyUI dependencies, DaisyUI component classes, or old shell module imports.
       [x] 101.2.2.3 Subtask - Keep the fast local loop practical by separating focused UI reset checks from broader semantic, memory, and runtime gates unless those boundaries are touched.
 
-  [ ] 101.3 Section - Final Cleanup And Current Truth Alignment
+  [x] 101.3 Section - Final Cleanup And Current Truth Alignment
     Remove remaining obsolete artifacts and make the reset the only documented UI truth.
 
-    [ ] 101.3.1 Task - Clean up superseded modules and tests.
+    [x] 101.3.1 Task - Clean up superseded modules and tests.
       Delete drift-prone leftovers after coverage proves the replacement behavior.
 
-      [ ] 101.3.1.1 Subtask - Remove unused operator-navigation, subject-tree, DaisyUI utility, and old Vue-widget modules.
-      [ ] 101.3.1.2 Subtask - Replace or delete tests that assert old markup instead of product behavior.
-      [ ] 101.3.1.3 Subtask - Remove generated public assets or stale lockfile entries that are no longer part of the new stack.
+      [x] 101.3.1.1 Subtask - Remove unused operator-navigation, subject-tree, DaisyUI utility, and old Vue-widget modules.
+      [x] 101.3.1.2 Subtask - Replace or delete tests that assert old markup instead of product behavior.
+      [x] 101.3.1.3 Subtask - Remove generated public assets or stale lockfile entries that are no longer part of the new stack.
 
-    [ ] 101.3.2 Task - Align specs, decisions, and planning notes.
+    [x] 101.3.2 Task - Align specs, decisions, and planning notes.
       Make the UI reset visible in the repo’s current-truth surfaces.
 
-      [ ] 101.3.2.1 Subtask - Update frontend architecture specs or docs to supersede Phase 12 through Phase 15 incremental adoption language where it conflicts with the reset.
-      [ ] 101.3.2.2 Subtask - Update operator-surface guidance to describe the area button menu shell instead of the old subject-tree shell.
-      [ ] 101.3.2.3 Subtask - Add a chronology note explaining that Phases 97 through 101 supersede the previous DaisyUI and subject-tree UI implementation.
+      [x] 101.3.2.1 Subtask - Update frontend architecture specs or docs to supersede Phase 12 through Phase 15 incremental adoption language where it conflicts with the reset.
+      [x] 101.3.2.2 Subtask - Update operator-surface guidance to describe the area button menu shell instead of the old subject-tree shell.
+      [x] 101.3.2.3 Subtask - Add a chronology note explaining that Phases 97 through 101 supersede the previous DaisyUI and subject-tree UI implementation.
 
   [ ] 101.4 Section - Integration Tests
     End the track with end-to-end verification that the reset is complete and durable.

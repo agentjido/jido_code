@@ -13,7 +13,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   alias JidoCode.Orchestration.RunPubSub
   alias JidoCode.ManagedRepoRoutes
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   alias JidoCode.Workbench.{
     FixWorkflowKickoff,
@@ -268,7 +268,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
       active_area={:workbench}
       area_panel={JidoCodeWeb.AreaPanels.panel_for(:workbench)}
     >
-      <.single_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
+      <.route_pane_shell id="workbench-shell" breadcrumbs={workbench_breadcrumbs()} pane={workbench_pane()}>
         <section class="space-y-4">
           <div class="space-y-2">
             <p
@@ -504,19 +504,19 @@ defmodule JidoCodeWeb.WorkbenchLive do
             Apply filters
           </button>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
 
   defp workbench_breadcrumbs do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "workbench-breadcrumb-dashboard-work",
         label: "Dashboard Work",
         navigate: ManagedRepoRoutes.dashboard_work_overview_path()
       }),
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "workbench-breadcrumb-current",
         label: "Workbench",
         current?: true
@@ -525,7 +525,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   end
 
   defp workbench_pane do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "workbench-pane",
       title: "Managed repo specialist inventory",
       summary:

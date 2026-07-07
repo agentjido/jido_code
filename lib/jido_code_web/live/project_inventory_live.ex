@@ -4,7 +4,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Workbench.Inventory
-  alias JidoCodeWeb.OperatorShell
+  alias JidoCodeWeb.RouteShell
 
   @default_branch_filter_value "all"
   @default_filter_values %{
@@ -62,7 +62,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
       active_area={:repositories}
       area_panel={JidoCodeWeb.AreaPanels.panel_for(:repositories)}
     >
-      <.single_pane_shell
+      <.route_pane_shell
         id="project-inventory-shell"
         breadcrumbs={project_inventory_breadcrumbs()}
         pane={project_inventory_pane()}
@@ -162,14 +162,14 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
             Apply filters
           </button>
         </:footer_actions>
-      </.single_pane_shell>
+      </.route_pane_shell>
     </Layouts.app>
     """
   end
 
   defp project_inventory_breadcrumbs do
     [
-      OperatorShell.breadcrumb(%{
+      RouteShell.breadcrumb(%{
         id: "project-inventory-breadcrumb-current",
         label: "Repositories",
         current?: true
@@ -178,7 +178,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   end
 
   defp project_inventory_pane do
-    OperatorShell.pane(%{
+    RouteShell.pane(%{
       id: "project-inventory-pane",
       title: "Managed repository inventory",
       summary: "Search and filter imported repositories, then open repo detail."

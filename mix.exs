@@ -189,7 +189,7 @@ defmodule JidoCode.MixProject do
        git: "https://github.com/pcharbon70/triple_store.git",
        ref: "ff3665c4f8e6bbb0e68f966d88d5d9e952e4de2a",
        override: true},
-      {:rocksdb, "~> 2.6", override: true},
+      {:rocksdb, "~> 3.1", override: true},
 
       # Product-specific Jido integrations
       {:gettext, "~> 0.26", override: true},

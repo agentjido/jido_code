@@ -38,6 +38,10 @@ defmodule JidoCode.MixProject do
         summary: [threshold: 60],
         export: "cov"
       ],
+      # Cowlib and Gun do not have patched Hex releases for these advisories.
+      hex: [
+        ignore_advisories: ["CVE-2026-43971", "CVE-2026-43969", "CVE-2026-43966"]
+      ],
       dialyzer: [
         plt_local_path: "priv/plts/project.plt",
         plt_core_path: "priv/plts/core.plt"
@@ -156,6 +160,7 @@ defmodule JidoCode.MixProject do
 
       # HTTP & API
       {:req, "~> 0.5"},
+      {:hackney, "~> 4.7", override: true},
       {:open_api_spex, "~> 3.0"},
       {:plug_canonical_host, "~> 2.0"},
 
@@ -198,6 +203,7 @@ defmodule JidoCode.MixProject do
       {:sprites, git: "https://github.com/mikehostetler/sprites-ex.git", override: true},
 
       # Utilities
+      {:decimal, "~> 3.1", override: true},
       {:dotenvy, "~> 1.1"},
       {:live_toast, "~> 0.8"},
       {:jason, "~> 1.2"},

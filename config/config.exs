@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :tzdata, :autoupdate, :disabled
+
 config :live_vue, ssr: true
 
 config :phoenix_vite, PhoenixVite.Npm,

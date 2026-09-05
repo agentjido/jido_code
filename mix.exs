@@ -174,7 +174,7 @@ defmodule JidoCode.MixProject do
       # Observability & monitoring
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.0"},
 
       # Jido runtime stack
       # Mix conflict resolution still needs root-level pins for the directly used core packages.

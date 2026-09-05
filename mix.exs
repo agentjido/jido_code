@@ -214,7 +214,7 @@ defmodule JidoCode.MixProject do
       # Development & testing
       {:sourceror, "~> 1.8"},
       {:lazy_html, ">= 0.1.0"},
-      {:tidewave, "~> 0.5.6", only: [:dev]},
+      {:tidewave, "~> 0.9.0", only: [:dev]},
       # TODO: re-enable once startup perf is fixed (v0.6.0 adds ~28s to boot)
       # {:live_debugger, "~> 0.5", only: [:dev]},
 

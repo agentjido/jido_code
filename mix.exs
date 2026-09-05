@@ -143,7 +143,7 @@ defmodule JidoCode.MixProject do
       {:live_vue, "~> 1.0"},
       {:salad_ui, "~> 1.0.0-beta.3"},
       # SaladUI uses Igniter for setup tasks; keep it on the Elixir 1.18-compatible line.
-      {:igniter, "~> 0.7.9", override: true},
+      {:igniter, "~> 0.8.3", override: true},
       {:phoenix_vite, "~> 0.4"},
       {:nodejs, "~> 3.1"},
       # Core framework
